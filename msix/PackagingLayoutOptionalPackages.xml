@@ -1,0 +1,28 @@
+<PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
+  <PackageFamily ID="Julia-1.4.2" Optional="true" ManifestPath="julia-1.4.2-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.4.2.x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.2\**"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+  </PackageFamily>
+
+  <PackageFamily ID="Julia-1.4.1" Optional="true" ManifestPath="julia-1.4.1-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.4.1.x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.1\**"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+  </PackageFamily>
+
+  <PackageFamily ID="Julia-1.4.0" Optional="true" ManifestPath="julia-1.4.0-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.4.0.x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.0\**"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+  </PackageFamily>
+</PackagingLayout>

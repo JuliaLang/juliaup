@@ -1,0 +1,20 @@
+<PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
+  <!-- Main game -->
+  <PackageFamily ID="Julia" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    
+    <!-- x64 code package-->
+    <Package ID="Julia-x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\julia.exe" SourcePath="..\x64\Release\julia.exe"/>
+        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup.exe"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+
+    
+  </PackageFamily>
+
+  <PrebuiltPackage Path="..\output\optional\Julia-1.4.0.appxbundle" />
+  <PrebuiltPackage Path="..\output\optional\Julia-1.4.1.appxbundle" />
+  <PrebuiltPackage Path="..\output\optional\Julia-1.4.2.appxbundle" />
+</PackagingLayout>

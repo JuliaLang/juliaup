@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap uap3 rescap">
+
+  <Identity
+    Name="Julia"
+    Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>Julia</DisplayName>
+    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00.UWPDesktop" MinVersion="14.0.27810.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"/>
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="Julia"
+      Executable="Julia\julia.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Julia"
+        Description="Julia is a high-level, high-performance, dynamic programming language"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.scale-100.png"
+        Square44x44Logo="Images\Square44x44Logo.scale-100.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julia.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="julia.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="JuliaUp"
+      Executable="Julia\juliaup.exe"
+      EntryPoint="Windows.FullTrustApplication"> 
+      <uap:VisualElements
+        DisplayName="JuliaUp"
+        Description="Julia version management"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.scale-100.png"
+        Square44x44Logo="Images\Square44x44Logo.scale-100.png"
+        AppListEntry="none">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
+      </uap:VisualElements>     
+      <Extensions>
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="juliaup.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient"/>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="packageManagement" />
+    <rescap:Capability Name="packageQuery" />    
+  </Capabilities>
+</Package>
