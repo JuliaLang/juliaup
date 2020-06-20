@@ -90,11 +90,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	if (!foundJuliaVersion) {
 		auto catalog = PackageCatalog::OpenForCurrentPackage();
 
-		//auto packageToInstall = L"Julia-" + juliaVersionToUse;
+		// auto packageToInstall = L"Julia-" + juliaVersionToUse+ L"_m018azp39xxy8";
 
+		// For now use a hard-coded package family identifier until we understand how this API
+		// actually works
 		auto packageToInstall = L"Julia-1.4.2_m018azp39xxy8";
-
-		// L"Julia-1.4.2_1.0.0.0_x64__m018azp39xxy8"
 
 		std::wcout << "Trying to intall `" << packageToInstall << "`." << std::endl;
 
