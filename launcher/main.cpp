@@ -92,7 +92,9 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 		//auto packageToInstall = L"Julia-" + juliaVersionToUse;
 
-		auto packageToInstall = L"Julia-1.4.2_q8kj7cmpc08kc";
+		auto packageToInstall = L"Julia-1.4.2_m018azp39xxy8";
+
+		// L"Julia-1.4.2_1.0.0.0_x64__m018azp39xxy8"
 
 		std::wcout << "Trying to intall `" << packageToInstall << "`." << std::endl;
 
