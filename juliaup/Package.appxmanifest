@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5" 
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" 
+  xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" 
+  IgnorableNamespaces="uap mp uap5 iot2 desktop4">
+
+  <Identity
+    Name="Julia"
+    Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+    Version="1.0.0.0" />
+
+  <mp:PhoneIdentity PhoneProductId="54729766-638f-49a5-862c-3c25989a7455" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>Julia</DisplayName>
+    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.0.0" MaxVersionTested="10.0.0.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="juliaup.App"
+      desktop4:Subsystem="console" 
+      desktop4:SupportsMultipleInstances="true" 
+      iot2:Subsystem="console" 
+      iot2:SupportsMultipleInstances="true" 
+      >
+      <uap:VisualElements
+        DisplayName="juliaup"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        Description="juliaup"
+        BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"/>
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      
+      <Extensions>
+          <uap5:Extension 
+            Category="windows.appExecutionAlias" 
+            Executable="juliaup.exe" 
+            EntryPoint="juliaup.App">
+            <uap5:AppExecutionAlias desktop4:Subsystem="console" iot2:Subsystem="console">
+              <uap5:ExecutionAlias Alias="juliaup.exe" />
+            </uap5:AppExecutionAlias>
+          </uap5:Extension>
+      </Extensions>
+      
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+  </Capabilities>
+</Package>
