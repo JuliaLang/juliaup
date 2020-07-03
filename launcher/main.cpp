@@ -88,28 +88,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	}
 
 	if (!foundJuliaVersion) {
-		auto catalog = PackageCatalog::OpenForCurrentPackage();
-
-		// auto packageToInstall = L"Julia-" + juliaVersionToUse+ L"_m018azp39xxy8";
-
-		// For now use a hard-coded package family identifier until we understand how this API
-		// actually works
-		auto packageToInstall = L"Julia-1.4.2_m018azp39xxy8";
-
-		std::wcout << "Trying to intall `" << packageToInstall << "`." << std::endl;
-
-		auto res = catalog.AddOptionalPackageAsync(packageToInstall).get();
-
-		auto err = hresult_error(res.ExtendedError());
-
-		std::wcout << err.message().c_str() << std::endl;
-
-		std::wcout << res.ExtendedError() << std::endl;
-
-		std::wcout << L"Julia version " << juliaVersionToUse << L" is not installed." << std::endl;
-
-		std::string str;
-		std::getline(std::cin, str);
+		std::wcout << L"Julia version " + juliaVersionToUse + L" is not installed on this system. Run:" << std::endl;
+		std::wcout << std::endl;
+		std::wcout << L"  juliaup add " + juliaVersionToUse << std::endl;
+		std::wcout << std::endl;
+		std::wcout << L"to install it." << std::endl;
 
 		return 1;
 	}
