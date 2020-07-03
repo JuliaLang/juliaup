@@ -5,12 +5,13 @@ using namespace Windows::Foundation;
 using namespace Windows::ApplicationModel;
 using namespace Windows::Storage;
 
-int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
-	init_apartment();
+int main()
+{
+	// init_apartment();
 
 	auto localSettings = ApplicationData::Current().LocalSettings();
 
-	if (argc == 1) {
+	if (__argc == 1) {
 		std::wcout << L"Julia Version Manager Preview" << std::endl;
 		std::wcout << std::endl;
 		std::wcout << L"juliaup command line utility enables configuration of the default Julia version from the command line." << std::endl;
@@ -28,11 +29,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		std::wcout << L"  --info        Display general info of the tool" << std::endl;
 		std::wcout << std::endl;
 	}
-	else if (argc > 1) {
-		auto firstArg = std::wstring_view(argv[1]);
+	else if (__argc > 1) {
+		auto firstArg = std::wstring_view(__wargv[1]);
 
 		if (firstArg == L"-v" || firstArg == L"--version") {
-			if (argc == 2) {
+			if (__argc == 2) {
 				// TODO Extract proper version from somewhere so that it is not hardcoded.
 				std::wcout << L"v1.0.0.0" << std::endl;
 			}
@@ -41,7 +42,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			}
 		}
 		else if (firstArg == L"--info") {
-			if (argc == 2) {
+			if (__argc == 2) {
 				std::wcout << L"Julia Version Manager Preview" << std::endl;
 				std::wcout << L"Copyright (c) David Anthoff" << std::endl;
 			}
@@ -50,14 +51,44 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			}
 		}
 		else if (firstArg == L"setdefault") {
-			if (argc == 3) {
-				auto secondArg = std::wstring{ argv[2] };
+			if (__argc == 3) {
+				auto secondArg = std::wstring{ __wargv[2] };
 
 				// TODO Come up with a less hardcoded version of this.
 				if (secondArg == L"1.4.2" || secondArg == L"1.4.1" || secondArg == L"1.4.0") {
 					localSettings.Values().Insert(L"version", box_value(winrt::hstring{ secondArg }));
 
 					std::wcout << L"Configured the default Julia version to be " << secondArg << L"." << std::endl;
+				}
+				else {
+					// TODO Come up with a less hardcoded version of this.
+					std::wcout << L"ERROR: '" << secondArg << L"' is not a valid Julia version. Valid values are '1.4.0', '1.4.1' or '1.4.2'." << std::endl;
+				}
+			}
+			else {
+				std::wcout << L"ERROR: The setdefault command only accepts one additional argument." << std::endl;
+			}
+		}
+		else if (firstArg == L"add") {
+			if (__argc == 3) {
+				auto secondArg = std::wstring{ __wargv[2] };
+
+				// TODO Come up with a less hardcoded version of this.
+				if (secondArg == L"1.4.2" || secondArg == L"1.4.1" || secondArg == L"1.4.0") {
+
+					auto catalog = PackageCatalog::OpenForCurrentPackage();
+
+					auto packageToInstall = L"Julia-" + secondArg + L"_m018azp39xxy8";
+
+					std::wcout << "Trying to intall `" << packageToInstall << "`." << std::endl;
+
+					auto res = catalog.AddOptionalPackageAsync(packageToInstall).get();
+
+					auto err = hresult_error(res.ExtendedError());
+
+					std::wcout << err.message().c_str() << std::endl;
+
+					std::wcout << res.ExtendedError() << std::endl;
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.

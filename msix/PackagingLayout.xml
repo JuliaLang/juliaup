@@ -6,7 +6,7 @@
     <Package ID="Julia-x64" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\x64\Release\julia.exe"/>
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup.exe"/>
+        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup\juliaup.exe"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
       </Files>
     </Package>
