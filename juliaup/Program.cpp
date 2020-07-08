@@ -25,7 +25,7 @@ int main()
 		std::cout << "  status        Show all installed Julia versions" << std::endl;
 		std::cout << "  remove        Remove a Julia version from your system" << std::endl;
 		std::cout << std::endl;
-		std::cout << "For more details on a specific command, pass it the help argument. [-?]" << std::endl;
+		std::cout << "For more details on a specific command, pass it the help argument. [-?] (not yet implemented)" << std::endl;
 		std::cout << std::endl;
 		std::cout << "The following options are available:" << std::endl;
 		std::cout << "  -v,--version  Display the version of the tool" << std::endl;
@@ -38,7 +38,7 @@ int main()
 		if (firstArg == "-v" || firstArg == "--version") {
 			if (__argc == 2) {
 				// TODO Extract proper version from somewhere so that it is not hardcoded.
-				std::cout << "v1.0.0.0" << std::endl;
+				std::cout << "v1.0.0.1" << std::endl;
 			}
 			else {
 				std::cout << "ERROR: The " << firstArg << " argument does not accept any additional arguments." << std::endl;
@@ -107,7 +107,7 @@ int main()
 				std::cout << "ERROR: The add command only accepts one additional argument." << std::endl;
 			}
 		}
-		else if (firstArg == "remove") {
+		else if (firstArg == "remove" || firstArg == "rm") {
 			if (__argc == 3) {
 				auto secondArg = std::string(__argv[2]);
 
@@ -159,7 +159,7 @@ int main()
 				std::cout << "ERROR: The remove command only accepts one additional argument." << std::endl;
 			}
 		}
-		else if (firstArg == "status") {
+		else if (firstArg == "status" || firstArg == "st") {
 			if (__argc == 2) {
 				std::cout << "The following Julia versions are currently installed:" << std::endl;
 
