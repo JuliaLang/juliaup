@@ -4,3 +4,4 @@
 #include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Storage.h>
 #include <iostream>
+#include "version.h"

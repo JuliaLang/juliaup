@@ -37,8 +37,7 @@ int main()
 
 		if (firstArg == "-v" || firstArg == "--version") {
 			if (__argc == 2) {
-				// TODO Extract proper version from somewhere so that it is not hardcoded.
-				std::cout << "v1.0.0.1" << std::endl;
+				std::cout << "v" << JULIA_APP_VERSION_MAJOR << "." << JULIA_APP_VERSION_MINOR << "." << JULIA_APP_VERSION_REVISION  << "." << JULIA_APP_VERSION_BUILD << std::endl;
 			}
 			else {
 				std::cout << "ERROR: The " << firstArg << " argument does not accept any additional arguments." << std::endl;

@@ -18,6 +18,13 @@ ri output\optional\*
 &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.4.2\libexec\*.dll
 &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.4.2\lib\julia\*.dll
 
+&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.5.0-rc1\bin\*.exe
+&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.5.0-rc1\bin\*.dll
+&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.5.0-rc1\libexec\*.exe
+&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.5.0-rc1\libexec\*.dll
+&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 optionalpackages\julia-1.5.0-rc1\lib\julia\*.dll
+
+
 push-location msix
 &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64\MakeAppx.exe" build /f PackagingLayoutOptionalPackages.xml /op ..\output\optional /pv 1.0.0.0 /bv 1.0.0.0
 pop-location

@@ -15,6 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="versionprep.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\LockScreenLogo.scale-200.png">
@@ -45,5 +48,8 @@
   <ItemGroup>
     <None Include="juliaup_TemporaryKey.pfx" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="juliaup.rc" />
   </ItemGroup>
 </Project>
