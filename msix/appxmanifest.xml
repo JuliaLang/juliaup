@@ -13,7 +13,7 @@
   IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 iot2">
 
   <Identity
-    Name="Julia"
+    Name="JuliaApp"
     Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
     Version="1.0.0.0" />
 

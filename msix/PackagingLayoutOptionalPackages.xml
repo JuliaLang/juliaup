@@ -1,36 +1,54 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
 
-  <PackageFamily ID="Julia-1.4.0" Optional="true" ManifestPath="julia-1.4.0-appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-1.4.0.x64" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.5.1" Optional="true" ManifestPath="julia-1.5.1-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.5.1.x64" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.0\**"/>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.5.1\**"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
       </Files>
     </Package>
   </PackageFamily>
 
-  <PackageFamily ID="Julia-1.4.1" Optional="true" ManifestPath="julia-1.4.1-appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-1.4.1.x64" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.5.2" Optional="true" ManifestPath="julia-1.5.2-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.5.2.x64" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.1\**"/>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.5.2\**"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
       </Files>
     </Package>
   </PackageFamily>
 
-  <PackageFamily ID="Julia-1.4.2" Optional="true" ManifestPath="julia-1.4.2-appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-1.4.2.x64" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.5.3" Optional="true" ManifestPath="julia-1.5.3-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.5.3.x64" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.4.2\**"/>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.5.3\**"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
       </Files>
     </Package>
   </PackageFamily>
 
-  <PackageFamily ID="Julia-1.5.0-rc1" Optional="true" ManifestPath="julia-1.5.0-rc1-appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-1.5.0-rc1.x64" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.5.4" Optional="true" ManifestPath="julia-1.5.4-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.5.4.x64" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.5.0-rc1\**"/>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.5.4\**"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+  </PackageFamily>
+
+  <PackageFamily ID="Julia-1.6.0" Optional="true" ManifestPath="julia-1.6.0-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.6.0.x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.6.0\**"/>
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+      </Files>
+    </Package>
+  </PackageFamily>
+
+  <PackageFamily ID="Julia-1.6.1" Optional="true" ManifestPath="julia-1.6.1-appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-1.6.1.x64" ProcessorArchitecture="x64">
+      <Files>
+        <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\julia-1.6.1\**"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
       </Files>
     </Package>

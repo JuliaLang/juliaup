@@ -64,7 +64,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	auto localSettings = ApplicationData::Current().LocalSettings();
 
-	std::wstring juliaVersionToUse = L"1.4.2";
+	std::wstring juliaVersionToUse = L"1.6.1";
 
 	if (localSettings.Values().HasKey(L"version")) {
 		juliaVersionToUse = unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version"));

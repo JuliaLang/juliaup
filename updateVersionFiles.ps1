@@ -15,5 +15,5 @@ $cVersionHeader | Out-File  -FilePath launcher/version.h
 [xml]$xmlDoc = Get-Content msix\Julia.appinstaller
 $xmlDoc.AppInstaller.Version = $version
 $xmlDoc.AppInstaller.MainBundle.Version = $version
-$xmlDoc.AppInstaller.MainBundle.Uri = "https://winjulia.s3-us-west-1.amazonaws.com/Julia-$version/Julia.appxbundle"
+$xmlDoc.AppInstaller.MainBundle.Uri = "https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp.appxbundle"
 $xmlDoc.Save("msix\Julia.appinstaller")

@@ -57,14 +57,14 @@ int main()
 				auto secondArg = std::string_view{ __argv[2] };
 
 				// TODO Come up with a less hardcoded version of this.
-				if (secondArg == "1.4.2" || secondArg == "1.4.1" || secondArg == "1.4.0") {
+				if (secondArg == "1.6.1" || secondArg == "1.6.0" || secondArg == "1.5.4" || secondArg == "1.5.3" || secondArg == "1.5.2" || secondArg == "1.5.1") {
 					localSettings.Values().Insert(L"version", box_value(winrt::to_hstring(secondArg)));
 
 					std::cout << "Configured the default Julia version to be " << secondArg << "." << std::endl;
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.
-					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.4.0', '1.4.1' or '1.4.2'." << std::endl;
+					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
 				}
 			}
 			else {
@@ -76,7 +76,7 @@ int main()
 				auto secondArg = std::string(__argv[2]);
 
 				// TODO Come up with a less hardcoded version of this.
-				if (secondArg == "1.4.2" || secondArg == "1.4.1" || secondArg == "1.4.0") {
+				if (secondArg == "1.6.1" || secondArg == "1.6.0" || secondArg == "1.5.4" || secondArg == "1.5.3" || secondArg == "1.5.2" || secondArg == "1.5.1") {
 
 					auto catalog = PackageCatalog::OpenForCurrentPackage();
 
@@ -99,7 +99,7 @@ int main()
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.
-					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.4.0', '1.4.1' or '1.4.2'." << std::endl;
+					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
 				}
 			}
 			else {
@@ -111,7 +111,7 @@ int main()
 				auto secondArg = std::string(__argv[2]);
 
 				// TODO Come up with a less hardcoded version of this.
-				if (secondArg == "1.4.2" || secondArg == "1.4.1" || secondArg == "1.4.0") {
+				if (secondArg == "1.6.1" || secondArg == "1.6.0" || secondArg == "1.5.4" || secondArg == "1.5.3" || secondArg == "1.5.2" || secondArg == "1.5.1") {
 					auto juliaVersionToUninstall = secondArg;
 
 					auto allInstalledDeps = Package::Current().Dependencies();
@@ -151,7 +151,7 @@ int main()
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.
-					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.4.0', '1.4.1' or '1.4.2'." << std::endl;
+					std::cout << "ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
 				}
 			}
 			else {
