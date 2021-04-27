@@ -1,0 +1,8 @@
+{
+    "profiles": [
+        {
+            "name": "Julia",
+            "commandline": "julia.exe"
+        }
+    ]
+}

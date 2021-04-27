@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<Package
-  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" 
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5" 
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
-  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" 
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
-  xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2"
-  IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
+  xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity
-    Name="JuliaApp"
-    Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
-    Version="1.0.0.0" />
+  <Identity Name="JuliaApp" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="1.0.0.0" />
 
   <Properties>
     <DisplayName>Julia</DisplayName>
@@ -36,15 +31,8 @@
   </Resources>
 
   <Applications>
-    <Application Id="Julia"
-      Executable="Julia\julia.exe"
-      EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements
-        DisplayName="Julia"
-        Description="Julia is a high-level, high-performance, dynamic programming language"
-        BackgroundColor="transparent"
-        Square150x150Logo="Images\Square150x150Logo.scale-100.png"
-        Square44x44Logo="Images\Square44x44Logo.scale-100.png">
+    <Application Id="Julia" Executable="Julia\julia.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="Julia" Description="Julia is a high-level, high-performance, dynamic programming language" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.scale-100.png" Square44x44Logo="Images\Square44x44Logo.scale-100.png">
         <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
         <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
       </uap:VisualElements>
@@ -54,25 +42,17 @@
             <desktop:ExecutionAlias Alias="julia.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
+        <uap3:Extension Category="windows.appExtension">
+          <uap3:AppExtension Name="com.microsoft.windows.terminal.settings" Id="Julia" PublicFolder="Public" DisplayName="Julia">
+          </uap3:AppExtension>
+        </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="JuliaUp"
-      Executable="Julia\juliaup.exe"
-      EntryPoint="juliaup.App"
-      desktop4:Subsystem="console"
-      desktop4:SupportsMultipleInstances="true"
-      iot2:Subsystem="console"
-      iot2:SupportsMultipleInstances="true"> 
-      <uap:VisualElements
-        DisplayName="JuliaUp"
-        Description="Julia version management"
-        BackgroundColor="transparent"
-        Square150x150Logo="Images\Square150x150Logo.scale-100.png"
-        Square44x44Logo="Images\Square44x44Logo.scale-100.png"
-        AppListEntry="none">
+    <Application Id="JuliaUp" Executable="Julia\juliaup.exe" EntryPoint="juliaup.App" desktop4:Subsystem="console" desktop4:SupportsMultipleInstances="true" iot2:Subsystem="console" iot2:SupportsMultipleInstances="true">
+      <uap:VisualElements DisplayName="JuliaUp" Description="Julia version management" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.scale-100.png" Square44x44Logo="Images\Square44x44Logo.scale-100.png" AppListEntry="none">
         <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
         <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
-      </uap:VisualElements>     
+      </uap:VisualElements>
       <Extensions>
         <uap5:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="juliaup.App">
           <uap5:AppExecutionAlias desktop4:Subsystem="console" iot2:Subsystem="console">

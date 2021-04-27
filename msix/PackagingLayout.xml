@@ -8,6 +8,7 @@
         <File DestinationPath="Julia\julia.exe" SourcePath="..\x64\Release\julia.exe"/>
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup\juliaup.exe"/>
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
+        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json"/>
       </Files>
     </Package>
 
