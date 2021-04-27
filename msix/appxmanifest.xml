@@ -9,8 +9,9 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4" 
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2"
-  IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 iot2">
+  IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
   <Identity
     Name="JuliaApp"
@@ -86,6 +87,6 @@
     <Capability Name="internetClient"/>
     <rescap:Capability Name="runFullTrust" />
     <rescap:Capability Name="packageManagement" />
-    <rescap:Capability Name="packageQuery" />    
+    <rescap:Capability Name="packageQuery" />
   </Capabilities>
 </Package>
