@@ -2,7 +2,7 @@ mkdir -Force output\optional
 
 Remove-Item output\optional\*
 
-@('1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0', '1.6.1') | ForEach-Object {
+@('1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0', '1.6.1') | ForEach-Object -Parallel {
     &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 "optionalpackages\julia-$($_)\bin\*.exe"
     &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 "optionalpackages\julia-$($_)\bin\*.dll"
     &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 "optionalpackages\julia-$($_)\libexec\*.exe"
