@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2" Version="1.0.0.8" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia.appinstaller">
-  <MainBundle Name="JuliaApp" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="1.0.0.8" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp.appxbundle" />
+<AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2" Version="1.0.0.14" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia.appinstaller">
+  <MainBundle Name="JuliaApp" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="1.0.0.14" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp.appxbundle" />
   <OptionalPackages>
     <Bundle Name="Julia-1.6.1" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="1.0.0.0" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-1.6.1.appxbundle" />
   </OptionalPackages>
