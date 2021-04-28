@@ -1,20 +1,16 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
   <!-- Main game -->
-  <PackageFamily ID="JuliaApp" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    
+  <PackageFamily ID="JuliaApp-1.0.0.16" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
     <!-- x64 code package-->
-    <Package ID="JuliaApp-x64" ProcessorArchitecture="x64">
+    <Package ID="JuliaApp-x64-1.0.0.16" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\julia.exe" SourcePath="..\x64\Release\julia.exe"/>
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup\juliaup.exe"/>
-        <File DestinationPath="Images\*.png" SourcePath="Images\*.png"/>
-        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json"/>
+        <File DestinationPath="Julia\julia.exe" SourcePath="..\x64\Release\julia.exe" />
+        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\x64\Release\juliaup\juliaup.exe" />
+        <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
+        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
       </Files>
     </Package>
-
-    
   </PackageFamily>
-
   <PrebuiltPackage Path="..\output\optional\Julia-1.5.1.appxbundle" />
   <PrebuiltPackage Path="..\output\optional\Julia-1.5.2.appxbundle" />
   <PrebuiltPackage Path="..\output\optional\Julia-1.5.3.appxbundle" />
