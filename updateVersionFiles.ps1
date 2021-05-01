@@ -17,13 +17,22 @@ $appInstaller = [xml]@"
   <OptionalPackages>
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
+        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />                 
+        ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </OptionalPackages>
-  <RelatedPackages>
+  <RelatedPackages> 
+    $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
+        $juliaVersion = [version]$_.JuliaVersion
+        '
+        <Bundle Name="Julia-x86-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
+    })   
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $FALSE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
+        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />
+        <Bundle Name="Julia-x86-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </RelatedPackages>
   <Dependencies>
@@ -61,7 +70,10 @@ $packageLayout = [xml]@"
   </PackageFamily>
   $($versions.OptionalJuliaPackages | % {
     $juliaVersion = [version]$_.JuliaVersion
-    '<PrebuiltPackage Path="..\output\optional\Julia-{0}-{1}.appxbundle" />' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
+    '
+    <PrebuiltPackage Path="..\output\optional\Julia-{0}-{1}.appxbundle" />
+    <PrebuiltPackage Path="..\output\optional\Julia-x86-{0}-{1}.appxbundle" />
+    ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
   })
 </PackagingLayout>
 "@
@@ -84,7 +96,22 @@ $packageLayoutOptionalPackages = [xml]@"
                     <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
                 </Files>
             </Package>            
-        </PackageFamily>' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
+        </PackageFamily>
+        <PackageFamily ID="Julia-x86-{0}-{1}" Optional="true" ManifestPath="julia-x86-{0}-appxmanifest.xml" ResourceManager="false">
+            <Package ID="Julia-x86-{0}-x64-{1}" ProcessorArchitecture="x64">
+                <Files>
+                    <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\win32\julia-{0}\**" />
+                    <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
+                </Files>
+            </Package>
+            <Package ID="Julia-x86-{0}-x86-{1}" ProcessorArchitecture="x86">
+                <Files>
+                    <File DestinationPath="Julia\**" SourcePath="..\optionalpackages\win32\julia-{0}\**" />
+                    <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
+                </Files>
+            </Package>            
+        </PackageFamily>
+        ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
 </PackagingLayout>
 "@
@@ -119,4 +146,45 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
   </Package>
 "@
   $appmanifest.Save("msix/julia-$shortJuliaVersion-appxmanifest.xml")
+
+  $appmanifestx86 = [xml]@"
+<?xml version="1.0" encoding="utf-8"?>
+    <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" 
+      xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" 
+      xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+      xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+      xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
+      <Identity Name="Julia-x86-$shortJuliaVersion" Version="$packageversion" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" ProcessorArchitecture="neutral" />
+      <Properties>
+          <DisplayName>Julia $shortJuliaVersion (32 bit)</DisplayName>
+          <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+          <Description>Julia is a high-level, high-performance, dynamic programming language</Description>
+          <Logo>Images/StoreLogo.png</Logo>
+      </Properties>
+      <Resources>
+          <Resource Language="en-us" />
+      </Resources>
+      <Dependencies>
+          <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+          <uap3:MainPackageDependency Name="JuliaApp"/>
+      </Dependencies>
+    </Package>
+"@
+    $appmanifestx86.Save("msix/julia-x86-$shortJuliaVersion-appxmanifest.xml")  
 }
+
+$juliaVersionsCppFile = @"
+#include "pch.h"
+
+std::vector<JuliaVersion> JuliaVersionsDatabase::getJuliaVersions() {
+	std::vector<JuliaVersion> juliaVersions = { 
+    $($versions.OptionalJuliaPackages | % {
+      $parts = $_.JuliaVersion.Split('.')
+      "JuliaVersion{$($parts[0]), $($parts[1]), $($parts[2])}"
+    } | Join-String -Separator ', ')
+	};
+	return juliaVersions;
+}
+"@
+$juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
+$juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp

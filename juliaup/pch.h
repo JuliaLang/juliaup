@@ -5,3 +5,4 @@
 #include <winrt/Windows.Storage.h>
 #include <iostream>
 #include "version.h"
+#include "../shared/JuliaVersionDatabase.h"

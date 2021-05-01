@@ -1,5 +1,7 @@
 mkdir -Force output\optional
 
+Remove-Item output\optional\*
+
 Remove-Item output\optional\Microsoft*.appx
 
 $versions = Get-Content versions.json | ConvertFrom-Json
@@ -22,6 +24,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
 
     push-location msix
     &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /o /id "Julia-$juliaVersion-$version" /f PackagingLayoutOptionalPackages.xml /op ..\output\optional /pv $version /bv $version /bc
+    &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /o /id "Julia-x86-$juliaVersion-$version" /f PackagingLayoutOptionalPackages.xml /op ..\output\optional /pv $version /bv $version /bc
     pop-location
 }
 

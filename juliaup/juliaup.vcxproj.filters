@@ -12,12 +12,14 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="Program.cpp" />
+    <ClCompile Include="generatedjuliaversions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="versionprep.h" />
     <ClInclude Include="version.h" />
+    <ClInclude Include="..\shared\JuliaVersionDatabase.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\LockScreenLogo.scale-200.png">
