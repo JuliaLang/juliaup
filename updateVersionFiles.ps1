@@ -183,6 +183,19 @@ std::vector<JuliaVersion> JuliaVersionsDatabase::getJuliaVersions() {
       "JuliaVersion{$($parts[0]), $($parts[1]), $($parts[2])}"
     } | Join-String -Separator ', ')
 	};
+  std::sort(juliaVersions.begin(), juliaVersions.end(), [](const JuliaVersion& a, const JuliaVersion& b) {
+		if (a.major == b.major) {
+			if (a.minor == b.minor) {
+				return a.patch < b.patch;
+			}
+			else {
+				return a.minor < b.minor;
+			}
+		}
+		else {
+			return a.major < b.major;
+		}
+	});
 	return juliaVersions;
 }
 "@
