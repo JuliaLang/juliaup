@@ -74,6 +74,8 @@ HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR curren
 int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	init_apartment();
 
+	SetConsoleTitle(L"Julia");
+
 	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
 	auto localSettings = ApplicationData::Current().LocalSettings();
@@ -113,6 +115,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 				auto juliaBinaryStorageLocation = v.InstalledLocation().GetFileAsync(L"Julia\\bin\\julia.exe").get();
 				julia_path = juliaBinaryStorageLocation.Path();
 				foundJuliaVersion = true;
+				SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
 				break;
 			}
 		}
@@ -164,6 +167,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 						julia_path = juliaBinaryStorageLocation.Path();
 						foundLatestJuliaVersionForChannel = i==0;
 						foundAnyJuliaVersionForChannel = true;
+						SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
 						break;
 					}
 				}
