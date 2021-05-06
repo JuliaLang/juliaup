@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
-  <Identity Name="Julia-1.5.1" Version="1.0.0.4" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" ProcessorArchitecture="neutral" />
+  <Identity Name="Julia-1.5.1" Version="1.0.0.4" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" ProcessorArchitecture="neutral" />
   <Properties>
     <DisplayName>Julia 1.5.1</DisplayName>
-    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
     <Description>Julia is a high-level, high-performance, dynamic programming language</Description>
     <Logo>Images/StoreLogo.png</Logo>
   </Properties>

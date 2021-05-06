@@ -13,11 +13,11 @@ $cVersionHeader | Out-File  -FilePath launcher/version.h
 $appInstaller = [xml]@"
 <?xml version="1.0" encoding="utf-8"?>
 <AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia.appinstaller">
-  <MainBundle Name="JuliaApp" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp-$($versions.JuliaAppPackage.Version).appxbundle" />
+  <MainBundle Name="JuliaApp" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp-$($versions.JuliaAppPackage.Version).appxbundle" />
   <OptionalPackages>
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />                 
+        '<Bundle Name="Julia-{0}" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />                 
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </OptionalPackages>
@@ -25,13 +25,13 @@ $appInstaller = [xml]@"
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
         $juliaVersion = [version]$_.JuliaVersion
         '
-        <Bundle Name="Julia-x86-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        <Bundle Name="Julia-x86-{0}" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })   
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $FALSE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />
-        <Bundle Name="Julia-x86-{0}" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        '<Bundle Name="Julia-{0}" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />
+        <Bundle Name="Julia-x86-{0}" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </RelatedPackages>
@@ -129,10 +129,10 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
     xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
     xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
     xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
-    <Identity Name="Julia-$shortJuliaVersion" Version="$packageversion" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" ProcessorArchitecture="neutral" />
+    <Identity Name="Julia-$shortJuliaVersion" Version="$packageversion" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" ProcessorArchitecture="neutral" />
     <Properties>
         <DisplayName>Julia $shortJuliaVersion</DisplayName>
-        <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+        <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
         <Description>Julia is a high-level, high-performance, dynamic programming language</Description>
         <Logo>Images/StoreLogo.png</Logo>
     </Properties>
@@ -154,10 +154,10 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
       xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
       xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
       xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
-      <Identity Name="Julia-x86-$shortJuliaVersion" Version="$packageversion" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" ProcessorArchitecture="neutral" />
+      <Identity Name="Julia-x86-$shortJuliaVersion" Version="$packageversion" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" ProcessorArchitecture="neutral" />
       <Properties>
           <DisplayName>Julia $shortJuliaVersion (32 bit)</DisplayName>
-          <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+          <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
           <Description>Julia is a high-level, high-performance, dynamic programming language</Description>
           <Logo>Images/StoreLogo.png</Logo>
       </Properties>

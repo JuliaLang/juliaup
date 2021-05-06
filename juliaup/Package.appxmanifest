@@ -11,14 +11,14 @@
 
   <Identity
     Name="Julia"
-    Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+    Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="54729766-638f-49a5-862c-3c25989a7455" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Julia</DisplayName>
-    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
