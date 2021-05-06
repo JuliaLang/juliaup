@@ -50,8 +50,8 @@ $appInstaller.Save("msix\Julia.appinstaller")
 
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="JuliaComputingInc.Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="JuliaComputingInc.Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
@@ -59,7 +59,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
       </Files>
     </Package>
-    <Package ID="JuliaComputingInc.Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
+    <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
