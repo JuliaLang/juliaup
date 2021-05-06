@@ -11,7 +11,7 @@
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity Name="JuliaApp" Publisher="CN = Julia Computing, Inc., O = Julia Computing, Inc., STREET = 20 Garland Road, L = Newton, S = MA, PostalCode = 02459, C = US" Version="1.0.0.0" ProcessorArchitecture="neutral"/>
+  <Identity Name="JuliaApp" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="1.0.0.0" ProcessorArchitecture="neutral"/>
 
   <Properties>
     <DisplayName>Julia</DisplayName>
