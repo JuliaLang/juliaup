@@ -1,6 +1,6 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="JuliaApp-1.0.0.0" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="JuliaApp-x64-1.0.0.0" ProcessorArchitecture="x64">
+  <PackageFamily ID="JuliaComputingInc.Julia-1.0.0.0" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="JuliaComputingInc.Julia-x64-1.0.0.0" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
@@ -8,7 +8,7 @@
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
       </Files>
     </Package>
-    <Package ID="JuliaApp-x86-1.0.0.0" ProcessorArchitecture="x86">
+    <Package ID="JuliaComputingInc.Julia-x86-1.0.0.0" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />

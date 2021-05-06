@@ -13,11 +13,11 @@ $cVersionHeader | Out-File  -FilePath launcher/version.h
 $appInstaller = [xml]@"
 <?xml version="1.0" encoding="utf-8"?>
 <AppInstaller xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia.appinstaller">
-  <MainBundle Name="JuliaApp" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaApp-$($versions.JuliaAppPackage.Version).appxbundle" />
+  <MainBundle Name="JuliaComputingInc.Julia" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="$($versions.JuliaAppPackage.Version)" Uri="https://winjulia.s3-us-west-1.amazonaws.com/JuliaComputingInc.Julia-$($versions.JuliaAppPackage.Version).appxbundle" />
   <OptionalPackages>
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />                 
+        '<Bundle Name="Julia-{0}" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />                 
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </OptionalPackages>
@@ -25,13 +25,13 @@ $appInstaller = [xml]@"
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $TRUE} | % {
         $juliaVersion = [version]$_.JuliaVersion
         '
-        <Bundle Name="Julia-x86-{0}" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        <Bundle Name="Julia-x86-{0}" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })   
     $($versions.OptionalJuliaPackages | ? {$_.IncludeByDefault -eq $FALSE} | % {
         $juliaVersion = [version]$_.JuliaVersion
-        '<Bundle Name="Julia-{0}" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />
-        <Bundle Name="Julia-x86-{0}" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
+        '<Bundle Name="Julia-{0}" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-{0}-{1}.appxbundle" />
+        <Bundle Name="Julia-x86-{0}" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="{1}" Uri="https://winjulia.s3-us-west-1.amazonaws.com/Julia-x86-{0}-{1}.appxbundle" />
         ' -f "$($juliaVersion.major).$($juliaVersion.minor).$($juliaVersion.build)", $_.Version
     })
   </RelatedPackages>
@@ -50,8 +50,8 @@ $appInstaller.Save("msix\Julia.appinstaller")
 
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="JuliaApp-$($versions.JuliaAppPackage.Version)" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="JuliaApp-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
+  <PackageFamily ID="JuliaComputingInc.Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="JuliaComputingInc.Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
@@ -59,7 +59,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
       </Files>
     </Package>
-    <Package ID="JuliaApp-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
+    <Package ID="JuliaComputingInc.Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
@@ -129,7 +129,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
     xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
     xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
     xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
-    <Identity Name="Julia-$shortJuliaVersion" Version="$packageversion" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" ProcessorArchitecture="neutral" />
+    <Identity Name="Julia-$shortJuliaVersion" Version="$packageversion" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" ProcessorArchitecture="neutral" />
     <Properties>
         <DisplayName>Julia $shortJuliaVersion</DisplayName>
         <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
@@ -141,7 +141,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
     </Resources>
     <Dependencies>
         <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
-        <uap3:MainPackageDependency Name="JuliaApp"/>
+        <uap3:MainPackageDependency Name="JuliaComputingInc.Julia"/>
     </Dependencies>
   </Package>
 "@
@@ -154,7 +154,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
       xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
       xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
       xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap3">
-      <Identity Name="Julia-x86-$shortJuliaVersion" Version="$packageversion" Publisher="CN=&quot;Julia Computing, Inc.&quot;, O=&quot;Julia Computing, Inc.&quot;, STREET=20 Garland Road, L=Newton, S=MA, PostalCode=02459, C=US" ProcessorArchitecture="neutral" />
+      <Identity Name="Julia-x86-$shortJuliaVersion" Version="$packageversion" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" ProcessorArchitecture="neutral" />
       <Properties>
           <DisplayName>Julia $shortJuliaVersion (32 bit)</DisplayName>
           <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
@@ -166,7 +166,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
       </Resources>
       <Dependencies>
           <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
-          <uap3:MainPackageDependency Name="JuliaApp"/>
+          <uap3:MainPackageDependency Name="JuliaComputingInc.Julia"/>
       </Dependencies>
     </Package>
 "@
