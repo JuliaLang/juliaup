@@ -96,7 +96,7 @@ int main()
 					std::vector<std::string> parts;
 					tokenize(secondArg, '-', parts);
 					
-					auto packageToInstall = std::string("Julia-") + (parts.size()==2 ? (parts[1] + "-" + parts[0]) : secondArg) + "_m018azp39xxy8";
+					auto packageToInstall = std::string("Julia-") + (parts.size()==2 ? (parts[1] + "-" + parts[0]) : secondArg) + "_b0ra4bp6jsp6c";
 
 					std::cout << "Installing Julia " << secondArg << "." << std::endl;
 
@@ -148,7 +148,7 @@ int main()
 						auto fullVersionString = (parts.size() == 2 ? (parts[1] + "-" + publishedVersionsWeCouldUse[0]) : publishedVersionsWeCouldUse[0]);
 						auto fullVersionStringNice = (parts.size() == 2 ? (publishedVersionsWeCouldUse[0] + "-" + parts[1]) : publishedVersionsWeCouldUse[0]);
 
-						auto packageToInstall = std::string("Julia-") + fullVersionString + "_m018azp39xxy8";
+						auto packageToInstall = std::string("Julia-") + fullVersionString + "_b0ra4bp6jsp6c";
 
 						std::cout << "Installing Julia " << fullVersionStringNice << "." << std::endl;
 
@@ -203,7 +203,7 @@ int main()
 					}
 
 					if (foundJuliaVersion) {
-						auto packagesToUninstall{ winrt::single_threaded_vector<winrt::hstring>({ winrt::to_hstring(std::string("Julia-") + formattedJuliaVersionToUninstall + "_m018azp39xxy8") }) };
+						auto packagesToUninstall{ winrt::single_threaded_vector<winrt::hstring>({ winrt::to_hstring(std::string("Julia-") + formattedJuliaVersionToUninstall + "_b0ra4bp6jsp6c") }) };
 
 						auto catalog = PackageCatalog::OpenForCurrentPackage();
 
