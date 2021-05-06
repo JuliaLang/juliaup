@@ -9,3 +9,13 @@ $versions.OptionalJuliaPackages | % {[version]$_.JuliaVersion} | ForEach-Object 
     tar -xvzf "optionalpackages/julia-$($_)-win64.tar.gz" -C optionalpackages\win64
     tar -xvzf "optionalpackages/julia-$($_)-win32.tar.gz" -C optionalpackages\win32
 }
+
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x64.14.00.Desktop.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x86.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x86.14.00.Desktop.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm.14.00.Desktop.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm64.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm64.14.00.Desktop.appx"
+
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x64.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x64.14.00.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x86.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x86.14.00.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm.14.00.appx"
+Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm64.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm64.14.00.appx"
