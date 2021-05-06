@@ -14,8 +14,3 @@ Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx" -OutF
 Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x86.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x86.14.00.Desktop.appx"
 Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm.14.00.Desktop.appx"
 Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm64.14.00.Desktop.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm64.14.00.Desktop.appx"
-
-Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x64.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x64.14.00.appx"
-Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.x86.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.x86.14.00.appx"
-Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm.14.00.appx"
-Invoke-WebRequest "https://aka.ms/Microsoft.VCLibs.arm64.14.00.appx" -OutFile "optionalpackages/Microsoft.VCLibs.arm64.14.00.appx"

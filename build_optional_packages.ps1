@@ -35,7 +35,5 @@ copy-item optionalpackages\Microsoft.VCLibs.x86.14.00.Desktop.appx output\option
 copy-item optionalpackages\Microsoft.VCLibs.arm.14.00.Desktop.appx output\optional
 copy-item optionalpackages\Microsoft.VCLibs.arm64.14.00.Desktop.appx output\optional
 
-copy-item optionalpackages\Microsoft.VCLibs.x64.14.00.appx output\optional
-copy-item optionalpackages\Microsoft.VCLibs.x86.14.00.appx output\optional
-copy-item optionalpackages\Microsoft.VCLibs.arm.14.00.appx output\optional
-copy-item optionalpackages\Microsoft.VCLibs.arm64.14.00.appx output\optional
+copy-item "C:\Program Files (x86)\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs\14.0\Appx\Retail\x64\Microsoft.VCLibs.x64.14.00.appx" output\optional
+copy-item "C:\Program Files (x86)\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs\14.0\Appx\Retail\x86\Microsoft.VCLibs.x86.14.00.appx" output\optional
