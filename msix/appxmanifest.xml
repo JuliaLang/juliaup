@@ -17,6 +17,8 @@
     <DisplayName>Julia</DisplayName>
     <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
   </Properties>
 
   <Dependencies>
@@ -68,5 +70,6 @@
     <rescap:Capability Name="runFullTrust" />
     <rescap:Capability Name="packageManagement" />
     <rescap:Capability Name="packageQuery" />
+    <rescap:Capability Name="unvirtualizedResources"/>
   </Capabilities>
 </Package>
