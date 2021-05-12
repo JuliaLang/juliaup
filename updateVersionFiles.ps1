@@ -140,7 +140,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
         <Resource Language="en-us" />
     </Resources>
     <Dependencies>
-        <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+        <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17134.0" MaxVersionTested="10.0.17134.0" />
         <uap3:MainPackageDependency Name="JuliaComputingInc.Julia"/>
     </Dependencies>
   </Package>
@@ -165,7 +165,7 @@ $versions.OptionalJuliaPackages | ForEach-Object -Parallel {
           <Resource Language="en-us" />
       </Resources>
       <Dependencies>
-          <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+          <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17134.0" MaxVersionTested="10.0.17134.0" />
           <uap3:MainPackageDependency Name="JuliaComputingInc.Julia"/>
       </Dependencies>
     </Package>
