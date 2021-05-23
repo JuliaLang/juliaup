@@ -11,4 +11,4 @@ pop-location
 
 # &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool" sign /fd SHA256 /sha1 E70A5E7F058A0E4FCAAC9CC604C44EC8588D1C59 build\msix\*
 
-Move-Item .\build\msix\* .\output
+Move-Item .\build\msix\* .\output -Force
