@@ -14,7 +14,7 @@ $bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
 
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
+  <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
     <Package ID="Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
