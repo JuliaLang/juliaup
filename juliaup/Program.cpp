@@ -91,7 +91,7 @@ int main()
 
 				if (juliaVersions->isValidJuliaVersion(secondArg)) {
 
-					auto catalog = PackageCatalog::OpenForCurrentPackage();
+					/*auto catalog = PackageCatalog::OpenForCurrentPackage();
 
 					std::vector<std::string> parts;
 					tokenize(secondArg, '-', parts);
@@ -111,7 +111,7 @@ int main()
 						auto err = hresult_error(ext_err);
 
 						std::wcout << err.message().c_str() << std::endl;
-					}
+					}*/
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.
@@ -124,54 +124,54 @@ int main()
 		}
 		else if (firstArg == "update" || firstArg == "up") {
 			if (__argc == 2) {
-				std::string juliaVersionToUse = "1";
+				//std::string juliaVersionToUse = "1";
 
-				if (localSettings.Values().HasKey(L"version")) {
-					juliaVersionToUse = to_string(unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version")));
-				}
+				//if (localSettings.Values().HasKey(L"version")) {
+				//	juliaVersionToUse = to_string(unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version")));
+				//}
 
-				std::vector<std::string> parts;
-				tokenize(juliaVersionToUse, '-', parts);
-				auto& versionPart = parts[0];
-				auto platformPart = parts.size() > 1 ? parts[1] : "";
+				//std::vector<std::string> parts;
+				//tokenize(juliaVersionToUse, '-', parts);
+				//auto& versionPart = parts[0];
+				//auto platformPart = parts.size() > 1 ? parts[1] : "";
 
-				// Now figure out whether we got a channel or a specific version.
-				std::vector<std::string> parts2;
-				tokenize(versionPart, '.', parts2);
+				//// Now figure out whether we got a channel or a specific version.
+				//std::vector<std::string> parts2;
+				//tokenize(versionPart, '.', parts2);
 
-				if (parts2.size() < 3) {
-					auto publishedVersionsWeCouldUse = juliaVersions->getJuliaVersionsThatMatchChannel(versionPart);
+				//if (parts2.size() < 3) {
+				//	auto publishedVersionsWeCouldUse = juliaVersions->getJuliaVersionsThatMatchChannel(versionPart);
 
-					if (publishedVersionsWeCouldUse.size() > 0) {
-						auto catalog = PackageCatalog::OpenForCurrentPackage();
+				//	if (publishedVersionsWeCouldUse.size() > 0) {
+				//		auto catalog = PackageCatalog::OpenForCurrentPackage();
 
-						auto fullVersionString = (parts.size() == 2 ? (parts[1] + "-" + publishedVersionsWeCouldUse[0]) : publishedVersionsWeCouldUse[0]);
-						auto fullVersionStringNice = (parts.size() == 2 ? (publishedVersionsWeCouldUse[0] + "-" + parts[1]) : publishedVersionsWeCouldUse[0]);
+				//		auto fullVersionString = (parts.size() == 2 ? (parts[1] + "-" + publishedVersionsWeCouldUse[0]) : publishedVersionsWeCouldUse[0]);
+				//		auto fullVersionStringNice = (parts.size() == 2 ? (publishedVersionsWeCouldUse[0] + "-" + parts[1]) : publishedVersionsWeCouldUse[0]);
 
-						auto packageToInstall = std::string("Julia-") + fullVersionString + "_b0ra4bp6jsp6c";
+				//		auto packageToInstall = std::string("Julia-") + fullVersionString + "_b0ra4bp6jsp6c";
 
-						std::cout << "Installing Julia " << fullVersionStringNice << "." << std::endl;
+				//		std::cout << "Installing Julia " << fullVersionStringNice << "." << std::endl;
 
-						auto res = catalog.AddOptionalPackageAsync(winrt::to_hstring(packageToInstall)).get();
+				//		auto res = catalog.AddOptionalPackageAsync(winrt::to_hstring(packageToInstall)).get();
 
-						auto ext_err = res.ExtendedError();
+				//		auto ext_err = res.ExtendedError();
 
-						if (ext_err == 0) {
-							std::cout << "New version successfully installed." << std::endl;
-						}
-						else {
-							auto err = hresult_error(ext_err);
+				//		if (ext_err == 0) {
+				//			std::cout << "New version successfully installed." << std::endl;
+				//		}
+				//		else {
+				//			auto err = hresult_error(ext_err);
 
-							std::wcout << err.message().c_str() << std::endl;
-						}
-					}
-					else {
-						std::cout << "You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated." << std::endl;
-					}
-				}
-				else {
-					std::cout << "You currently have a specific Julia version as your default configured. Only channel defaults can be updated." << std::endl;
-				}
+				//			std::wcout << err.message().c_str() << std::endl;
+				//		}
+				//	}
+				//	else {
+				//		std::cout << "You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated." << std::endl;
+				//	}
+				//}
+				//else {
+				//	std::cout << "You currently have a specific Julia version as your default configured. Only channel defaults can be updated." << std::endl;
+				//}
 			}
 			else {
 				std::cout << "ERROR: The update command does not accept any additional arguments." << std::endl;
@@ -182,7 +182,7 @@ int main()
 				auto secondArg = std::string(__argv[2]);
 
 				if (juliaVersions->isValidJuliaVersion(secondArg)) {
-					auto juliaVersionToUninstall = secondArg;
+					/*auto juliaVersionToUninstall = secondArg;
 
 					std::vector<std::string> parts;
 					tokenize(juliaVersionToUninstall, L'-', parts);
@@ -222,7 +222,7 @@ int main()
 					}
 					else {
 						std::cout << "Julia " + juliaVersionToUninstall  + " cannot be removed because it is currently not installed." << std::endl;
-					}
+					}*/
 				}
 				else {
 					// TODO Come up with a less hardcoded version of this.
@@ -237,7 +237,7 @@ int main()
 			if (__argc == 2) {
 				std::cout << "The following Julia versions are currently installed:" << std::endl;
 
-				auto allInstalledDeps = Package::Current().Dependencies();
+				/*auto allInstalledDeps = Package::Current().Dependencies();
 
 				for (auto v : allInstalledDeps) {
 					std::wstring name{ v.Id().Name() };
@@ -245,7 +245,7 @@ int main()
 					if (name.starts_with(L"Julia-")) {
 						std::wcout << L"  " << name << std::endl;
 					}
-				}
+				}*/
 
 			}
 			else {
