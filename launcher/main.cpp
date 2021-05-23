@@ -71,6 +71,49 @@ HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR curren
 	return ERROR_SUCCESS;
 }
 
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+
+std::wstring GetExecutablePath()
+{
+	std::wstring buffer;
+	size_t nextBufferLength = MAX_PATH;
+
+	for (;;)
+	{
+		buffer.resize(nextBufferLength);
+		nextBufferLength *= 2;
+
+		SetLastError(ERROR_SUCCESS);
+
+		auto pathLength = GetModuleFileName(reinterpret_cast<HMODULE>(&__ImageBase), &buffer[0], static_cast<DWORD>(buffer.length()));
+
+		if (pathLength == 0)
+			throw std::exception("GetModuleFileName failed"); // You can call GetLastError() to get more info here
+
+		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+		{
+			buffer.resize(pathLength);
+			return buffer;
+		}
+	}
+}
+
+int initial_setup() {
+	std::filesystem::path homedirPath = std::wstring{ Windows::Storage::UserDataPaths::GetDefault().Profile() };
+	auto juliaupFolder = homedirPath / ".julia" / "juliaup";
+	auto configFilePath = juliaupFolder / "config.toml";
+
+	if (!std::filesystem::exists(configFilePath)) {
+		std::filesystem::create_directories(juliaupFolder);
+
+		std::filesystem::path myOwnPath = GetExecutablePath();
+
+		auto pathOfBundledJulia = myOwnPath.parent_path().parent_path() / "BundledJulia";
+
+		std::filesystem::copy(pathOfBundledJulia, juliaupFolder);
+	}
+}
+
 int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	init_apartment();
 

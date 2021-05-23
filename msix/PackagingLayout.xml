@@ -6,6 +6,7 @@
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win64\julia-1.5.1\**" />
       </Files>
     </Package>
     <Package ID="Julia-x86-1.0.0.0" ProcessorArchitecture="x86">
@@ -14,11 +15,8 @@
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-1.5.1\**" />
       </Files>
     </Package>
   </PackageFamily>
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.1-1.0.0.0.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.1-1.0.0.0.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.2-1.0.0.0.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.2-1.0.0.0.appxbundle" />
 </PackagingLayout>
