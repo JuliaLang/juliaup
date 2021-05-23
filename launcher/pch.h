@@ -9,3 +9,4 @@
 #include <string>
 #include <iostream>
 #include "../shared/JuliaVersionDatabase.h"
+#include "version.h"

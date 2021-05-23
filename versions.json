@@ -1,37 +1,14 @@
 {
     "JuliaAppPackage": {
-        "Version": "1.0.0.34"
+        "Version": "1.0.1.0",
+        "BundledJuliaVersion": "1.5.2"
     },
     "OptionalJuliaPackages": [
         {
-            "JuliaVersion": "1.5.1",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "false"            
+            "JuliaVersion": "1.5.1"  
         },
         {
-            "JuliaVersion": "1.5.2",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "false"            
-        },
-        {
-            "JuliaVersion": "1.5.3",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "false"            
-        },
-        {
-            "JuliaVersion": "1.5.4",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "false"            
-        },
-        {
-            "JuliaVersion": "1.6.0",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "false"            
-        },
-        {
-            "JuliaVersion": "1.6.1",
-            "Version": "1.0.0.4",
-            "IncludeByDefault": "true"            
+            "JuliaVersion": "1.5.2"     
         }
     ]
 }

@@ -11,14 +11,14 @@
 
   <Identity
     Name="Julia"
-    Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+    Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="54729766-638f-49a5-862c-3c25989a7455" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Julia</DisplayName>
-    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

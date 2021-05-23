@@ -11,16 +11,18 @@
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity Name="JuliaApp" Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US" Version="1.0.0.0" ProcessorArchitecture="neutral"/>
+  <Identity Name="JuliaComputingInc.Julia" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="1.0.0.0" ProcessorArchitecture="neutral"/>
 
   <Properties>
     <DisplayName>Julia</DisplayName>
-    <PublisherDisplayName>David Anthoff</PublisherDisplayName>
+    <PublisherDisplayName>Julia Computing, Inc.</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15063.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17134.0" MaxVersionTested="10.0.17134.0" />
     <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.18362.0" />
     <PackageDependency Name="Microsoft.VCLibs.140.00.UWPDesktop" MinVersion="14.0.29231.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"/>
     <PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.29231.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
@@ -64,9 +66,7 @@
   </Applications>
 
   <Capabilities>
-    <Capability Name="internetClient"/>
     <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="packageManagement" />
-    <rescap:Capability Name="packageQuery" />
+    <rescap:Capability Name="unvirtualizedResources"/>
   </Capabilities>
 </Package>

@@ -1,32 +1,22 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="JuliaApp-1.0.0.34" FlatBundle="true" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="JuliaApp-x64-1.0.0.34" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.0.1.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-x64-1.0.1.0" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win64\julia-1.5.2\**" />
       </Files>
     </Package>
-    <Package ID="JuliaApp-x86-1.0.0.34" ProcessorArchitecture="x86">
+    <Package ID="Julia-x86-1.0.1.0" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-1.5.2\**" />
       </Files>
     </Package>
   </PackageFamily>
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.1-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.1-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.2-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.2-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.3-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.3-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.5.4-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.5.4-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.6.0-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.6.0-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-1.6.1-1.0.0.4.appxbundle" />
-  <PrebuiltPackage Path="..\output\optional\Julia-x86-1.6.1-1.0.0.4.appxbundle" />
 </PackagingLayout>
