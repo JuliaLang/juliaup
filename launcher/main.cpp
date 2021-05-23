@@ -98,19 +98,47 @@ std::wstring GetExecutablePath()
 	}
 }
 
-int initial_setup() {
-	std::filesystem::path homedirPath = std::wstring{ Windows::Storage::UserDataPaths::GetDefault().Profile() };
-	auto juliaupFolder = homedirPath / ".julia" / "juliaup";
-	auto configFilePath = juliaupFolder / "config.toml";
+std::wstring getCurrentPlatform() {
+	std::wstring platform;
 
-	if (!std::filesystem::exists(configFilePath)) {
+	switch (Windows::ApplicationModel::Package::Current().Id().Architecture())
+	{
+	case Windows::System::ProcessorArchitecture::X64:
+		platform = L"x64";
+		break;
+	case Windows::System::ProcessorArchitecture::X86:
+		platform = L"x86";
+		break;
+	default:
+
+		break;
+	}
+
+	return platform;
+}
+
+std::filesystem::path getJuliaupPath() {
+	std::filesystem::path homedirPath = std::wstring{ Windows::Storage::UserDataPaths::GetDefault().Profile() };
+	return homedirPath / ".julia" / "juliaup";
+}
+
+int initial_setup() {
+	auto juliaupFolder = getJuliaupPath();
+
+	if (!std::filesystem::exists(juliaupFolder)) {
 		std::filesystem::create_directories(juliaupFolder);
 
 		std::filesystem::path myOwnPath = GetExecutablePath();
 
 		auto pathOfBundledJulia = myOwnPath.parent_path().parent_path() / "BundledJulia";
 
-		std::filesystem::copy(pathOfBundledJulia, juliaupFolder);
+		auto juliaVersionsDatabase = new JuliaVersionsDatabase();
+
+		auto platform = getCurrentPlatform();
+
+		auto targetPath = juliaupFolder / (L"Julia-" + platform +L"-" + juliaVersionsDatabase->getBundledJuliaVersion());
+
+		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
 	}
 }
 
@@ -118,6 +146,8 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	init_apartment();
 
 	SetConsoleTitle(L"Julia");
+
+	initial_setup();
 
 	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
@@ -132,38 +162,25 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	std::vector<std::wstring> parts;
 	tokenize(juliaVersionToUse, L'-', parts);
 	auto &versionPart = parts[0];
-	auto platformPart = parts.size() > 1 ? parts[1] : L"";
+	auto platformPart = parts.size() > 1 ? parts[1] : getCurrentPlatform();
 
 	// Now figure out whether we got a channel or a specific version.
 	std::vector<std::wstring> parts2;
 	tokenize(versionPart, L'.', parts2);
 
-	
-
-	winrt::hstring julia_path;
+	std::filesystem::path julia_path;
 
 	// We are using a specific Julia version
 	if (parts2.size() == 3) {
-		std::wstring formattedJuliaVersionToUse = L"";
-		formattedJuliaVersionToUse = parts.size() == 1 ? versionPart : platformPart + L"-" + versionPart;
+		auto formattedJuliaVersionToUse = platformPart + L"-" + versionPart;
 
-		auto allInstalledDeps = Package::Current().Dependencies();
+		auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
 
-		bool foundJuliaVersion = false;
-
-		for (auto v : allInstalledDeps) {
-			std::wstring name{ v.Id().Name() };
-
-			if (name == L"Julia-" + formattedJuliaVersionToUse) {
-				auto juliaBinaryStorageLocation = v.InstalledLocation().GetFileAsync(L"Julia\\bin\\julia.exe").get();
-				julia_path = juliaBinaryStorageLocation.Path();
-				foundJuliaVersion = true;
-				SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
-				break;
-			}
+		if (std::filesystem::exists(targetPath)) {
+			julia_path = targetPath / L"bin" / L"julia.exe";
+			SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
 		}
-
-		if (!foundJuliaVersion) {
+		else {
 			std::wcout << L"Julia version " + juliaVersionToUse + L" is not installed on this system. Run:" << std::endl;
 			std::wcout << std::endl;
 			std::wcout << L"  juliaup add " + juliaVersionToUse << std::endl;
@@ -171,7 +188,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			std::wcout << L"to install it." << std::endl;
 
 			return 1;
-		}
+		}		
 	}
 	// We are using a channel
 	else {
@@ -194,28 +211,21 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		}
 
 		if (versionsThatWeCouldUse.size() > 0) {
-			auto allInstalledDeps = Package::Current().Dependencies();
-
 			bool foundLatestJuliaVersionForChannel = false;
 			bool foundAnyJuliaVersionForChannel = false;
 			
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-				formattedJuliaVersionToUse = parts.size() == 1 ? versionsThatWeCouldUse[i] : platformPart + L"-" + versionsThatWeCouldUse[i];
+				formattedJuliaVersionToUse = platformPart + L"-" + versionsThatWeCouldUse[i];
 
-				for (auto v : allInstalledDeps) {
-					std::wstring name{ v.Id().Name() };
+				auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
 
-					if (name == L"Julia-" + formattedJuliaVersionToUse) {
-						auto juliaBinaryStorageLocation = v.InstalledLocation().GetFileAsync(L"Julia\\bin\\julia.exe").get();
-						julia_path = juliaBinaryStorageLocation.Path();
-						foundLatestJuliaVersionForChannel = i==0;
-						foundAnyJuliaVersionForChannel = true;
-						SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
-						break;
-					}
-				}
-				if(foundAnyJuliaVersionForChannel)
+				if (std::filesystem::exists(targetPath)) {
+					julia_path = targetPath / L"bin" / L"julia.exe";
+					foundLatestJuliaVersionForChannel = i == 0;
+					foundAnyJuliaVersionForChannel = true;
+					SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
 					break;
+				}
 			}
 
 			if (!foundAnyJuliaVersionForChannel) {
@@ -242,14 +252,13 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		}
 	}
 
-	std::filesystem::path exePath = std::wstring{ julia_path };
 	std::filesystem::path currentDirectory = L"";
 	std::wstring exeArgString = (wchar_t*)L"";
 
-	std::wstring fullargs = (L"\"" + exePath.native() + L"\" " + exeArgString + L" "); // +args);
+	std::wstring fullargs = (L"\"" + julia_path.native() + L"\" " + exeArgString + L" "); // +args);
 
 	fullargs = L"";
-	HRESULT hr = StartProcess(exePath.c_str(), fullargs.data(), currentDirectory.c_str(), INFINITE);
+	HRESULT hr = StartProcess(julia_path.c_str(), fullargs.data(), currentDirectory.c_str(), INFINITE);
 	if (hr != ERROR_SUCCESS)
 	{
 		printf("Error return from launching process.");

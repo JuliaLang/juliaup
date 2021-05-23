@@ -32,6 +32,8 @@ private:
 public:
 	std::vector<JuliaVersion> getJuliaVersions();
 
+	std::wstring getBundledJuliaVersion();
+
 	bool isValidJuliaVersion(std::string_view versionString) {
 		auto versions = this->getJuliaVersions();
 

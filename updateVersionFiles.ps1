@@ -10,7 +10,7 @@ $cVersionHeader = @"
 $cVersionHeader | Out-File  -FilePath juliaup/version.h
 $cVersionHeader | Out-File  -FilePath launcher/version.h
 
-$bundledJuliaVersion = $versions.OptionalJuliaPackages | ? {$_.IncludeByDefault} | % {$_.JuliaVersion} | Select-Object -First 1
+$bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
 
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
@@ -62,6 +62,10 @@ std::vector<JuliaVersion> JuliaVersionsDatabase::getJuliaVersions() {
 		}
 	});
 	return juliaVersions;
+}
+
+std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
+  return std::wstring {L"$bundledJuliaVersion"};
 }
 "@
 $juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp

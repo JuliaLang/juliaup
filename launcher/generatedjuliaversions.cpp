@@ -19,3 +19,7 @@ std::vector<JuliaVersion> JuliaVersionsDatabase::getJuliaVersions() {
 	});
 	return juliaVersions;
 }
+
+std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
+  return std::wstring {L"1.5.2"};
+}
