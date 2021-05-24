@@ -126,7 +126,6 @@ int initial_setup() {
 	auto juliaupFolder = getJuliaupPath();
 
 	if (!std::filesystem::exists(juliaupFolder)) {
-		std::filesystem::create_directories(juliaupFolder);
 
 		std::filesystem::path myOwnPath = GetExecutablePath();
 
@@ -137,6 +136,8 @@ int initial_setup() {
 		auto platform = getCurrentPlatform();
 
 		auto targetPath = juliaupFolder / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion());
+
+		std::filesystem::create_directories(targetPath);
 
 		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
 	}
