@@ -200,7 +200,6 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	}
 	// We are using a channel
 	else {
-		std::wstring formattedJuliaVersionToUse = L"";
 		std::vector<std::wstring> versionsThatWeCouldUse;
 
 		auto juliaVersions = juliaVersionsDatabase->getJuliaVersions();
@@ -221,6 +220,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		if (versionsThatWeCouldUse.size() > 0) {
 			bool foundLatestJuliaVersionForChannel = false;
 			bool foundAnyJuliaVersionForChannel = false;
+			std::wstring juliaVersionWeAreUsing;
 			
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
 				auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionsThatWeCouldUse[i]);
@@ -229,6 +229,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 					julia_path = targetPath / L"bin" / L"julia.exe";
 					foundLatestJuliaVersionForChannel = i == 0;
 					foundAnyJuliaVersionForChannel = true;
+					juliaVersionWeAreUsing = versionsThatWeCouldUse[i];
 					SetConsoleTitle((L"Julia " + versionsThatWeCouldUse[i]).c_str());
 					break;
 				}
@@ -245,11 +246,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			}
 
 			if (!foundLatestJuliaVersionForChannel) {
-				std::wcout << L"The latest version of Julia in the " << juliaVersionToUse << " channel is Julia " << versionsThatWeCouldUse[0] << ". You currently have Julia " << formattedJuliaVersionToUse << " installed. Run:" << std::endl;
+				std::wcout << L"The latest version of Julia in the " << juliaVersionToUse << " channel is Julia " << versionsThatWeCouldUse[0] << ". You currently have Julia " << juliaVersionWeAreUsing << " installed. Run:" << std::endl;
 				std::wcout << std::endl;
 				std::wcout << L"  juliaup update " << std::endl;
 				std::wcout << std::endl;
-				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << "." << std::endl;
+				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << " and update your current channel to that version." << std::endl;
 			}
 		}
 		else {
