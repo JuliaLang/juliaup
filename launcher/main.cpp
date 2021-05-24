@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
@@ -223,15 +223,13 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			bool foundAnyJuliaVersionForChannel = false;
 			
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-				formattedJuliaVersionToUse = platformPart + L"-" + versionsThatWeCouldUse[i];
-
-				auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
+				auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionsThatWeCouldUse[i]);
 
 				if (std::filesystem::exists(targetPath)) {
 					julia_path = targetPath / L"bin" / L"julia.exe";
 					foundLatestJuliaVersionForChannel = i == 0;
 					foundAnyJuliaVersionForChannel = true;
-					SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
+					SetConsoleTitle((L"Julia " + versionsThatWeCouldUse[i]).c_str());
 					break;
 				}
 			}
