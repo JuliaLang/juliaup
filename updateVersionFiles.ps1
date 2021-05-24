@@ -80,8 +80,20 @@ std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
   return std::wstring {L"$bundledJuliaVersion"};
 }
 "@
-$juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
 $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
+
+$juliaVersionsJuliaFile = @"
+JULIA_APP_VERSION = v"$($newAppVersion.Major).$($newAppVersion.Minor).$($newAppVersion.Build)"
+
+JULIA_VERSIONS = [
+  $($versions.OptionalJuliaPackages | % {
+    $parts = $_.JuliaVersion.Split('.')
+    "VersionNumber($($parts[0]), $($parts[1]), $($parts[2]))"
+  } | Join-String -Separator ', ')
+]
+"@
+
+$juliaVersionsJuliaFile | Out-File .\Juliaup\src\versions_database.jl
 
 git add .
 git commit -m "Update version to v$($newAppVersion.ToString())"

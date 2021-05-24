@@ -8,5 +8,5 @@
 #include <string_view>
 #include <string>
 #include <iostream>
-#include "../shared/JuliaVersionDatabase.h"
+#include "JuliaVersionDatabase.h"
 #include "version.h"
