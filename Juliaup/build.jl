@@ -10,8 +10,8 @@ using PackageCompiler
 
 platform = Int==Int64 ? "x64" : "x86"
 
-output_path = joinpath(@__DIR__, "build", "juliaup", platform)
+output_path = joinpath(@__DIR__, "..", "build", "juliaup", platform)
 
 mkpath(output_path)
 
-create_app("Juliaup", output_path, filter_stdlibs=true, force=true)
+create_app(".", output_path, filter_stdlibs=true, force=true)
