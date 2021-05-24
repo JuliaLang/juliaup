@@ -122,7 +122,7 @@ std::filesystem::path getJuliaupPath() {
 	return homedirPath / ".julia" / "juliaup";
 }
 
-int initial_setup() {
+void initial_setup() {
 	auto juliaupFolder = getJuliaupPath();
 
 	if (!std::filesystem::exists(juliaupFolder)) {
