@@ -84,4 +84,5 @@ $juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
 $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
 
 git add .
-git commit -m "Update version to v$(newAppVersion)"
+git commit -m "Update version to v$($newAppVersion.ToString())"
+git tag "v$($newAppVersion.ToString())"
