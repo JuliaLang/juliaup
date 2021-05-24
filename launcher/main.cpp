@@ -156,9 +156,14 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	auto configFilePath = getJuliaupPath() / "juliaup.toml";
 
 	if (std::filesystem::exists(configFilePath)) {
-		auto data = toml::parse(configFilePath);
+		try {
+			auto data = toml::parse(configFilePath);
 
-		juliaVersionToUse = toml::find<std::wstring>(data, "currentversion");
+			juliaVersionToUse = toml::find<std::wstring>(data, "currentversion");
+		}
+		catch (...) {
+			std::wcout << "Could not read the juliaup configuration file, using the default value of '1' as the version to use." << std::endl;
+		}
 	}
 
 	std::vector<std::wstring> parts;
