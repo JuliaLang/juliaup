@@ -1,3 +1,9 @@
+if ( (git status --porcelain | Measure-Object -Line ).Lines -ne 0) 
+{
+    Write-Output "Cannot run this script with git changes pending."
+    exit
+}
+
 $versions = Get-Content versions.json | ConvertFrom-Json
 
 $oldAppVersion = [version]$versions.JuliaAppPackage.Version
