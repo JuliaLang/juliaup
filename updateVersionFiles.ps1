@@ -19,7 +19,6 @@ $cVersionHeader = @"
 #define JULIA_APP_VERSION_BUILD $(([version]$versions.JuliaAppPackage.Version).revision)
 "@
 
-$cVersionHeader | Out-File  -FilePath juliaup/version.h
 $cVersionHeader | Out-File  -FilePath launcher/version.h
 
 $bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
