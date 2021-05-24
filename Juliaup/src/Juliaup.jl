@@ -22,6 +22,56 @@ function isValidJuliaChannel(version)
 	return true
 end
 
+function target_path_for_julia_version(platform, version)
+	return joinpath(homedir(), ".julia", "juliaup", platform, "julia-$version")
+end
+
+function getJuliaVersionsThatMatchChannel(channelString)
+	parts = split(channelString, '.')
+
+	versionsThatWeCouldUse = VersionNumber[]
+
+	# Collect all the known versions of Julia that exist that match our channel into a vector
+	for currVersion in reverse(JULIA_VERSIONS)
+		if length(parts) == 1 && parts[1] == string(currVersion.major)
+			push!(versionsThatWeCouldUse, currVersion)
+		elseif length(parts) == 2 && parts[1] == string(currVersion.major) && parts[2] == string(currVersion.minor)
+			push!(versionsThatWeCouldUse, currVersion)
+		end
+	end
+
+	return versionsThatWeCouldUse
+end
+
+function installJuliaVersion(platform::AbstractString, version::VersionNumber)
+	secondary_platform_string = platform=="x64" ? "win64" : platform=="x86" ? "win32" : error("Unknown platform.")
+	downloadUrl = "https://julialang-s3.julialang.org/bin/winnt/$platform/$(version.major).$(version.minor)/julia-$(version)-$secondary_platform_string.tar.gz"
+
+	target_path = joinpath(homedir(), ".julia", "juliaup", platform)
+
+	println("Installing Julia $version.")
+
+	temp_file = Downloads.download(downloadUrl)
+
+	try
+		open(temp_file) do tar_gz
+			tar = CodecZlib.GzipDecompressorStream(tar_gz)
+			try
+				mktempdir() do extract_temp_path
+					Tar.extract(tar, extract_temp_path)
+					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"))
+				end
+			finally
+				close(tar)
+			end
+		end
+
+		println("New version successfully installed.")
+	finally
+		rm(temp_file, force=true)
+	end
+end
+
 function real_main()
     if length(ARGS)==0
         println("Julia Version Manager Preview")
@@ -84,30 +134,7 @@ function real_main()
 				if isValidJuliaVersion(ARGS[2])
 					version_to_install = VersionNumber(ARGS[2])
 
-					downloadUrl = "https://julialang-s3.julialang.org/bin/winnt/x64/$(version_to_install.major).$(version_to_install.minor)/julia-$(version_to_install)-win64.tar.gz"
-					target_path = joinpath(homedir(), ".julia", "juliaup", "x64")
-
-					println("Installing Julia $version_to_install.")
-
-					temp_file = Downloads.download(downloadUrl)
-
-					try
-						open(temp_file) do tar_gz
-							tar = CodecZlib.GzipDecompressorStream(tar_gz)
-							try
-								mktempdir() do extract_temp_path
-									Tar.extract(tar, extract_temp_path)
-									mv(joinpath(extract_temp_path, "julia-$version_to_install"), joinpath(target_path, "julia-$version_to_install"))
-								end
-							finally
-								close(tar)
-							end
-						end
-
-						println("New version successfully installed.")
-					finally
-						rm(temp_file, force=true)
-					end
+					installJuliaVersion("x64", version_to_install)
 				else
 					# TODO Come up with a less hardcoded version of this.
 					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
@@ -116,132 +143,100 @@ function real_main()
 				println("ERROR: The add command only accepts one additional argument.")
 			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
-			# if length(ARGS)==1
-			# 	//std::string juliaVersionToUse = "1";
+			if length(ARGS)==1
+				juliaVersionToUse = "1"
 
-			# 	//if (localSettings.Values().HasKey(L"version")) {
-			# 	//	juliaVersionToUse = to_string(unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version")));
-			# 	//}
+				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
 
-			# 	//std::vector<std::string> parts;
-			# 	//tokenize(juliaVersionToUse, '-', parts);
-			# 	//auto& versionPart = parts[0];
-			# 	//auto platformPart = parts.size() > 1 ? parts[1] : "";
+				if isfile(julia_config_file_path)
+					config_data = TOML.parsefile(julia_config_file_path)
+					juliaVersionToUse = get(config_data, "currentversion", "1")
+				end
 
-			# 	//// Now figure out whether we got a channel or a specific version.
-			# 	//std::vector<std::string> parts2;
-			# 	//tokenize(versionPart, '.', parts2);
+				parts = split(juliaVersionToUse, '~')
+				versionPart = parts[1]
+				platformPart = length(parts) > 1 ? parts[2] : "x64";
 
-			# 	//if (parts2.size() < 3) {
-			# 	//	auto publishedVersionsWeCouldUse = juliaVersions->getJuliaVersionsThatMatchChannel(versionPart);
+				#  Now figure out whether we got a channel or a specific version.
+				parts2 = split(versionPart, '.')
 
-			# 	//	if (publishedVersionsWeCouldUse.size() > 0) {
-			# 	//		auto catalog = PackageCatalog::OpenForCurrentPackage();
+				if length(parts2) < 3
+					publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(versionPart)
 
-			# 	//		auto fullVersionString = (parts.size() == 2 ? (parts[1] + "-" + publishedVersionsWeCouldUse[0]) : publishedVersionsWeCouldUse[0]);
-			# 	//		auto fullVersionStringNice = (parts.size() == 2 ? (publishedVersionsWeCouldUse[0] + "-" + parts[1]) : publishedVersionsWeCouldUse[0]);
+					if length(publishedVersionsWeCouldUse) > 0
+							target_path = target_path_for_julia_version(platformPart, publishedVersionsWeCouldUse[1])
 
-			# 	//		auto packageToInstall = std::string("Julia-") + fullVersionString + "_b0ra4bp6jsp6c";
-
-			# 	//		println("Installing Julia " << fullVersionStringNice << "." << std::endl;
-
-			# 	//		auto res = catalog.AddOptionalPackageAsync(winrt::to_hstring(packageToInstall)).get();
-
-			# 	//		auto ext_err = res.ExtendedError();
-
-			# 	//		if (ext_err == 0) {
-			# 	//			println("New version successfully installed." << std::endl;
-			# 	//		}
-			# 	//		else {
-			# 	//			auto err = hresult_error(ext_err);
-
-			# 	//			std::wcout << err.message().c_str() << std::endl;
-			# 	//		}
-			# 	//	}
-			# 	//	else {
-			# 	//		println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated." << std::endl;
-			# 	//	}
-			# 	//}
-			# 	//else {
-			# 	//	println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated." << std::endl;
-			# 	//}
-			# }
-			# else {
-			# 	println("ERROR: The update command does not accept any additional arguments." << std::endl;
-			# }
+							if isdir(target_path)
+								println("You already have the latest Julia version for the active channel installed.")
+							else
+								installJuliaVersion(platformPart, publishedVersionsWeCouldUse[1])
+							end
+					else
+						println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated.")
+					end
+				else
+				    println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated.")
+				end
+			else
+				println("ERROR: The update command does not accept any additional arguments.")
+			end
 		elseif ARGS[1] == "remove" || ARGS[1] == "rm"
-			# if (__argc == 3) {
-			# 	auto secondArg = std::string(__argv[2]);
+			if length(ARGS)==2
 
-			# 	if (juliaVersions->isValidJuliaVersion(secondArg)) {
-			# 		/*auto juliaVersionToUninstall = secondArg;
+				if isValidJuliaVersion(ARGS[2])
+					parts = split(ARGS[2], '~')
 
-			# 		std::vector<std::string> parts;
-			# 		tokenize(juliaVersionToUninstall, L'-', parts);
+					juliaVersionToUninstall, juliaPlatform = if length(parts)==1
+						parts[1], "x64"
+					elseif length(parts)==2
+						parts[1], parts[2]
+					else
+						error("Invalid version specifier.")
+					end
 
-			# 		auto formattedJuliaVersionToUninstall = parts.size() == 1 ? parts[0] : parts[1] + "-" + parts[0];
+					path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", juliaPlatform, "julia-$juliaVersionToUninstall")
 
-			# 		auto allInstalledDeps = Package::Current().Dependencies();
-
-			# 		bool foundJuliaVersion = false;
-
-			# 		for (auto v : allInstalledDeps) {
-			# 			std::wstring name{ v.Id().Name() };
-
-			# 			if (name == L"Julia-" + winrt::to_hstring(formattedJuliaVersionToUninstall)) {
-			# 				foundJuliaVersion = true;
-			# 				break;
-			# 			}
-			# 		}
-
-			# 		if (foundJuliaVersion) {
-			# 			auto packagesToUninstall{ winrt::single_threaded_vector<winrt::hstring>({ winrt::to_hstring(std::string("Julia-") + formattedJuliaVersionToUninstall + "_b0ra4bp6jsp6c") }) };
-
-			# 			auto catalog = PackageCatalog::OpenForCurrentPackage();
-
-			# 			auto res = catalog.RemoveOptionalPackagesAsync(packagesToUninstall).get();
-
-			# 			auto ext_err = res.ExtendedError();
-
-			# 			if (ext_err == NULL) {
-			# 				println("Julia " + juliaVersionToUninstall + " successfully removed." << std::endl;
-			# 			}
-			# 			else {
-			# 				auto err = hresult_error(ext_err);
-
-			# 				std::wcout << err.message().c_str() << std::endl;
-			# 			}
-			# 		}
-			# 		else {
-			# 			println("Julia " + juliaVersionToUninstall  + " cannot be removed because it is currently not installed." << std::endl;
-			# 		}*/
-			# 	}
-			# 	else {
-			# 		// TODO Come up with a less hardcoded version of this.
-			# 		println("ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
-			# 	}
-			# }
-			# else {
-			# 	println("ERROR: The remove command only accepts one additional argument." << std::endl;
-			# }
+					if isdir(path_to_be_deleted)
+						rm(path_to_be_deleted, force=true, recursive=true)
+						println("Julia $juliaVersionToUninstall successfully removed.")
+					else
+						println("Julia $juliaVersionToUninstall cannot be removed because it is currently not installed.")
+					end
+				else
+					# TODO Come up with a less hardcoded version of this.
+					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
+				end
+			else
+				println("ERROR: The remove command only accepts one additional argument.")
+			end
 		elseif ARGS[1] == "status" || ARGS[1] == "st"
-			# if length(ARGS)==1
-			# 	println("The following Julia versions are currently installed:" << std::endl;
+			if length(ARGS)==1
+				println("The following Julia versions are currently installed:")
 
-			# 	/*auto allInstalledDeps = Package::Current().Dependencies();
+				for platform in ["x64", "x86"]
+					if isdir(joinpath(homedir(), ".julia", "juliaup", platform))
+						for i in readdir(joinpath(homedir(), ".julia", "juliaup", platform))
+							if startswith(i, "julia-")
+								println("  ", i[7:end], " (", platform, ")")
+							end
+						end
+					end
+				end
 
-			# 	for (auto v : allInstalledDeps) {
-			# 		std::wstring name{ v.Id().Name() };
+				defaultJulia = "1"
 
-			# 		if (name.starts_with(L"Julia-")) {
-			# 			std::wcout << L"  " << name << std::endl;
-			# 		}
-			# 	}*/
+				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
 
-			# }
-			# else {
-			# 	println("ERROR: The status command does not accept any additional arguments." << std::endl;
-			# }
+				if isfile(julia_config_file_path)
+					config_data = TOML.parsefile(julia_config_file_path)
+					defaultJulia = get(config_data, "currentversion", "1")
+				end
+
+				println()
+				println("The default Julia version is configured to be: ", defaultJulia)
+			else
+				println("ERROR: The status command does not accept any additional arguments.")
+			end
 		else
 			println("ERROR: '", ARGS[1], "' is not a recognized command.")
 		end
