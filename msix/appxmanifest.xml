@@ -50,13 +50,13 @@
         </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="JuliaUp" Executable="Julia\juliaup.exe" EntryPoint="juliaup.App" desktop4:Subsystem="console" desktop4:SupportsMultipleInstances="true" iot2:Subsystem="console" iot2:SupportsMultipleInstances="true">
+    <Application Id="JuliaUp" Executable="Juliaup\juliaup.exe" EntryPoint="juliaup.App" desktop4:Subsystem="console" desktop4:SupportsMultipleInstances="true" iot2:Subsystem="console" iot2:SupportsMultipleInstances="true">
       <uap:VisualElements DisplayName="JuliaUp" Description="Julia version management" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.scale-100.png" Square44x44Logo="Images\Square44x44Logo.scale-100.png" AppListEntry="none">
         <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
         <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap5:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="juliaup.App">
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="Juliaup/juliaup.exe" EntryPoint="juliaup.App">
           <uap5:AppExecutionAlias desktop4:Subsystem="console" iot2:Subsystem="console">
             <uap5:ExecutionAlias Alias="juliaup.exe" />
           </uap5:AppExecutionAlias>

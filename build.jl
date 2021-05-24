@@ -8,4 +8,10 @@ Pkg.add("PackageCompiler")
 
 using PackageCompiler
 
-create_app("Juliaup", "MyAppCompiled", filter_stdlibs=true, force=true)
+platform = Int==Int64 ? "x64" : "x86"
+
+output_path = joinpath(@__DIR__, "build", "juliaup", platform)
+
+mkpath(output_path)
+
+create_app("Juliaup", output_path, filter_stdlibs=true, force=true)
