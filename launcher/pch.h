@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <string_view>
 #include <string>
+#include <codecvt>
 #include <iostream>
 #include "JuliaVersionDatabase.h"
 #include "version.h"
