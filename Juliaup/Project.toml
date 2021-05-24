@@ -1,0 +1,10 @@
+name = "Juliaup"
+uuid = "ff97df9e-9559-49bb-bc83-950f5b9de437"
+authors = ["Davi Anthoff <anthoff@berkeley.edu>"]
+version = "0.1.0"
+
+[deps]
+CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"

@@ -1,18 +1,18 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="Julia-1.0.2.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-x64-1.0.2.0" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.0.8.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-x64-1.0.8.0" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
+        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win64\julia-1.5.2\**" />
       </Files>
     </Package>
-    <Package ID="Julia-x86-1.0.2.0" ProcessorArchitecture="x86">
+    <Package ID="Julia-x86-1.0.8.0" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
+        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-1.5.2\**" />

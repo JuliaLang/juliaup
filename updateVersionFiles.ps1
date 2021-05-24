@@ -19,18 +19,18 @@ $cVersionHeader = @"
 #define JULIA_APP_VERSION_BUILD $(([version]$versions.JuliaAppPackage.Version).revision)
 "@
 
-$cVersionHeader | Out-File  -FilePath juliaup/version.h
 $cVersionHeader | Out-File  -FilePath launcher/version.h
 
 $bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
 
+# TODO Bundle x86 binaries from Juliaup once we have them
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
   <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
     <Package ID="Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\x64\Release\juliaup\juliaup.exe" />
+        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win64\julia-$bundledJuliaVersion\**" />
@@ -39,7 +39,7 @@ $packageLayout = [xml]@"
     <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\build\output\Win32\Release\juliaup\juliaup.exe" />
+        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-$bundledJuliaVersion\**" />
@@ -80,8 +80,20 @@ std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
   return std::wstring {L"$bundledJuliaVersion"};
 }
 "@
-$juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
 $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
+
+$juliaVersionsJuliaFile = @"
+JULIA_APP_VERSION = v"$($newAppVersion.Major).$($newAppVersion.Minor).$($newAppVersion.Build)"
+
+JULIA_VERSIONS = [
+  $($versions.OptionalJuliaPackages | % {
+    $parts = $_.JuliaVersion.Split('.')
+    "VersionNumber($($parts[0]), $($parts[1]), $($parts[2]))"
+  } | Join-String -Separator ', ')
+]
+"@
+
+$juliaVersionsJuliaFile | Out-File .\Juliaup\src\versions_database.jl
 
 git add .
 git commit -m "Update version to v$($newAppVersion.ToString())"

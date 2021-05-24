@@ -27,7 +27,7 @@
     <ClInclude Include="version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\JuliaVersionDatabase.h">
+    <ClInclude Include="JuliaVersionDatabase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

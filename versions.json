@@ -1,14 +1,14 @@
 {
-    "JuliaAppPackage": {
-        "Version": "1.0.2.0",
-        "BundledJuliaVersion": "1.5.2"
+  "JuliaAppPackage": {
+    "Version": "1.0.8.0",
+    "BundledJuliaVersion": "1.5.2"
+  },
+  "OptionalJuliaPackages": [
+    {
+      "JuliaVersion": "1.5.1"
     },
-    "OptionalJuliaPackages": [
-        {
-            "JuliaVersion": "1.5.1"  
-        },
-        {
-            "JuliaVersion": "1.5.2"     
-        }
-    ]
+    {
+      "JuliaVersion": "1.5.2"
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
@@ -122,11 +122,10 @@ std::filesystem::path getJuliaupPath() {
 	return homedirPath / ".julia" / "juliaup";
 }
 
-int initial_setup() {
+void initial_setup() {
 	auto juliaupFolder = getJuliaupPath();
 
 	if (!std::filesystem::exists(juliaupFolder)) {
-		std::filesystem::create_directories(juliaupFolder);
 
 		std::filesystem::path myOwnPath = GetExecutablePath();
 
@@ -136,7 +135,9 @@ int initial_setup() {
 
 		auto platform = getCurrentPlatform();
 
-		auto targetPath = juliaupFolder / (L"Julia-" + platform +L"-" + juliaVersionsDatabase->getBundledJuliaVersion());
+		auto targetPath = juliaupFolder / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion());
+
+		std::filesystem::create_directories(targetPath);
 
 		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
 	}
@@ -151,12 +152,21 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
-	auto localSettings = ApplicationData::Current().LocalSettings();
-
 	std::wstring juliaVersionToUse = L"1";
 
-	if (localSettings.Values().HasKey(L"version")) {
-		juliaVersionToUse = unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version"));
+	auto configFilePath = getJuliaupPath() / "juliaup.toml";
+
+	if (std::filesystem::exists(configFilePath)) {
+		try {
+			auto data = toml::parse(configFilePath);
+
+			auto value_as_string = toml::find<std::string>(data, "currentversion");
+
+			juliaVersionToUse = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(value_as_string);
+		}
+		catch (...) {
+			std::wcout << "Could not read the juliaup configuration file, using the default value of '1' as the version to use." << std::endl;
+		}
 	}
 
 	std::vector<std::wstring> parts;
@@ -172,13 +182,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	// We are using a specific Julia version
 	if (parts2.size() == 3) {
-		auto formattedJuliaVersionToUse = platformPart + L"-" + versionPart;
-
-		auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
+		auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionPart);
 
 		if (std::filesystem::exists(targetPath)) {
 			julia_path = targetPath / L"bin" / L"julia.exe";
-			SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
+			SetConsoleTitle((L"Julia " + versionPart).c_str());
 		}
 		else {
 			std::wcout << L"Julia version " + juliaVersionToUse + L" is not installed on this system. Run:" << std::endl;
@@ -215,15 +223,13 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			bool foundAnyJuliaVersionForChannel = false;
 			
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-				formattedJuliaVersionToUse = platformPart + L"-" + versionsThatWeCouldUse[i];
-
-				auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
+				auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionsThatWeCouldUse[i]);
 
 				if (std::filesystem::exists(targetPath)) {
 					julia_path = targetPath / L"bin" / L"julia.exe";
 					foundLatestJuliaVersionForChannel = i == 0;
 					foundAnyJuliaVersionForChannel = true;
-					SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
+					SetConsoleTitle((L"Julia " + versionsThatWeCouldUse[i]).c_str());
 					break;
 				}
 			}

@@ -7,6 +7,8 @@
 #include <filesystem>
 #include <string_view>
 #include <string>
+#include <codecvt>
 #include <iostream>
-#include "../shared/JuliaVersionDatabase.h"
+#include "JuliaVersionDatabase.h"
 #include "version.h"
+#include "../toml11/toml.hpp"
