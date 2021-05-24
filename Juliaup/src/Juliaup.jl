@@ -95,7 +95,10 @@ function real_main()
 						open(temp_file) do tar_gz
 							tar = CodecZlib.GzipDecompressorStream(tar_gz)
 							try
-								Tar.extract(tar, target_path)
+								mktempdir() do extract_temp_path
+									Tar.extract(tar, extract_temp_path)
+									mv(joinpath(extract_temp_path, "julia-$version_to_install"), joinpath(target_path, "julia-$version_to_install"))
+								end
 							finally
 								close(tar)
 							end
