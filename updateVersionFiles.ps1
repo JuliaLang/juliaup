@@ -83,3 +83,5 @@ std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
 $juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
 $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
 
+git add .
+git commit -m "Update version to v$(newAppVersion)"
