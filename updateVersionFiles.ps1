@@ -1,5 +1,11 @@
 $versions = Get-Content versions.json | ConvertFrom-Json
 
+$oldAppVersion = [version]$versions.JuliaAppPackage.Version
+$newAppVersion = [version]::new($oldAppVersion.Major, $oldAppVersion.Minor, $oldAppVersion.Build+1, $oldAppVersion.Revision)
+$versions.JuliaAppPackage.Version = $newAppVersion.ToString()
+
+$versions | ConvertTo-Json | Out-File versions.json
+
 $cVersionHeader = @"
 #define JULIA_APP_VERSION_MAJOR $(([version]$versions.JuliaAppPackage.Version).major)
 #define JULIA_APP_VERSION_MINOR $(([version]$versions.JuliaAppPackage.Version).minor)
@@ -70,3 +76,4 @@ std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
 "@
 $juliaVersionsCppFile | Out-File .\juliaup\generatedjuliaversions.cpp
 $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
+
