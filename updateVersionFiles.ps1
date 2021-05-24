@@ -23,6 +23,7 @@ $cVersionHeader | Out-File  -FilePath launcher/version.h
 
 $bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
 
+# TODO Bundle x86 binaries from Juliaup once we have them
 $packageLayout = [xml]@"
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
   <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
@@ -38,7 +39,7 @@ $packageLayout = [xml]@"
     <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
-        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x86\bin\**" />
+        <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\bin\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-$bundledJuliaVersion\**" />

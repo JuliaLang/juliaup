@@ -3,4 +3,4 @@
 
 
 C:\Users\david\AppData\Local\Programs\Julia-1.6.1\bin\julia.exe .\build.jl
-C:\Users\david\AppData\Local\Programs\Julia-1.6.1-x86\bin\julia.exe .\build.jl
+# C:\Users\david\AppData\Local\Programs\Julia-1.6.1-x86\bin\julia.exe .\build.jl

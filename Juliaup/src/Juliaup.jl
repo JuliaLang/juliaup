@@ -1,6 +1,6 @@
 module Juliaup
 
-import Downloads, Tar, CodecZlib
+import Downloads, Tar, CodecZlib, TOML
 
 include("versions_database.jl")
 
@@ -15,6 +15,10 @@ function julia_main()
 end
 
 function isValidJuliaVersion(version)
+	return true
+end
+
+function isValidJuliaChannel(version)
 	return true
 end
 
@@ -56,22 +60,25 @@ function real_main()
 				println("ERROR: The --info argument does not accept any additional arguments.")
 			end
 		elseif ARGS[1] == "setdefault"
-			# if (__argc == 3) {
-			# 	auto secondArg = std::string_view{ __argv[2] };
+			if length(ARGS)==2
+				if isValidJuliaVersion(ARGS[2]) || isValidJuliaChannel(ARGS[2])
+					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
 
-			# 	if (juliaVersions->isValidJuliaVersion(secondArg) || juliaVersions->isValidJuliaChannel(secondArg)) {
-			# 		localSettings.Values().Insert(L"version", box_value(winrt::to_hstring(secondArg)));
+					new_data = Dict("currentversion" => ARGS[2])
 
-			# 		println("Configured the default Julia version to be " << secondArg << "." << std::endl;
-			# 	}				
-			# 	else {
-			# 		// TODO Come up with a less hardcoded version of this.
-			# 		println("ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
-			# 	}
-			# }
-			# else {
-			# 	println("ERROR: The setdefault command only accepts one additional argument." << std::endl;
-			# }
+					# TODO Change this to read the file and then update if the file already exists
+					open(juliaup_config_file_path, "w") do f
+						TOML.print(f, new_data)
+					end
+
+					println("Configured the default Julia version to be ", ARGS[2], ".")
+				else
+					# TODO Come up with a less hardcoded version of this.
+					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
+				end
+			else
+				println("ERROR: The setdefault command only accepts one additional argument.")
+			end
 		elseif ARGS[1] == "add"
 			if length(ARGS)==2
 				if isValidJuliaVersion(ARGS[2])

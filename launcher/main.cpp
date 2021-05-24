@@ -151,12 +151,14 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
-	auto localSettings = ApplicationData::Current().LocalSettings();
-
 	std::wstring juliaVersionToUse = L"1";
 
-	if (localSettings.Values().HasKey(L"version")) {
-		juliaVersionToUse = unbox_value<winrt::hstring>(localSettings.Values().Lookup(L"version"));
+	auto configFilePath = getJuliaupPath() / "juliaup.toml";
+
+	if (std::filesystem::exists(configFilePath)) {
+		auto data = toml::parse(configFilePath);
+
+		juliaVersionToUse = toml::find<std::wstring>(data, "currentversion");
 	}
 
 	std::vector<std::wstring> parts;
