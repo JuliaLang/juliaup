@@ -1,5 +1,7 @@
 module Juliaup
 
+import Downloads, Tar, CodecZlib
+
 include("versions_database.jl")
 
 function julia_main()
@@ -10,6 +12,10 @@ function julia_main()
         return 1
     end
     return 0
+end
+
+function isValidJuliaVersion(version)
+	return true
 end
 
 function real_main()
@@ -67,41 +73,38 @@ function real_main()
 			# 	println("ERROR: The setdefault command only accepts one additional argument." << std::endl;
 			# }
 		elseif ARGS[1] == "add"
-			# if (__argc == 3) {
-			# 	auto secondArg = std::string(__argv[2]);
+			if length(ARGS)==2
+				if isValidJuliaVersion(ARGS[2])
+					version_to_install = VersionNumber(ARGS[2])
 
-			# 	if (juliaVersions->isValidJuliaVersion(secondArg)) {
+					downloadUrl = "https://julialang-s3.julialang.org/bin/winnt/x64/$(version_to_install.major).$(version_to_install.minor)/julia-$(version_to_install)-win64.tar.gz"
+					target_path = joinpath(homedir(), ".julia", "juliaup", "x64")
 
-			# 		/*auto catalog = PackageCatalog::OpenForCurrentPackage();
+					println("Installing Julia $version_to_install.")
 
-			# 		std::vector<std::string> parts;
-			# 		tokenize(secondArg, '-', parts);
-					
-			# 		auto packageToInstall = std::string("Julia-") + (parts.size()==2 ? (parts[1] + "-" + parts[0]) : secondArg) + "_b0ra4bp6jsp6c";
+					temp_file = Downloads.download(downloadUrl)
 
-			# 		println("Installing Julia " << secondArg << "." << std::endl;
+					try
+						open(temp_file) do tar_gz
+							tar = CodecZlib.GzipDecompressorStream(tar_gz)
+							try
+								Tar.extract(tar, target_path)
+							finally
+								close(tar)
+							end
+						end
 
-			# 		auto res = catalog.AddOptionalPackageAsync(winrt::to_hstring(packageToInstall)).get();
-
-			# 		auto ext_err = res.ExtendedError();
-
-			# 		if (ext_err == 0) {
-			# 			println("New version successfully installed." << std::endl;
-			# 		}
-			# 		else {
-			# 			auto err = hresult_error(ext_err);
-
-			# 			std::wcout << err.message().c_str() << std::endl;
-			# 		}*/
-			# 	}
-			# 	else {
-			# 		// TODO Come up with a less hardcoded version of this.
-			# 		println("ERROR: '" << secondArg << "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'." << std::endl;
-			# 	}
-			# }
-			# else {
-			# 	println("ERROR: The add command only accepts one additional argument." << std::endl;
-			# }
+						println("New version successfully installed.")
+					finally
+						rm(temp_file, force=true)
+					end
+				else
+					# TODO Come up with a less hardcoded version of this.
+					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
+				end
+			else
+				println("ERROR: The add command only accepts one additional argument.")
+			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
 			# if length(ARGS)==1
 			# 	//std::string juliaVersionToUse = "1";

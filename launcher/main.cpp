@@ -136,7 +136,7 @@ int initial_setup() {
 
 		auto platform = getCurrentPlatform();
 
-		auto targetPath = juliaupFolder / (L"Julia-" + platform +L"-" + juliaVersionsDatabase->getBundledJuliaVersion());
+		auto targetPath = juliaupFolder / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion());
 
 		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
 	}
@@ -172,13 +172,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	// We are using a specific Julia version
 	if (parts2.size() == 3) {
-		auto formattedJuliaVersionToUse = platformPart + L"-" + versionPart;
-
-		auto targetPath = getJuliaupPath() / (L"Julia-" + formattedJuliaVersionToUse);
+		auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionPart);
 
 		if (std::filesystem::exists(targetPath)) {
 			julia_path = targetPath / L"bin" / L"julia.exe";
-			SetConsoleTitle((L"Julia " + formattedJuliaVersionToUse).c_str());
+			SetConsoleTitle((L"Julia " + versionPart).c_str());
 		}
 		else {
 			std::wcout << L"Julia version " + juliaVersionToUse + L" is not installed on this system. Run:" << std::endl;
