@@ -59,14 +59,32 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 			try
 				mktempdir() do extract_temp_path
 					Tar.extract(tar, extract_temp_path)
-					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"))
+					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"), force=true)
+
+					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
+
+					data = isfile(juliaup_config_file_path) ?
+						TOML.parsefile(juliaup_config_file_path) :
+						Dict()
+
+					if !haskey(data, "installed")
+						data["installed"] = Dict()
+					end
+
+					data["installed"]["$version~$platform"] = "$platform/julia-$version"
+
+					open(juliaup_config_file_path, "w") do f
+						TOML.print(f, data)
+					end
+
+					println("New version successfully installed.")
 				end
 			finally
 				close(tar)
 			end
 		end
 
-		println("New version successfully installed.")
+		
 	finally
 		rm(temp_file, force=true)
 	end
@@ -114,11 +132,14 @@ function real_main()
 				if isValidJuliaVersion(ARGS[2]) || isValidJuliaChannel(ARGS[2])
 					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
 
-					new_data = Dict("currentversion" => ARGS[2])
+					data = isfile(juliaup_config_file_path) ?
+						TOML.parsefile(juliaup_config_file_path) :
+						Dict()
 
-					# TODO Change this to read the file and then update if the file already exists
+					data["currentversion"] = ARGS[2]
+
 					open(juliaup_config_file_path, "w") do f
-						TOML.print(f, new_data)
+						TOML.print(f, data)
 					end
 
 					println("Configured the default Julia version to be ", ARGS[2], ".")
@@ -180,10 +201,14 @@ function real_main()
 			else
 				println("ERROR: The update command does not accept any additional arguments.")
 			end
-		elseif ARGS[1] == "remove" || ARGS[1] == "rm"
-			if length(ARGS)==2
+		elseif ARGS[1] == "remove" || ARGS[1] == "rm"			
 
-				if isValidJuliaVersion(ARGS[2])
+			if length(ARGS)==2
+				juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
+
+				if !isfile(juliaup_config_file_path)
+					println("ERROR: No juliaup.toml file found.")
+				elseif isValidJuliaVersion(ARGS[2])
 					parts = split(ARGS[2], '~')
 
 					juliaVersionToUninstall, juliaPlatform = if length(parts)==1
@@ -193,12 +218,24 @@ function real_main()
 					else
 						error("Invalid version specifier.")
 					end
+					
+					config_data = TOML.parsefile(juliaup_config_file_path)
 
-					path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", juliaPlatform, "julia-$juliaVersionToUninstall")
+					if haskey(config_data, "installed") && haskey(config_data["installed"], "$juliaVersionToUninstall~$juliaPlatform")
+						path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", config_data["installed"]["$juliaVersionToUninstall~$juliaPlatform"])
 
-					if isdir(path_to_be_deleted)
-						rm(path_to_be_deleted, force=true, recursive=true)
-						println("Julia $juliaVersionToUninstall successfully removed.")
+						if isdir(path_to_be_deleted)
+							rm(path_to_be_deleted, force=true, recursive=true)
+							println("Julia $juliaVersionToUninstall successfully removed.")
+						else
+							println("Julia $juliaVersionToUninstall cannot be removed because it is currently not installed.")
+						end
+
+						delete!(config_data["installed"], "$juliaVersionToUninstall~$juliaPlatform")
+
+						open(juliaup_config_file_path, "w") do f
+							TOML.print(f, config_data)
+						end
 					else
 						println("Julia $juliaVersionToUninstall cannot be removed because it is currently not installed.")
 					end
