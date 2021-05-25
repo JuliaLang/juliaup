@@ -147,15 +147,6 @@ void initial_setup() {
 		std::filesystem::create_directories(targetPath);
 
 		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
-
-		std::ofstream file;
-		file.open(juliaupFolder / "juliaup.toml", std::ios::out);
-
-		file << "\"currentversiont\" = \"1\"" << std::endl;
-		file << "[installed]" << std::endl;
-		file << "\"" << ws2s(juliaVersionsDatabase->getBundledJuliaVersion()) << "~" << ws2s(platform) << "\" = \"" << ws2s(platform) << "/julia-" << ws2s(juliaVersionsDatabase->getBundledJuliaVersion()) << "\"" << std::endl;
-
-		file.close();
 	}
 }
 
