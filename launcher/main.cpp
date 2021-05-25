@@ -99,22 +99,13 @@ std::wstring GetExecutablePath()
 }
 
 std::wstring getCurrentPlatform() {
-	std::wstring platform;
+#ifdef _M_X64
+	return std::wstring{ L"x64" };
+#endif
 
-	switch (Windows::ApplicationModel::Package::Current().Id().Architecture())
-	{
-	case Windows::System::ProcessorArchitecture::X64:
-		platform = L"x64";
-		break;
-	case Windows::System::ProcessorArchitecture::X86:
-		platform = L"x86";
-		break;
-	default:
-
-		break;
-	}
-
-	return platform;
+#ifdef _M_IX86
+	return std::wstring{ L"x86" };
+#endif
 }
 
 std::filesystem::path getJuliaupPath() {
