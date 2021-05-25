@@ -14,4 +14,4 @@ output_path = joinpath(@__DIR__, "..", "build", "juliaup", platform)
 
 mkpath(output_path)
 
-create_app(".", output_path, filter_stdlibs=true, force=true)
+create_app(".", output_path, filter_stdlibs=true, force=true, precompile_execution_file="precompile_app.jl")
