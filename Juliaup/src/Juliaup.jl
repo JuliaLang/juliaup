@@ -60,15 +60,13 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 				mktempdir() do extract_temp_path
 					Tar.extract(tar, extract_temp_path)
 					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"), force=true)
-
-					println("New version successfully installed.")
 				end
 			finally
 				close(tar)
 			end
 		end
 
-		
+		println("New version successfully installed.")
 	finally
 		rm(temp_file, force=true)
 	end
