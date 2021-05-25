@@ -23,7 +23,7 @@ if (-Not (Test-Path "build\downloads\julia-$($bundledVersionAsString)-win64.tar.
 
 if (-Not (Test-Path "build\downloads\julia-$($bundledVersionAsString)-win32.tar.gz"))
 {
-    Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x86/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win32.tar.gz" -OutFile "build\download\/julia-$($bundledVersionAsString)-win32.tar.gz"
+    Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x86/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win32.tar.gz" -OutFile "build\downloads\julia-$($bundledVersionAsString)-win32.tar.gz"
 }
 
 if (-Not (Test-Path "build\juliaversions\x64\julia-$($bundledVersionAsString)"))
@@ -33,7 +33,7 @@ if (-Not (Test-Path "build\juliaversions\x64\julia-$($bundledVersionAsString)"))
 
 if (-Not (Test-Path "build\juliaversions\x86\julia-$($bundledVersionAsString)"))
 {
-    tar -xvzf "build\downloads\julia-$($bundledVersion)-win32.tar.gz" -C build\juliaversions\win32
+    tar -xvzf "build\downloads\julia-$($bundledVersion)-win32.tar.gz" -C build\juliaversions\x86
 }
 
 push-location msix
