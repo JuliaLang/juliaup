@@ -33,7 +33,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
-        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win64\julia-$bundledJuliaVersion\**" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
       </Files>
     </Package>
     <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
@@ -42,7 +42,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
-        <File DestinationPath="BundledJulia\**" SourcePath="..\optionalpackages\win32\julia-$bundledJuliaVersion\**" />
+        <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
       </Files>
     </Package>   
   </PackageFamily>
