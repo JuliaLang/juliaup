@@ -1,3 +1,6 @@
 [submodule "toml11"]
 	path = toml11
 	url = https://github.com/ToruNiina/toml11
+[submodule "Juliaup/src/Tar"]
+	path = Juliaup/src/Tar
+	url = https://github.com/davidanthoff/Tar.jl

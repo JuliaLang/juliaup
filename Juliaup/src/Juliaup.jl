@@ -1,6 +1,8 @@
 module Juliaup
 
-import Downloads, Tar, CodecZlib, TOML
+include("Tar/src/Tar.jl")
+
+import Downloads, .Tar, CodecZlib, TOML
 
 include("versions_database.jl")
 
@@ -60,7 +62,7 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 			tar = CodecZlib.GzipDecompressorStream(tar_gz)
 			try
 				mktempdir() do extract_temp_path
-					Tar.extract(tar, extract_temp_path)
+					Tar.extract(tar, extract_temp_path, same_permissions=false)
 					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"), force=true)
 				end
 			finally
