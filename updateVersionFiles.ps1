@@ -29,7 +29,7 @@ $packageLayout = [xml]@"
   <PackageFamily ID="Julia-$($versions.JuliaAppPackage.Version)" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
     <Package ID="Julia-x64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\x64\Release\launcher\julia.exe" />
+        <File DestinationPath="Julia\*" SourcePath="..\build\output\x64\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
@@ -38,7 +38,7 @@ $packageLayout = [xml]@"
     </Package>
     <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
-        <File DestinationPath="Julia\julia.exe" SourcePath="..\build\output\Win32\Release\launcher\julia.exe" />
+        <File DestinationPath="Julia\*" SourcePath="..\build\output\Win32\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
