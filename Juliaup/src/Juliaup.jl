@@ -16,12 +16,36 @@ function julia_main()
     return 0
 end
 
-function isValidJuliaVersion(version)
-	return true
+function tryparse_full_version(value::AbstractString)
+	parts = split(value, '.')
+	if length(parts)==3 && !any(i->tryparse(Int, i)===nothing, parts)
+		return string(value)
+	else
+		return nothing
+	end
 end
 
-function isValidJuliaChannel(version)
-	return true
+function tryparse_channel(value::AbstractString)
+	parts = split(value, '.')
+	if length(parts)==2 && !any(i->tryparse(Int, i)===nothing, parts)
+		return value
+	elseif length(parts)==1 && tryparse(Int, value)!==nothing
+		return value
+	else
+		return nothing
+	end
+end
+
+function try_split_platform(value::AbstractString)
+	parts = split(value, '~')
+	
+	if length(parts)==1
+		return (version=value, platform=Int===Int64 ? "x64" : "x86")
+	elseif length(parts)==2 && parts[2] in ("x64", "x86")
+		return (version=parts[1], platform=parts[2])
+	else
+		return nothing
+	end
 end
 
 function target_path_for_julia_version(platform, version)
@@ -53,7 +77,7 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 
 	mkpath(target_path)
 
-	println("Installing Julia $version.")
+	println("Installing Julia $version ($platform).")
 
 	temp_file = Downloads.download(downloadUrl)
 
@@ -115,7 +139,8 @@ function real_main()
 			end
 		elseif ARGS[1] == "setdefault"
 			if length(ARGS)==2
-				if isValidJuliaVersion(ARGS[2]) || isValidJuliaChannel(ARGS[2])
+				first_split = try_split_platform(ARGS[2])
+				if first_split!==nothing && (tryparse_full_version(first_split.version)!==nothing || tryparse_channel(first_split.version)!==nothing)
 					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
 
 					data = isfile(juliaup_config_file_path) ?
@@ -138,10 +163,11 @@ function real_main()
 			end
 		elseif ARGS[1] == "add"
 			if length(ARGS)==2
-				if isValidJuliaVersion(ARGS[2])
-					version_to_install = VersionNumber(ARGS[2])
+				first_split = try_split_platform(ARGS[2])
+				if first_split!==nothing && tryparse_full_version(first_split.version)!==nothing
+					version_to_install = VersionNumber(first_split.version)
 
-					installJuliaVersion("x64", version_to_install)
+					installJuliaVersion(first_split.platform, version_to_install)
 				else
 					# TODO Come up with a less hardcoded version of this.
 					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
@@ -160,29 +186,30 @@ function real_main()
 					juliaVersionToUse = get(config_data, "currentversion", "1")
 				end
 
-				parts = split(juliaVersionToUse, '~')
-				versionPart = parts[1]
-				platformPart = length(parts) > 1 ? parts[2] : "x64";
+				first_split = try_split_platform(juliaVersionToUse)
 
-				#  Now figure out whether we got a channel or a specific version.
-				parts2 = split(versionPart, '.')
+				if first_split!==nothing
+					if tryparse_channel(first_split.version)!==nothing
+						publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
 
-				if length(parts2) < 3
-					publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(versionPart)
+						if length(publishedVersionsWeCouldUse) > 0
+								target_path = target_path_for_julia_version(first_split.platform, publishedVersionsWeCouldUse[1])
 
-					if length(publishedVersionsWeCouldUse) > 0
-							target_path = target_path_for_julia_version(platformPart, publishedVersionsWeCouldUse[1])
-
-							if isdir(target_path)
-								println("You already have the latest Julia version for the active channel installed.")
-							else
-								installJuliaVersion(platformPart, publishedVersionsWeCouldUse[1])
-							end
+								if isdir(target_path)
+									println("You already have the latest Julia version for the active channel installed.")
+								else
+									installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
+								end
+						else
+							println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated.")
+						end
+					elseif tryparse_full_version(first_split.version)!==nothing
+						println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated.")
 					else
-						println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated.")
+						println("ERROR: The configuration value for `currentversion` is invalid.")
 					end
 				else
-				    println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated.")
+					println("ERROR: The configuration value for `currentversion` is invalid.")
 				end
 			else
 				println("ERROR: The update command does not accept any additional arguments.")
@@ -191,18 +218,12 @@ function real_main()
 
 			if length(ARGS)==2
 
-				if isValidJuliaVersion(ARGS[2])
-					parts = split(ARGS[2], '~')
+				first_split = try_split_platform(ARGS[2])
 
-					juliaVersionToUninstall, juliaPlatform = if length(parts)==1
-						parts[1], "x64"
-					elseif length(parts)==2
-						parts[1], parts[2]
-					else
-						error("Invalid version specifier.")
-					end
+				if first_split!==nothing && tryparse_full_version(first_split.version)!==nothing
+					juliaVersionToUninstall = first_split.version
 
-					path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", juliaPlatform, "julia-$juliaVersionToUninstall")
+					path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", first_split.platform, "julia-$juliaVersionToUninstall")
 
 					if isdir(path_to_be_deleted)
 						rm(path_to_be_deleted, force=true, recursive=true)
