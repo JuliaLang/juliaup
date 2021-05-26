@@ -177,7 +177,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	}
 
 	std::vector<std::wstring> parts;
-	tokenize(juliaVersionToUse, L'-', parts);
+	tokenize(juliaVersionToUse, L'~', parts);
 	auto &versionPart = parts[0];
 	auto platformPart = parts.size() > 1 ? parts[1] : getCurrentPlatform();
 
@@ -247,7 +247,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 				std::wcout << std::endl;
 				std::wcout << L"  juliaup update" << std::endl;
 				std::wcout << std::endl;
-				std::wcout << L"to install Julia " << juliaVersionToUse << ", the latest Julia version for the current channel." << std::endl;
+				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << ", the latest Julia version for the current channel." << std::endl;
 
 				return 1;
 			}
