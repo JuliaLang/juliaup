@@ -3,8 +3,8 @@
 	"tasks": [
 		{
 			"type": "shell",
-			"label": "Build Main MSIX",
-			"command": "./build_msix.ps1",
+			"label": "Build",
+			"command": "./build.ps1",
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
@@ -12,15 +12,6 @@
 				"kind": "build",
 				"isDefault": true
 			}
-		},
-		{
-			"type": "shell",
-			"label": "Build Optional MSIX",
-			"command": "./build_optional_packages.ps1",
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"group": "build"
-		}		
+		}	
 	]
 }
