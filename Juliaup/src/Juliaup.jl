@@ -49,6 +49,8 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 
 	target_path = joinpath(homedir(), ".julia", "juliaup", platform)
 
+	mkpath(target_path)
+
 	println("Installing Julia $version.")
 
 	temp_file = Downloads.download(downloadUrl)
