@@ -10,8 +10,7 @@ stages:
 
 - stage: Build
   displayName: 'Build'
-  jobs:
-  - deployment: Build
+  - job: Build
     pool:
       vmImage: 'Windows-latest'
     steps:
