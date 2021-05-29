@@ -10,15 +10,13 @@ stages:
 
 - stage: Build
   displayName: 'Build'
-  jobs:
   
-  - job: Build
-    pool:
-      vmImage: 'Windows-latest'
-    steps:
-    - checkout: self
-    - task: PowerShell@2
-      inputs:
-        targetType: 'filePath'
-        filePath: $(System.DefaultWorkingDirectory)\build.ps1
-      displayName: 'Build everything'
+  pool:
+    vmImage: 'Windows-latest'
+  steps:
+  - checkout: self
+  - task: PowerShell@2
+    inputs:
+      targetType: 'filePath'
+      filePath: $(System.DefaultWorkingDirectory)\build.ps1
+    displayName: 'Build everything'
