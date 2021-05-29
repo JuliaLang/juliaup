@@ -21,5 +21,5 @@ std::vector<JuliaVersion> JuliaVersionsDatabase::getJuliaVersions() {
 }
 
 std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
-  return std::wstring {L"1.5.3"};
+  return std::wstring {L"1.6.1"};
 }
