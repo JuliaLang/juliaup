@@ -44,7 +44,7 @@ HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR curren
 
 	BOOL ret = CreateProcessW(
 		applicationName,
-		GetCommandLineW(), //commandLine,
+		commandLine, //commandLine,
 		nullptr, nullptr, // Process/ThreadAttributes
 		true, // InheritHandles
 		0, //EXTENDED_STARTUPINFO_PRESENT, // CreationFlags
@@ -267,12 +267,28 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	}
 
 	std::filesystem::path currentDirectory = L"";
-	std::wstring exeArgString = (wchar_t*)L"";
+	std::wstring exeArgString = std::wstring{ L"" };
 
-	std::wstring fullargs = (L"\"" + julia_path.native() + L"\" " + exeArgString + L" "); // +args);
+	for (int i = 0; i < argc; i++) {
+		std::wstring curr = std::wstring{ argv[i] };
 
-	fullargs = L"";
-	HRESULT hr = StartProcess(julia_path.c_str(), fullargs.data(), currentDirectory.c_str(), INFINITE);
+		if (i > 0) {
+			exeArgString.append(L" ");
+		}
+
+		if (i == 0) {
+			exeArgString.append(julia_path);
+		}
+		else if (curr._Starts_with(L"-v=")) {
+			auto version = curr.substr(3);
+			std::wcout << version << std::endl;
+		}
+		else {
+			exeArgString.append(argv[i]);
+		}
+	}
+
+	HRESULT hr = StartProcess(julia_path.c_str(), exeArgString.data(), currentDirectory.c_str(), INFINITE);
 	if (hr != ERROR_SUCCESS)
 	{
 		printf("Error return from launching process.");
