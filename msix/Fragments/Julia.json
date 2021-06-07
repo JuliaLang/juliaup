@@ -2,7 +2,8 @@
     "profiles": [
         {
             "name": "Julia",
-            "commandline": "julia.exe"
+            "commandline": "julia.exe",
+            "icon": "julia.ico"
         }
     ]
 }
