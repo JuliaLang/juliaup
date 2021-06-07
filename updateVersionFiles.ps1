@@ -43,8 +43,8 @@ $packageLayout = [xml]@"
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
-      </Files> -->
-    </Package>   
+      </Files>
+    </Package> -->
   </PackageFamily>
 </PackagingLayout>
 "@
