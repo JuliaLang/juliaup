@@ -64,9 +64,9 @@
         </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="JuliaUp" Executable="Juliaup\bin\Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Juliaup" Executable="Juliaup\bin\Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="JuliaUp"
+        DisplayName="Juliaup"
         Description="Julia version management"
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
