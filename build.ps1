@@ -1,5 +1,5 @@
-&"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x86 WinJulia.sln
-&"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x64 WinJulia.sln
+&"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x86 Juliaup.sln
+&"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x64 Juliaup.sln
 
 C:\Users\david\AppData\Local\Programs\Julia-1.6.1-x64\bin\julia.exe .\Juliaup\build.jl
 # C:\Users\david\AppData\Local\Programs\Julia-1.6.1-x86\bin\julia.exe .\build.jl
