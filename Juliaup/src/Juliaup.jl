@@ -112,7 +112,7 @@ function real_main()
 		println()
 		println("  setdefault    Set the default Julia version")
 		println("  add           Add a specific Julia version to your system")
-		println("  update        Update the current channel to the latest Julia version")
+		println("  update        Update the current or a specific channel to the latest Julia version")
 		println("  status        Show all installed Julia versions")
 		println("  remove        Remove a Julia version from your system")
 		println()
@@ -211,8 +211,34 @@ function real_main()
 				else
 					println("ERROR: The configuration value for `currentversion` is invalid.")
 				end
+			elseif length(ARGS)==2
+				juliaVersionToUse = ARGS[2]
+
+				first_split = try_split_platform(juliaVersionToUse)
+
+				if first_split!==nothing
+					if tryparse_channel(first_split.version)!==nothing
+						publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
+
+						if length(publishedVersionsWeCouldUse) > 0
+								target_path = target_path_for_julia_version(first_split.platform, publishedVersionsWeCouldUse[1])
+
+								if isdir(target_path)
+									println("You already have the latest Julia version for the $juliaVersionToUse channel installed.")
+								else
+									installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
+								end
 			else
-				println("ERROR: The update command does not accept any additional arguments.")
+							println("You are trying to update a Julia channel for which no Julia versions exists. Nothing can be updated.")
+						end
+					else
+						println("ERROR: The argument to the `update` command is invalid.")
+					end
+				else
+					println("ERROR: The argument to the `update` command is invalid.")
+				end
+			else
+				println("ERROR: The update command accepts at most one additional argument.")
 			end
 		elseif ARGS[1] == "remove" || ARGS[1] == "rm"			
 
