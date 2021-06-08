@@ -1,22 +1,22 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="Julia-1.0.19.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-x64-1.0.19.0" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.0.23.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-x64-1.0.23.0" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\*" SourcePath="..\build\output\x64\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-1.6.1\**" />
       </Files>
     </Package>
-    <Package ID="Julia-x86-1.0.19.0" ProcessorArchitecture="x86">
+    <!-- <Package ID="Julia-x86-1.0.23.0" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\*" SourcePath="..\build\output\Win32\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-1.6.1\**" />
       </Files>
-    </Package>
+    </Package> -->
   </PackageFamily>
 </PackagingLayout>

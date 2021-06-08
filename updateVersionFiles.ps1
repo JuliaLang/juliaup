@@ -32,19 +32,19 @@ $packageLayout = [xml]@"
         <File DestinationPath="Julia\*" SourcePath="..\build\output\x64\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
       </Files>
     </Package>
-    <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
+    <!-- <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\*" SourcePath="..\build\output\Win32\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\Julia.json" SourcePath="Fragments\Julia.json" />
+        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
       </Files>
-    </Package>   
+    </Package> -->
   </PackageFamily>
 </PackagingLayout>
 "@

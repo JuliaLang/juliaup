@@ -33,9 +33,24 @@
 
   <Applications>
     <Application Id="Julia" Executable="Julia\julia.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Julia" Description="Julia is a high-level, high-performance, dynamic programming language" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.scale-100.png" Square44x44Logo="Images\Square44x44Logo.scale-100.png">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
-        <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
+      <uap:VisualElements
+        DisplayName="Julia"
+        Description="Julia is a high-level, high-performance, dynamic programming language"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="Images\Wide310x150Logo.png"
+          ShortName="Julia"
+          Square71x71Logo="Images\SmallTile.png"
+          Square310x310Logo="Images\LargeTile.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo"/>
+            <uap:ShowOn Tile="wide310x150Logo"/>
+            <uap:ShowOn Tile="square310x310Logo"/>
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile >
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julia.exe" EntryPoint="Windows.FullTrustApplication">
@@ -49,10 +64,26 @@
         </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="JuliaUp" Executable="Juliaup\bin\Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="JuliaUp" Description="Julia version management" BackgroundColor="transparent" Square150x150Logo="Images\Square150x150Logo.scale-100.png" Square44x44Logo="Images\Square44x44Logo.scale-100.png" AppListEntry="none">
-        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.scale-100.png" />
-        <uap:SplashScreen Image="Images\SplashScreen.scale-200.png" />
+    <Application Id="Juliaup" Executable="Juliaup\bin\Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Juliaup"
+        Description="Julia version management"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png"
+        AppListEntry="none">
+        <uap:DefaultTile
+          Wide310x150Logo="Images\Wide310x150Logo.png"
+          ShortName="Julia"
+          Square71x71Logo="Images\SmallTile.png"
+          Square310x310Logo="Images\LargeTile.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo"/>
+            <uap:ShowOn Tile="wide310x150Logo"/>
+            <uap:ShowOn Tile="square310x310Logo"/>
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile >
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" Executable="Juliaup/bin/Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
