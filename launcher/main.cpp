@@ -35,6 +35,101 @@ std::string GetLastErrorAsString()
 	return message;
 }
 
+/*++
+
+Routine Description:
+
+	This routine appends the given argument to a command line such
+	that CommandLineToArgvW will return the argument string unchanged.
+	Arguments in a command line should be separated by spaces; this
+	function does not add these spaces.
+
+Arguments:
+
+	Argument - Supplies the argument to encode.
+
+	CommandLine - Supplies the command line to which we append the encoded argument string.
+
+	Force - Supplies an indication of whether we should quote
+			the argument even if it does not contain any characters that would
+			ordinarily require quoting.
+
+Return Value:
+
+	None.
+
+Environment:
+
+	Arbitrary.
+
+This function was copied from https://web.archive.org/web/20190109172835/https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
+on 6/7/2021 by David Anthoff.
+--*/
+void ArgvQuote(
+	const std::wstring& Argument,
+	std::wstring& CommandLine,
+	bool Force
+)
+{
+	//
+	// Unless we're told otherwise, don't quote unless we actually
+	// need to do so --- hopefully avoid problems if programs won't
+	// parse quotes properly
+	//
+
+	if (Force == false &&
+		Argument.empty() == false &&
+		Argument.find_first_of(L" \t\n\v\"") == Argument.npos)
+	{
+		CommandLine.append(Argument);
+	}
+	else {
+		CommandLine.push_back(L'"');
+
+		for (auto It = Argument.begin(); ; ++It) {
+			unsigned NumberBackslashes = 0;
+
+			while (It != Argument.end() && *It == L'\\') {
+				++It;
+				++NumberBackslashes;
+			}
+
+			if (It == Argument.end()) {
+
+				//
+				// Escape all backslashes, but let the terminating
+				// double quotation mark we add below be interpreted
+				// as a metacharacter.
+				//
+
+				CommandLine.append(NumberBackslashes * 2, L'\\');
+				break;
+			}
+			else if (*It == L'"') {
+
+				//
+				// Escape all backslashes and the following
+				// double quotation mark.
+				//
+
+				CommandLine.append(NumberBackslashes * 2 + 1, L'\\');
+				CommandLine.push_back(*It);
+			}
+			else {
+
+				//
+				// Backslashes aren't special here.
+				//
+
+				CommandLine.append(NumberBackslashes, L'\\');
+				CommandLine.push_back(*It);
+			}
+		}
+
+		CommandLine.push_back(L'"');
+	}
+}
+
 HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR currentDirectory, DWORD timeout)
 {
 	STARTUPINFO info;
@@ -160,6 +255,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
 	std::wstring juliaVersionToUse = L"1";
+	bool juliaVersionFromCmdLine = false;
 
 	auto configFilePath = getJuliaupPath() / "juliaup.toml";
 
@@ -176,9 +272,25 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		}
 	}
 
+	std::wstring exeArgString = std::wstring{ L"" };
+
+	for (int i = 1; i < argc; i++) {
+		std::wstring curr = std::wstring{ argv[i] };
+
+		exeArgString.append(L" ");
+
+		if (curr._Starts_with(L"-v=")) {
+			juliaVersionToUse = curr.substr(3);
+			juliaVersionFromCmdLine = true;
+		}
+		else {
+			ArgvQuote(curr, exeArgString, false);
+		}
+	}
+
 	std::vector<std::wstring> parts;
 	tokenize(juliaVersionToUse, L'~', parts);
-	auto &versionPart = parts[0];
+	auto& versionPart = parts[0];
 	auto platformPart = parts.size() > 1 ? parts[1] : getCurrentPlatform();
 
 	// Now figure out whether we got a channel or a specific version.
@@ -203,7 +315,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			std::wcout << L"to install it." << std::endl;
 
 			return 1;
-		}		
+		}
 	}
 	// We are using a channel
 	else {
@@ -228,7 +340,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			bool foundLatestJuliaVersionForChannel = false;
 			bool foundAnyJuliaVersionForChannel = false;
 			std::wstring juliaVersionWeAreUsing;
-			
+
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
 				auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionsThatWeCouldUse[i]);
 
@@ -245,9 +357,16 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			if (!foundAnyJuliaVersionForChannel) {
 				std::wcout << L"No Julia version for channel " + juliaVersionToUse + L" is installed on this system. Run:" << std::endl;
 				std::wcout << std::endl;
-				std::wcout << L"  juliaup update" << std::endl;
+				if (juliaVersionFromCmdLine)
+				{
+					std::wcout << L"  juliaup update " << juliaVersionToUse << std::endl;
+				}
+				else
+				{
+					std::wcout << L"  juliaup update" << std::endl;
+				}
 				std::wcout << std::endl;
-				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << ", the latest Julia version for the current channel." << std::endl;
+				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << ", the latest Julia version for the " << juliaVersionToUse << " channel." << std::endl;
 
 				return 1;
 			}
@@ -255,9 +374,16 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			if (!foundLatestJuliaVersionForChannel) {
 				std::wcout << L"The latest version of Julia in the " << juliaVersionToUse << " channel is Julia " << versionsThatWeCouldUse[0] << ". You currently have Julia " << juliaVersionWeAreUsing << " installed. Run:" << std::endl;
 				std::wcout << std::endl;
-				std::wcout << L"  juliaup update " << std::endl;
+				if (juliaVersionFromCmdLine)
+				{
+					std::wcout << L"  juliaup update " << juliaVersionToUse << std::endl;
+				}
+				else
+				{
+					std::wcout << L"  juliaup update" << std::endl;
+				}
 				std::wcout << std::endl;
-				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << " and update your current channel to that version." << std::endl;
+				std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << " and update the " << juliaVersionToUse << " channel to that version." << std::endl;
 			}
 		}
 		else {
@@ -267,26 +393,8 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	}
 
 	std::filesystem::path currentDirectory = L"";
-	std::wstring exeArgString = std::wstring{ L"" };
 
-	for (int i = 0; i < argc; i++) {
-		std::wstring curr = std::wstring{ argv[i] };
-
-		if (i > 0) {
-			exeArgString.append(L" ");
-		}
-
-		if (i == 0) {
-			exeArgString.append(julia_path);
-		}
-		else if (curr._Starts_with(L"-v=")) {
-			auto version = curr.substr(3);
-			std::wcout << version << std::endl;
-		}
-		else {
-			exeArgString.append(argv[i]);
-		}
-	}
+	exeArgString.insert(0, julia_path);
 
 	HRESULT hr = StartProcess(julia_path.c_str(), exeArgString.data(), currentDirectory.c_str(), INFINITE);
 	if (hr != ERROR_SUCCESS)
