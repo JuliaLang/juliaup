@@ -2,7 +2,7 @@ module Juliaup
 
 include("Tar/src/Tar.jl")
 
-import Downloads, .Tar, CodecZlib, TOML
+import Downloads, .Tar, CodecZlib, JSON
 
 include("versions_database.jl")
 
@@ -94,6 +94,22 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 			end
 		end
 
+		juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+
+		data = isfile(juliaup_config_file_path) ?
+			JSON.parsefile(juliaup_config_file_path) :
+			Dict()
+
+		if !haskey(data, "InstalledVersions")
+			data["InstalledVersions"] = Dict()
+		end
+
+		data["InstalledVersions"]["$version~$platform"] = Dict("path" => joinpath(".", platform, "julia-$version"))
+
+		open(juliaup_config_file_path, "w") do f
+			JSON.print(f, data, 4)
+		end
+
 		println("New version successfully installed.")
 	finally
 		rm(temp_file, force=true)
@@ -141,16 +157,16 @@ function real_main()
 			if length(ARGS)==2
 				first_split = try_split_platform(ARGS[2])
 				if first_split!==nothing && (tryparse_full_version(first_split.version)!==nothing || tryparse_channel(first_split.version)!==nothing)
-					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
+					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
 
 					data = isfile(juliaup_config_file_path) ?
-						TOML.parsefile(juliaup_config_file_path) :
+						JSON.parsefile(juliaup_config_file_path) :
 						Dict()
 
-					data["currentversion"] = ARGS[2]
+					data["Default"] = ARGS[2]
 
 					open(juliaup_config_file_path, "w") do f
-						TOML.print(f, data)
+						JSON.print(f, data, 4)
 					end
 
 					println("Configured the default Julia version to be ", ARGS[2], ".")
@@ -177,65 +193,68 @@ function real_main()
 			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
 			if length(ARGS)==1
-				juliaVersionToUse = "1"
-
-				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
+				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
 
 				if isfile(julia_config_file_path)
-					config_data = TOML.parsefile(julia_config_file_path)
-					juliaVersionToUse = get(config_data, "currentversion", "1")
-				end
+					config_data = JSON.parsefile(julia_config_file_path)
+					juliaVersionToUse = get(config_data, "Default", "1")
 
-				first_split = try_split_platform(juliaVersionToUse)
+					first_split = try_split_platform(juliaVersionToUse)
 
-				if first_split!==nothing
-					if tryparse_channel(first_split.version)!==nothing
-						publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
+					if first_split!==nothing
+						if tryparse_channel(first_split.version)!==nothing
+							publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
 
-						if length(publishedVersionsWeCouldUse) > 0
-								target_path = target_path_for_julia_version(first_split.platform, publishedVersionsWeCouldUse[1])
-
-								if isdir(target_path)
-									println("You already have the latest Julia version for the active channel installed.")
-								else
-									installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
-								end
+							if length(publishedVersionsWeCouldUse) > 0
+									if haskey(get(config_data, "InstalledVersions", Dict()), "$(publishedVersionsWeCouldUse[1])~$(first_split.platform)")
+										println("You already have the latest Julia version for the active channel installed.")
+									else
+										installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
+									end
+							else
+								println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated.")
+							end
+						elseif tryparse_full_version(first_split.version)!==nothing
+							println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated.")
 						else
-							println("You currently have a Julia channel configured for which no Julia versions exists. Nothing can be updated.")
+							println("ERROR: The configuration value for `currentversion` is invalid.")
 						end
-					elseif tryparse_full_version(first_split.version)!==nothing
-						println("You currently have a specific Julia version as your default configured. Only channel defaults can be updated.")
 					else
 						println("ERROR: The configuration value for `currentversion` is invalid.")
 					end
 				else
-					println("ERROR: The configuration value for `currentversion` is invalid.")
+					println("ERROR: Could not find the juliaup configuration file.")
 				end
 			elseif length(ARGS)==2
-				juliaVersionToUse = ARGS[2]
+				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
 
-				first_split = try_split_platform(juliaVersionToUse)
+				if isfile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path)
+					juliaVersionToUse = ARGS[2]
 
-				if first_split!==nothing
-					if tryparse_channel(first_split.version)!==nothing
-						publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
+					first_split = try_split_platform(juliaVersionToUse)
 
-						if length(publishedVersionsWeCouldUse) > 0
-								target_path = target_path_for_julia_version(first_split.platform, publishedVersionsWeCouldUse[1])
+					if first_split!==nothing
+						if tryparse_channel(first_split.version)!==nothing
+							publishedVersionsWeCouldUse = getJuliaVersionsThatMatchChannel(first_split.version)
 
-								if isdir(target_path)
-									println("You already have the latest Julia version for the $juliaVersionToUse channel installed.")
-								else
-									installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
-								end
-			else
-							println("You are trying to update a Julia channel for which no Julia versions exists. Nothing can be updated.")
+							if length(publishedVersionsWeCouldUse) > 0
+									if haskey(get(config_data, "InstalledVersions", Dict()), "$(publishedVersionsWeCouldUse[1])~$(first_split.platform)")
+										println("You already have the latest Julia version for the $juliaVersionToUse channel installed.")
+									else
+										installJuliaVersion(first_split.platform, publishedVersionsWeCouldUse[1])
+									end
+							else
+								println("You are trying to update a Julia channel for which no Julia versions exists. Nothing can be updated.")
+							end
+						else
+							println("ERROR: The argument to the `update` command is invalid.")
 						end
 					else
 						println("ERROR: The argument to the `update` command is invalid.")
 					end
 				else
-					println("ERROR: The argument to the `update` command is invalid.")
+					println("ERROR: Could not find the juliaup configuration file.")
 				end
 			else
 				println("ERROR: The update command accepts at most one additional argument.")
@@ -249,14 +268,40 @@ function real_main()
 				if first_split!==nothing && tryparse_full_version(first_split.version)!==nothing
 					juliaVersionToUninstall = first_split.version
 
-					path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", first_split.platform, "julia-$juliaVersionToUninstall")
+					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
 
-					if isdir(path_to_be_deleted)
-						rm(path_to_be_deleted, force=true, recursive=true)
-						println("Julia $juliaVersionToUninstall successfully removed.")
+					if isfile(juliaup_config_file_path)
+						config_data = JSON.parsefile(juliaup_config_file_path)
+						node_for_version = get(get(config_data, "InstalledVersions", Dict()), "$juliaVersionToUninstall~$(first_split.platform)", nothing)
+
+						if node_for_version!==nothing
+							if haskey(node_for_version, "path")
+								path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", node_for_version["path"])
+
+								if isdir(path_to_be_deleted)
+									rm(path_to_be_deleted, force=true, recursive=true)
+
+									delete!(config_data["InstalledVersions"], "$juliaVersionToUninstall~$(first_split.platform)")
+
+									open(juliaup_config_file_path, "w") do f
+										JSON.print(f, config_data, 4)
+									end
+
+									println("Julia $juliaVersionToUninstall successfully removed.")
+								else
+									println("Julia $juliaVersionToUninstall cannot be removed because it is currently not installed.")
+								end
+							else
+								println("ERROR: juliaup.json is misconfigured.")
+							end
+						else
+							println("ERROR: Julia $juliaVersionToUninstall ($(first_split.platform)) is not installed.")
+						end
 					else
-						println("Julia $juliaVersionToUninstall cannot be removed because it is currently not installed.")
+						println("ERROR: Could not find juliaup configuration file.")
 					end
+
+					
 				else
 					# TODO Come up with a less hardcoded version of this.
 					println("ERROR: '", ARGS[2], "' is not a valid Julia version. Valid values are '1.5.1', '1.5.2', '1.5.3', '1.5.4', '1.6.0' or '1.6.1'.")
@@ -266,29 +311,25 @@ function real_main()
 			end
 		elseif ARGS[1] == "status" || ARGS[1] == "st"
 			if length(ARGS)==1
-				println("The following Julia versions are currently installed:")
-
-				for platform in ["x64", "x86"]
-					if isdir(joinpath(homedir(), ".julia", "juliaup", platform))
-						for i in readdir(joinpath(homedir(), ".julia", "juliaup", platform))
-							if startswith(i, "julia-")
-								println("  ", i[7:end], " (", platform, ")")
-							end
-						end
-					end
-				end
-
-				defaultJulia = "1"
-
-				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.toml")
+				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
 
 				if isfile(julia_config_file_path)
-					config_data = TOML.parsefile(julia_config_file_path)
-					defaultJulia = get(config_data, "currentversion", "1")
-				end
+					config_data = JSON.parsefile(julia_config_file_path)
 
-				println()
-				println("The default Julia version is configured to be: ", defaultJulia)
+					defaultJulia = get(config_data, "Default", "1")
+
+					println("The following Julia versions are currently installed:")
+
+					for i in get(config_data, "InstalledVersions", Dict())
+						version, platform = try_split_platform(i[1])
+						println("  $version ($platform)")
+					end
+
+					println()
+					println("The default Julia version is configured to be: ", defaultJulia)
+				else
+					println("ERROR: Could not find the juliaup configuration file.")
+				end
 			else
 				println("ERROR: The status command does not accept any additional arguments.")
 			end

@@ -3,6 +3,7 @@
 using namespace winrt;
 using namespace Windows::ApplicationModel;
 using namespace Windows::Storage;
+using json = nlohmann::json;
 
 void tokenize(std::wstring& str, char delim, std::vector<std::wstring>& out)
 {
@@ -227,7 +228,7 @@ std::string ws2s(const std::wstring& wstr)
 void initial_setup() {
 	auto juliaupFolder = getJuliaupPath();
 
-	if (!std::filesystem::exists(juliaupFolder)) {
+	if (!std::filesystem::exists(juliaupFolder / "juliaup.json")) {
 
 		std::filesystem::path myOwnPath = GetExecutablePath();
 
@@ -242,6 +243,20 @@ void initial_setup() {
 		std::filesystem::create_directories(targetPath);
 
 		std::filesystem::copy(pathOfBundledJulia, targetPath, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
+
+		json j;
+		j["Default"] = "1";
+		j["InstalledVersions"] = {
+			{
+				ws2s(juliaVersionsDatabase->getBundledJuliaVersion() + L"~" + platform),
+				{
+					{"path", ws2s(std::wstring{std::filesystem::path{ L"." } / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion())})}
+				}
+			}
+		};
+
+		std::ofstream o(juliaupFolder / "juliaup.json");
+		o << std::setw(4) << j << std::endl;
 	}
 }
 
@@ -257,20 +272,22 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 	std::wstring juliaVersionToUse = L"1";
 	bool juliaVersionFromCmdLine = false;
 
-	auto configFilePath = getJuliaupPath() / "juliaup.toml";
+	auto configFilePath = getJuliaupPath() / "juliaup.json";
+
+	json configFile;
 
 	if (std::filesystem::exists(configFilePath)) {
-		try {
-			auto data = toml::parse(configFilePath);
-
-			auto value_as_string = toml::find<std::string>(data, "currentversion");
-
-			juliaVersionToUse = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(value_as_string);
-		}
-		catch (...) {
-			std::wcout << "Could not read the juliaup configuration file, using the default value of '1' as the version to use." << std::endl;
-		}
+		std::ifstream i(configFilePath);
+		i >> configFile;			
 	}
+	else
+	{
+		std::wcout << "ERROR: Could not read the juliaup configuration file." << std::endl;
+
+		return 1;
+	}
+
+	juliaVersionToUse = s2ws(configFile["/Default"_json_pointer]);
 
 	std::wstring exeArgString = std::wstring{ L"" };
 
@@ -301,7 +318,13 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	// We are using a specific Julia version
 	if (parts2.size() == 3) {
-		auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionPart);
+		json::json_pointer json_path(ws2s(L"/InstalledVersions/" + versionPart + L"~0" + platformPart + L"/path"));
+
+		std::filesystem::path targetPath;
+
+		if (configFile.contains(json_path)) {
+			targetPath = getJuliaupPath() / s2ws(configFile[json_path]);
+		}
 
 		if (std::filesystem::exists(targetPath)) {
 			julia_path = targetPath / L"bin" / L"julia.exe";
@@ -342,7 +365,13 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			std::wstring juliaVersionWeAreUsing;
 
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-				auto targetPath = getJuliaupPath() / platformPart / (L"julia-" + versionsThatWeCouldUse[i]);
+				json::json_pointer json_path(ws2s(L"/InstalledVersions/" + versionsThatWeCouldUse[i] + L"~0" + platformPart + L"/path"));
+
+				std::filesystem::path targetPath;
+
+				if (configFile.contains(json_path)) {
+					targetPath = getJuliaupPath() / s2ws(configFile[json_path]);
+				}
 
 				if (std::filesystem::exists(targetPath)) {
 					julia_path = targetPath / L"bin" / L"julia.exe";
