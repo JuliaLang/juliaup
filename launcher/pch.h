@@ -9,6 +9,7 @@
 #include <string>
 #include <codecvt>
 #include <iostream>
+#include <fstream>
 #include "JuliaVersionDatabase.h"
 #include "version.h"
-#include "../toml11/toml.hpp"
+#include "../json/single_include/nlohmann/json.hpp"
