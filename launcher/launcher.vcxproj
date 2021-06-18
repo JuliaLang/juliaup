@@ -129,6 +129,7 @@
     <ClInclude Include="versionprep.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="generatedjuliaversions.cpp" />
     <ClCompile Include="JuliaVersionDatabase.ixx" />
     <ClCompile Include="main.ixx" />
     <ClCompile Include="Tokenizer.ixx" />

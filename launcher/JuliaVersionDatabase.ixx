@@ -80,7 +80,7 @@ public:
 
 			for (auto& [key, value] : versionsData.items())
 			{
-				if (value["stable"].get<bool>() == true)
+				if (value["stable"].get<bool>() == true && std::ranges::any_of(value["files"], [&](json j2) {return j2["os"].get<std::string>() == "winnt" && j2["kind"].get<std::string>() == "archive"; }))
 				{
 					m_juliaVersions.push_back(JuliaVersion{ key });
 				}
@@ -114,11 +114,11 @@ public:
 			channels.insert(std::to_string(i.major));
 			channels.insert(std::to_string(i.major) + "." + std::to_string(i.minor));
 
-			channels.insert(std::to_string(i.major) + "-x86");
-			channels.insert(std::to_string(i.major) + "." + std::to_string(i.minor) + "-x86");
+			channels.insert(std::to_string(i.major) + "~x86");
+			channels.insert(std::to_string(i.major) + "." + std::to_string(i.minor) + "~x86");
 		}
 
-		return std::any_of(channels.begin(), channels.end(), [&](auto i) {return i == versionString; });
+		return std::ranges::any_of(channels, [&versionString](auto i) {return i == versionString; });
 	}
 
 	std::vector<std::string> getJuliaVersionsThatMatchChannel(std::string channelString) {

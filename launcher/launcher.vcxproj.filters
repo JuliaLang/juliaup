@@ -29,6 +29,7 @@
     <ClCompile Include="Tokenizer.ixx" />
     <ClCompile Include="JuliaVersionDatabase.ixx" />
     <ClCompile Include="main.ixx" />
+    <ClCompile Include="generatedjuliaversions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="PropertySheet.props" />
