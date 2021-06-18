@@ -143,14 +143,7 @@ public:
 		return versionsThatWeCouldUse;
 	}
 
-	std::vector<JuliaVersion> getHardcodedJuliaVersions() {
-		std::vector<JuliaVersion> juliaVersions = {
-		JuliaVersion{1, 6, 0}, JuliaVersion{1, 6, 1}
-		};
-		return juliaVersions;
-	}
+	std::vector<JuliaVersion> getHardcodedJuliaVersions();
 
-	std::wstring getBundledJuliaVersion() {
-		return std::wstring{ L"1.6.1" };
-	}
+	std::wstring getBundledJuliaVersion();
 };
