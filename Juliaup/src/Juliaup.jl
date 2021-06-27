@@ -54,7 +54,7 @@ function try_split_platform(value::AbstractString)
 	if length(parts)==1
 		return (version=value, platform=Int===Int64 ? "x64" : "x86")
 	elseif length(parts)==2 && parts[2] in ("x64", "x86")
-		return (version=parts[1], platform=parts[2])
+		return (version=string(parts[1]), platform=string(parts[2]))
 	else
 		return nothing
 	end
@@ -95,7 +95,7 @@ function getJuliaVersionsThatMatchChannel(channelString)
 	return versionsThatWeCouldUse
 end
 
-function installJuliaVersion(platform::AbstractString, version::VersionNumber)
+function installJuliaVersion(platform::String, version::VersionNumber)
 	download_url = get_download_url(get_version_db(), version, platform)
 
 	target_path = joinpath(get_juliauphome_path(), platform)
@@ -122,7 +122,7 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 		juliaup_config_file_path = get_juliaupconfig_path()
 
 		data = isfile(juliaup_config_file_path) ?
-			JSON.parsefile(juliaup_config_file_path) :
+			JSON.parsefile(juliaup_config_file_path, use_mmap=false) :
 			Dict()
 
 		if !haskey(data, "InstalledVersions")
@@ -153,7 +153,7 @@ function get_version_db()
 			if isfile(i)
 				# TODO Remove again
 				println("DEBUG: We are using `", i, "` as the version DB file.")
-				g_version_db[] = JSON.parsefile(i)
+				g_version_db[] = JSON.parsefile(i, use_mmap=false)
 				return g_version_db[]
 			end
 		end
@@ -170,10 +170,19 @@ function get_download_url(version_db, version::VersionNumber, platform::String)
 	node_for_version = version_db[string(version)]
 	node_for_files = node_for_version["files"]
 
-	index_for_files = findfirst(i->i["kind"]=="archive" && i["arch"]==arch && "os"=="winnt", node_for_files)
+	index_for_files = findfirst(i->i["kind"]=="archive" && i["arch"]==arch && i["os"]=="winnt", node_for_files)
 
 	if index_for_files!==nothing
-		return node_for_files[index_for_files]["url"]
+		zip_url = node_for_files[index_for_files]["url"]
+
+		p1, p2 = splitext(zip_url)
+
+		# TODO Fix this in the version DB
+		if p2==".zip"
+			return p1 * ".tar.gz"
+		else
+			return p1
+		end
 	else
 		error("Could not find archive.")
 	end
@@ -223,7 +232,7 @@ function real_main()
 					juliaup_config_file_path = get_juliaupconfig_path()
 
 					data = isfile(juliaup_config_file_path) ?
-						JSON.parsefile(juliaup_config_file_path) :
+						JSON.parsefile(juliaup_config_file_path, use_mmap=false) :
 						Dict()
 
 					data["Default"] = ARGS[2]
@@ -259,7 +268,7 @@ function real_main()
 				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 					juliaVersionToUse = get(config_data, "Default", "1")
 
 					first_split = try_split_platform(juliaVersionToUse)
@@ -292,7 +301,7 @@ function real_main()
 				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 					juliaVersionToUse = ARGS[2]
 
 					first_split = try_split_platform(juliaVersionToUse)
@@ -334,7 +343,7 @@ function real_main()
 					juliaup_config_file_path = get_juliaupconfig_path()
 
 					if isfile(juliaup_config_file_path)
-						config_data = JSON.parsefile(juliaup_config_file_path)
+						config_data = JSON.parsefile(juliaup_config_file_path, use_mmap=false)
 						node_for_version = get(get(config_data, "InstalledVersions", Dict()), "$juliaVersionToUninstall~$(first_split.platform)", nothing)
 
 						if node_for_version!==nothing
@@ -377,7 +386,7 @@ function real_main()
 				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 
 					defaultJulia = get(config_data, "Default", "1")
 
