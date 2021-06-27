@@ -1,21 +1,31 @@
-#include "pch.h"
+module;
+
+#include <string>
+#include <string_view>
+#include <codecvt>
+#include <iostream>
+#include <ranges>
+#include <fstream>
+#include <filesystem>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
+#include <winrt/Windows.ApplicationModel.h>
+#include <winrt/Windows.Storage.h>
+#include "winrt/Windows.Web.Http.h"
+#include "winrt/Windows.Storage.Streams.h"
+#include "../json/single_include/nlohmann/json.hpp"
+#include <windows.h>
+#include "version.h"
+
+export module main;
+
+import Tokenizer;
+import JuliaVersionDatabase;
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
 using namespace Windows::Storage;
 using json = nlohmann::json;
-
-void tokenize(std::wstring& str, char delim, std::vector<std::wstring>& out)
-{
-	size_t start;
-	size_t end = 0;
-
-	while ((start = str.find_first_not_of(delim, end)) != std::wstring::npos)
-	{
-		end = str.find(delim, start);
-		out.push_back(str.substr(start, end - start));
-	}
-}
 
 std::string GetLastErrorAsString()
 {
@@ -145,7 +155,7 @@ HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR curren
 		true, // InheritHandles
 		0, //EXTENDED_STARTUPINFO_PRESENT, // CreationFlags
 		nullptr, // Environment
-		nullptr, //currentDirectory,
+		currentDirectory, //currentDirectory,
 		//(LPSTARTUPINFO)&startupInfoEx,
 		&info,
 		&processInfo);
@@ -209,22 +219,6 @@ std::filesystem::path getJuliaupPath() {
 	return homedirPath / ".julia" / "juliaup";
 }
 
-std::wstring s2ws(const std::string& str)
-{
-	using convert_typeX = std::codecvt_utf8<wchar_t>;
-	std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-	return converterX.from_bytes(str);
-}
-
-std::string ws2s(const std::wstring& wstr)
-{
-	using convert_typeX = std::codecvt_utf8<wchar_t>;
-	std::wstring_convert<convert_typeX, wchar_t> converterX;
-
-	return converterX.to_bytes(wstr);
-}
-
 void initial_setup() {
 	auto juliaupFolder = getJuliaupPath();
 
@@ -248,9 +242,9 @@ void initial_setup() {
 		j["Default"] = "1";
 		j["InstalledVersions"] = {
 			{
-				ws2s(juliaVersionsDatabase->getBundledJuliaVersion() + L"~" + platform),
+				winrt::to_string(juliaVersionsDatabase->getBundledJuliaVersion() + L"~" + platform),
 				{
-					{"path", ws2s(std::wstring{std::filesystem::path{ L"." } / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion())})}
+					{"path", winrt::to_string(std::wstring{std::filesystem::path{ L"." } / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion())})}
 				}
 			}
 		};
@@ -260,14 +254,51 @@ void initial_setup() {
 	}
 }
 
-int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
+winrt::fire_and_forget DownloadVersionDBAsync()
+{
+	co_await winrt::resume_background();
+
+	Windows::Foundation::Uri uri{ L"https://julialang-s3.julialang.org/bin/versions.json" };
+
+	std::filesystem::path juliaupFolderPath{ std::filesystem::path {std::wstring{ Windows::Storage::UserDataPaths::GetDefault().Profile() } } / ".julia" / "juliaup" };
+
+	Windows::Web::Http::HttpClient httpClient{};
+
+	// Always catch network exceptions for async methods
+	try
+	{
+
+		auto response{ co_await httpClient.GetAsync(uri) };
+
+		auto buffer{ co_await response.Content().ReadAsBufferAsync() };
+
+		auto folder{ co_await Windows::Storage::StorageFolder::GetFolderFromPathAsync(std::wstring{juliaupFolderPath}) };
+
+		auto file{ co_await folder.CreateFileAsync(L"versions.json", Windows::Storage::CreationCollisionOption::ReplaceExisting) };
+
+		co_await Windows::Storage::FileIO::WriteBufferAsync(file, buffer);
+	}
+	catch (winrt::hresult_error const& ex)
+	{
+		// Details in ex.message() and ex.to_abi().
+	}
+}
+
+export int main(int argc, char* argv[])
+{
 	init_apartment();
 
 	SetConsoleTitle(L"Julia");
 
+	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
+
+	juliaVersionsDatabase->init(getJuliaupPath());
+
+
+	DownloadVersionDBAsync();
+
 	initial_setup();
 
-	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
 
 	std::wstring juliaVersionToUse = L"1";
 	bool juliaVersionFromCmdLine = false;
@@ -278,7 +309,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	if (std::filesystem::exists(configFilePath)) {
 		std::ifstream i(configFilePath);
-		i >> configFile;			
+		i >> configFile;
 	}
 	else
 	{
@@ -287,12 +318,12 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		return 1;
 	}
 
-	juliaVersionToUse = s2ws(configFile["/Default"_json_pointer]);
+	juliaVersionToUse = winrt::to_hstring(configFile["/Default"_json_pointer]);
 
 	std::wstring exeArgString = std::wstring{ L"" };
 
 	for (int i = 1; i < argc; i++) {
-		std::wstring curr = std::wstring{ argv[i] };
+		std::wstring curr = std::wstring{ winrt::to_hstring(argv[i]) };
 
 		exeArgString.append(L" ");
 
@@ -318,12 +349,12 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 
 	// We are using a specific Julia version
 	if (parts2.size() == 3) {
-		json::json_pointer json_path(ws2s(L"/InstalledVersions/" + versionPart + L"~0" + platformPart + L"/path"));
+		json::json_pointer json_path(winrt::to_string(L"/InstalledVersions/" + versionPart + L"~0" + platformPart + L"/path"));
 
 		std::filesystem::path targetPath;
 
 		if (configFile.contains(json_path)) {
-			targetPath = getJuliaupPath() / s2ws(configFile[json_path]);
+			targetPath = getJuliaupPath() / std::wstring{ winrt::to_hstring(configFile[json_path]) };
 		}
 
 		if (std::filesystem::exists(targetPath)) {
@@ -347,8 +378,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		auto juliaVersions = juliaVersionsDatabase->getJuliaVersions();
 
 		// Collect all the known versions of Julia that exist that match our channel into a vector
-		for (int i = juliaVersions.size() - 1; i >= 0; i--) {
-			auto& currVersion = juliaVersions[i];
+		for (auto& currVersion : std::ranges::reverse_view{ juliaVersions }) {
 			if (parts2.size() == 1 && parts2[0] == std::to_wstring(currVersion.major)) {
 				auto as_string = currVersion.toString();
 				versionsThatWeCouldUse.push_back(std::wstring(as_string.begin(), as_string.end()));
@@ -365,12 +395,12 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 			std::wstring juliaVersionWeAreUsing;
 
 			for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-				json::json_pointer json_path(ws2s(L"/InstalledVersions/" + versionsThatWeCouldUse[i] + L"~0" + platformPart + L"/path"));
+				json::json_pointer json_path(winrt::to_string(L"/InstalledVersions/" + versionsThatWeCouldUse[i] + L"~0" + platformPart + L"/path"));
 
 				std::filesystem::path targetPath;
 
 				if (configFile.contains(json_path)) {
-					targetPath = getJuliaupPath() / s2ws(configFile[json_path]);
+					targetPath = getJuliaupPath() / std::wstring{ winrt::to_hstring(configFile[json_path]) };
 				}
 
 				if (std::filesystem::exists(targetPath)) {
@@ -421,11 +451,11 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[]) {
 		}
 	}
 
-	std::filesystem::path currentDirectory = L"";
+	//std::filesystem::path currentDirectory = L"";
 
 	exeArgString.insert(0, julia_path);
 
-	HRESULT hr = StartProcess(julia_path.c_str(), exeArgString.data(), currentDirectory.c_str(), INFINITE);
+	HRESULT hr = StartProcess(julia_path.c_str(), exeArgString.data(), nullptr, INFINITE);
 	if (hr != ERROR_SUCCESS)
 	{
 		printf("Error return from launching process.");

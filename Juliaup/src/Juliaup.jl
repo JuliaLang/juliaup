@@ -16,6 +16,18 @@ function julia_main()
     return 0
 end
 
+function get_juliauphome_path()
+	if length(Base.DEPOT_PATH)>0
+		return joinpath(Base.DEPOT_PATH[1], "juliaup")
+	else
+		error("No entries in Base.DEPOT_PATH")
+	end
+end
+
+function get_juliaupconfig_path()
+	return joinpath(get_juliauphome_path(), "juliaup.json")
+end
+
 function tryparse_full_version(value::AbstractString)
 	parts = split(value, '.')
 	if length(parts)==3 && !any(i->tryparse(Int, i)===nothing, parts)
@@ -42,14 +54,28 @@ function try_split_platform(value::AbstractString)
 	if length(parts)==1
 		return (version=value, platform=Int===Int64 ? "x64" : "x86")
 	elseif length(parts)==2 && parts[2] in ("x64", "x86")
-		return (version=parts[1], platform=parts[2])
+		return (version=string(parts[1]), platform=string(parts[2]))
 	else
 		return nothing
 	end
 end
 
-function target_path_for_julia_version(platform, version)
-	return joinpath(homedir(), ".julia", "juliaup", platform, "julia-$version")
+function get_julia_versions()
+	version_db = get_version_db()
+
+	relevant_versions = filter(version_db) do i
+		return i[2]["stable"] && any(i[2]["files"]) do j
+			return j["os"]=="winnt" && j["kind"]=="archive"
+		end
+	end
+
+	typed_versions = map(relevant_versions) do i
+		return VersionNumber(i[1])
+	end
+
+	sort!(typed_versions)
+
+	return typed_versions
 end
 
 function getJuliaVersionsThatMatchChannel(channelString)
@@ -58,7 +84,7 @@ function getJuliaVersionsThatMatchChannel(channelString)
 	versionsThatWeCouldUse = VersionNumber[]
 
 	# Collect all the known versions of Julia that exist that match our channel into a vector
-	for currVersion in reverse(JULIA_VERSIONS)
+	for currVersion in reverse(get_julia_versions())
 		if length(parts) == 1 && parts[1] == string(currVersion.major)
 			push!(versionsThatWeCouldUse, currVersion)
 		elseif length(parts) == 2 && parts[1] == string(currVersion.major) && parts[2] == string(currVersion.minor)
@@ -69,17 +95,16 @@ function getJuliaVersionsThatMatchChannel(channelString)
 	return versionsThatWeCouldUse
 end
 
-function installJuliaVersion(platform::AbstractString, version::VersionNumber)
-	secondary_platform_string = platform=="x64" ? "win64" : platform=="x86" ? "win32" : error("Unknown platform.")
-	downloadUrl = "https://julialang-s3.julialang.org/bin/winnt/$platform/$(version.major).$(version.minor)/julia-$(version)-$secondary_platform_string.tar.gz"
+function installJuliaVersion(platform::String, version::VersionNumber)
+	download_url = get_download_url(get_version_db(), version, platform)
 
-	target_path = joinpath(homedir(), ".julia", "juliaup", platform)
+	target_path = joinpath(get_juliauphome_path(), platform)
 
 	mkpath(target_path)
 
 	println("Installing Julia $version ($platform).")
 
-	temp_file = Downloads.download(downloadUrl)
+	temp_file = Downloads.download(download_url)
 
 	try
 		open(temp_file) do tar_gz
@@ -94,10 +119,10 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 			end
 		end
 
-		juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+		juliaup_config_file_path = get_juliaupconfig_path()
 
 		data = isfile(juliaup_config_file_path) ?
-			JSON.parsefile(juliaup_config_file_path) :
+			JSON.parsefile(juliaup_config_file_path, use_mmap=false) :
 			Dict()
 
 		if !haskey(data, "InstalledVersions")
@@ -116,6 +141,53 @@ function installJuliaVersion(platform::AbstractString, version::VersionNumber)
 	end
 end
 
+const g_version_db = Ref{Dict}()
+
+function get_version_db()
+	if !isassigned(g_version_db)
+		version_db_search_paths = [
+			joinpath(get_juliauphome_path(), "versions.json"),
+			joinpath(Sys.BINDIR, "..", "..", "VersionsDB", "versions.json") # This only exists when MSIX deployed
+		]
+		for i in version_db_search_paths
+			if isfile(i)
+				# TODO Remove again
+				println("DEBUG: We are using `", i, "` as the version DB file.")
+				g_version_db[] = JSON.parsefile(i, use_mmap=false)
+				return g_version_db[]
+			end
+		end
+
+		error("No version database found.")
+	else
+		return g_version_db[]
+	end
+end
+
+function get_download_url(version_db, version::VersionNumber, platform::String)
+	arch = platform == "x64" ? "x86_64" : platform == "x86" ? "i686" : error("Unknown platform")
+
+	node_for_version = version_db[string(version)]
+	node_for_files = node_for_version["files"]
+
+	index_for_files = findfirst(i->i["kind"]=="archive" && i["arch"]==arch && i["os"]=="winnt", node_for_files)
+
+	if index_for_files!==nothing
+		zip_url = node_for_files[index_for_files]["url"]
+
+		p1, p2 = splitext(zip_url)
+
+		# TODO Fix this in the version DB
+		if p2==".zip"
+			return p1 * ".tar.gz"
+		else
+			return p1
+		end
+	else
+		error("Could not find archive.")
+	end
+end
+
 function real_main()
     if length(ARGS)==0
         println("Julia Version Manager Preview")
@@ -126,7 +198,7 @@ function real_main()
 		println()
 		println("The following commands are available:")
 		println()
-		println("  setdefault    Set the default Julia version")
+		println("  default       Set the default Julia version")
 		println("  add           Add a specific Julia version to your system")
 		println("  update        Update the current or a specific channel to the latest Julia version")
 		println("  status        Show all installed Julia versions")
@@ -153,14 +225,14 @@ function real_main()
 			else
 				println("ERROR: The --info argument does not accept any additional arguments.")
 			end
-		elseif ARGS[1] == "setdefault"
+		elseif ARGS[1] == "default"
 			if length(ARGS)==2
 				first_split = try_split_platform(ARGS[2])
 				if first_split!==nothing && (tryparse_full_version(first_split.version)!==nothing || tryparse_channel(first_split.version)!==nothing)
-					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+					juliaup_config_file_path = get_juliaupconfig_path()
 
 					data = isfile(juliaup_config_file_path) ?
-						JSON.parsefile(juliaup_config_file_path) :
+						JSON.parsefile(juliaup_config_file_path, use_mmap=false) :
 						Dict()
 
 					data["Default"] = ARGS[2]
@@ -193,10 +265,10 @@ function real_main()
 			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
 			if length(ARGS)==1
-				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 					juliaVersionToUse = get(config_data, "Default", "1")
 
 					first_split = try_split_platform(juliaVersionToUse)
@@ -226,10 +298,10 @@ function real_main()
 					println("ERROR: Could not find the juliaup configuration file.")
 				end
 			elseif length(ARGS)==2
-				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 					juliaVersionToUse = ARGS[2]
 
 					first_split = try_split_platform(juliaVersionToUse)
@@ -268,15 +340,15 @@ function real_main()
 				if first_split!==nothing && tryparse_full_version(first_split.version)!==nothing
 					juliaVersionToUninstall = first_split.version
 
-					juliaup_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+					juliaup_config_file_path = get_juliaupconfig_path()
 
 					if isfile(juliaup_config_file_path)
-						config_data = JSON.parsefile(juliaup_config_file_path)
+						config_data = JSON.parsefile(juliaup_config_file_path, use_mmap=false)
 						node_for_version = get(get(config_data, "InstalledVersions", Dict()), "$juliaVersionToUninstall~$(first_split.platform)", nothing)
 
 						if node_for_version!==nothing
 							if haskey(node_for_version, "path")
-								path_to_be_deleted = joinpath(homedir(), ".julia", "juliaup", node_for_version["path"])
+								path_to_be_deleted = joinpath(get_juliauphome_path(), node_for_version["path"])
 
 								if isdir(path_to_be_deleted)
 									rm(path_to_be_deleted, force=true, recursive=true)
@@ -311,10 +383,10 @@ function real_main()
 			end
 		elseif ARGS[1] == "status" || ARGS[1] == "st"
 			if length(ARGS)==1
-				julia_config_file_path = joinpath(homedir(), ".julia", "juliaup", "juliaup.json")
+				julia_config_file_path = get_juliaupconfig_path()
 
 				if isfile(julia_config_file_path)
-					config_data = JSON.parsefile(julia_config_file_path)
+					config_data = JSON.parsefile(julia_config_file_path, use_mmap=false)
 
 					defaultJulia = get(config_data, "Default", "1")
 
