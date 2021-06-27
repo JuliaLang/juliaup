@@ -4,6 +4,8 @@ if ( (git status --porcelain | Measure-Object -Line ).Lines -ne 0)
     exit
 }
 
+Invoke-WebRequest "https://julialang-s3.julialang.org/bin/versions.json" msix\VersionsDB\versions.json
+
 $versions = Get-Content versions.json | ConvertFrom-Json
 
 $oldAppVersion = [version]$versions.JuliaAppPackage.Version
@@ -34,6 +36,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
+        <File DestinationPath="VersionsDB\versions.json" SourcePath="VersionsDB\versions.json" />
       </Files>
     </Package>
     <!-- <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
@@ -43,6 +46,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
+        <File DestinationPath="VersionsDB\versions.json" SourcePath="VersionsDB\versions.json" />
       </Files>
     </Package> -->
   </PackageFamily>
@@ -72,13 +76,6 @@ $juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
 
 $juliaVersionsJuliaFile = @"
 JULIA_APP_VERSION = v"$($newAppVersion.Major).$($newAppVersion.Minor).$($newAppVersion.Build)"
-
-JULIA_VERSIONS = [
-  $($versions.OptionalJuliaPackages | % {
-    $parts = $_.JuliaVersion.Split('.')
-    "VersionNumber($($parts[0]), $($parts[1]), $($parts[2]))"
-  } | Join-String -Separator ', ')
-]
 "@
 
 $juliaVersionsJuliaFile | Out-File .\Juliaup\src\versions_database.jl
