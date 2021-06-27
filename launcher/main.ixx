@@ -327,8 +327,8 @@ export int main(int argc, char* argv[])
 
 		exeArgString.append(L" ");
 
-		if (curr._Starts_with(L"-v=")) {
-			juliaVersionToUse = curr.substr(3);
+		if (i==1 && curr._Starts_with(L"+")) {
+			juliaVersionToUse = curr.substr(1);
 			juliaVersionFromCmdLine = true;
 		}
 		else {
