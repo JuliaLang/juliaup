@@ -4,7 +4,8 @@ if ( (git status --porcelain | Measure-Object -Line ).Lines -ne 0)
     exit
 }
 
-Invoke-WebRequest "https://julialang-s3.julialang.org/bin/versions.json" msix\VersionsDB\versions.json
+Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x64.json" msix\VersionsDB\juliaup-versionsdb-winnt-x64.json
+Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x86.json" msix\VersionsDB\juliaup-versionsdb-winnt-x86.json
 
 $versions = Get-Content versions.json | ConvertFrom-Json
 
@@ -36,7 +37,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
-        <File DestinationPath="VersionsDB\versions.json" SourcePath="VersionsDB\versions.json" />
+        <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-x64.json" SourcePath="VersionsDB\juliaup-versionsdb-winnt-x64.json" />
       </Files>
     </Package>
     <!-- <Package ID="Julia-x86-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="x86">
@@ -46,7 +47,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
-        <File DestinationPath="VersionsDB\versions.json" SourcePath="VersionsDB\versions.json" />
+        <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-x86.json" SourcePath="VersionsDB\juliaup-versionsdb-winnt-x86.json" />
       </Files>
     </Package> -->
   </PackageFamily>
