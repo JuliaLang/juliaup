@@ -4,8 +4,8 @@ if ( (git status --porcelain | Measure-Object -Line ).Lines -ne 0)
     exit
 }
 
-Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x64.json" msix\VersionsDB\juliaup-versionsdb-winnt-x64.json
-Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x86.json" msix\VersionsDB\juliaup-versionsdb-winnt-x86.json
+Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x64.json" -OutFile msix\VersionsDB\juliaup-versionsdb-winnt-x64.json
+Invoke-WebRequest "https://www.david-anthoff.com/juliaup-versionsdb-winnt-x86.json" -OutFile msix\VersionsDB\juliaup-versionsdb-winnt-x86.json
 
 $versions = Get-Content versions.json | ConvertFrom-Json
 
