@@ -20,7 +20,6 @@ module;
 export module main;
 
 import Tokenizer;
-import JuliaVersionDatabase;
 
 using namespace winrt;
 using namespace Windows::ApplicationModel;
@@ -228,11 +227,11 @@ void initial_setup() {
 
 		auto pathOfBundledJulia = myOwnPath.parent_path().parent_path() / "BundledJulia";
 
-		auto juliaVersionsDatabase = new JuliaVersionsDatabase();
+		std::wstring bundledVersion{ winrt::to_hstring(JULIA_APP_BUNDLED_JULIA) };
 
 		auto platform = getCurrentPlatform();
 
-		auto targetPath = juliaupFolder / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion());
+		auto targetPath = juliaupFolder / platform / (L"julia-" + bundledVersion);
 
 		std::filesystem::create_directories(targetPath);
 
@@ -242,9 +241,9 @@ void initial_setup() {
 		j["Default"] = "release";
 		j["InstalledVersions"] = {
 			{
-				winrt::to_string(juliaVersionsDatabase->getBundledJuliaVersion() + L"~" + platform),
+				winrt::to_string(bundledVersion + L"~" + platform),
 				{
-					{"Path", winrt::to_string(std::wstring{std::filesystem::path{ L"." } / platform / (L"julia-" + juliaVersionsDatabase->getBundledJuliaVersion())})}
+					{"Path", winrt::to_string(std::wstring{std::filesystem::path{ L"." } / platform / (L"julia-" + bundledVersion)})}
 				}
 			}
 		};
@@ -252,7 +251,7 @@ void initial_setup() {
 			{
 				winrt::to_string(L"release"),
 				{
-					{"Version", winrt::to_string(juliaVersionsDatabase->getBundledJuliaVersion() + L"~" + platform)}
+					{"Version", winrt::to_string(bundledVersion + L"~" + platform)}
 				}
 			}
 		};
@@ -478,10 +477,6 @@ export int main(int argc, char* argv[])
 	init_apartment();
 
 	SetConsoleTitle(L"Julia");
-
-	auto juliaVersionsDatabase = new JuliaVersionsDatabase();
-
-	juliaVersionsDatabase->init(getJuliaupPath());
 
 	//json versionDB{ loadVersionDB() };
 
