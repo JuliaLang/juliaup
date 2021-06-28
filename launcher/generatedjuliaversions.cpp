@@ -1,8 +1,3 @@
-module;
-
-#include <string>
-#include <vector>
-
 module JuliaVersionDatabase;
 
 std::vector<JuliaVersion> JuliaVersionsDatabase::getHardcodedJuliaVersions() {
