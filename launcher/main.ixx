@@ -530,7 +530,7 @@ export int main(int argc, char* argv[])
 		std::filesystem::path relativeVersionPath{ std::wstring {winrt::to_hstring(configDB[jsonPathToVersionDetail]) } };
 		julia_path = std::filesystem::canonical(getJuliaupPath() / relativeVersionPath / L"bin" / L"julia.exe");
 
-		isChannelUptodate(juliaChannelToUse, configDB, json versionsDB)
+		// isChannelUptodate(juliaChannelToUse, configDB, json versionsDB)
 	}
 
 	//std::filesystem::path currentDirectory = L"";
