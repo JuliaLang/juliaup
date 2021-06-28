@@ -142,8 +142,6 @@ function get_version_db()
 		]
 		for i in version_db_search_paths
 			if isfile(i)
-				# TODO Remove again
-				println("DEBUG: We are using `", i, "` as the version DB file.")
 				g_version_db[] = JSON.parsefile(i, use_mmap=false)
 				return g_version_db[]
 			end
