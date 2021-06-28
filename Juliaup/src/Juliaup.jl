@@ -17,11 +17,8 @@ function julia_main()
 end
 
 function get_juliauphome_path()
-	if length(Base.DEPOT_PATH)>0
-		return joinpath(Base.DEPOT_PATH[1], "juliaup")
-	else
-		error("No entries in Base.DEPOT_PATH")
-	end
+	# TODO Handle JULIA_DEPOT env var here
+	return joinpath(homedir(), ".julia", "juliaup")
 end
 
 function get_juliaupconfig_path()
@@ -231,7 +228,8 @@ function real_main()
 		println()
 		println("  default       Set the default Julia version")
 		println("  add           Add a specific Julia version to your system")
-		println("  update        Update the current or a specific channel to the latest Julia version")
+		println("  link          Link an existing Julia binary")
+		println("  update        Update all or a specific channel to the latest Julia version")
 		println("  status        Show all installed Julia versions")
 		println("  remove        Remove a Julia version from your system")
 		println()
@@ -310,7 +308,7 @@ function real_main()
 						println("WARNING: The channel name `$channel_name` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.")
 					end
 
-					config_db["InstalledChannels"][channel_name] = Dict{String,Any}("ExecutablePath"=>destination_path)
+					config_db["InstalledChannels"][channel_name] = Dict{String,Any}("Command"=>destination_path)
 				else
 					println("ERROR: Channel name `$channel_name` is already used.")
 				end
@@ -396,8 +394,8 @@ function real_main()
 					end
 					print("$(i[1])")			
 
-					if haskey(i[2], "ExecutablePath")
-						print(" (linked to `$(i[2]["ExecutablePath"])`)")
+					if haskey(i[2], "Command")
+						print(" (linked to `$(i[2]["Command"])`)")
 					elseif (version_db["AvailableChannels"][i[1]]["Version"]!=i[2]["Version"])
 						print(" (Update from $(i[2]["Version"]) to $(version_db["AvailableChannels"][i[1]]["Version"]) available)")
 					end

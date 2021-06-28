@@ -178,7 +178,7 @@ HRESULT StartProcess(LPCWSTR applicationName, LPWSTR commandLine, LPCWSTR curren
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
-std::wstring GetExecutablePath()
+std::filesystem::path GetExecutablePath()
 {
 	std::wstring buffer;
 	size_t nextBufferLength = MAX_PATH;
@@ -298,23 +298,27 @@ std::filesystem::path getJuliaupconfigPath()
 
 json loadVersionDB()
 {
-	auto configFilePath{ getJuliaupconfigPath() };
+	auto currentPlatform{ getCurrentPlatform() };
+	std::filesystem::path versionDBFilename{ std::wstring {L"juliaup-versionsdb-winnt-"} + currentPlatform + L".json" };
 
-	if (std::filesystem::exists(configFilePath)) {
-		std::ifstream i(configFilePath);
-		json configFile;
+	std::vector<std::filesystem::path> version_db_search_paths{
+		getJuliaupPath() / versionDBFilename,
+		GetExecutablePath().parent_path().parent_path() / L"VersionsDB" / versionDBFilename
+	};
 
-		i >> configFile;
+	for (auto& i : version_db_search_paths) {
+		if (std::filesystem::exists(i)) {
+			std::ifstream file(i);
 
-		return configFile;
+			json versiondbData;
+
+			file >> versiondbData;
+
+			return versiondbData;
+		}
 	}
-	else
-	{
-		std::wcout << "ERROR: Could not read the juliaup configuration file." << std::endl;
 
-		// TODO Throw an exception
-		return 1;
-	}
+	// TODO Throw exception
 }
 
 json loadConfigDB()
@@ -338,124 +342,19 @@ json loadConfigDB()
 	}
 }
 
-bool isChannelUptodate(std::wstring channel, json configDB, json versionsDB)
+void isChannelUptodate(std::wstring channelAsWstring, json configDB, json versionsDB)
 {
-	//std::vector<std::wstring> parts;
-	//tokenize(juliaChannelToUse, L'~', parts);
-	//auto& versionPart = parts[0];
-	//auto platformPart = parts.size() > 1 ? parts[1] : getCurrentPlatform();
+	std::string channel{ winrt::to_string(channelAsWstring) };
+	auto latestVersion{ versionsDB["AvailableChannels"][channel]["Version"].get<std::string>() };
+	auto currentVersion{ configDB["InstalledChannels"][channel]["Version"].get<std::string>() };
 
-	//// Now figure out whether we got a channel or a specific version.
-	//std::vector<std::wstring> parts2;
-	//tokenize(versionPart, L'.', parts2);
-
-	//
-
-	//// We are using a specific Julia version
-	//if (parts2.size() == 3) {
-	//	json::json_pointer json_path(winrt::to_string(L"/InstalledVersions/" + versionPart + L"~0" + platformPart + L"/path"));
-
-	//	std::filesystem::path targetPath;
-
-	//	if (configDB.contains(json_path)) {
-	//		targetPath = getJuliaupPath() / std::wstring{ winrt::to_hstring(configDB[json_path]) };
-	//	}
-
-	//	if (std::filesystem::exists(targetPath)) {
-	//		julia_path = targetPath / L"bin" / L"julia.exe";
-	//		SetConsoleTitle((L"Julia " + versionPart).c_str());
-	//	}
-	//	else {
-	//		std::wcout << L"Julia version " + juliaChannelToUse + L" is not installed on this system. Run:" << std::endl;
-	//		std::wcout << std::endl;
-	//		std::wcout << L"  juliaup add " + juliaChannelToUse << std::endl;
-	//		std::wcout << std::endl;
-	//		std::wcout << L"to install it." << std::endl;
-
-	//		return 1;
-	//	}
-	//}
-	//// We are using a channel
-	//else {
-	//	std::vector<std::wstring> versionsThatWeCouldUse;
-
-	//	auto juliaVersions = juliaVersionsDatabase->getJuliaVersions();
-
-	//	// Collect all the known versions of Julia that exist that match our channel into a vector
-	//	for (auto& currVersion : std::ranges::reverse_view{ juliaVersions }) {
-	//		if (parts2.size() == 1 && parts2[0] == std::to_wstring(currVersion.major)) {
-	//			auto as_string = currVersion.toString();
-	//			versionsThatWeCouldUse.push_back(std::wstring(as_string.begin(), as_string.end()));
-	//		}
-	//		else if (parts2.size() == 2 && parts2[0] == std::to_wstring(currVersion.major) && parts2[1] == std::to_wstring(currVersion.minor)) {
-	//			auto as_string = currVersion.toString();
-	//			versionsThatWeCouldUse.push_back(std::wstring(as_string.begin(), as_string.end()));
-	//		}
-	//	}
-
-	//	if (versionsThatWeCouldUse.size() > 0) {
-	//		bool foundLatestJuliaVersionForChannel = false;
-	//		bool foundAnyJuliaVersionForChannel = false;
-	//		std::wstring juliaVersionWeAreUsing;
-
-	//		for (int i = 0; i < versionsThatWeCouldUse.size(); i++) {
-	//			json::json_pointer json_path(winrt::to_string(L"/InstalledVersions/" + versionsThatWeCouldUse[i] + L"~0" + platformPart + L"/path"));
-
-	//			std::filesystem::path targetPath;
-
-	//			if (configDB.contains(json_path)) {
-	//				targetPath = getJuliaupPath() / std::wstring{ winrt::to_hstring(configDB[json_path]) };
-	//			}
-
-	//			if (std::filesystem::exists(targetPath)) {
-	//				julia_path = targetPath / L"bin" / L"julia.exe";
-	//				foundLatestJuliaVersionForChannel = i == 0;
-	//				foundAnyJuliaVersionForChannel = true;
-	//				juliaVersionWeAreUsing = versionsThatWeCouldUse[i];
-	//				SetConsoleTitle((L"Julia " + versionsThatWeCouldUse[i]).c_str());
-	//				break;
-	//			}
-	//		}
-
-	//		if (!foundAnyJuliaVersionForChannel) {
-	//			std::wcout << L"No Julia version for channel " + juliaChannelToUse + L" is installed on this system. Run:" << std::endl;
-	//			std::wcout << std::endl;
-	//			if (juliaVersionFromCmdLine)
-	//			{
-	//				std::wcout << L"  juliaup update " << juliaChannelToUse << std::endl;
-	//			}
-	//			else
-	//			{
-	//				std::wcout << L"  juliaup update" << std::endl;
-	//			}
-	//			std::wcout << std::endl;
-	//			std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << ", the latest Julia version for the " << juliaChannelToUse << " channel." << std::endl;
-
-	//			return 1;
-	//		}
-
-	//		if (!foundLatestJuliaVersionForChannel) {
-	//			std::wcout << L"The latest version of Julia in the " << juliaChannelToUse << " channel is Julia " << versionsThatWeCouldUse[0] << ". You currently have Julia " << juliaVersionWeAreUsing << " installed. Run:" << std::endl;
-	//			std::wcout << std::endl;
-	//			if (juliaVersionFromCmdLine)
-	//			{
-	//				std::wcout << L"  juliaup update " << juliaChannelToUse << std::endl;
-	//			}
-	//			else
-	//			{
-	//				std::wcout << L"  juliaup update" << std::endl;
-	//			}
-	//			std::wcout << std::endl;
-	//			std::wcout << L"to install Julia " << versionsThatWeCouldUse[0] << " and update the " << juliaChannelToUse << " channel to that version." << std::endl;
-	//		}
-	//	}
-	//	else {
-	//		std::wcout << L"No Julia versions for channel " + juliaChannelToUse + L" exist. Please select a different channel." << std::endl;
-	//		return 1;
-	//	}
-	//}
-
-	return true;
+	if (latestVersion != currentVersion) {
+		std::cout << "The latest version of Julia in the `" << channel << "` channel is " << latestVersion << ". You currently have " << currentVersion << " installed. Run:" << std::endl;
+		std::cout << std::endl;
+		std::cout << "  juliaup update" << std::endl;
+		std::cout << std::endl;
+		std::cout << "to install Julia " << latestVersion << " and update the `" << channel << "` channel to that version." << std::endl;
+	}
 }
 
 // Copied from StackOverflow
@@ -478,7 +377,7 @@ export int main(int argc, char* argv[])
 
 	SetConsoleTitle(L"Julia");
 
-	//json versionDB{ loadVersionDB() };
+	json versionsDB{ loadVersionDB() };
 
 	DownloadVersionDBAsync();
 
@@ -511,8 +410,8 @@ export int main(int argc, char* argv[])
 
 	std::filesystem::path julia_path;
 
-	if (configDB["InstalledChannels"][winrt::to_string(juliaChannelToUse)].contains("ExecutablePath")) {
-		julia_path = std::wstring{ winrt::to_hstring(configDB["InstalledChannels"][winrt::to_string(juliaChannelToUse)]["ExecutablePath"].get<std::string>()) };
+	if (configDB["InstalledChannels"][winrt::to_string(juliaChannelToUse)].contains("Command")) {
+		julia_path = std::wstring{ winrt::to_hstring(configDB["InstalledChannels"][winrt::to_string(juliaChannelToUse)]["Command"].get<std::string>()) };
 	}
 	else if (configDB["InstalledChannels"][winrt::to_string(juliaChannelToUse)].contains("Version")) {
 		json::json_pointer jsonPathToChannelDetail{ winrt::to_string(L"/InstalledChannels/" + escapedJuliaChannelToUse + L"/Version") };
@@ -525,14 +424,14 @@ export int main(int argc, char* argv[])
 		std::filesystem::path relativeVersionPath{ std::wstring {winrt::to_hstring(configDB[jsonPathToVersionDetail]) } };
 		julia_path = std::filesystem::canonical(getJuliaupPath() / relativeVersionPath / L"bin" / L"julia.exe");
 
-		// isChannelUptodate(juliaChannelToUse, configDB, json versionsDB)
+		isChannelUptodate(juliaChannelToUse, configDB, versionsDB);
 	}
 
 	//std::filesystem::path currentDirectory = L"";
 
 	exeArgString.insert(0, julia_path);
 
-	HRESULT hr = StartProcess(julia_path.c_str(), exeArgString.data(), nullptr, INFINITE);
+	HRESULT hr = StartProcess(NULL, exeArgString.data(), nullptr, INFINITE);
 	if (hr != ERROR_SUCCESS)
 	{
 		printf("Error return from launching process.");
