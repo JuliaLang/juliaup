@@ -95,52 +95,6 @@ function getJuliaVersionsThatMatchChannel(channelString)
 	return versionsThatWeCouldUse
 end
 
-function installJuliaVersion(platform::String, version::VersionNumber)
-	download_url = get_download_url(get_version_db(), version, platform)
-
-	target_path = joinpath(get_juliauphome_path(), platform)
-
-	mkpath(target_path)
-
-	println("Installing Julia $version ($platform).")
-
-	temp_file = Downloads.download(download_url)
-
-	try
-		open(temp_file) do tar_gz
-			tar = CodecZlib.GzipDecompressorStream(tar_gz)
-			try
-				mktempdir() do extract_temp_path
-					Tar.extract(tar, extract_temp_path, same_permissions=false)
-					mv(joinpath(extract_temp_path, "julia-$version"), joinpath(target_path, "julia-$version"), force=true)
-				end
-			finally
-				close(tar)
-			end
-		end
-
-		juliaup_config_file_path = get_juliaupconfig_path()
-
-		data = isfile(juliaup_config_file_path) ?
-			JSON.parsefile(juliaup_config_file_path, use_mmap=false) :
-			Dict()
-
-		if !haskey(data, "InstalledVersions")
-			data["InstalledVersions"] = Dict()
-		end
-
-		data["InstalledVersions"]["$version~$platform"] = Dict("path" => joinpath(".", platform, "julia-$version"))
-
-		open(juliaup_config_file_path, "w") do f
-			JSON.print(f, data, 4)
-		end
-
-		println("New version successfully installed.")
-	finally
-		rm(temp_file, force=true)
-	end
-end
-
 function install_version(version::String, config_data::Dict{String,Any})
 	if haskey(config_data["InstalledVersions"], version)
 		return
@@ -218,30 +172,6 @@ function save_config_db(config_db)
 
 	open(juliaup_config_file_path, "w") do f
 		JSON.print(f, config_db, 4)
-	end
-end
-
-function get_download_url(version_db, version::VersionNumber, platform::String)
-	arch = platform == "x64" ? "x86_64" : platform == "x86" ? "i686" : error("Unknown platform")
-
-	node_for_version = version_db[string(version)]
-	node_for_files = node_for_version["files"]
-
-	index_for_files = findfirst(i->i["kind"]=="archive" && i["arch"]==arch && i["os"]=="winnt", node_for_files)
-
-	if index_for_files!==nothing
-		zip_url = node_for_files[index_for_files]["url"]
-
-		p1, p2 = splitext(zip_url)
-
-		# TODO Fix this in the version DB
-		if p2==".zip"
-			return p1 * ".tar.gz"
-		else
-			return p1
-		end
-	else
-		error("Could not find archive.")
 	end
 end
 
