@@ -15,16 +15,19 @@ $versions.JuliaAppPackage.Version = $newAppVersion.ToString()
 
 $versions | ConvertTo-Json | Out-File versions.json
 
+$bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
+
 $cVersionHeader = @"
 #define JULIA_APP_VERSION_MAJOR $(([version]$versions.JuliaAppPackage.Version).major)
 #define JULIA_APP_VERSION_MINOR $(([version]$versions.JuliaAppPackage.Version).minor)
 #define JULIA_APP_VERSION_REVISION $(([version]$versions.JuliaAppPackage.Version).build)
 #define JULIA_APP_VERSION_BUILD $(([version]$versions.JuliaAppPackage.Version).revision)
+#define JULIA_APP_BUNDLED_JULIA "$($bundledJuliaVersion)"
 "@
 
 $cVersionHeader | Out-File  -FilePath launcher/version.h
 
-$bundledJuliaVersion = $versions.JuliaAppPackage.BundledJuliaVersion
+
 
 # TODO Bundle x86 binaries from Juliaup once we have them
 $packageLayout = [xml]@"
@@ -54,31 +57,6 @@ $packageLayout = [xml]@"
 </PackagingLayout>
 "@
 $packageLayout.Save("msix\PackagingLayout.xml")
-
-$juliaVersionsCppFile = @"
-module;
-
-#include <string>
-#include <vector>
-
-module JuliaVersionDatabase;
-
-std::vector<JuliaVersion> JuliaVersionsDatabase::getHardcodedJuliaVersions() {
-	std::vector<JuliaVersion> juliaVersions = { 
-    $($versions.OptionalJuliaPackages | % {
-      $parts = $_.JuliaVersion.Split('.')
-      "JuliaVersion{$($parts[0]), $($parts[1]), $($parts[2])}"
-    } | Join-String -Separator ', ')
-	};
-  
-	return juliaVersions;
-}
-
-std::wstring JuliaVersionsDatabase::getBundledJuliaVersion() {
-  return std::wstring {L"$bundledJuliaVersion"};
-}
-"@
-$juliaVersionsCppFile | Out-File .\launcher\generatedjuliaversions.cpp
 
 $juliaVersionsJuliaFile = @"
 JULIA_APP_VERSION = v"$($newAppVersion.Major).$($newAppVersion.Minor).$($newAppVersion.Build)"
