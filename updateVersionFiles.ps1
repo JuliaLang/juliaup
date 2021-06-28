@@ -56,6 +56,11 @@ $packageLayout = [xml]@"
 $packageLayout.Save("msix\PackagingLayout.xml")
 
 $juliaVersionsCppFile = @"
+module;
+
+#include <string>
+#include <vector>
+
 module JuliaVersionDatabase;
 
 std::vector<JuliaVersion> JuliaVersionsDatabase::getHardcodedJuliaVersions() {
