@@ -255,9 +255,10 @@ function real_main()
 		elseif ARGS[1] == "default"
 			if length(ARGS)==2
 				full_channel = ARGS[2]
-				if is_valid_channel(get_version_db(), full_channel)
-					data = load_config_db()
 
+				data = load_config_db()
+
+				if haskey(data["InstalledChannels"], full_channel)
 					data["Default"] = full_channel
 
 					save_config_db(data)
