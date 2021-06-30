@@ -135,7 +135,7 @@ end
 const g_version_db = Ref{Dict}()
 
 function download_version_db()
-	download_url = "https://www.david-anthoff.com/juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json.json"
+	download_url = "https://www.david-anthoff.com/juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"
 	Downloads.download(download_url, joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"))
 end
 
