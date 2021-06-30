@@ -102,7 +102,10 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/download-artifact@v2
       with:
-        name: [bundled-julia, launcher, juliaup]
+        name: |
+          bundled-julia
+          launcher
+          juliaup
     - name: Read version info
       id: msixversion
       run: |
