@@ -379,7 +379,7 @@ export int main(int argc, char* argv[])
 
 	json versionsDB{ loadVersionDB() };
 
-	DownloadVersionDBAsync();
+	//DownloadVersionDBAsync();
 
 	initial_setup();
 
