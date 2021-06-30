@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [{name: 'x64', dir: 'x64'}, {form1: 'x86', dir: 'win32'}]
+        platform: [{name: 'x64', dir: 'x64'}, {name: 'x86', dir: 'win32'}]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -121,3 +121,9 @@ jobs:
       with:
         name: msixinstaller
         path: build\msix\*.appxbundle
+
+  deploy-dev-channel:
+    needs: build-msix
+    runs-on: windows-latest
+    steps:
+    - uses:
