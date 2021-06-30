@@ -126,4 +126,4 @@ jobs:
     needs: build-msix
     runs-on: windows-latest
     steps:
-    - uses:
+    - run: echo "Hello world"
