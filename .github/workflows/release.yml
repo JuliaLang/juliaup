@@ -92,7 +92,7 @@ jobs:
         }
     - uses: actions/upload-artifact@v2
       with:
-        name: bundled-julia
+        name: bundled-julia-${{matrix.platform.form1}}
         path: build\juliaversions\${{matrix.platform.form1}}
 
   build-msix:
@@ -103,7 +103,8 @@ jobs:
     - uses: actions/download-artifact@v2
       with:
         name: |
-          bundled-julia
+          bundled-julia-x64
+          bundled-julia-x86
           launcher
           juliaup
     - name: Read version info
