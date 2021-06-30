@@ -30,6 +30,10 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /property:Configuration=Release /property:Platform=${{ matrix.platform }} Juliaup.sln
+    - uses: actions/upload-artifact@v2
+      with:
+        name: launcher
+        path: build\output\${{matrix.platform}}\Release\launcher
 
   build-juliaup:
     runs-on: windows-latest
@@ -47,6 +51,10 @@ jobs:
     - name: Run PackageCompiler
       run: |
         julia .\Juliaup\build.jl
+    - uses: actions/upload-artifact@v2
+      with:
+        name: juliaup
+        path: build\juliaup\${{matrix.platform}}
   
   prepare-bundled-julia:
     runs-on: windows-latest
@@ -82,3 +90,30 @@ jobs:
         {
           tar -xvzf "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz" -C build\juliaversions\${{matrix.platform.form1}}
         }
+    - uses: actions/upload-artifact@v2
+      with:
+        name: bundled-julia
+        path: build\juliaversions\${{matrix.platform.form1}}
+
+  build-msix:
+    needs: [build-launcher, build-juliaup, prepare-bundled-julia]
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/download-artifact@v2
+      with:
+        name: [bundled-julia, launcher, juliaup]
+    - name: Read version info
+      id: msixversion
+      run: |
+        $versions = Get-Content versions.json | ConvertFrom-Json
+        echo "::set-output name=msixversion::$(versions.JuliaAppPackage.Version)"
+    - name: Build MSIX
+      run: |
+        push-location msix
+        MakeAppx.exe build /f PackagingLayout.xml /op ..\build\msix /pv ${{steps.msixversion.outputs.msixversion}} /bv ${{steps.msixversion.outputs.msixversion}}
+        pop-location
+    - uses: actions/upload-artifact@v2
+      with:
+        name: msixinstaller
+        path: build\msix\*.appxbundle
