@@ -118,7 +118,7 @@ jobs:
       id: msixversion
       run: |
         $versions = Get-Content versions.json | ConvertFrom-Json
-        echo "::set-output name=msixversion::$(versions.JuliaAppPackage.Version)"
+        echo "::set-output name=msixversion::$($versions.JuliaAppPackage.Version)"
     - name: Build MSIX
       run: |
         push-location msix
