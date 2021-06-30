@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: platform: [{name: 'x64', dir: 'x64'}, {form1: 'x86', dir: 'win32'}]
+        platform: [{name: 'x64', dir: 'x64'}, {form1: 'x86', dir: 'win32'}]
     steps:
     - uses: actions/checkout@v2
       with:
