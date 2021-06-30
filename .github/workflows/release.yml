@@ -66,6 +66,10 @@ jobs:
         echo "::set-output name=bundledVersion::$bundledVersionAsString"
         echo "::set-output name=bundledMajorVersion::$bundledMajorVersionAsString"
         echo "::set-output name=bundledMinorVersion::$bundledMinorVersionAsString"
+    - name: Create folders
+      run: |
+        mkdir -Force build\downloads
+        mkdir -Force build\juliaversions\${{matrix.platform}}
     - name: Download Julia archive
       run: |
         if (-Not (Test-Path ".\build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz"))
