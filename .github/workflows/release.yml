@@ -68,7 +68,7 @@ jobs:
         echo "::set-output name=bundledMinorVersion::$bundledMinorVersionAsString"
     - name: Download Julia archive
       run: |
-        if (-Not (Test-Path ".\build\downloads\julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz"))
+        if (-Not (Test-Path ".\build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz"))
         {
-          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x64/${{outputs.bundledversion.bundledMajorVersion}}.${{outputs.bundledversion.bundledMinorVersion}}/julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz" -OutFile "build\downloads\julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz"
+          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/${{matrix.platform}}/${{steps.bundledversion.outputs.bundledMajorVersion}}.${{steps.bundledversion.outputs.bundledMinorVersion}}/julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz" -OutFile "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz"
         }
