@@ -134,6 +134,11 @@ end
 
 const g_version_db = Ref{Dict}()
 
+function download_version_db()
+	download_url = "https://www.david-anthoff.com/juliaup-versionsdb-winnt-juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"
+	Downloads.download(download_url, joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"))
+end
+
 function get_version_db()
 	if !isassigned(g_version_db)
 		version_db_search_paths = [
@@ -274,6 +279,8 @@ function real_main()
 			if length(ARGS)==2
 				full_channel = ARGS[2]
 
+				download_version_db()
+
 				if is_valid_channel(get_version_db(), full_channel)
 					config_data = load_config_db()
 
@@ -318,6 +325,8 @@ function real_main()
 			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
 			if length(ARGS)==1
+				download_version_db()
+
 				config_db = load_config_db()
 				version_db = get_version_db()
 
@@ -378,6 +387,8 @@ function real_main()
 		elseif ARGS[1] == "status" || ARGS[1] == "st"
 			if length(ARGS)==1
 				config_data = load_config_db()
+
+				download_version_db()
 
 				version_db = get_version_db()
 
