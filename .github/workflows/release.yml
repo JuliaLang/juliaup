@@ -102,11 +102,17 @@ jobs:
     - uses: actions/checkout@v2
     - uses: actions/download-artifact@v2
       with:
-        name: |
-          bundled-julia-x64
-          bundled-julia-x86
-          launcher
+        name: bundled-julia-x64
+    - uses: actions/download-artifact@v2
+      with:
+        name: bundled-julia-x86
+    - uses: actions/download-artifact@v2
+      with:
+        name: launcher
           juliaup
+    - uses: actions/download-artifact@v2
+      with:
+        name: juliaup
     - name: Read version info
       id: msixversion
       run: |
@@ -122,8 +128,17 @@ jobs:
         name: msixinstaller
         path: build\msix\*.appxbundle
 
-  deploy-dev-channel:
+  deploy-github-release:
     needs: build-msix
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - run: echo "Hello world"
+    - uses: actions/download-artifact@v2
+      with:
+        name: msixinstaller
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/msix/*.appxbundle
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
