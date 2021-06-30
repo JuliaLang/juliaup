@@ -35,7 +35,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: launcher
-        path: build\output\${{matrix.platform.dir}}\Release\launcher
+        path: build\output
 
   build-juliaup:
     runs-on: windows-latest
@@ -56,7 +56,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: juliaup
-        path: build\juliaup\${{matrix.platform}}
+        path: build\juliaup
   
   prepare-bundled-julia:
     runs-on: windows-latest
@@ -105,15 +105,19 @@ jobs:
     - uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x64
+        path: build\juliaversions\x64
     - uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x86
+        path: build\juliaversions\x86
     - uses: actions/download-artifact@v2
       with:
         name: launcher
+        path: build\output
     - uses: actions/download-artifact@v2
       with:
         name: juliaup
+        path: build\juliaup
     - name: Read version info
       id: msixversion
       run: |
