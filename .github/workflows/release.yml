@@ -47,3 +47,28 @@ jobs:
     - name: Run PackageCompiler
       run: |
         julia .\Juliaup\build.jl
+  
+  prepare-bundled-julia:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, x86]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Read version info
+      id: bundledversion
+      run: |
+        $versions = Get-Content versions.json | ConvertFrom-Json
+        [version]$bundledVersion = $versions.JuliaAppPackage.BundledJuliaVersion
+        $bundledVersionAsString = $versions.JuliaAppPackage.BundledJuliaVersion
+        $bundledMajorVersionAsString = $bundledVersion.Major
+        $bundledMinorVersionAsString = $bundledVersion.Minor
+        echo "::set-output name=bundledVersion::$bundledVersionAsString"
+        echo "::set-output name=bundledMajorVersion::$bundledMajorVersionAsString"
+        echo "::set-output name=bundledMinorVersion::$bundledMinorVersionAsString"
+    - name: Download Julia archive
+      run: |
+        if (-Not (Test-Path ".\build\downloads\julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz"))
+        {
+          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x64/${{outputs.bundledversion.bundledMajorVersion}}.${{outputs.bundledversion.bundledMinorVersion}}/julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz" -OutFile "build\downloads\julia-${{outputs.bundledversion.bundledVersion}}-win64.tar.gz"
+        }
