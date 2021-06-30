@@ -52,7 +52,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [x64, x86]
+        platform: [{form1: 'x64', form2: 'win64'}, {form1: 'x86', form2: 'win32'}]
     steps:
     - uses: actions/checkout@v2
     - name: Read version info
@@ -69,10 +69,16 @@ jobs:
     - name: Create folders
       run: |
         mkdir -Force build\downloads
-        mkdir -Force build\juliaversions\${{matrix.platform}}
+        mkdir -Force build\juliaversions\${{matrix.platform.form1}}
     - name: Download Julia archive
       run: |
-        if (-Not (Test-Path ".\build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz"))
+        if (-Not (Test-Path ".\build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz"))
         {
-          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/${{matrix.platform}}/${{steps.bundledversion.outputs.bundledMajorVersion}}.${{steps.bundledversion.outputs.bundledMinorVersion}}/julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz" -OutFile "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-win64.tar.gz"
+          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/${{matrix.platform.form1}}/${{steps.bundledversion.outputs.bundledMajorVersion}}.${{steps.bundledversion.outputs.bundledMinorVersion}}/julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz" -OutFile "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz"
+        }
+    - name: Extract Julia archive
+      run: |
+        if (-Not (Test-Path "build\juliaversions\${{matrix.platform.form1}}\julia-$($bundledVersionAsString)"))
+        {
+          tar -xvzf "build\downloads\julia-$($bundledVersion)-${{matrix.platform.form2}}.tar.gz" -C build\juliaversions\${{matrix.platform.form1}}
         }
