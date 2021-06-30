@@ -80,5 +80,5 @@ jobs:
       run: |
         if (-Not (Test-Path "build\juliaversions\${{matrix.platform.form1}}\julia-$($bundledVersionAsString)"))
         {
-          tar -xvzf "build\downloads\julia-$($bundledVersion)-${{matrix.platform.form2}}.tar.gz" -C build\juliaversions\${{matrix.platform.form1}}
+          tar -xvzf "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz" -C build\juliaversions\${{matrix.platform.form1}}
         }
