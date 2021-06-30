@@ -122,7 +122,7 @@ jobs:
     - name: Build MSIX
       run: |
         push-location msix
-        MakeAppx.exe build /f PackagingLayout.xml /op ..\build\msix /pv ${{steps.msixversion.outputs.msixversion}} /bv ${{steps.msixversion.outputs.msixversion}}
+        &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /f PackagingLayout.xml /op ..\build\msix /pv ${{steps.msixversion.outputs.msixversion}} /bv ${{steps.msixversion.outputs.msixversion}}
         pop-location
     - uses: actions/upload-artifact@v2
       with:
