@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    tags:
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -109,7 +111,6 @@ jobs:
     - uses: actions/download-artifact@v2
       with:
         name: launcher
-          juliaup
     - uses: actions/download-artifact@v2
       with:
         name: juliaup
@@ -142,3 +143,10 @@ jobs:
         files: build/msix/*.appxbundle
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-dev-channel:
+    needs: build-msix
+    environment: dev-channel
+    runs-on: windows-latest
+    steps:
+    - run: echo "Hello World"
