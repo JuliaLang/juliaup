@@ -30,3 +30,20 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /property:Configuration=Release /property:Platform=${{ matrix.platform }} Juliaup.sln
+
+  build-juliaup:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64]
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: julia-actions/setup-julia@v1
+      with:
+        version: 1.6.1
+        arch: ${{matrix.platform}}
+    - name: Run PackageCompiler
+      run: |
+        julia .\Juliaup\build.jl
