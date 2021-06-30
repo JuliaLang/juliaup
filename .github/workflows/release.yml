@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [x64, x86]
+        platform: platform: [{name: 'x64', dir: 'x64'}, {form1: 'x86', dir: 'win32'}]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -29,11 +29,11 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /property:Configuration=Release /property:Platform=${{ matrix.platform }} Juliaup.sln
+      run: msbuild /property:Configuration=Release /property:Platform=${{ matrix.platform.name }} Juliaup.sln
     - uses: actions/upload-artifact@v2
       with:
         name: launcher
-        path: build\output\${{matrix.platform}}\Release\launcher
+        path: build\output\${{matrix.platform.dir}}\Release\launcher
 
   build-juliaup:
     runs-on: windows-latest
