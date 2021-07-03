@@ -102,9 +102,7 @@ function install_version(version::String, config_data::Dict{String,Any})
 
 		first_split = try_split_platform(version)
 
-		target_path = joinpath(get_juliauphome_path(), first_split.platform)
-
-		mkpath(target_path)
+		target_path = joinpath(get_juliauphome_path(), "julia-$version")
 
 		println("Installing Julia $(first_split.version) ($(first_split.platform)).")
 
@@ -116,14 +114,14 @@ function install_version(version::String, config_data::Dict{String,Any})
 				try
 					mktempdir() do extract_temp_path
 						Tar.extract(tar, extract_temp_path, same_permissions=false)
-						mv(joinpath(extract_temp_path, "julia-$(first_split.version)"), joinpath(target_path, "julia-$(first_split.version)"), force=true)
+						mv(joinpath(extract_temp_path, "julia-$(first_split.version)"), target_path, force=true)
 					end
 				finally
 					close(tar)
 				end
 			end
 
-			config_data["InstalledVersions"][version] = Dict("Path" => joinpath(".", first_split.platform, "julia-$(first_split.version)"))
+			config_data["InstalledVersions"][version] = Dict("Path" => joinpath(".", "julia-$version"))
 
 			println("New version successfully installed.")
 		finally
