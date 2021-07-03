@@ -2,7 +2,7 @@
   "JuliaAppPackage": {
     "Version": "1.0.42.0",
     "BundledJuliaVersion": "1.6.1",
-    "BUndledJuliaVersionBuild": "0"
+    "BundledJuliaSemVersion": "1.6.1+0"
   },
   "OptionalJuliaPackages": [
     {

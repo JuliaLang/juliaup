@@ -25,15 +25,6 @@ function get_juliaupconfig_path()
 	return joinpath(get_juliauphome_path(), "juliaup.json")
 end
 
-function tryparse_full_version(value::AbstractString)
-	parts = split(value, '.')
-	if length(parts)==3 && !any(i->tryparse(Int, i)===nothing, parts)
-		return string(value)
-	else
-		return nothing
-	end
-end
-
 function tryparse_channel(value::AbstractString)
 	parts = split(value, '.')
 	if length(parts)==2 && !any(i->tryparse(Int, i)===nothing, parts)
@@ -45,15 +36,24 @@ function tryparse_channel(value::AbstractString)
 	end
 end
 
-function try_split_platform(value::AbstractString)
+function tryparse_versionstring(value::String)
 	parts = split(value, '~')
 	
+	version = nothing
+	platform = nothing
+
 	if length(parts)==1
-		return (version=value, platform=Int===Int64 ? "x64" : "x86")
+		version = tryparse(VersionNumber, value)
+		platform=Int===Int64 ? "x64" : "x86"
 	elseif length(parts)==2 && parts[2] in ("x64", "x86")
-		return (version=string(parts[1]), platform=string(parts[2]))
-	else
+		version = tryparse(VersionNumber, parts[1])
+		platform=parts[2]
+	end
+
+	if version===nothing
 		return nothing
+	else
+		return (version=version, platform=platform)
 	end
 end
 
@@ -100,11 +100,12 @@ function install_version(version::String, config_data::Dict{String,Any})
 
 		download_url = version_db["AvailableVersions"][version]["Url"]
 
+		version_split = tryparse_versionstring(version)
 		first_split = try_split_platform(version)
 
 		target_path = joinpath(get_juliauphome_path(), "julia-$version")
 
-		println("Installing Julia $(first_split.version) ($(first_split.platform)).")
+		println("Installing Julia $(version_split.version) ($(version_split.platform)).")
 
 		temp_file = Downloads.download(download_url)
 
@@ -114,7 +115,7 @@ function install_version(version::String, config_data::Dict{String,Any})
 				try
 					mktempdir() do extract_temp_path
 						Tar.extract(tar, extract_temp_path, same_permissions=false)
-						mv(joinpath(extract_temp_path, "julia-$(first_split.version)"), target_path, force=true)
+						mv(joinpath(extract_temp_path, "julia-$(version_split.version.major).$(version_split.version.minor).$(version_split.version.patch)"), target_path, force=true)
 					end
 				finally
 					close(tar)
