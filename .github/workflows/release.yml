@@ -145,7 +145,7 @@ jobs:
     - name: Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "build/msix/*.appxbundle"
+        artifacts: "*.appxbundle"
         token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-dev-channel:
