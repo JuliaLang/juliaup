@@ -300,9 +300,9 @@ function real_main()
 				println("ERROR: The add command only accepts one additional argument.")
 			end
 		elseif ARGS[1] == "link"
-			if length(ARGS)==3
+			if length(ARGS)>=3
 				channel_name = ARGS[2]
-				destination_path = ARGS[3]
+				destination_command = join(ARGS[3:end], ' ')
 
 				config_db = load_config_db()
 				version_db = get_version_db()
@@ -312,14 +312,14 @@ function real_main()
 						println("WARNING: The channel name `$channel_name` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.")
 					end
 
-					config_db["InstalledChannels"][channel_name] = Dict{String,Any}("Command"=>destination_path)
+					config_db["InstalledChannels"][channel_name] = Dict{String,Any}("Command"=>destination_command)
 				else
 					println("ERROR: Channel name `$channel_name` is already used.")
 				end
 
 				save_config_db(config_db)
 			else
-				println("ERROR: The link command only accepts two additional argument.")
+				println("ERROR: The link command requires at least two additional arguments.")
 			end
 		elseif ARGS[1] == "update" || ARGS[1] == "up"
 			if length(ARGS)==1
