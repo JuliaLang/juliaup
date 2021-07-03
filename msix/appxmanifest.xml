@@ -32,7 +32,7 @@
   </Resources>
 
   <Applications>
-    <Application Id="Julia" Executable="Julia\julia.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Julia" Executable="Julia\julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="Julia"
         Description="Julia is a high-level, high-performance, dynamic programming language"
@@ -53,7 +53,7 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julia.exe" EntryPoint="Windows.FullTrustApplication">
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
           <uap3:AppExecutionAlias>
             <desktop:ExecutionAlias Alias="julia.exe" />
           </uap3:AppExecutionAlias>
