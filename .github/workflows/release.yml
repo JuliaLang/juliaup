@@ -143,11 +143,10 @@ jobs:
       with:
         name: msixinstaller
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: ncipollo/release-action@v1
       with:
-        files: build/msix/*.appxbundle
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: "build/msix/*.appxbundle"
+        token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-dev-channel:
     needs: build-msix
