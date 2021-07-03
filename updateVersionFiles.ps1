@@ -22,7 +22,7 @@ $cVersionHeader = @"
 #define JULIA_APP_VERSION_MINOR $(([version]$versions.JuliaAppPackage.Version).minor)
 #define JULIA_APP_VERSION_REVISION $(([version]$versions.JuliaAppPackage.Version).build)
 #define JULIA_APP_VERSION_BUILD $(([version]$versions.JuliaAppPackage.Version).revision)
-#define JULIA_APP_BUNDLED_JULIA "$(BundledJuliaSemVersion)"
+#define JULIA_APP_BUNDLED_JULIA "$($versions.JuliaAppPackage.BundledJuliaSemVersion)"
 "@
 
 $cVersionHeader | Out-File  -FilePath launcher/version.h
