@@ -555,7 +555,7 @@ int main(int argc, char* argv[])
 
 		path julia_path{ GetJuliaPathFromChannel(versionsDB, configDB, juliaChannelToUse, juliaupConfigPath, !juliaVersionFromCmdLine) };
 
-		exeArgString.insert(0, "\"" + julia_path.string() + "\"");
+		exeArgString.insert(0, julia_path.string());
 
 		int result = StartProcess(exeArgString);
 
