@@ -114,7 +114,8 @@ function install_version(version::String, config_data::Dict{String,Any})
 				try
 					mktempdir() do extract_temp_path
 						Tar.extract(tar, extract_temp_path, same_permissions=false)
-						mv(joinpath(extract_temp_path, "julia-$(version_split.version.major).$(version_split.version.minor).$(version_split.version.patch)"), target_path, force=true)
+						prerelease_string = length(version_split.version.prerelease)==0 ? "" : "-" * join(version_split.version.prerelease, '-')
+						mv(joinpath(extract_temp_path, "julia-$(version_split.version.major).$(version_split.version.minor).$(version_split.version.patch)$(prerelease_string)"), target_path, force=true)
 					end
 				finally
 					close(tar)
@@ -266,7 +267,7 @@ function real_main()
 
 					save_config_db(data)
 
-					println("Configured the default Julia version to be ", ARGS[2], ".")
+					println("Configured the default Julia version to be '", ARGS[2], "'.")
 				else
 					println("ERROR: '", ARGS[2], "' is not a valid Julia version.")
 				end
