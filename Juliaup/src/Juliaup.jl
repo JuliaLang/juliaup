@@ -101,7 +101,6 @@ function install_version(version::String, config_data::Dict{String,Any})
 		download_url = version_db["AvailableVersions"][version]["Url"]
 
 		version_split = tryparse_versionstring(version)
-		first_split = try_split_platform(version)
 
 		target_path = joinpath(get_juliauphome_path(), "julia-$version")
 
