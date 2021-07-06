@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ProductDescription language="en-us" xmlns="http://schemas.microsoft.com/appx/2012/ProductDescription" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xml:lang="en-us" Release="1.0">
+  <AppStoreName _locID="App_AppStoreName">
+    <!-- This is optional.  AppStoreName is typically extracted from your package's AppxManifest DisplayName property. -->
+    <!-- Uncomment (and localize) this Store name if your application package does not contain a localization for the DisplayName in this language. -->
+    <!-- Leaving this uncommented for a language that your application package DOES contain a DisplayName for will result in a submission failure with the API. -->
+    <!-- _locComment_text="{MaxLength=200} App AppStoreName" -->
+    <!-- Julia -->
+  </AppStoreName>
+  <Keywords>
+    <!-- Valid length: 30 character limit, up to 7 elements -->
+    <Keyword _locID="App_keyword1">
+      <!-- _locComment_text="{MaxLength=30} App keyword 1" -->julia</Keyword>
+    <Keyword _locID="App_keyword2">
+      <!-- _locComment_text="{MaxLength=30} App keyword 2" -->julialang</Keyword>
+  </Keywords>
+  <Description _locID="App_Description">
+    <!-- _locComment_text="{MaxLength=10000} App Description" -->Julia is a high-level, high-performance, dynamic, open-source programming language.</Description>
+  <ShortDescription _locID="App_ShortDescription">
+    <!-- Only used for games. This description appears in the Information section of the Game Hub on Xbox One, and helps customers understand more about your game. -->
+    <!-- _locComment_text="{MaxLength=500} App ShortDescription" -->Julia is a high-level, high-performance, dynamic, open-source programming language.</ShortDescription>
+  <ShortTitle _locID="App_ShortTitle">
+    <!-- A shorter version of your product's name. If provided, this shorter name may appear in various places on Xbox One (during installation, in Achievements, etc.) in place of the full title of your product. -->
+    <!-- _locComment_text="{MaxLength=50} App ShortTitle" -->
+  </ShortTitle>
+  <SortTitle _locID="App_SortTitle">
+    <!-- If your product could be alphabetized in different ways, you can enter another version here. This may help customers find the product more quickly when searching. -->
+    <!-- _locComment_text="{MaxLength=255} App SortTitle" -->
+  </SortTitle>
+  <VoiceTitle _locID="App_VoiceTitle">
+    <!-- An alternate name for your product that, if provided, may be used in the audio experience on Xbox One when using Kinect or a headset. -->
+    <!-- _locComment_text="{MaxLength=255} App VoiceTitle" -->
+  </VoiceTitle>
+  <DevStudio _locID="App_DevStudio">
+    <!-- Specify this value if you want to include a "Developed by" field in the listing. (The "Published by" field will list the publisher display name associated with your account, whether or not you provide a devStudio value.) -->
+    <!-- _locComment_text="{MaxLength=255} App DevStudio" -->
+  </DevStudio>
+  <ReleaseNotes _locID="App_ReleaseNotes">
+    <!-- _locComment_text="{MaxLength=1500} App Release Note" -->
+  </ReleaseNotes>
+  <ScreenshotCaptions>
+    <!-- Valid length: 200 character limit, up to 9 elements per platform -->
+    <!-- Valid attributes: any of DesktopImage, MobileImage, XboxImage, SurfaceHubImage, and HoloLensImage -->
+    <Caption DesktopImage="julia-screenshot.png" _locID="App_caption1">
+      <!-- _locComment_text="{MaxLength=200} Screenshot caption 1" -->
+    </Caption>
+  </ScreenshotCaptions>
+  <AdditionalAssets>
+    <!-- Valid elements: StoreLogo9x16, StoreLogoSquare, Icon (use this value for the 1:1 300x300 pixels logo), -->
+    <!-- PromotionalArt16x9, PromotionalArtwork2400X1200, XboxBrandedKeyArt, XboxTitledHeroArt, XboxFeaturedPromotionalArt, -->
+    <!-- SquareIcon358X358, BackgroundImage1000X800, PromotionalArtwork414X180 -->
+    <!-- There is no content for any of these elements, just a single attribute called FileName. -->
+  </AdditionalAssets>
+  <Trailers>
+    <!-- Maximum number of trailers permitted: 15 -->
+  </Trailers>
+  <AppFeatures>
+    <!-- Valid length: 200 character limit, up to 20 elements -->
+  </AppFeatures>
+  <RecommendedHardware>
+    <!-- Valid length: 200 character limit, up to 11 elements -->
+  </RecommendedHardware>
+  <MinimumHardware>
+    <!-- Valid length: 200 character limit, up to 11 elements -->
+  </MinimumHardware>
+  <CopyrightAndTrademark _locID="App_CopyrightandTrademark">
+    <!-- _locComment_text="{MaxLength=200} Copyright and Trademark" -->
+  </CopyrightAndTrademark>
+  <AdditionalLicenseTerms _locID="App_AdditionalLicenseTerms">
+    <!-- _locComment_text="{MaxLength=10000} Additional License Terms" -->
+  </AdditionalLicenseTerms>
+  <WebsiteURL _locID="App_WebsiteURL">
+    <!-- _locComment_text="{MaxLength=2048} WebsiteURL" -->
+  </WebsiteURL>
+  <SupportContactInfo _locID="App_SupportContactInfo">
+    <!-- _locComment_text="{MaxLength=2048} Support Contact Info" -->
+  </SupportContactInfo>
+  <PrivacyPolicyURL _locID="App_PrivacyURL">
+    <!-- _locComment_text="{MaxLength=2048} Privacy Policy URL" -->
+  </PrivacyPolicyURL>
+</ProductDescription>

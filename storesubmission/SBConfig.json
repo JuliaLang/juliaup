@@ -1,0 +1,419 @@
+// Copyright (C) Microsoft Corporation.  All rights reserved.
+
+// This configuration file is for use with the StoreBroker PowerShell module.
+// Configure details of the app here, as well as the location of resources
+// used by the packaging tool.
+
+// Inline Comments can be placed in this file using the '//' delimiter.
+// The delimiter and any remaining text on that line will be removed.
+
+{
+    // New-SubmissionPackage parameters
+    //
+    // If you notice one of the parameters you specify to New-SubmissionPackage does not change, you can specify it here
+    // in order to avoid providing it at runtime.  If New-SubmissionPackage does not have a parameter it needs, it will
+    // check the provided config file for a non-null, non-empty value.  The exception to this is -ConfigPath which must
+    // always be provided.  For information on these parameters see the README.md or run `help New-SubmissionPackage -ShowWindow`
+    //
+    // WARNING: Specifying a parameter at runtime will ignore any value placed in the config file.
+  "packageParameters": {
+
+    // There are two supported layouts for your PDP files:
+    //     1. <PDPRootPath>\<lang-code>\...\PDP.xml
+    //     2. <PDPRootPath>\<Release>\<lang-code>\...\PDP.xml
+    // The only difference between these two is that there is a <Release> directory after the
+    // <PDPRootPath> and before the <lang-code> sub-directories.
+    //
+    // The first layout is generally used when your localization system will be downloading
+    // the localized PDP files during your build.  In that situation, it's always retrieving
+    // the latest version.  Alternatively, if the latest localized versions of your PDP
+    // files are always stored in the same location, this layout is also for you.
+    //
+    // On the other hand, if you will be archiving the localized PDP's based on each release
+    // to the Store, then the second layout is the one that you should use.  In this scenario,
+    // you will specify the value of "<Release>" immediately below, or at the commandline.
+    //
+    // Only specify 'PDPRootPath' here if it does not change.
+    // DO NOT use environment variables in the config.  If you need to use an environment
+    // variable to get to the right path, then you need to specify that path at the commandline
+    // instead.
+    //
+    // File separator '\' must be escaped, i.e. '\\'
+    // Ex: \\\\filehare\\Public\\AppPDPs\\MyApp
+    "PDPRootPath": "",
+
+    // If your PDP files are being placed in a directory structure like this:
+    //     <PDPRootPath>\<Release>\<lang-code>\...\PDP.xml
+    // then specify the correct 'Release' here or at runtime.
+    "Release": "",
+
+    // Filenames that SHOULD be processed.
+    // Wildcards are allowed, eg "ProductDescription*.xml".
+    // It is fine to specify both "PDPInclude" and "PDPExclude".
+    //
+    // Ex: "PDPInclude": [
+    //         "PDP*.xml",               <- Comma to separate items
+    //         "ProductDescription.xml"  <- No comma for last item, or JSON deserialization will fail
+    //     ]
+    "PDPInclude": [
+    ],
+
+    // Filenames that SHOULD NOT be processed.
+    // Wildcards are allowed, eg "ProductDescription*.xml".
+    // It is fine to specify both "PDPInclude" and "PDPExclude".
+    // It is NOT necessary to specify something here, but you can to be more explicit.
+    //
+    // Ex: "PDPExclude": [
+    //         "*.xml.lss",  <- Comma to separate items
+    //         "*.xml.lct"   <- No comma for last item, or JSON deserialization will fail
+    //     ]
+    "PDPExclude": [
+    ],
+
+    // Languages to be excluded from processing by New-SubmissionPackage.
+    // New-SubmissionPackage will use the filepath of a PDP XML file
+    // to identify the language of the metadata.  If it sees a match
+    // with a lang-code in this list, it will skip processing the file.
+    //
+    // Ex: "LanguageExclude": [
+    //         "default",  <- Comma to separate items
+    //         "qps-ploc"  <- No comma for last item, or JSON deserialization will fail
+    //     ],
+    "LanguageExclude": [
+      "default"
+    ],
+
+    // Your store screenshots must be placed with this structure:
+    //     <ImagesRootPath>\<Release>\<lang-code>\...\img.png
+    // Specify 'ImagesRootPath' here.
+    //
+    // IMPORTANT: The 'Release' that will be used here is *NOT* the value specified to
+    // New-SubmissionPackage (nor is it the Release value specified earlier in this config file),
+    // but rather the 'Release' attribute at the top of the corresponding PDP file.
+    //
+    // File separator '\' must be escaped, i.e. '\\'
+    // Ex: \\\\fileshare\\Public\\Screenshots\\MyApp
+    "ImagesRootPath": "",
+
+    // Some apps may not localize all of their metadata media (images, trailers, etc..) across all languages.
+    // By default, StoreBroker will look in the PDP langcode's subfolder within ImagesRootPath for that
+    // language's media content.  If the requested filename is not found, StoreBroker packaging will fail.
+    // If you specify a fallback language here (e.g. 'en-us'), then if the requested file isn't found in
+    // the PDP language's media subfolder, StoreBroker will then look into the fallback language's media
+    // subfolder for the exactly same-named image before failing.
+    "MediaFallbackLanguage": "",
+
+    // Specify any number of full paths to .appx, .appxbundle, or .appxupload files here.
+    // Ex:
+    // "AppxPath": [
+    //     "C:\app\x86\MyApp_x86.appxupload",   <- Comma to separate items
+    //     "C:\app\x64\MyApp_x64.appxupload"    <- No comma for last item, or JSON deserialization will fail
+    // ]
+    //
+    // DO NOT use environment variables in the config.  If you need to use an environment
+    // variable to get to the right path, then you need to specify that path at the commandline
+    // instead.  In order to specify a list of paths at the commandline, just separate them
+    // by commas and but the whole list in parenthesis:
+    // Ex: ("C:\app\x86\MyApp_x86.appxupload", "C:\app\x64\MyApp_x64.appxupload")
+    //
+    // NOTE: File separator '\' must be escaped, i.e. '\\'
+    // Ex: \\\\fileshare\\Public\\AppPDPs\\MyApp
+    "AppxPath": [
+    ],
+
+    // Full path to a directory where the Packaging Tool can write the .json submission request
+    //     body and .zip package to upload.
+    //
+    // File separator '\' must be escaped, i.e. '\\'
+    // Ex: "OutPath": "C:\\app\\output"
+    "OutPath": "",
+
+    // Common name to give to the .json and .zip files outputted by the Packaging Tool.
+    "OutName": "",
+
+    // By default, the packages will be renamed using a consistent naming scheme, which
+    // embeds the application name, version, as well as targeted platform and architecture.
+    // Ex: "Desktop_MyApp_2.13.22002.0_x86.appxupload"
+    // To retain the existing package filenames instead, set this to true.
+    "DisableAutoPackageNameFormatting": false
+  },
+
+    // Configure details of the App Submission
+
+    "appSubmission": {
+
+        // If known, this is the AppId given to your application by the Windows Store.
+        // This isn't required, but adding this will help protect you from submitting something
+        // to the wrong application when working at the commandline.
+        //
+        // Ex: "appId": "0ABCDEF12345"
+        "appId": "9NJNWW8PVKMN",
+
+        /////////////////////////////////
+        //                             //
+        // PUBLISH MODE AND VISIBILITY //
+        //                             //
+        /////////////////////////////////
+
+        // Publish mode of the submission. One of ["NotSet", "Immediate", "Manual", "SpecificDate"]
+        "targetPublishMode": "Immediate",
+
+        // Publish date-time of the submission if the "targetPublishMode" is specified as "SpecificDate".
+        // Date-time format should follow the ISO 8601 standard.
+        // Ex: "2000-01-30T00:00:00-08:00"
+        "targetPublishDate": "1601-01-01T00:00:00.0000000Z",
+
+        // Visibility of the app. One of ["NotSet", "Public", "Private", "Hidden"]
+        //
+        // Public: Anyone can find your app in the Store.
+        // Private: Hide this app in the Store. Customers with a direct link to the app's listing can still download
+        //     it, except on Windows 8 and Windows 8.1.
+        // Hidden: Hide this app and prevent acquisition. Customers with a promotional code can still download it on
+        //     Windows 10 devices.
+        "visibility": "Public",
+
+        //////////////////////////////
+        //                          //
+        // PRICING AND AVAILABILITY //
+        //                          //
+        //////////////////////////////
+
+        // Pricing
+        //
+        // Your app will be priced according to the price tier set for "priceId" and will be marketed at
+        // that tier for ALL available markets.  To set a different price for a specific market, use the
+        // "marketSpecificPricings" object.  You can also use the "marketSpecificPricings" object to make
+        // your app "NotAvailable" to a specific market.
+        //
+        // If your app is having a sale, set that here using the "sales" object.
+        "pricing": {
+
+            // Price
+            //
+            // Set the price of the app.
+            // The value provided should be a "Tier" and NOT an actual price
+            // For a mapping of "Tiers" to prices, refer to https://docs.microsoft.com/en-us/windows/uwp/monetize/manage-add-on-submissions#price-tiers
+            // Can also be "Free" or "NotAvailable"
+            "priceId": "Free",
+
+            // Trial period.  One of ["NoFreeTrial", "OneDay", "SevenDays", "FifteenDays", "ThirtyDays", "TrialNeverExpires"]
+            "trialPeriod": "NoFreeTrial",
+
+            // Market Specific Pricing
+            //
+            // By default, your app will be marketed at the price tier set for "priceId" for all possible markets.
+            // To set a different price tier for a specific region, add the ("region": "Tier") key-value pair.
+            //
+            // For a list of supported regions, see https://msdn.microsoft.com/en-us/library/windows/apps/mt148563.aspx
+            "marketSpecificPricings": {
+  "EH": "NotAvailable"
+},
+
+            // Sales
+            //
+            // Sales follow the same pattern as the general "pricing" object.  Specify a "basePriceId" and the
+            // app will be on sale at that price tier for ALL possible markets.  To specify a different price tier
+            // for a specific region, or to exclude a region from the sale ("NotAvailable"), use "marketSpecificPricings"
+            // exactly as you would above.  Specify a "startDate" and "endDate" according to the ISO 8601
+            // e.g. "2000-01-30T00:00:00-08:00".  Finally, give a "name" for the sale, to identify it in the portal.
+            //
+            // Specify any number of "Sale" objects here. A "Sale" object has the following format:
+            //
+            // {                               <- Open-curly to start the object
+            //     "name": "",
+            //     "basePriceId": "",
+            //     "marketSpecificPricings": {
+            //     },
+            //     "startDate": "",
+            //     "endDate": ""               <- No comma for last item, or JSON deserialization will fail
+            // }                               <- Closing-curly to end the object
+            //
+            //
+            // Ex:
+            // "sales": [
+            //     {
+            //         "name": "Sale1",
+            //         "basePriceId": "Free",
+            //         "marketSpecificPricings": {
+            //             "ca-es": "NotAvailable",  <- Comma to separate key-value pairs
+            //             "es-mx": "Tier2"          <- No comma for last item, or JSON deserialization will fail
+            //         },
+            //         "startDate": "2000-01-30T00:00:00-08:00",
+            //         "endDate": "2000-02-07T00:00:00-08:00"
+            //     },                                <- Comma to separate "Sale" objects
+            //     {
+            //         "name": "Sale2",
+            //         "basePriceId": "Tier1",
+            //         "marketSpecificPricings": {
+            //             "en-gb": "NotAvailable",
+            //             "fr-ca": "NotAvailable",
+            //             "es-mx": "Tier2"
+            //         },
+            //         "startDate": "2000-03-01T00:00:00-08:00",
+            //         "endDate": "2001-01-01T00:00:00-08:00"
+            //     }                                 <- No comma for last item, or JSON deserialization will fail
+            // ]
+            "sales": [ ]
+        },
+
+        // Define the preference to make this app available for each Win10Device
+        "allowTargetFutureDeviceFamilies": {
+            "Xbox": false,
+            "Team": false,    // Surface Hub
+            "Holographic": false,
+            "Desktop": true,
+            "Mobile": false
+        },
+
+        // True, Let Microsoft decide whether to make this app available to any future device families.
+        // False, Require your permission before making this app available to any future device families.
+        "allowMicrosoftDecideAppAvailabilityToFutureDeviceFamilies": true,
+
+        // EnterpriseLicensing. One of ["None", "Online", "OnlineAndOffline"]
+        //
+        // You can allow organizations to acquire your app in volume through the options below.
+        // Note that changes will only affect new acquisitions; anyone who already has your app
+        // will be able to continue using it. Initially, only free apps will be offered for volume
+        // acquisition. Selections you make for paid apps will take effect once support is added
+        // for acquiring them in volume at a later date.
+        //
+        // Online: Make app available to organizations with Store-managed (online) volume licensing.
+        //     This allows organizations to acquire your app in volume. App licenses will be managed
+        //     through the Store's online licensing system.
+        // OnlineAndOffline: In addition, allow disconnected (offline) licensing for organizations.
+        //     This allows organizations to acquire your app in volume. They can then download your
+        //     package and a license which lets them install it to devices without accessing the
+        //     Store's online licensing system.
+        "enterpriseLicensing": "Online",
+
+        ////////////////////
+        //                //
+        // APP PROPERTIES //
+        //                //
+        ////////////////////
+
+        // Category/SubCategory of the submission. Either
+        // "NotSet"
+        //  or one of:
+        // ["BooksAndReference", "BooksAndReference_EReader", "BooksAndReference_Fiction", "BooksAndReference_Nonfiction",
+        //  "BooksAndReference_Reference", "Business", "Business_AccountingAndFinance", "Business_Collaboration",
+        //  "Business_CRM", "Business_DataAndAnalytics", "Business_FileManagement", "Business_InventoryAndLogistics",
+        //  "Business_LegalAndHR", "Business_ProjectManagement", "Business_RemoteDesktop", "Business_SalesAndMarketing",
+        //  "Business_TimeAndExpenses", "DeveloperTools", "DeveloperTools_Database", "DeveloperTools_DesignTools",
+        //  "DeveloperTools_DevelopmentKits", "DeveloperTools_Networking", "DeveloperTools_ReferenceAndTraining",
+        //  "DeveloperTools_Servers", "DeveloperTools_Utilities", "DeveloperTools_Webhosting", "Education",
+        //  "Education_BooksAndReference", "Education_EarlyLearning", "Education_InstructionalTools", "Education_Language",
+        //  "Education_StudyAids", "Entertainment", "FoodAndDining", "Games", "Games_ActionAndAdventure",
+        //  "Games_CardAndBoard", "Games_Casino", "Games_Educational", "Games_FamilyAndKids", "Games_Fighting",
+        //  "Games_Music", "Games_Platformer", "Games_PuzzleAndTrivia", "Games_RacingAndFlying", "Games_Roleplaying",
+        //  "Games_Shooter", "Games_Simulation", "Games_Sports", "Games_Strategy", "Games_Word", "GovernmentAndPolitics",
+        //  "HealthAndFitness", "KidsAndFamily", "KidsAndFamily_BooksAndReference", "KidsAndFamily_Entertainment",
+        //  "KidsAndFamily_HobbiesAndToys", "KidsAndFamily_SportsAndActivities", "KidsAndFamily_Travel", "Lifestyle",
+        //  "Lifestyle_Automotive", "Lifestyle_DIY", "Lifestyle_HomeAndGarden", "Lifestyle_Relationships",
+        //  "Lifestyle_SpecialInterest", "Lifestyle_StyleAndFashion", "Medical", "MultimediaDesign",
+        //  "MultimediaDesign_IllustrationAndGraphicDesign", "MultimediaDesign_MusicProduction",
+        //  "MultimediaDesign_PhotoAndVideoProduction", "Music", "NavigationAndMaps", "NewsAndWeather",
+        //  "NewsAndWeather_News", "NewsAndWeather_Weather", "PersonalFinance", "PersonalFinance_BankingAndInvestments",
+        //  "PersonalFinance_BudgetingAndTaxes", "Personalization", "Personalization_RingtonesAndSounds",
+        //  "Personalization_Themes", "Personalization_WallpaperAndLockScreens", "PhotoAndVideo", "Productivity",
+        //  "Security", "Security_PCProtection", "Security_PersonalSecurity", "Shopping", "Social", "Sports", "Travel",
+        //  "Travel_CityGuides", "Travel_Hotels", "UtilitiesAndTools", "UtilitiesAndTools_BackupAndManage"
+        //  "UtilitiesAndTools_FileManager"]
+        "applicationCategory": "DeveloperTools_DevelopmentKits",
+
+        // Hardware (Preferences)
+        //
+        // Any of ["Undefined", "Touch", "Keyboard", "Mouse", "Camera", "Nfc", "NfcHce", "BluetoothLE", "Telephony"]
+        // Ex: "hardwarePreferences": [
+        //         "Touch",
+        //         "Mouse"  <- No comma for last item, or JSON deserialization will fail
+        //     ],
+
+        // Hardware Preferences
+        //
+        // Indicate which hardware features are required in order for your app to run properly.
+        // Customers on hardware that doesn't meet your app's preferences will see a warning before they download your app,
+        //     and they won't be able to rate or review it.
+        "hardwarePreferences": [ ],
+
+        // Indicates whether the app sells In-App-Products from 3rd parties.
+        "hasExternalInAppProducts": false,
+
+        // Indicates whether the App meets accessibility guidelines.
+        "meetAccessibilityGuidelines": false,
+
+        // Indicates whether the app can be installed on removable media.
+        "canInstallOnRemovableMedia": true,
+
+        // Indicates whether OneDrive backup is enabled on the app instance being submitted.
+        "automaticBackupEnabled": true,
+
+        // Indicates whether customers can use Windows 10 features to record and broadcast clips of this game.
+        // Only supported for app in the "Games" category.
+        "isGameDvrEnabled": false,
+
+        /////////////////////
+        //                 //
+        // GAMING OPTIONS  //
+        //                 //
+        /////////////////////
+
+        // Up-to-date documentation for all possible option values can be found here:
+        // https://docs.microsoft.com/en-us/windows/uwp/monetize/manage-app-submissions#gaming-options-object
+        "gamingOptions": [{
+            // An array of one or more of the following strings that describe the genres of the game:
+            // ["Games_ActionAndAdventure", "Games_CardAndBoard", "Games_Casino", "Games_Educational", "Games_FamilyAndKids",
+            //  "Games_Fighting", "Games_Music", "Games_Platformer", "Games_PuzzleAndTrivia", "Games_RacingAndFlying",
+            //  "Games_RolePlaying", "Games_Shooter", "Games_Simulation", "Games_Sports", "Games_Strategy", "Games_Word"]
+            "genres": "DeveloperTools_DevelopmentKits",
+
+            // Indicates whether the game supports local multiplayer.
+            "isLocalMultiplayer": false,
+
+            // Indicates whether the game supports local co-op.
+            "isLocalCooperative": false,
+
+            // Indicates whether the game supports online multiplayer.
+            "isOnlineMultiplayer": false,
+
+            // Indicates whether the game supports online co-op.
+            "isOnlineCooperative": false,
+
+            // Specifies the minimum number of players the game supports for local multiplayer.
+            "localMultiplayerMinPlayers": 0,
+
+            // Specifies the maximum number of players the game supports for local multiplayer.
+            "localMultiplayerMaxPlayers": 0,
+
+            // Specifies the minimum number of players the game supports for local co-op.
+            "localCooperativeMinPlayers": 0,
+
+            // Specifies the maximum number of players the game supports for local co-op.
+            "localCooperativeMaxPlayers": 0,
+
+            // Indicates whether the game supports broadcasting.
+            "isBroadcastingPrivilegeGranted": true,
+
+            // Indicates whether the game supports multiplayer sessions between players on Windows 10 PCs and Xbox.
+            "isCrossPlayEnabled": false,
+
+            // One of the following string values that indicates whether the game can collect Kinect data and send it to external services:
+            // ["NotSet", "Unknown", "Enabled", "Disabled"]
+            "kinectDataForExternal": "Disabled"
+        }],
+
+        /////////////////////////////
+        //                         //
+        // NOTES FOR CERTIFICATION //
+        //                         //
+        /////////////////////////////
+
+        // String. Information that testers can use to run the app for certification.
+        // Can include information such as test account credentials, steps to access and verify features, etc.
+        //
+        // The notes must be provided on one line, but it is possible to specify multiline notes using "\r\n".
+        // Ex: "notesForCertification": "These\r\nare\r\nfour\r\nlines"
+        "notesForCertification": "This will eventually become the main distribution mechanism for the Julia programming language on Windows: www.julialang.org."
+    }
+}
+

@@ -138,16 +138,21 @@ jobs:
     # needs: [build-msix]
     runs-on: windows-latest
     steps:
+    - uses: actions/checkout@v2
     - name: Install StoreBroker
-      run: Install-Module -Name StoreBroker -Force
-    - name: Authenticate with store
-      env:
-        TENANTID: ${{ secrets.TENANTID }}
-        CLIENTID: ${{ secrets.CLIENTID }}
-        CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $env:CLIENTSECRET
-        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred        
+        Install-Module -Name StoreBroker -Force
+    - uses: actions/download-artifact@v2
+      with:
+        name: msixinstaller
+    - name: Package
+      run: |
+        New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "images") -AppxPath *.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName (Join-Path $env:GITHUB_WORKSPACE "storepackage" "submission.json")
+    - uses: actions/upload-artifact@v2
+      with:
+        name: storepackage
+        path: storepackage\*.*
+
 
   deploy-github-release:
     needs: build-msix
@@ -164,8 +169,23 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-dev-channel:
-    needs: build-msix
+    needs: [build-msix, build-storepayload]
     environment: dev-channel
     runs-on: windows-latest
     steps:
-    - run: echo "Hello World"
+    - name: Install StoreBroker
+      run: Install-Module -Name StoreBroker -Force
+    - uses: actions/download-artifact@v2
+      with:
+        name: storepackage      
+    - name: Authenticate with store
+      env:
+        TENANTID: ${{ secrets.TENANTID }}
+        CLIENTID: ${{ secrets.CLIENTID }}
+        CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
+      run: |
+        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $env:CLIENTSECRET
+        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+    - name: Submit to store
+      run: |
+        Update-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId "Dev Channel" -SubmissionDataPath ".\submission.json" -PackagePath ".\package.zip" -AutoCommit -Force
