@@ -190,4 +190,4 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
     - name: Submit to store
       run: |
-        Update-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId "Dev Channel" -SubmissionDataPath ".\submission.json" -PackagePath ".\package.zip" -AutoCommit -Force
+        Update-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId "Dev Channel" -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
