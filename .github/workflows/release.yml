@@ -188,6 +188,4 @@ jobs:
         $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-    - name: Submit to store
-      run: |
-        Update-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId "Dev Channel" -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId "Dev Channel" -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
