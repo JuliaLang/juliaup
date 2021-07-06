@@ -134,6 +134,21 @@ jobs:
         name: msixinstaller
         path: build\msix\*.appxbundle
 
+  build-storepayload:
+    # needs: [build-msix]
+    runs-on: windows-latest
+    steps:
+    - name: Install StoreBroker
+      run: Install-Module -Name StoreBroker -Force
+    - name: Authenticate with store
+      env:
+        TENANTID: ${{ secrets.TENANTID }}
+        CLIENTID: ${{ secrets.CLIENTID }}
+        CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
+      run: |
+        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $env:CLIENTSECRET
+        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred        
+
   deploy-github-release:
     needs: build-msix
     runs-on: ubuntu-latest
