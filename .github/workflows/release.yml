@@ -135,7 +135,7 @@ jobs:
         path: build\msix\*.appxbundle
 
   build-storepayload:
-    # needs: [build-msix]
+    needs: [build-msix]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -169,7 +169,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-dev-channel:
-    needs: [build-msix, build-storepayload]
+    needs: [build-storepayload]
     environment: dev-channel
     runs-on: windows-latest
     steps:
