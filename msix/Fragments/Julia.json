@@ -2,7 +2,8 @@
     "profiles": [
         {
             "name": "Julia",
-            "commandline": "julia.exe"
+            "commandline": "julia.exe",
+            "icon": "ms-appx://JuliaComputingInc.Julia/Public/Fragments/julia.ico"
         }
     ]
 }

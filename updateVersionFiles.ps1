@@ -39,6 +39,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
+        <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\launcher\julia.ico" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
         <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-x64.json" SourcePath="VersionsDB\juliaup-versionsdb-winnt-x64.json" />
       </Files>
@@ -49,6 +50,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\x64\**" />
         <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
         <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
+        <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\launcher\julia.ico" />
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x86\julia-$bundledJuliaVersion\**" />
         <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-x86.json" SourcePath="VersionsDB\juliaup-versionsdb-winnt-x86.json" />
       </Files>
