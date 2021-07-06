@@ -59,7 +59,7 @@ jobs:
         name: juliaup
         path: build\juliaup
   
-  prepare-bundled-julia:
+  build-bundledjulia:
     runs-on: windows-latest
     strategy:
       matrix:
@@ -99,7 +99,7 @@ jobs:
         path: build\juliaversions\${{matrix.platform.form1}}
 
   build-msix:
-    needs: [build-launcher, build-juliaup, prepare-bundled-julia]
+    needs: [build-launcher, build-juliaup, build-bundledjulia]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
