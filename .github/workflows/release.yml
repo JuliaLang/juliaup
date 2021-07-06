@@ -173,6 +173,7 @@ jobs:
     needs: [build-storepayload]
     environment: dev-channel
     runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
@@ -189,3 +190,47 @@ jobs:
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+
+  deploy-releasepreview-channel:
+    needs: [build-storepayload]
+    environment: release-preview-channel
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Install StoreBroker
+      run: Install-Module -Name StoreBroker -Force
+    - uses: actions/download-artifact@v2
+      with:
+        name: storepackage      
+    - name: Authenticate with store
+      env:
+        TENANTID: ${{ secrets.TENANTID }}
+        CLIENTID: ${{ secrets.CLIENTID }}
+        CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
+      run: |
+        $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
+        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
+        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+        Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+
+  deploy-release-channel:
+    needs: [build-storepayload]
+    environment: release-channel
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Install StoreBroker
+      run: Install-Module -Name StoreBroker -Force
+    - uses: actions/download-artifact@v2
+      with:
+        name: storepackage      
+    - name: Authenticate with store
+      env:
+        TENANTID: ${{ secrets.TENANTID }}
+        CLIENTID: ${{ secrets.CLIENTID }}
+        CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
+      run: |
+        $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
+        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
+        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+        Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
