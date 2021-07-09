@@ -30,6 +30,10 @@ function main()
     db_x64["AvailableVersions"]["1.7.0-beta2+0~x86"] = Dict("Url"=>"https://julialang-s3.julialang.org/bin/winnt/x86/1.7/julia-1.7.0-beta2-win32.tar.gz")
     db_x86["AvailableVersions"]["1.7.0-beta2+0~x86"] = Dict("Url"=>"https://julialang-s3.julialang.org/bin/winnt/x86/1.7/julia-1.7.0-beta2-win32.tar.gz")
 
+    db_x64["AvailableVersions"]["1.7.0-beta3+0~x64"] = Dict("Url"=>"https://julialang-s3.julialang.org/bin/winnt/x64/1.7/julia-1.7.0-beta3-win64.tar.gz")
+    db_x64["AvailableVersions"]["1.7.0-beta3+0~x86"] = Dict("Url"=>"https://julialang-s3.julialang.org/bin/winnt/x86/1.7/julia-1.7.0-beta3-win32.tar.gz")
+    db_x86["AvailableVersions"]["1.7.0-beta3+0~x86"] = Dict("Url"=>"https://julialang-s3.julialang.org/bin/winnt/x86/1.7/julia-1.7.0-beta3-win32.tar.gz")
+
     for c in minor_channels
         db_x64["AvailableChannels"]["$(c.channel)~x64"] = Dict("Version" => "$(c.version)+0~x64")
         db_x64["AvailableChannels"]["$(c.channel)~x86"] = Dict("Version" => "$(c.version)+0~x86")
@@ -58,11 +62,11 @@ function main()
     db_x64["AvailableChannels"]["lts"] = Dict("Version" => "1.0.5+0~x64")
     db_x86["AvailableChannels"]["lts"] = Dict("Version" => "1.0.5+0~x86")
 
-    db_x64["AvailableChannels"]["beta~x64"] = Dict("Version" => "1.7.0-beta2+0~x64")
-    db_x64["AvailableChannels"]["beta~x86"] = Dict("Version" => "1.7.0-beta2+0~x86")
-    db_x86["AvailableChannels"]["beta~x86"] = Dict("Version" => "1.7.0-beta2+0~x86")
-    db_x64["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta2+0~x64")
-    db_x86["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta2+0~x86")
+    db_x64["AvailableChannels"]["beta~x64"] = Dict("Version" => "1.7.0-beta3+0~x64")
+    db_x64["AvailableChannels"]["beta~x86"] = Dict("Version" => "1.7.0-beta3+0~x86")
+    db_x86["AvailableChannels"]["beta~x86"] = Dict("Version" => "1.7.0-beta3+0~x86")
+    db_x64["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta3+0~x64")
+    db_x86["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta3+0~x86")
 
     db_x64["AvailableChannels"]["rc~x64"] = Dict("Version" => "1.6.1+0~x64")
     db_x64["AvailableChannels"]["rc~x86"] = Dict("Version" => "1.6.1+0~x86")
