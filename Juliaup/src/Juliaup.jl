@@ -114,8 +114,11 @@ function install_version(version::String, config_data::Dict{String,Any})
 				try
 					mktempdir() do extract_temp_path
 						Tar.extract(tar, extract_temp_path, same_permissions=false)
-						prerelease_string = length(version_split.version.prerelease)==0 ? "" : "-" * join(version_split.version.prerelease, '-')
-						mv(joinpath(extract_temp_path, "julia-$(version_split.version.major).$(version_split.version.minor).$(version_split.version.patch)$(prerelease_string)"), target_path, force=true)
+						folders = readdir(extract_temp_path, join=true)
+						if length(folders)!=1
+							error("The archive for this version has a folder structure that juliaup does not understand.")
+						end
+						mv(folders[1], target_path, force=true)
 					end
 				finally
 					close(tar)
