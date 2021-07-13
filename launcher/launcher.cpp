@@ -382,9 +382,10 @@ json LoadVersionsDB()
 	auto currentPlatform{ GetCurrentPlatform() };
 	path versionsDBFilename{ "juliaup-versionsdb-winnt-" + currentPlatform + ".json" };
 
+	// For now make the MSIX location the first priority as we are using that as the primary distribution channel for now
 	std::vector<path> version_db_search_paths{
-		GetJuliaupPath() / versionsDBFilename,
-		GetExecutablePath().parent_path().parent_path() / "VersionsDB" / versionsDBFilename
+		GetExecutablePath().parent_path().parent_path() / "VersionsDB" / versionsDBFilename,
+		GetJuliaupPath() / versionsDBFilename		
 	};
 
 	for (auto& i : version_db_search_paths) {

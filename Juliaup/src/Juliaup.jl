@@ -137,15 +137,17 @@ end
 const g_version_db = Ref{Dict}()
 
 function download_version_db()
-	download_url = "https://www.david-anthoff.com/juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"
-	Downloads.download(download_url, joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"))
+	# Disable for now because we are now reliably distributing this file via the store
+	# download_url = "https://www.david-anthoff.com/juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"
+	# Downloads.download(download_url, joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"))
 end
 
 function get_version_db()
 	if !isassigned(g_version_db)
-		version_db_search_paths = [
-			joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"),
-			joinpath(Sys.BINDIR, "..", "..", "VersionsDB", "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json") # This only exists when MSIX deployed
+		# For now make the MSIX deployed version file the priority as the store deployment works reliably
+		version_db_search_paths = [			
+			joinpath(Sys.BINDIR, "..", "..", "VersionsDB", "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"), # This only exists when MSIX deployed
+			joinpath(get_juliauphome_path(), "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json")
 		]
 		for i in version_db_search_paths
 			if isfile(i)
