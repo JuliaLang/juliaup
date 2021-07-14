@@ -419,6 +419,17 @@ function real_main()
 			else
 				println("ERROR: The status command does not accept any additional arguments.")
 			end
+		elseif ARGS[1] == "api"
+			if length(ARGS)==2 && ARGS[2]=="getinfo"
+				response = Dict{String,Any}(
+					"JuliaupVersion" => "",
+					"Schemaversion" => 1					
+				)
+
+				JSON.print(response, 4)
+			else
+				println("ERROR: The api command only accepts the `getinfo` option at the moment.")
+			end
 		else
 			println("ERROR: '", ARGS[1], "' is not a recognized command.")
 		end
