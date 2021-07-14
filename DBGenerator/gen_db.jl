@@ -1,7 +1,11 @@
-using JSON, Query, Pkg
+using Pkg
 
 Pkg.activate(@__DIR__)
 Pkg.instantiate()
+
+
+using JSON, Query
+
 
 function main()
     db_x64 = Dict{String,Any}("AvailableVersions"=>Dict{String,Any}(), "AvailableChannels"=>Dict{String,Any}())
