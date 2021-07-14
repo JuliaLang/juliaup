@@ -242,6 +242,14 @@ string GetCurrentPlatform() {
 #ifdef _M_IX86
 	return "x86";
 #endif
+
+#ifdef _M_ARM64
+	return "arm64";
+#endif
+
+#ifdef _M_ARM
+	return "arm";
+#endif
 }
 
 path GetHomedirPath() {
@@ -309,6 +317,16 @@ void DoInitialSetup()
 		string bundledVersion{ JULIA_APP_BUNDLED_JULIA };
 
 		auto platform = GetCurrentPlatform();
+
+		// For now we ship x86 and x64 binaries on Windows for ARM and rely on emulation
+		if (platform == "arm")
+		{
+			platform = "x86";
+		}
+		else if (platform == "arm64")
+		{
+			platform = "x64";
+		}
 
 		auto targetFolderName = "julia-" + bundledVersion + "~" + platform;
 

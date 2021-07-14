@@ -1,5 +1,8 @@
 &"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x86 Juliaup.sln
 &"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=x64 Juliaup.sln
+&"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe" /property:Configuration=Release /property:Platform=ARM64 Juliaup.sln
+
+julia .\DBGenerator\gen_db.jl
 
 julia +1.6.1~x64 .\Juliaup\build.jl
 julia +1.6.1~x86 .\Juliaup\build.jl

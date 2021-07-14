@@ -1,4 +1,7 @@
-using JSON, Query
+using JSON, Query, Pkg
+
+Pkg.activate(@__DIR__)
+Pkg.instantiate()
 
 function main()
     db_x64 = Dict{String,Any}("AvailableVersions"=>Dict{String,Any}(), "AvailableChannels"=>Dict{String,Any}())
@@ -74,11 +77,21 @@ function main()
     db_x64["AvailableChannels"]["rc"] = Dict("Version" => "1.6.1+0~x64")
     db_x86["AvailableChannels"]["rc"] = Dict("Version" => "1.6.1+0~x86")
 
-    open(joinpath(@__DIR__, "..", "output", "juliaup-versionsdb-winnt-x64.json"), "w") do f
+    mkpath(joinpath(@__DIR__, "..", "build", "versiondb"))
+
+    open(joinpath(@__DIR__, "..", "build", "versiondb", "juliaup-versionsdb-winnt-x64.json"), "w") do f
         JSON.print(f, db_x64, 4)
     end
 
-    open(joinpath(@__DIR__, "..", "output", "juliaup-versionsdb-winnt-x86.json"), "w") do f
+    open(joinpath(@__DIR__, "..", "build", "versiondb", "juliaup-versionsdb-winnt-arm64.json"), "w") do f
+        JSON.print(f, db_x64, 4)
+    end
+
+    open(joinpath(@__DIR__, "..", "build", "versiondb", "juliaup-versionsdb-winnt-x86.json"), "w") do f
+        JSON.print(f, db_x86, 4)
+    end
+
+    open(joinpath(@__DIR__, "..", "build", "versiondb", "juliaup-versionsdb-winnt-arm.json"), "w") do f
         JSON.print(f, db_x86, 4)
     end
 end

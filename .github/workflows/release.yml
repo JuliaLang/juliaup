@@ -15,7 +15,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [{name: 'x64', dir: 'x64'}, {name: 'x86', dir: 'win32'}]
+        platform: [{name: 'x64', dir: 'x64'}, {name: 'x86', dir: 'win32'}, {name: 'ARM64', dir: 'ARM64'}]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -98,8 +98,25 @@ jobs:
         name: bundled-julia-${{matrix.platform.form1}}
         path: build\juliaversions\${{matrix.platform.form1}}
 
+  build-versiondb:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: julia-actions/setup-julia@v1
+      with:
+        version: 1.6.1
+    - name: Generate version DBs
+      run: |
+        julia ./DBGenerator/gen_db.jl
+    - uses: actions/upload-artifact@v2
+      with:
+        name: versiondb
+        path: build\versiondb
+
   build-msix:
-    needs: [build-launcher, build-juliaup, build-bundledjulia]
+    needs: [build-launcher, build-juliaup, build-bundledjulia, build-versiondb]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -119,6 +136,10 @@ jobs:
       with:
         name: juliaup
         path: build\juliaup
+    - uses: actions/download-artifact@v2
+      with:
+        name: versiondb
+        path: build\versiondb
     - name: Read version info
       id: msixversion
       run: |
