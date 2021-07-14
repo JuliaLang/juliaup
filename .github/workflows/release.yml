@@ -113,7 +113,7 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: versiondb
-        path: build\versiondb
+        path: build/versiondb
 
   build-msix:
     needs: [build-launcher, build-juliaup, build-bundledjulia, build-versiondb]
