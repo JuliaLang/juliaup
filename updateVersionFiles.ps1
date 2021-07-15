@@ -52,7 +52,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-x86.json" SourcePath="..\build\versiondb\juliaup-versionsdb-winnt-x86.json" />
       </Files>
     </Package>
-    <Package ID="Julia-ARM64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="ARM64">
+    <!--<Package ID="Julia-ARM64-$($versions.JuliaAppPackage.Version)" ProcessorArchitecture="ARM64">
       <Files>
         <File DestinationPath="Julia\*" SourcePath="..\build\output\Win32\Release\launcher\*" />
         <File DestinationPath="Juliaup\**" SourcePath="..\build\juliaup\ARM64\**" />
@@ -62,7 +62,7 @@ $packageLayout = [xml]@"
         <File DestinationPath="BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-$bundledJuliaVersion\**" />
         <File DestinationPath="VersionsDB\juliaup-versionsdb-winnt-arm64.json" SourcePath="..\build\versiondb\juliaup-versionsdb-winnt-arm64.json" />
       </Files>
-    </Package>
+    </Package>-->
   </PackageFamily>
 </PackagingLayout>
 "@
