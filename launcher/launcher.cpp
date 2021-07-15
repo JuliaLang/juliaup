@@ -539,8 +539,6 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		throw runtime_error("This is a test error.");
-
 		auto juliaupConfigPath{ GetJuliaupconfigPath() };
 
 		DoInitialSetup();
