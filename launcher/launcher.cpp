@@ -589,4 +589,9 @@ int main(int argc, char* argv[])
 		cout << "ERROR: Invalid input. " << err.what() << std::endl;
 		return 1;
 	}
+	catch (runtime_error& err)
+	{
+		cout << "runtime_error: " << err.what() << std::endl;
+		throw;
+	}
 }
