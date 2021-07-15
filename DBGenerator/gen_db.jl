@@ -57,11 +57,11 @@ function main()
         db_x86["AvailableChannels"]["$(c.channel)"] = Dict("Version" => "$(c.version)+0~x86")
     end
 
-    db_x64["AvailableChannels"]["release~x64"] = Dict("Version" => "1.6.1+0~x64")
-    db_x64["AvailableChannels"]["release~x86"] = Dict("Version" => "1.6.1+0~x86")
-    db_x86["AvailableChannels"]["release~x86"] = Dict("Version" => "1.6.1+0~x86")
-    db_x64["AvailableChannels"]["release"] = Dict("Version" => "1.6.1+0~x64")
-    db_x86["AvailableChannels"]["release"] = Dict("Version" => "1.6.1+0~x86")
+    db_x64["AvailableChannels"]["release~x64"] = Dict("Version" => "1.6.2+0~x64")
+    db_x64["AvailableChannels"]["release~x86"] = Dict("Version" => "1.6.2+0~x86")
+    db_x86["AvailableChannels"]["release~x86"] = Dict("Version" => "1.6.2+0~x86")
+    db_x64["AvailableChannels"]["release"] = Dict("Version" => "1.6.2+0~x64")
+    db_x86["AvailableChannels"]["release"] = Dict("Version" => "1.6.2+0~x86")
 
     db_x64["AvailableChannels"]["lts~x64"] = Dict("Version" => "1.0.5+0~x64")
     db_x64["AvailableChannels"]["lts~x86"] = Dict("Version" => "1.0.5+0~x86")
@@ -75,11 +75,11 @@ function main()
     db_x64["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta3+0~x64")
     db_x86["AvailableChannels"]["beta"] = Dict("Version" => "1.7.0-beta3+0~x86")
 
-    db_x64["AvailableChannels"]["rc~x64"] = Dict("Version" => "1.6.1+0~x64")
-    db_x64["AvailableChannels"]["rc~x86"] = Dict("Version" => "1.6.1+0~x86")
-    db_x86["AvailableChannels"]["rc~x86"] = Dict("Version" => "1.6.1+0~x86")
-    db_x64["AvailableChannels"]["rc"] = Dict("Version" => "1.6.1+0~x64")
-    db_x86["AvailableChannels"]["rc"] = Dict("Version" => "1.6.1+0~x86")
+    db_x64["AvailableChannels"]["rc~x64"] = Dict("Version" => "1.6.2+0~x64")
+    db_x64["AvailableChannels"]["rc~x86"] = Dict("Version" => "1.6.2+0~x86")
+    db_x86["AvailableChannels"]["rc~x86"] = Dict("Version" => "1.6.2+0~x86")
+    db_x64["AvailableChannels"]["rc"] = Dict("Version" => "1.6.2+0~x64")
+    db_x86["AvailableChannels"]["rc"] = Dict("Version" => "1.6.2+0~x86")
 
     mkpath(joinpath(@__DIR__, "..", "build", "versiondb"))
 
