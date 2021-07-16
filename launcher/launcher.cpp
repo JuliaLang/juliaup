@@ -37,6 +37,39 @@ public:
 	}
 };
 
+// These string conversion functions are copied from https://stackoverflow.com/questions/6693010/how-do-i-use-multibytetowidechar
+std::string ConvertWideToANSI(const std::wstring& wstr)
+{
+	int count = WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), wstr.length(), NULL, 0, NULL, NULL);
+	std::string str(count, 0);
+	WideCharToMultiByte(CP_ACP, 0, wstr.c_str(), -1, &str[0], count, NULL, NULL);
+	return str;
+}
+
+std::wstring ConvertAnsiToWide(const std::string& str)
+{
+	int count = MultiByteToWideChar(CP_ACP, 0, str.c_str(), str.length(), NULL, 0);
+	std::wstring wstr(count, 0);
+	MultiByteToWideChar(CP_ACP, 0, str.c_str(), str.length(), &wstr[0], count);
+	return wstr;
+}
+
+std::string ConvertWideToUtf8(const std::wstring& wstr)
+{
+	int count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.length(), NULL, 0, NULL, NULL);
+	std::string str(count, 0);
+	WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], count, NULL, NULL);
+	return str;
+}
+
+std::wstring ConvertUtf8ToWide(const std::string& str)
+{
+	int count = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), NULL, 0);
+	std::wstring wstr(count, 0);
+	MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.length(), &wstr[0], count);
+	return wstr;
+}
+
 string GetLastErrorAsString()
 {
 	//Get the error message, if any.
@@ -44,16 +77,16 @@ string GetLastErrorAsString()
 	if (errorMessageID == 0)
 		return string(); //No error message has been recorded
 
-	LPSTR messageBuffer = nullptr;
-	size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+	LPTSTR messageBuffer = nullptr;
+	size_t size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&messageBuffer, 0, NULL);
 
-	string message(messageBuffer, size);
+	std::wstring message(messageBuffer, size);
 
 	//Free the buffer.
 	LocalFree(messageBuffer);
 
-	return message;
+	return ConvertWideToANSI(message);
 }
 
 /*++
