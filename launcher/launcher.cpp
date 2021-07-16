@@ -196,15 +196,17 @@ void CheckRet(BOOL ret)
 
 int StartProcess(string commandLine)
 {
-	STARTUPINFOA info;
-	GetStartupInfoA(&info);
+	STARTUPINFO info;
+	GetStartupInfo(&info);
 	PROCESS_INFORMATION processInfo{};
 
 	BOOL ret;
+	 
+	std::wstring commandLineBuffer{ ConvertUtf8ToWide(commandLine) };
 
-	ret = CreateProcessA(
+	ret = CreateProcessW(
 		nullptr,
-		&commandLine[0], //commandLine,
+		commandLineBuffer.data(), //commandLine,
 		nullptr, nullptr, // Process/ThreadAttributes
 		true, // InheritHandles
 		0, //EXTENDED_STARTUPINFO_PRESENT, // CreationFlags
@@ -588,25 +590,32 @@ int main(int argc, char* argv[])
 		}
 		string juliaChannelToUse{ configDB["Default"].get<string>() };
 
-		string exeArgString{ "" };
 		bool juliaVersionFromCmdLine = false;
-		for (int i = 1; i < argc; i++) {
-			string curr{ argv[i] };
+		if (argc > 1)
+		{
+			string first_arg{ argv[1] };
 
-			exeArgString.append(" ");
-
-			if (i == 1 && curr._Starts_with("+")) {
-				juliaChannelToUse = curr.substr(1);
+			if (first_arg._Starts_with("+")) {
+				juliaChannelToUse = first_arg.substr(1);
 				juliaVersionFromCmdLine = true;
-			}
-			else {
-				ArgvQuote(curr, exeArgString, false);
 			}
 		}
 
 		path julia_path{ GetJuliaPathFromChannel(versionsDB, configDB, juliaChannelToUse, juliaupConfigPath, !juliaVersionFromCmdLine) };
 
-		exeArgString.insert(0, julia_path.string());
+		string exeArgString{ "" };
+
+		ArgvQuote(julia_path.string(), exeArgString, false);
+
+		for (int i = 1; i < argc; i++) {
+			string curr{ argv[i] };
+
+			if (i > 1 || !curr._Starts_with("+"))
+			{
+				exeArgString.append(" ");
+				ArgvQuote(curr, exeArgString, false);
+			}
+		}
 
 		int result = StartProcess(exeArgString);
 
