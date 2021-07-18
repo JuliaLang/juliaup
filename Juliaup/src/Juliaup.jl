@@ -202,13 +202,13 @@ function garbage_collect_versions(config_data::Dict{String,Any})
 	end
 
 	for i in versions_to_uninstall
+		path_to_delete = joinpath(get_juliauphome_path(), i[2]["Path"])
 		try
-			path_to_delete = joinpath(get_juliauphome_path(), i[2]["Path"])
 			rm(path_to_delete, force=true, recursive=true)
 
 			delete!(config_data["InstalledVersions"], i[1])
 		catch
-			println("WARNING: Failed to delete $path_to_delete.")
+			println("WARNING: Failed to delete $path_to_delete. You can try to delete at a later point by running `juliaup gc`.")
 		end
 	end
 end
@@ -418,6 +418,13 @@ function real_main()
 				end
 			else
 				println("ERROR: The status command does not accept any additional arguments.")
+			end
+		elseif ARGS[1] == "gc"
+			if length(ARGS)==1
+				config_data = load_config_db()
+				garbage_collect_versions(config_data)
+			else
+				println("ERROR: The gc command accepts no additional argument.")
 			end
 		else
 			println("ERROR: '", ARGS[1], "' is not a recognized command.")
