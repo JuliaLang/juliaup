@@ -15,7 +15,7 @@ Once you have that installed, `julia` is on the `PATH`, there is a start menu sh
 Here are some of the things you can do with `juliaup`:
 - `juliaup update` installs the latest availabe Julia version for your current channel.
 - `juliaup status` shows you which Julia versions you have installed and which one is configured as the default.
-- `juliaup add 1.5.1` adds Julia 1.5.1 to your system.
+- `juliaup add 1.5.1` adds Julia 1.5.1 to your system (it can then be launched via the command `julia +1.5.1`).
 - `juliaup setdefault 1.5.3` configures the `julia` command to start Julia 1.5.3.
 - `juliaup setdefault 1.6` configures the `julia` command to start the latest 1.6.x version of Julia you have installed on your system (and inform you if there is a newer version in 1.6.x available).
 - `juliaup setdefault 1` configures the `julia` command to start the latest 1.x version of Julia (this is also the default value).
