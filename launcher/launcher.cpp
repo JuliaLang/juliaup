@@ -308,26 +308,24 @@ path GetHomedirPath() {
 }
 
 path GetDepotPath() {
-	DWORD ret;
-
 	string buffer;
 	buffer.resize(MAX_PATH);
 	DWORD pathLen = MAX_PATH;
+	
+	pathLen = GetEnvironmentVariableA("JULIA_DEPOT_PATH", &buffer[0], pathLen);
+	pathLen = pathLen > 0 ? pathLen - 1 : 0;
+	pathLen = buffer.find(';') != std::string::npos ? buffer.find(';') : pathLen;
 
-	ret = GetEnvironmentVariableA("JULIA_DEPOT_PATH", &buffer[0], &pathLen);
-
-	pathlen = pathLen > 0 ? pathLen - 1 : 0;
-	pathlen = buffer.find(';') != std::string::npos ? buffer.find(';') : pathlen;
-
-	if(pathlen != 0){
-		return buffer.resize(pathlen);	
+	if(pathLen != 0){
+		buffer.resize(pathLen);
+		return buffer;
 	} else {
 		return GetHomedirPath() / ".julia";
 	}
 }
 
 path GetJuliaupPath() {
-	path depotPath{ GetDepotPath() }; 
+	path depotPath{ GetDepotPath() };
 	return depotPath / "juliaup";
 }
 
