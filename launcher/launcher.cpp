@@ -307,9 +307,28 @@ path GetHomedirPath() {
 	return buffer;
 }
 
+path GetDepotPath() {
+	DWORD ret;
+
+	string buffer;
+	buffer.resize(MAX_PATH);
+	DWORD pathLen = MAX_PATH;
+
+	ret = GetEnvironmentVariableA("JULIA_DEPOT_PATH", &buffer[0], &pathLen);
+
+	pathlen = pathLen > 0 ? pathLen - 1 : 0;
+	pathlen = buffer.find(';') != std::string::npos ? buffer.find(';') : pathlen;
+
+	if(pathlen != 0){
+		return buffer.resize(pathlen);	
+	} else {
+		return GetHomedirPath() / ".julia";
+	}
+}
+
 path GetJuliaupPath() {
-	path homedirPath{ GetHomedirPath() };
-	return homedirPath / ".julia" / "juliaup";
+	path depotPath{ GetDepotPath() }; 
+	return depotPath / "juliaup";
 }
 
 void DoCleanupOfOldVersions()
