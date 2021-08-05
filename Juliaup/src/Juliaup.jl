@@ -16,14 +16,14 @@ function julia_main()
     return 0
 end
 
-function get_juliauphome_path()	
-	depotpaths = get(ENV, "JULIA_DEPOT_PATH", nothing) 
-
-	if depotpaths === nothing
-		return joinpath(homedir(), ".julia", "juliaup")
-	else
-		return split(depotpaths, Sys.iswindows() ? ';' : ':')[1]
+function get_juliauphome_path()
+	depot_path = split(get(ENV, "JULIA_DEPOT_PATH", ""), Sys.iswindows() ? ';' : ':')[1]
+	
+	if isempty(depot_path)
+		depot_path =  joinpath(homedir(), ".julia", "juliaup")
 	end
+	
+	return depot_path
 end
 
 function get_juliaupconfig_path()
