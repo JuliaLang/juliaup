@@ -19,7 +19,7 @@ end
 function get_juliauphome_path()	
 	depotpaths = get(ENV, "JULIA_DEPOT_PATH", nothing) 
 
-	if depotpaths == nothing
+	if depotpaths === nothing
 		return joinpath(homedir(), ".julia", "juliaup")
 	else
 		return split(depotpaths, Sys.iswindows() ? ';' : ':')[1]
