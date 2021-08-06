@@ -89,6 +89,24 @@ string GetLastErrorAsString()
 	return ConvertWideToANSI(message);
 }
 
+// MS complains about getenv https://stackoverflow.com/questions/66090389/c17-what-new-with-error-c4996-getenv-this-function-or-variable-may-be-un
+std::string GetEnvVar(const std::string& str)
+{
+	char* ret = nullptr;
+	size_t sz = 0;
+#ifdef _WIN32
+	_dupenv_s(&ret, &sz, str.c_str());
+#else
+    ret = getenv(str.c_str());
+#endif
+	if(ret == nullptr) return std::string();
+
+	string ret_str = std::string(ret);
+	free(ret);
+
+	return ret_str;
+}
+
 /*++
 
 Routine Description:
@@ -308,20 +326,25 @@ path GetHomedirPath() {
 }
 
 path GetDepotPath() {
-	string buffer;
-	buffer.resize(MAX_PATH);
-	DWORD pathLen = MAX_PATH;
-	
-	pathLen = GetEnvironmentVariableA("JULIA_DEPOT_PATH", &buffer[0], pathLen);
-	pathLen = pathLen > 0 ? pathLen - 1 : 0;
-	pathLen = buffer.find(';') != std::string::npos ? buffer.find(';') : pathLen;
+	string env_var = GetEnvVar("JULIA_DEPOT_PATH");
 
-	if(pathLen != 0){
-		buffer.resize(pathLen);
-		return buffer;
-	} else {
-		return GetHomedirPath() / ".julia";
+#ifdef _WIN32
+	char os_sep = ';';
+#else
+	char os_sep = ':';
+#endif
+	if (env_var.size()) {
+		auto cutoff = env_var.find(os_sep);
+		if (cutoff != std::string::npos) {
+			env_var.resize(cutoff);
+		}
+
+		if (env_var.size() != 0) {
+			return env_var;
+		}
 	}
+
+	return GetHomedirPath() / ".julia";
 }
 
 path GetJuliaupPath() {
