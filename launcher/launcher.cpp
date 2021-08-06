@@ -97,7 +97,7 @@ std::string GetEnvVar(const std::string& str)
 #ifdef _WIN32
 	_dupenv_s(&ret, &sz, str.c_str());
 #else
-    ret = getenv(str.c_str());
+	ret = getenv(str.c_str());
 #endif
 	if(ret == nullptr) return std::string();
 
