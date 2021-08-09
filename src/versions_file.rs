@@ -56,7 +56,5 @@ pub fn load_versions_db() -> Result<JuliaupVersionDB> {
     let db: JuliaupVersionDB = serde_json::from_str(&vendored_db)
         .with_context(|| "Failed to parse vendored version db.")?;
 
-    println!("We are using the vendored versions DB.");
-
     Ok(db)
 }
