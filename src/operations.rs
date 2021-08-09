@@ -1,4 +1,3 @@
-use crate::download::download;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigVersion;
 use crate::utils::get_juliaup_home_path;
@@ -7,25 +6,26 @@ use crate::versions_file::JuliaupVersionDB;
 use anyhow::{anyhow, Context, Result};
 use flate2::read::GzDecoder;
 use std::fs;
-use std::fs::File;
 use std::io;
 use std::path::PathBuf;
+use std::path::Path;
 use tar::Archive;
 use tempfile::Builder;
-use tempfile::TempDir;
 
-fn extract(source_path: &PathBuf, tmp_dir: &TempDir) -> Result<PathBuf> {
-    let tar_gz = File::open(source_path)?;
-    let tar = GzDecoder::new(tar_gz);
+fn download_extract(url: &String, target_path: &Path) -> Result<()> {
+    let response = reqwest::blocking::get(url)
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let tar = GzDecoder::new(response);
     let mut archive = Archive::new(tar);
-
-    let target_path = tmp_dir.path().join("extracted");
-    archive.unpack(&target_path)?;
-
-    Ok(target_path)
+    
+    archive.unpack(&target_path)
+        .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+    
+    Ok(())
 }
 
-pub async fn install_version(
+pub fn install_version(
     fullversion: &String,
     config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
@@ -52,11 +52,11 @@ pub async fn install_version(
 
     let tmp_dir = Builder::new().prefix("juliaup").tempdir()?;
 
-    let temp_file = download(download_url, &tmp_dir.path(), None).await?;
+    let tmp_dir_path = tmp_dir.path();
 
-    let extracted_path = extract(&temp_file, &tmp_dir)?;
+    download_extract(&download_url, tmp_dir_path)?;
 
-    let child_folders = fs::read_dir(extracted_path)?.collect::<Result<Vec<_>, io::Error>>()?;
+    let child_folders = fs::read_dir(tmp_dir_path)?.collect::<Result<Vec<_>, io::Error>>()?;
 
     if child_folders.len() != 1 {
         return Err(anyhow!(

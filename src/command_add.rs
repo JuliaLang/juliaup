@@ -4,7 +4,7 @@ use crate::config_file::{load_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, Context, Result};
 
-pub async fn run_command_add(channel: String) -> Result<()> {
+pub fn run_command_add(channel: String) -> Result<()> {
     let version_db =
         load_versions_db().with_context(|| "`add` command failed to load versions db.")?;
 
@@ -25,7 +25,7 @@ pub async fn run_command_add(channel: String) -> Result<()> {
         return Err(anyhow!("'{}' is already installed.", &channel));
     }
     
-    install_version(&required_version, &mut config_data, &version_db).await?;
+    install_version(&required_version, &mut config_data, &version_db)?;
 
     config_data.installed_channels.insert(
         channel.clone(),

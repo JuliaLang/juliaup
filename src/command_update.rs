@@ -7,7 +7,7 @@ use crate::config_file::{load_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow};
 
-async fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {
+fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {
     let current_version = 
         config_db.installed_channels.get(channel).ok_or(anyhow!("asdf"))?;
 
@@ -15,7 +15,6 @@ async fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version
 
 	if should_version.version != current_version.version {
 		install_version(&should_version.version, config_db, version_db)
-            .await
             .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
 
         config_db.installed_channels.insert(
@@ -29,7 +28,7 @@ async fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version
     Ok(())
 }
 
-pub async fn run_command_update(channel: Option<String>) -> Result<()> {
+pub fn run_command_update(channel: Option<String>) -> Result<()> {
     let version_db =
         load_versions_db().with_context(|| "`update` command failed to load versions db.")?;
 
@@ -41,7 +40,7 @@ pub async fn run_command_update(channel: Option<String>) -> Result<()> {
             for (k,_) in config_data.installed_channels.clone() {
                 // TODO Check for linked channel
                 // if haskey(i[2], "Version") {
-                update_channel(&mut config_data, &k, &version_db).await?;
+                update_channel(&mut config_data, &k, &version_db)?;
                 // }
             }
 
@@ -52,7 +51,7 @@ pub async fn run_command_update(channel: Option<String>) -> Result<()> {
             }
 
             // TODO Check for alinked channel
-            update_channel(&mut config_data, &channel, &version_db).await?;
+            update_channel(&mut config_data, &channel, &version_db)?;
         }
     };
 

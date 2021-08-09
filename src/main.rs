@@ -1,7 +1,6 @@
 mod utils;
 mod config_file;
 mod versions_file;
-mod download;
 mod operations;
 mod command_add;
 mod command_default;
@@ -57,16 +56,15 @@ enum Juliaup {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = Juliaup::from_args();
 
     match args {
         Juliaup::Default {channel} => run_command_default(channel),
-        Juliaup::Add {channel} => run_command_add(channel).await,
+        Juliaup::Add {channel} => run_command_add(channel),
         Juliaup::Remove {channel} => run_command_remove(channel),
         Juliaup::Status {} => run_command_status(),
-        Juliaup::Update {channel} => run_command_update(channel).await,
+        Juliaup::Update {channel} => run_command_update(channel),
         Juliaup::Gc {} => run_command_gc(),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args)
     }
