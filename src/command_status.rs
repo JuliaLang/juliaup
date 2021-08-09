@@ -1,6 +1,7 @@
 use crate::config_file::load_config_db;
 use crate::versions_file::load_versions_db;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result,anyhow};
+use crate::config_file::JuliaupConfigChannel;
 
 pub fn run_command_status() -> Result<()> {
     let config_data = load_config_db()
@@ -21,13 +22,18 @@ pub fn run_command_status() -> Result<()> {
         
         print!(" {}", key);
 
-        match versiondb_data.available_channels.get(&key) {
-            Some(channel) => {
-                if channel.version != value.version {
-                    print!(" (Update from {} to {} available)", value.version, channel.version);
+        match value {
+            JuliaupConfigChannel::SystemChannel {version} => {
+                match versiondb_data.available_channels.get(&key) {
+                    Some(channel) => {
+                        if channel.version != version {
+                            print!(" (Update from {} to {} available)", version, channel.version);
+                        }
+                    },
+                    None => return Err(anyhow!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key))
                 }
             },
-            None => ()
+            JuliaupConfigChannel::LinkedChannel {command} => print!(" (linked to `{}`)", command)
         }
 
         println!();

@@ -1,5 +1,6 @@
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigVersion;
+use crate::config_file::JuliaupConfigChannel;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::versions_file::JuliaupVersionDB;
@@ -89,15 +90,13 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
     })?;
 
     let mut versions_to_uninstall: Vec<String> = Vec::new();
-    for (version, detail) in &config_data.installed_versions {
-        if default_version != version
+    for (installed_version, detail) in &config_data.installed_versions {
+        if default_version != installed_version
             && config_data.installed_channels.iter().all(|j| {
-                // if haskey(j[2], "Version")
-                // 	return j[2]["Version"] != version
-                // else
-                // 	return true
-                // end
-                &j.1.version != version
+                match &j.1 {
+                    JuliaupConfigChannel::SystemChannel {version} => version != installed_version,
+                    JuliaupConfigChannel::LinkedChannel {command: _} => true
+                }
             })
         {
             let path_to_delete = home_path.join(&detail.path);
@@ -107,7 +106,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             Err(_) => println!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
             Ok(_) => ()
         };
-            versions_to_uninstall.push(version.clone());
+            versions_to_uninstall.push(installed_version.clone());
         }
     }
 

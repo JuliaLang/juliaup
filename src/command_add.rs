@@ -29,7 +29,7 @@ pub fn run_command_add(channel: String) -> Result<()> {
 
     config_data.installed_channels.insert(
         channel.clone(),
-        JuliaupConfigChannel {
+        JuliaupConfigChannel::SystemChannel {
             version: required_version,
         },
     );

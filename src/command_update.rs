@@ -7,22 +7,27 @@ use crate::config_file::{load_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow};
 
-fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {
+fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {    
     let current_version = 
         config_db.installed_channels.get(channel).ok_or(anyhow!("asdf"))?;
 
-    let should_version = version_db.available_channels.get(channel).ok_or(anyhow!("asdf"))?;
+    match current_version {
+        JuliaupConfigChannel::SystemChannel {version} => {
+            let should_version = version_db.available_channels.get(channel).ok_or(anyhow!("asdf"))?;
 
-	if should_version.version != current_version.version {
-		install_version(&should_version.version, config_db, version_db)
-            .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
-
-        config_db.installed_channels.insert(
-            channel.clone(),
-            JuliaupConfigChannel {
-                version: should_version.version.clone(),
-            },
-        );
+            if &should_version.version != version {
+                install_version(&should_version.version, config_db, version_db)
+                    .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
+        
+                config_db.installed_channels.insert(
+                    channel.clone(),
+                    JuliaupConfigChannel::SystemChannel {
+                        version: should_version.version.clone(),
+                    },
+                );
+            }  
+        },
+        JuliaupConfigChannel::LinkedChannel {command: _} => return Err(anyhow!("Failed to update '{}' because it is a linked channel.", channel))
     }
 
     Ok(())
