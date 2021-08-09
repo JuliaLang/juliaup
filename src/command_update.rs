@@ -27,7 +27,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 );
             }  
         },
-        JuliaupConfigChannel::LinkedChannel {command: _} => return Err(anyhow!("Failed to update '{}' because it is a linked channel.", channel))
+        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => return Err(anyhow!("Failed to update '{}' because it is a linked channel.", channel))
     }
 
     Ok(())

@@ -95,7 +95,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             && config_data.installed_channels.iter().all(|j| {
                 match &j.1 {
                     JuliaupConfigChannel::SystemChannel {version} => version != installed_version,
-                    JuliaupConfigChannel::LinkedChannel {command: _} => true
+                    JuliaupConfigChannel::LinkedChannel {command: _, args: _} => true
                 }
             })
         {

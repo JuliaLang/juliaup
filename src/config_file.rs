@@ -21,6 +21,8 @@ pub enum JuliaupConfigChannel {
     LinkedChannel {
         #[serde(rename = "Command")]
         command: String,
+        #[serde(rename = "Args")]
+        args: Option<Vec<String>>,
     },
 }
 
