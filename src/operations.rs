@@ -13,10 +13,11 @@ use tar::Archive;
 use tempfile::Builder;
 
 fn download_extract(url: &String, target_path: &Path) -> Result<()> {
-    let response = reqwest::blocking::get(url)
+    let response =ureq::get(url)
+        .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let tar = GzDecoder::new(response);
+    let tar = GzDecoder::new(response.into_reader());
     let mut archive = Archive::new(tar);
     
     archive.unpack(&target_path)
