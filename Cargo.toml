@@ -25,3 +25,4 @@ normpath = "0.3"
 
 [build-dependencies]
 anyhow = "1.0"
+winres = "0.1"
