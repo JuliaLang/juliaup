@@ -90,6 +90,16 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                 format!("{}+0~x86", v),
                 JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/x86/{}.{}/julia-{}-linux-i686.tar.gz", v.major, v.minor, v)}
             );
+        } else if target_os == "macos" && target_arch == "x86_64"{
+            db.available_versions.insert(
+                format!("{}+0~x64", v),
+                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
+            );
+        } else if target_os == "macos" && target_arch == "aarch64"{
+            db.available_versions.insert(
+                format!("{}+0~x64", v),
+                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
+            );
         } else {
             panic!("Building on this platform is currently not supported.")
         }
@@ -126,6 +136,42 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     version: format!("{}+0~x86", v),
                 },
             );
+        } else if target_arch == "aarch64" {
+            if target_os == "windows" {
+                db.available_channels.insert(
+                    format!("{}", v),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x64", v),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x86", v),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+            } else target_os == "macos" {
+                db.available_channels.insert(
+                    format!("{}", v),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x64", v),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+            } else {
+                panic!("Building for this platform is currently not supported.");
+            }
         } else {
             panic!("Building on this platform is currently not supported.")
         }
@@ -176,6 +222,42 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     version: format!("{}+0~x86", v),
                 },
             );
+        } else if target_arch == "aarch64" {
+            if target_os == "windows" {
+                db.available_channels.insert(
+                    format!("{}.{}", major, minor),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}.{}~x64", major, minor),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}.{}~x86", major, minor),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+            } else if target_os == "macos" {
+                db.available_channels.insert(
+                    format!("{}.{}", major, minor),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}.{}~x64", major, minor),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+            } else {
+                panic!("Building for this platform is currently not supported.")
+            }
         } else {
             panic!("Building on this platform is currently not supported.")
         }
@@ -214,6 +296,39 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     version: format!("{}+0~x86", v),
                 },
             );
+        } else if target_arch == "aarch64" {
+            if target_os == "windows" {
+                db.available_channels.insert(
+                    format!("{}", major),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x64", major),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x86", major),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x86", v),
+                    },
+                );
+            } else if target_os == "macos" {
+                db.available_channels.insert(
+                    format!("{}", major),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+                db.available_channels.insert(
+                    format!("{}~x64", major),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
         } else {
             panic!("Building on this platform is currently not supported.")
         }
