@@ -1,24 +1,12 @@
-mod utils;
-mod config_file;
-mod versions_file;
-mod operations;
-mod command_add;
-mod command_default;
-mod command_gc;
-mod command_link;
-mod command_status;
-mod command_remove;
-mod command_update;
-
-use crate::command_link::run_command_link;
-use crate::command_gc::run_command_gc;
-use crate::command_update::run_command_update;
-use crate::command_remove::run_command_remove;
+use juliaup::command_link::run_command_link;
+use juliaup::command_gc::run_command_gc;
+use juliaup::command_update::run_command_update;
+use juliaup::command_remove::run_command_remove;
 use structopt::StructOpt;
 use anyhow::{Result};
-use command_add::run_command_add;
-use command_default::run_command_default;
-use command_status::run_command_status;
+use juliaup::command_add::run_command_add;
+use juliaup::command_default::run_command_default;
+use juliaup::command_status::run_command_status;
 
 #[derive(StructOpt)]
 #[structopt(
