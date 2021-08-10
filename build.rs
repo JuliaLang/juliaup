@@ -329,6 +329,9 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                         version: format!("{}+0~x64", v),
                     },
                 );
+            } else {
+                panic!("Building on this platform is currently not supported.")
+            }
         } else {
             panic!("Building on this platform is currently not supported.")
         }
