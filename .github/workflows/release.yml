@@ -33,7 +33,7 @@ jobs:
       with:
         toolchain: stable
         default: true
-        target: {{matrix.arch}}-{{matrix.rstarget}}
+        target: ${{matrix.arch}}-${{matrix.rstarget}}
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
@@ -41,7 +41,7 @@ jobs:
         args: --release --bins
     - uses: actions/upload-artifact@v2
       with:
-        name: juliaup-{{matrix.arch}}-{{matrix.rstarget}}
+        name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
         path: target/release
   
   build-bundledjulia:
