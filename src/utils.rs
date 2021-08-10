@@ -19,6 +19,16 @@ pub fn get_juliaupconfig_path() -> Result<PathBuf> {
     Ok(path)
 }
 
+pub fn get_arch() -> Result<String> {
+    if std::env::consts::ARCH == "x86" {
+        return Ok("x86".to_string());
+    } else if std::env::consts::ARCH == "x86_64" {
+        return Ok("x64".to_string());
+    }
+
+    Err(anyhow!("Running on an unknown arch."))
+}
+
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
     let parts: Vec<&str> = value.split('~').collect();
 
@@ -30,7 +40,7 @@ pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
     }
 
     let version = parts[0];
-    let platform = if parts.len() == 2 { parts[1] } else { "x64" }; // TODO Detect platform
+    let platform = if parts.len() == 2 { parts[1].to_string() } else { get_arch()? };
 
     let version = Version::parse(version).with_context(|| {
         format!(

@@ -43,10 +43,7 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
     match channel {
         None => {
             for (k,_) in config_data.installed_channels.clone() {
-                // TODO Check for linked channel
-                // if haskey(i[2], "Version") {
                 update_channel(&mut config_data, &k, &version_db)?;
-                // }
             }
 
         },
@@ -55,7 +52,6 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
                 return Err(anyhow!("'{}' cannot be updated because it is currently not installed.", channel));
             }
 
-            // TODO Check for alinked channel
             update_channel(&mut config_data, &channel, &version_db)?;
         }
     };

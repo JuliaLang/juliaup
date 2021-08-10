@@ -28,27 +28,19 @@ pub struct JuliaupVersionDB {
 pub fn load_versions_db() -> Result<JuliaupVersionDB> {    
     let vendored_db = include_str!(concat!(env!("OUT_DIR"), "/versionsdb.json"));
 
-    let version_db_search_paths = [		
-        // TODO Reenable second path
-        // joinpath(Sys.BINDIR, "..", "..", "VersionsDB", "juliaup-versionsdb-winnt-$(Int===Int64 ? "x64" : "x86").json"),
+    let version_db_path =
         get_juliaup_home_path()
             .with_context(|| "Failed to determine versions db file path.")?
-            .join("juliaup-versionsdb-winnt-x64.jsonIGNORE"),
-    ];
+            .join("juliaup-versionsdb-winnt-x64.json");
 
-    for version_db_path in version_db_search_paths {
-        let display = version_db_path.display();
 
-        let file = match File::open(&version_db_path) {
-            // If we can't open this file, just try the next one.
-            Err(_) => continue,
-            Ok(file) => file,
-        };
+    let file = File::open(&version_db_path);
     
+    if let Ok(file) = file {
         let reader = BufReader::new(file);
     
         let db: JuliaupVersionDB = serde_json::from_reader(reader)
-            .with_context(|| format!("Failed to parse version db at '{}'.", display))?;
+            .with_context(|| format!("Failed to parse version db at '{}'.", version_db_path.display()))?;
 
         return Ok(db);
     }
