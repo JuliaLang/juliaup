@@ -43,9 +43,8 @@ jobs:
       with:
         name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
         path: |
-          target/release/juliaup[.exe]
-          target/release/julialauncher[.exe]
-          target/release/*.pdb
+          target/release/juliaup*
+          target/release/julialauncher*
   
   build-bundledjulia:
     runs-on: windows-latest
