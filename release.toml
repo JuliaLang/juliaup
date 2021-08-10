@@ -3,5 +3,5 @@ pre-release-replacements = [
   {file ="msix/PackagingLayout.xml", search="ID=\"Julia-x64-[0-9\\.]+\"", replace="ID=\"Julia-x64-{{version}}.0\""},
   {file ="msix/PackagingLayout.xml", search="ID=\"Julia-x86-[0-9\\.]+\"", replace="ID=\"Julia-x86-{{version}}.0\""},
   {file ="msix/PackagingLayout.xml", search="ID=\"Julia-ARM64-[0-9\\.]+\"", replace="ID=\"Julia-ARM64-{{version}}.0\""},
-  {file ="msix/appxmanifest.xml", search="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"[0-9\\.]+\" ProcessorArchitecture=\"neutral\"/>", replace="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"{{version}}\" ProcessorArchitecture=\"neutral\"/>"},
+  {file ="msix/appxmanifest.xml", search="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"[0-9\\.]+\" ProcessorArchitecture=\"neutral\"/>", replace="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"{{version}}.0\" ProcessorArchitecture=\"neutral\"/>"},
 ]
