@@ -42,7 +42,10 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
-        path: target/release
+        path: |
+          target/release/juliaup[.exe]
+          target/release/julialauncher[.exe]
+          target/release/*.pdb
   
   build-bundledjulia:
     runs-on: windows-latest
