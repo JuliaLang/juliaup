@@ -11,53 +11,35 @@ on:
 
 jobs:
 
-  build-launcher:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        platform: [{name: 'x64', dir: 'x64'}, {name: 'x86', dir: 'win32'}, {name: 'ARM64', dir: 'ARM64'}]
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-
-    - name: Restore NuGet packages
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: nuget restore Juliaup.sln
-
-    - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Add additional options to the MSBuild command line here (like platform or verbosity level).
-      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild /property:Configuration=Release /property:Platform=${{ matrix.platform.name }} Juliaup.sln
-    - uses: actions/upload-artifact@v2
-      with:
-        name: launcher
-        path: build\output
-
   build-juliaup:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        platform: [x64, x86]
+        os: [windows, macos, ubuntu]
+        arch: [x86_64, i686]
+        include:
+          - os: windows
+            rstarget: pc-windows-msvc
+          - os: macos
+            rstarget: apple-darwin
+          - os: ubuntu
+            rstarget: unknown-linux-gnu
+        exclude:
+          - os: macos
+            arch: i686
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      target: {{matrix.arch}}-{{matrix.rstarget}}
+    - name: Release build
+      uses: actions-rs/cargo@v1
       with:
-        submodules: true
-    - uses: julia-actions/setup-julia@v1
-      with:
-        version: 1.6.1
-        arch: ${{matrix.platform}}
-    - name: Run PackageCompiler
-      run: |
-        julia .\Juliaup\build.jl
+        command: build
+        args: --release --bins
     - uses: actions/upload-artifact@v2
       with:
-        name: juliaup
-        path: build\juliaup
+        name: juliaup-{{matrix.arch}}-{{matrix.rstarget}}
+        path: target/release
   
   build-bundledjulia:
     runs-on: windows-latest
@@ -98,62 +80,36 @@ jobs:
         name: bundled-julia-${{matrix.platform.form1}}
         path: build\juliaversions\${{matrix.platform.form1}}
 
-  build-versiondb:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    - uses: julia-actions/setup-julia@v1
-      with:
-        version: 1.6.1
-    - name: Generate version DBs
-      run: |
-        julia ./DBGenerator/gen_db.jl
-    - uses: actions/upload-artifact@v2
-      with:
-        name: versiondb
-        path: build/versiondb
-
   build-msix:
-    needs: [build-launcher, build-juliaup, build-bundledjulia, build-versiondb]
+    needs: [build-juliaup, build-bundledjulia]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x64
-        path: build\juliaversions\x64
+        path: target\bundledjulia\extracted\x64
     - uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x86
-        path: build\juliaversions\x86
+        path: target\bundledjulia\extracted\x86
     - uses: actions/download-artifact@v2
       with:
-        name: launcher
-        path: build\output
+        name: juliaup-i686-pc-windows-msvc
+        path: target\i686-pc-windows-msvc\release
     - uses: actions/download-artifact@v2
       with:
-        name: juliaup
-        path: build\juliaup
-    - uses: actions/download-artifact@v2
-      with:
-        name: versiondb
-        path: build\versiondb
-    - name: Read version info
-      id: msixversion
-      run: |
-        $versions = Get-Content versions.json | ConvertFrom-Json
-        echo "::set-output name=msixversion::$($versions.JuliaAppPackage.Version)"
+        name: juliaup-x86_64-pc-windows-msvc
+        path: target\x86_64-pc-windows-msvc\release        
     - name: Build MSIX
       run: |
         push-location msix
-        &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /f PackagingLayout.xml /op ..\build\msix /pv ${{steps.msixversion.outputs.msixversion}} /bv ${{steps.msixversion.outputs.msixversion}}
+        &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /f PackagingLayout.xml /op ..\target\msix
         pop-location
     - uses: actions/upload-artifact@v2
       with:
         name: msixinstaller
-        path: build\msix\*.appxbundle
+        path: target\msix\*.appxbundle
 
   build-storepayload:
     needs: [build-msix]

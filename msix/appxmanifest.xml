@@ -11,7 +11,7 @@
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity Name="JuliaComputingInc.Julia" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="1.0.0.0" ProcessorArchitecture="neutral"/>
+  <Identity Name="JuliaComputingInc.Julia" Publisher="CN=7FB784C5-4411-4067-914E-A7B06CC00FFC" Version="1.0.60" ProcessorArchitecture="neutral"/>
 
   <Properties>
     <DisplayName>Julia</DisplayName>
@@ -64,7 +64,7 @@
         </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="Juliaup" Executable="Juliaup\bin\Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Juliaup" Executable="Julia\juliaup.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         DisplayName="Juliaup"
         Description="Julia version management"
@@ -86,7 +86,7 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Juliaup/bin/Juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
           <uap3:AppExecutionAlias>
             <desktop:ExecutionAlias Alias="juliaup.exe" />
           </uap3:AppExecutionAlias>
