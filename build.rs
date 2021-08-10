@@ -156,7 +156,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                         version: format!("{}+0~x86", v),
                     },
                 );
-            } else target_os == "macos" {
+            } else if target_os == "macos" {
                 db.available_channels.insert(
                     format!("{}", v),
                     JuliaupVersionDBChannel {
