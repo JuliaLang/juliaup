@@ -3,6 +3,7 @@ name = "juliaup"
 version = "1.0.58"
 edition = "2018"
 default-run = "juliaup"
+publish = false
 
 [profile.release]
 lto = true

@@ -1,0 +1,8 @@
+pre-release-replacements = [
+  {file="msix/PackagingLayout.xml", search="Current release: [a-z0-9\\.-]+", replace="Current release: {{version}}"} ,
+  {file ="msix/PackagingLayout.xml", search="ID=\"Julia-[0-9\\.]+\"", replace="ID=\"Julia-{{version}}\""},
+  {file ="msix/PackagingLayout.xml", search="ID=\"Julia-x64-[0-9\\.]+\"", replace="ID=\"Julia-x64-{{version}}\""},
+  {file ="msix/PackagingLayout.xml", search="ID=\"Julia-x86-[0-9\\.]+\"", replace="ID=\"Julia-x86-{{version}}\""},
+  {file ="msix/PackagingLayout.xml", search="ID=\"Julia-ARM64-[0-9\\.]+\"", replace="ID=\"Julia-ARM64-{{version}}\""},
+  {file ="msix/appxmanifest.xml", search="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"[0-9\\.]+\" ProcessorArchitecture=\"neutral\"/>", replace="<Identity Name=\"JuliaComputingInc.Julia\" Publisher=\"CN=7FB784C5-4411-4067-914E-A7B06CC00FFC\" Version=\"{{version}}\" ProcessorArchitecture=\"neutral\"/>"},
+]
