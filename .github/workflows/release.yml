@@ -30,7 +30,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
-      target: "{{matrix.arch}}-{{matrix.rstarget}}"
+      with:
+        target: {{matrix.arch}}-{{matrix.rstarget}}
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
