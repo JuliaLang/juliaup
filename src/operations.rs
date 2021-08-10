@@ -3,7 +3,7 @@ use crate::config_file::JuliaupConfigVersion;
 use crate::config_file::JuliaupConfigChannel;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
-use crate::versions_file::JuliaupVersionDB;
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use anyhow::{anyhow, Context, Result};
 use flate2::read::GzDecoder;
 use std::fs;

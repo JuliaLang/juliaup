@@ -1,6 +1,6 @@
 use crate::config_file::JuliaupConfigChannel;
 use crate::operations::install_version;
-use crate::versions_file::JuliaupVersionDB;
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
 use crate::config_file::{load_config_db, save_config_db};

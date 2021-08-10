@@ -1,29 +1,8 @@
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use crate::utils::get_juliaup_home_path;
 use anyhow::{Context,Result};
-
-#[derive(Serialize, Deserialize)]
-pub struct JuliaupVersionDBVersion {
-    #[serde(rename = "Url")]
-    pub url: String
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct JuliaupVersionDBChannel {
-    #[serde(rename = "Version")]
-    pub version: String
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct JuliaupVersionDB {
-    #[serde(rename = "AvailableVersions")]
-    pub available_versions: HashMap<String,JuliaupVersionDBVersion>,
-    #[serde(rename = "AvailableChannels")]
-    pub available_channels: HashMap<String,JuliaupVersionDBChannel>
-}
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 
 pub fn load_versions_db() -> Result<JuliaupVersionDB> {    
     let vendored_db = include_str!(concat!(env!("OUT_DIR"), "/versionsdb.json"));

@@ -6,7 +6,8 @@ use juliaup::config_file::{
 use juliaup::operations::install_version;
 use juliaup::utils::get_arch;
 use juliaup::utils::{get_juliaup_home_path, get_juliaupconfig_path};
-use juliaup::versions_file::{load_versions_db, JuliaupVersionDB};
+use juliaup::versions_file::load_versions_db;
+use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use normpath::PathExt;
 use std::collections::HashMap;
 use std::path::Path;
