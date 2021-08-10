@@ -91,19 +91,23 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/download-artifact@v2
+    - name: Download bundled x64 julia artifact
+      uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x64
         path: target\bundledjulia\extracted\x64
-    - uses: actions/download-artifact@v2
+    - name: Download bundled x86 julia artifact
+      uses: actions/download-artifact@v2
       with:
         name: bundled-julia-x86
         path: target\bundledjulia\extracted\x86
-    - uses: actions/download-artifact@v2
+    - name: Download x86 juliaup artifact
+      uses: actions/download-artifact@v2
       with:
         name: juliaup-i686-pc-windows-msvc
         path: target\i686-pc-windows-msvc\release
-    - uses: actions/download-artifact@v2
+    - name: Download x64 juliaup artifact
+      uses: actions/download-artifact@v2
       with:
         name: juliaup-x86_64-pc-windows-msvc
         path: target\x86_64-pc-windows-msvc\release        
