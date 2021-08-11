@@ -2,6 +2,7 @@ extern crate itertools;
 extern crate semver;
 extern crate serde;
 extern crate winres;
+extern crate serde_json;
 #[path = "src/jsonstructs_versionsdb.rs"]
 mod jsonstructs_versionsdb;
 
@@ -13,6 +14,8 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::path::PathBuf;
+use std::path::Path;
+use serde_json::Value;
 
 fn produce_version_db() -> Result<JuliaupVersionDB> {
     let mut original_available_versions: Vec<Version> = Vec::new();
@@ -486,6 +489,16 @@ fn main() -> Result<()> {
     let version_db_path = out_path.join("versionsdb.json");
     let file = File::create(&version_db_path)?;
     serde_json::to_writer(file, &db)?;
+
+    let file = File::open(Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("versions.json"))?;
+    let data: Value = serde_json::from_reader(file)?;
+    let bundled_version: String = data["JuliaAppPackage"]["BundledJuliaVersion"].to_string();
+    let bundled_full_version: String = data["JuliaAppPackage"]["BundledJuliaSemVersion"].to_string();
+    let bundled_version_path = Path::new(&out_path).join("bundled_version.rs");
+    std::fs::write(
+        &bundled_version_path,
+        format!("const bundled_julia_version: &str = \"{}\"; const bundled_julia_version: &str = \"{}\";", bundled_version, bundled_full_version)
+    ).unwrap();
 
     if cfg!(target_os = "windows") {
         let mut res = winres::WindowsResource::new();

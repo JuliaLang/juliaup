@@ -8,6 +8,8 @@ use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
 
+include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
+
 #[derive(StructOpt)]
 #[structopt(
     name="Juliaup - Julia Version Manager"
