@@ -274,5 +274,7 @@ jobs:
       - name: Commit and push changes
         run: |
           cd juliaup
+          git config --global user.email "simeondavidschaub99@gmail.com"
+          git config --global user.name 'Your friendly Juliaup bot'
           git commit -a -m 'automated version bump'
           git push origin master
