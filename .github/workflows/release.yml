@@ -253,7 +253,7 @@ jobs:
       - name: Checkout PKGBUILD repo
         run: |
           echo $AUR_SSH_KEY > ~/aur_ssh_key
-          git config core.sshCommand "ssh -i ~/aur_ssh_key"
+          git config --global core.sshCommand "ssh -i ~/aur_ssh_key"
           git clone "aur@aur.archlinux.org:juliaup.git"
           cd juliaup
         env:
