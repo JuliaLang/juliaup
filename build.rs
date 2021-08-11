@@ -480,6 +480,18 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     Ok(db)
 }
 
+#[cfg(target_os = "windows")]
+fn build_winspecific() {
+    windows::build! {
+        Windows::Win32::System::Console::GetStdHandle,
+        Windows::Win32::System::Console::GetConsoleMode,
+        Windows::Win32::System::Console::SetConsoleMode,
+        Windows::Win32::Foundation::INVALID_HANDLE_VALUE,
+        Windows::Win32::System::Console::STD_HANDLE,
+        Windows::Win32::System::Console::CONSOLE_MODE,
+    };
+}
+
 fn main() -> Result<()> {
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -507,14 +519,7 @@ fn main() -> Result<()> {
     }
 
     if cfg!(target_os = "windows") {
-        windows::build! {
-            Windows::Win32::System::Console::GetStdHandle,
-            Windows::Win32::System::Console::GetConsoleMode,
-            Windows::Win32::System::Console::SetConsoleMode,
-            Windows::Win32::Foundation::INVALID_HANDLE_VALUE,
-            Windows::Win32::System::Console::STD_HANDLE,
-            Windows::Win32::System::Console::CONSOLE_MODE,
-        };
+        build_winspecific();
     }
 
     Ok(())
