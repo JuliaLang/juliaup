@@ -506,5 +506,16 @@ fn main() -> Result<()> {
         res.compile().unwrap();
     }
 
+    if cfg!(target_os = "windows") {
+        windows::build! {
+            Windows::Win32::System::Console::GetStdHandle,
+            Windows::Win32::System::Console::GetConsoleMode,
+            Windows::Win32::System::Console::SetConsoleMode,
+            Windows::Win32::Foundation::INVALID_HANDLE_VALUE,
+            Windows::Win32::System::Console::STD_HANDLE,
+            Windows::Win32::System::Console::CONSOLE_MODE,
+        };
+    }
+
     Ok(())
 }
