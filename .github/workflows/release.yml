@@ -178,7 +178,7 @@ jobs:
         artifacts: "*.appxbundle,*.zip,*.tar.gz"
         token: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-dev-channel:
+  deploy-dev-channel-winstore:
     needs: [build-storepayload]
     environment: dev-channel
     runs-on: windows-latest
@@ -200,7 +200,7 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
-  deploy-releasepreview-channel:
+  deploy-releasepreview-channel-winstore:
     needs: [build-storepayload]
     environment: release-preview-channel
     runs-on: windows-latest
@@ -222,7 +222,7 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
-  deploy-release-channel:
+  deploy-release-channel-winstore:
     needs: [build-storepayload]
     environment: release-channel
     runs-on: windows-latest
@@ -244,7 +244,7 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
-  deploy-aur:
+  deploy-release-channel-aur:
     needs: [deploy-github-release]
     # environment: release-channel
     runs-on: ubuntu-latest
