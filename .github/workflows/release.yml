@@ -246,7 +246,7 @@ jobs:
 
   deploy-aur:
     needs: [deploy-github-release]
-    environment: release-channel
+    # environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
