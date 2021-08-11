@@ -34,6 +34,10 @@ pub fn run_command_add(channel: String) -> Result<()> {
         },
     );
 
+    if config_data.default.is_none() {
+        config_data.default = Some(channel.clone());
+    }
+
     save_config_db(&config_data)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
 

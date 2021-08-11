@@ -13,10 +13,15 @@ pub fn run_command_status() -> Result<()> {
     println!("Installed Julia channels (default marked with *):");
 
     for (key, value) in config_data.installed_channels {
-        if key == config_data.default {
-            print!("  * ");
-        } else {
-            print!("    ")
+        match config_data.default {
+            Some(ref default_value) => {
+                if &key == default_value {
+                    print!("  * ");
+                } else {
+                    print!("    ")
+                }
+            }
+            None => print!("    ")
         }
         print!(" {}", key);
 
@@ -38,7 +43,6 @@ pub fn run_command_status() -> Result<()> {
                     combined_command.push_str("\"");
                     combined_command.push_str(&command);
                     combined_command.push_str("\"");
-
                 } else {
                     combined_command.push_str(&command);
                 }
@@ -50,17 +54,13 @@ pub fn run_command_status() -> Result<()> {
                             combined_command.push_str("\"");
                             combined_command.push_str(&i);
                             combined_command.push_str("\"");
-        
                         } else {
                             combined_command.push_str(&i);
                         }
                     }
                 }
 
-                print!(
-                    " (linked to `{}`)",
-                    combined_command
-                )
+                print!(" (linked to `{}`)", combined_command)
             }
         }
 

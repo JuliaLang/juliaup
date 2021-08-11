@@ -105,10 +105,12 @@ fn main() -> Result<()> {
         let first_arg = &args[1];
 
         if first_arg.starts_with("+") {
-            julia_channel_to_use = first_arg[1..].to_string();
+            julia_channel_to_use = Some(first_arg[1..].to_string());
             // julia_version_from_cmd_line = true;
         }
     }
+
+    let julia_channel_to_use = julia_channel_to_use.unwrap(); // TODO Add helpful error message
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,

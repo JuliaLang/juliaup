@@ -65,6 +65,8 @@ pub fn install_version(
         .with_context(|| "Failed to retrieve juliap folder while trying to install new version.")?
         .join(&child_target_foldername);
 
+    std::fs::create_dir_all(target_path.parent().unwrap())?;
+
     println!("Installing Julia {} ({}).", version, platform);
 
     download_extract_sans_parent(&download_url, &target_path)?;
@@ -84,16 +86,13 @@ pub fn install_version(
 }
 
 pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
-    let default_version = &config_data.default;
-
     let home_path = get_juliaup_home_path().with_context(|| {
         "Failed to retrieve juliap folder while trying to garbage collect versions."
     })?;
 
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
-        if default_version != installed_version
-            && config_data.installed_channels.iter().all(|j| {
+        if config_data.installed_channels.iter().all(|j| {
                 match &j.1 {
                     JuliaupConfigChannel::SystemChannel {version} => version != installed_version,
                     JuliaupConfigChannel::LinkedChannel {command: _, args: _} => true

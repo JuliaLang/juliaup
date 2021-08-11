@@ -9,7 +9,7 @@ pub fn run_command_default(channel: String) -> Result<()> {
         return Err(anyhow!("'{}' is not a valid Julia version.", channel));
     }
 
-    config_data.default = channel.clone();
+    config_data.default = Some(channel.clone());
 
     save_config_db(&config_data)
         .with_context(|| "`default` command failed to save configuration db.")?;

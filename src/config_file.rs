@@ -29,7 +29,7 @@ pub enum JuliaupConfigChannel {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfig {
     #[serde(rename = "Default")]
-    pub default: String,
+    pub default: Option<String>,
     #[serde(rename = "InstalledVersions")]
     pub installed_versions: HashMap<String, JuliaupConfigVersion>,
     #[serde(rename = "InstalledChannels")]
@@ -47,7 +47,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
         // TODO Change this to only return a default if the file doesn't exist, error otherwise.
         Err(_) => {
             return Ok(JuliaupConfig {
-                default: "release".to_string(),
+                default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
             })

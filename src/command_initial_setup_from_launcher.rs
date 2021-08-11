@@ -31,7 +31,7 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
         // std::filesystem::create_directories(target_path);
         // std::filesystem::copy(path_of_bundled_version, target_path, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
         let mut juliaup_confi_data = JuliaupConfig {
-            default: "release".to_string(),
+            default: Some("release".to_string()),
             installed_versions: HashMap::new(),
             installed_channels: HashMap::new(),
         };
@@ -55,7 +55,7 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
         save_config_db(&juliaup_confi_data)?;
     } else {
         let mut juliaup_confi_data = JuliaupConfig {
-            default: "release".to_string(),
+            default: Some("release".to_string()),
             installed_versions: HashMap::new(),
             installed_channels: HashMap::new(),
         };

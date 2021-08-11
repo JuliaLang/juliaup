@@ -10,8 +10,10 @@ pub fn run_command_remove(channel: String) -> Result<()> {
         return Err(anyhow!("'{}' cannot be removed because it is currently not installed.", channel));
     }
 
-    if channel==config_data.default {
-        return Err(anyhow!("'{}' cannot be removed because it is currently configured as the default channel.", channel));
+    if let Some(ref default_value) = config_data.default {
+        if &channel==default_value {
+            return Err(anyhow!("'{}' cannot be removed because it is currently configured as the default channel.", channel));
+        }
     }
 
     config_data.installed_channels.remove(&channel);
