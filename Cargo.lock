@@ -232,7 +232,7 @@ dependencies = [
 
 [[package]]
 name = "juliaup"
-version = "1.0.67"
+version = "1.0.68-alpha.0"
 dependencies = [
  "anyhow",
  "dirs",
