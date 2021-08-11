@@ -36,6 +36,11 @@ fn windows_enable_virtual_terminal_processing() -> Result<()> {
     }
 }
 
+#[cfg(not(target_os = "windows")])
+fn windows_enable_virtual_terminal_processing() -> Result<()> {
+    Ok(())
+}
+
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
         let my_own_path = std::env::current_exe()?;
