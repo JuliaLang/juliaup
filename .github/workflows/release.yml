@@ -47,60 +47,26 @@ jobs:
           target/release/julialauncher*
           !target/release/*.d
   
-  build-bundledjulia:
+  build-msix:
+    needs: build-juliaup
     runs-on: windows-latest
-    strategy:
-      matrix:
-        platform: [{form1: 'x64', form2: 'win64'}, {form1: 'x86', form2: 'win32'}]
     steps:
     - uses: actions/checkout@v2
-    - name: Read version info
-      id: bundledversion
-      run: |
+    - name: Download and extract bundled Julia versions
+      run: |      
         $versions = Get-Content versions.json | ConvertFrom-Json
         [version]$bundledVersion = $versions.JuliaAppPackage.BundledJuliaVersion
         $bundledVersionAsString = $versions.JuliaAppPackage.BundledJuliaVersion
-        $bundledMajorVersionAsString = $bundledVersion.Major
-        $bundledMinorVersionAsString = $bundledVersion.Minor
-        echo "::set-output name=bundledVersion::$bundledVersionAsString"
-        echo "::set-output name=bundledMajorVersion::$bundledMajorVersionAsString"
-        echo "::set-output name=bundledMinorVersion::$bundledMinorVersionAsString"
-    - name: Create folders
-      run: |
-        mkdir -Force build\downloads
-        mkdir -Force build\juliaversions\${{matrix.platform.form1}}
-    - name: Download Julia archive
-      run: |
-        if (-Not (Test-Path ".\build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz"))
-        {
-          Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/${{matrix.platform.form1}}/${{steps.bundledversion.outputs.bundledMajorVersion}}.${{steps.bundledversion.outputs.bundledMinorVersion}}/julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz" -OutFile "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz"
-        }
-    - name: Extract Julia archive
-      run: |
-        if (-Not (Test-Path "build\juliaversions\${{matrix.platform.form1}}\julia-$($bundledVersionAsString)"))
-        {
-          tar -xvzf "build\downloads\julia-${{steps.bundledversion.outputs.bundledVersion}}-${{matrix.platform.form2}}.tar.gz" -C build\juliaversions\${{matrix.platform.form1}}
-        }
-    - uses: actions/upload-artifact@v2
-      with:
-        name: bundled-julia-${{matrix.platform.form1}}
-        path: build\juliaversions\${{matrix.platform.form1}}
 
-  build-msix:
-    needs: [build-juliaup, build-bundledjulia]
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Download bundled x64 julia artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: bundled-julia-x64
-        path: target\bundledjulia\extracted\x64
-    - name: Download bundled x86 julia artifact
-      uses: actions/download-artifact@v2
-      with:
-        name: bundled-julia-x86
-        path: target\bundledjulia\extracted\x86
+        mkdir -Force target\bundledjulia\downloads
+        mkdir -Force target\bundledjulia\extracted\x64
+        mkdir -Force target\bundledjulia\extracted\x86
+
+        Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x64/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win64.tar.gz" -OutFile "target\bundledjulia\downloads\julia-$($bundledVersionAsString)-win64.tar.gz"
+        tar -xvzf "target\bundledjulia\downloads\julia-$($bundledVersion)-win64.tar.gz" -C target\bundledjulia\extracted\x64 --strip-components=1
+
+        Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x86/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win32.tar.gz" -OutFile "target\bundledjulia\downloads\julia-$($bundledVersionAsString)-win32.tar.gz"
+        tar -xvzf "target\bundledjulia\downloads\julia-$($bundledVersion)-win32.tar.gz" -C target\bundledjulia\extracted\x86 --strip-components=1
     - name: Download x86 juliaup artifact
       uses: actions/download-artifact@v2
       with:
@@ -180,31 +146,31 @@ jobs:
       with:
         type: 'zip'
         filename: 'i686-pc-windows-msvc.zip'
-        path: i686-pc-windows-msvc
+        path: target\i686-pc-windows-msvc
     - name: Archive Windows x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
         filename: 'x86_64-pc-windows-msvc.zip'
-        path: x86_64-pc-windows-msvc
+        path: target\x86_64-pc-windows-msvc
     - name: Archive Linux x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'x86_64-unknown-linux-gnu.tar.gz'
-        path: x86_64-unknown-linux-gnu
+        path: target\x86_64-unknown-linux-gnu
     - name: Archive Linux x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'i686-unknown-linux-gnu.tar.gz'
-        path: i686-unknown-linux-gnu
+        path: target\i686-unknown-linux-gnu
     - name: Archive MacOS x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'x86_64-apple-darwin.tar.gz'
-        path: x86_64-apple-darwin
+        path: target\x86_64-apple-darwin
     - name: Release
       uses: ncipollo/release-action@v1
       with:
