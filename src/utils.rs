@@ -3,12 +3,36 @@ use semver::Version;
 use std::path::PathBuf;
 
 pub fn get_juliaup_home_path() -> Result<PathBuf> {
+    let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
+
+    let path = match std::env::var("JULIA_DEPOT_PATH") {
+        Ok(val) => {
+            let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
+
+            if !path.is_absolute() {
+                return Err(anyhow!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display()));
+            };
+
+            path
+        }
+        Err(_) => {
     let path = dirs::home_dir()
         .ok_or(anyhow!(
             "Could not determine the path of the user home directory."
         ))?
         .join(".julia")
         .join("juliaup");
+
+            if !path.is_absolute() {
+                return Err(anyhow!(
+                    "The system returned an invalid home directory path `{}`.",
+                    path.display()
+                ));
+            };
+
+            path
+        }
+    };
 
     Ok(path)
 }
