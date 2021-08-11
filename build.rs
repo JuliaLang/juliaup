@@ -492,6 +492,11 @@ fn build_winspecific() {
     };
 }
 
+#[cfg(not(target_os = "windows"))]
+fn build_winspecific() {
+
+}
+
 fn main() -> Result<()> {
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
