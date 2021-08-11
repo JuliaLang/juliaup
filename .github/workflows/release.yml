@@ -251,7 +251,7 @@ jobs:
     steps:
       - name: Checkout PKGBUILD repo
         run: |
-          echo $AUR_SSH_KEY > ~/aur_ssh_key
+          echo "$AUR_SSH_KEY" > ~/aur_ssh_key
           chmod 600 ~/aur_ssh_key
           git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'StrictHostKeyChecking=no'"
           git clone "aur@aur.archlinux.org:juliaup.git"
