@@ -254,26 +254,24 @@ jobs:
           echo "$AUR_SSH_KEY" > ~/aur_ssh_key
           chmod 600 ~/aur_ssh_key
           git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'StrictHostKeyChecking=no'"
-          git clone "aur@aur.archlinux.org:juliaup.git"
+          git clone "aur@aur.archlinux.org:juliaup.git" .
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
       - name: Update version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-          sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" juliaup/PKGBUILD
+          sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" PKGBUILD
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
         uses: datakrama/archlinux-package-action@v1
         with:
-          path: $GITHUB_WORKSPACE/juliaup
           flags: ''
           namcap: false
           updpkgsums: true
           srcinfo: true
       - name: Commit and push changes
         run: |
-          cd juliaup
           git config --global user.email "simeondavidschaub99@gmail.com"
           git config --global user.name 'Your friendly Juliaup bot'
           git commit -a -m 'automated version bump'
