@@ -255,23 +255,24 @@ jobs:
           chmod 600 ~/aur_ssh_key
           git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'StrictHostKeyChecking=no'"
           git clone "aur@aur.archlinux.org:juliaup.git"
-          cd juliaup
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
       - name: Update version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-          sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" PKGBUILD
+          sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" juliaup/PKGBUILD
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
         uses: datakrama/archlinux-package-action@v1
         with:
+          path: $GITHUB_WORKSPACE/juliaup
           flags: ''
           namcap: false
           updpkgsums: true
           srcinfo: true
       - name: Commit and push changes
         run: |
+          cd juliaup
           git commit -a -m 'automated version bump'
           git push origin master
