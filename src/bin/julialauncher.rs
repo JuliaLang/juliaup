@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use juliaup::config_file::{
     load_config_db, JuliaupConfig, JuliaupConfigChannel
 };
@@ -9,9 +9,34 @@ use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
 
-fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
-    
+#[cfg(target_os = "windows")]
+mod bindings {
+    windows::include_bindings!();
+}
 
+#[cfg(target_os = "windows")]
+use bindings::Windows::Win32::{System::Console::{GetConsoleMode,GetStdHandle,SetConsoleMode,CONSOLE_MODE,ENABLE_VIRTUAL_TERMINAL_PROCESSING,STD_OUTPUT_HANDLE}};
+
+#[cfg(target_os = "windows")]
+fn windows_enable_virtual_terminal_processing() -> Result<()> {
+    unsafe {
+        // Set output mode to handle virtual terminal sequences
+        let console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+        if console_handle.is_invalid() {
+            return Err(anyhow!("The call to GetStdHandle failed."));
+        }
+
+        let mut console_mode = CONSOLE_MODE::from(0);
+        GetConsoleMode(console_handle, &mut console_mode as *mut _ as _).ok()?;
+
+        console_mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(console_handle, console_mode).ok()?;
+    
+        Ok(())
+    }
+}
+
+fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
         let my_own_path = std::env::current_exe()?;
 
@@ -83,7 +108,12 @@ fn get_julia_path_from_channel(
 }
 
 fn main() -> Result<()> {
-    // TODO SetConsoleTitle(L"Julia");
+    if cfg!(windows) {
+        windows_enable_virtual_terminal_processing()?;
+    }
+
+    // Set console title
+    println!("\x1b]2;Julia\x07");
 
     let juliaupconfig_path = get_juliaupconfig_path()?;
 
