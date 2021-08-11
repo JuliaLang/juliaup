@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use juliaup::config_file::{
     load_config_db, JuliaupConfig, JuliaupConfigChannel
 };
