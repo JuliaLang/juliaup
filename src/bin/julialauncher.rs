@@ -36,7 +36,7 @@ fn windows_enable_virtual_terminal_processing() -> Result<()> {
     }
 }
 
-#[cfg(not(target_os = "windows")])
+#[cfg(not(target_os = "windows"))]
 fn windows_enable_virtual_terminal_processing() -> Result<()> {
     Ok(())
 }
