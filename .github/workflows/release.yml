@@ -243,3 +243,35 @@ jobs:
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+
+  deploy-aur:
+    needs: [deploy-github-release]
+    environment: release-channel
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout PKGBUILD repo
+        run: |
+          echo $AUR_SSH_KEY > ~/aur_ssh_key
+          git config core.sshCommand "ssh -i ~/aur_ssh_key"
+          git clone "aur@aur.archlinux.org:juliaup.git"
+          cd juliaup
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      - name: Update version
+        run: |
+          export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+          sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" PKGBUILD
+        env:
+          GH_REF: ${{ github.ref }}
+      - name: Update .SRCINFO and checksum
+        uses: datakrama/archlinux-package-action@v1
+        with:
+          flags: ''
+          namcap: false
+          updpkgsums: true
+          srcinfo: true
+      - name: Commit and push changes
+        run: |
+          git commit -a -m 'automated version bump'
+          git push origin master
