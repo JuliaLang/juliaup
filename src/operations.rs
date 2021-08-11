@@ -6,22 +6,32 @@ use crate::utils::parse_versionstring;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use anyhow::{anyhow, Context, Result};
 use flate2::read::GzDecoder;
-use std::fs;
-use std::io;
-use std::path::PathBuf;
-use std::path::Path;
 use tar::Archive;
-use tempfile::Builder;
+use std::{path::{Component::Normal, Path, PathBuf}, io::Read};
 
-fn download_extract(url: &String, target_path: &Path) -> Result<()> {
+fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P) -> Result<()>
+where R: Read, P: AsRef<Path>
+{
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path: PathBuf = entry.path()?.components()
+            .skip(1) // strip top-level directory
+            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
+            .collect();
+        entry.unpack(dst.as_ref().join(path))?;
+    }
+    Ok(())
+}
+
+fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> {
     let response =ureq::get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let tar = GzDecoder::new(response.into_reader());
-    let mut archive = Archive::new(tar);
+    let archive = Archive::new(tar);
     
-    archive.unpack(&target_path)
+    unpack_sans_parent(archive, &target_path)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
     
     Ok(())
@@ -52,21 +62,7 @@ pub fn install_version(
 
     println!("Installing Julia {} ({}).", version, platform);
 
-    let tmp_dir = Builder::new().prefix("juliaup").tempdir()?;
-
-    let tmp_dir_path = tmp_dir.path();
-
-    download_extract(&download_url, tmp_dir_path)?;
-
-    let child_folders = fs::read_dir(tmp_dir_path)?.collect::<Result<Vec<_>, io::Error>>()?;
-
-    if child_folders.len() != 1 {
-        return Err(anyhow!(
-            "The archive for this version has a folder structure that juliaup does not understand."
-        ));
-    }
-
-    fs::rename(child_folders[0].path(), target_path)?;
+    download_extract_sans_parent(&download_url, &target_path)?;
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
