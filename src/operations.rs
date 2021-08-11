@@ -42,6 +42,11 @@ pub fn install_version(
     config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
 ) -> Result<()> {
+    // Return immediately if the version is already installed.
+    if config_data.installed_versions.contains_key(fullversion) {
+        return Ok(());
+    }
+
     let download_url = version_db
         .available_versions
         .get(fullversion)
