@@ -16,7 +16,7 @@ where R: Read, P: AsRef<Path>
         let mut entry = entry?;
         let path: PathBuf = entry.path()?.components()
             .skip(1) // strip top-level directory
-            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks
+            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
             .collect();
         entry.unpack(dst.as_ref().join(path))?;
     }
