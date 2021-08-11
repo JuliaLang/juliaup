@@ -1,87 +1,25 @@
 use anyhow::{Context, Result};
-use juliaup::config_file::save_config_db;
 use juliaup::config_file::{
-    load_config_db, JuliaupConfig, JuliaupConfigChannel, JuliaupConfigVersion,
+    load_config_db, JuliaupConfig, JuliaupConfigChannel
 };
-use juliaup::operations::install_version;
-use juliaup::utils::get_arch;
-use juliaup::utils::{get_juliaup_home_path, get_juliaupconfig_path};
+use juliaup::utils::get_juliaupconfig_path;
 use juliaup::versions_file::load_versions_db;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use normpath::PathExt;
-use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
-    let juliaup_folder = get_juliaup_home_path()?;
+    
 
     if !juliaupconfig_path.exists() {
         let my_own_path = std::env::current_exe()?;
 
-        let path_of_bundled_version = my_own_path.join("BundledJulia");
-
-        let bundled_version = "1.6.2+0"; // TODO Read version from build.rs or something
-
-        let platform = get_arch()?;
-
-        let full_version_string = format!("{}~{}", bundled_version, platform);
-
-        if path_of_bundled_version.exists() {
-            let target_folder_name = format!("julia-{}", full_version_string);
-            let target_path = juliaup_folder.join(&target_folder_name);
-
-            let mut options = fs_extra::dir::CopyOptions::new();
-            options.overwrite = true;
-            fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
-            // std::filesystem::create_directories(target_path);
-            // std::filesystem::copy(path_of_bundled_version, target_path, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
-            let mut juliaup_confi_data = JuliaupConfig {
-                default: "release".to_string(),
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-            };
-
-            juliaup_confi_data.installed_versions.insert(
-                full_version_string.clone(),
-                JuliaupConfigVersion {
-                    path: Path::new(".")
-                        .join(&target_folder_name)
-                        .display()
-                        .to_string(),
-                },
-            );
-
-            juliaup_confi_data.installed_channels.insert(
-                "release".to_string(),
-                JuliaupConfigChannel::SystemChannel {
-                    version: full_version_string.clone(),
-                },
-            );
-            save_config_db(&juliaup_confi_data)?;
-        } else {
-            let mut juliaup_confi_data = JuliaupConfig {
-                default: "release".to_string(),
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-            };
-
-            juliaup_confi_data.installed_channels.insert(
-                "release".to_string(),
-                JuliaupConfigChannel::SystemChannel {
-                    version: full_version_string.clone(),
-                },
-            );
-
-            let version_db = load_versions_db()
-                .with_context(|| "`update` command failed to load versions db.")?;
-
-            std::fs::create_dir_all(juliaup_folder)?;
-
-            install_version(&full_version_string, &mut juliaup_confi_data, &version_db)?;
-
-            save_config_db(&juliaup_confi_data)?;
-        }
+        std::process::Command::new(my_own_path.parent().unwrap().join(format!("juliaup{}", std::env::consts::EXE_SUFFIX)))
+            .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
+            .status()?;
+    
+    //     }
     }
     Ok(())
 }

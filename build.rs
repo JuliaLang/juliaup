@@ -497,7 +497,7 @@ fn main() -> Result<()> {
     let bundled_version_path = Path::new(&out_path).join("bundled_version.rs");
     std::fs::write(
         &bundled_version_path,
-        format!("const bundled_julia_version: &str = \"{}\"; const bundled_julia_version: &str = \"{}\";", bundled_version, bundled_full_version)
+        format!("pub const BUNDLED_JULIA_VERSION: &str = {}; pub const BUNDLED_JULIA_FULL_VERSION: &str = {};", bundled_version, bundled_full_version)
     ).unwrap();
 
     if cfg!(target_os = "windows") {

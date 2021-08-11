@@ -7,8 +7,7 @@ use anyhow::{Result};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
-
-include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
+use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 
 #[derive(StructOpt)]
 #[structopt(
@@ -43,6 +42,9 @@ enum Juliaup {
     },
     /// Garbage collect uninstalled Julia versions
     Gc {
+    },
+    #[structopt(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(structopt::clap::AppSettings::Hidden))]
+    InitialSetupFromLauncher {
     }
 }
 
@@ -56,6 +58,7 @@ fn main() -> Result<()> {
         Juliaup::Status {} => run_command_status(),
         Juliaup::Update {channel} => run_command_update(channel),
         Juliaup::Gc {} => run_command_gc(),
-        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args)
+        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
+        Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher()
     }
 }
