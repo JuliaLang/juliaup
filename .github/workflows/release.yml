@@ -246,7 +246,7 @@ jobs:
 
   deploy-release-channel-aur:
     needs: build-juliaup
-    environment: release-preview-channel
+    environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
