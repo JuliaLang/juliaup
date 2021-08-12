@@ -15,7 +15,7 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
     }
 
     if versiondb_data.available_channels.contains_key(&channel) {
-        println!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
+        eprintln!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
     }
 
     config_data.installed_channels.insert(channel, JuliaupConfigChannel::LinkedChannel {command: file.clone(), args: Some(args.clone())});

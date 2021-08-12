@@ -272,6 +272,7 @@ name = "juliaup"
 version = "1.0.79-alpha.0"
 dependencies = [
  "anyhow",
+ "atty",
  "dirs",
  "flate2",
  "fs_extra",

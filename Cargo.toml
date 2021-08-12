@@ -27,6 +27,7 @@ fs_extra = "1.2"
 windows = "0.18.0"
 thiserror = "1.0"
 indicatif = "0.16"
+atty = "0.2.14"
 
 [build-dependencies]
 anyhow = "1.0"

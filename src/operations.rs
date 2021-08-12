@@ -86,7 +86,7 @@ pub fn install_version(
 
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    println!("Installing Julia {} ({}).", version, platform);
+    eprintln!("Installing Julia {} ({}).", version, platform);
 
     download_extract_sans_parent(&download_url, &target_path)?;
 
@@ -122,7 +122,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
-            Err(_) => println!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
+            Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
             Ok(_) => ()
         };
             versions_to_uninstall.push(installed_version.clone());
