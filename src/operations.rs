@@ -1,20 +1,28 @@
 use crate::config_file::JuliaupConfig;
-use crate::config_file::JuliaupConfigVersion;
 use crate::config_file::JuliaupConfigChannel;
+use crate::config_file::JuliaupConfigVersion;
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
-use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use anyhow::{anyhow, Context, Result};
 use flate2::read::GzDecoder;
+use indicatif::{ProgressBar, ProgressStyle};
+use std::{
+    io::Read,
+    path::{Component::Normal, Path, PathBuf},
+};
 use tar::Archive;
-use std::{path::{Component::Normal, Path, PathBuf}, io::Read};
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P) -> Result<()>
-where R: Read, P: AsRef<Path>
+where
+    R: Read,
+    P: AsRef<Path>,
 {
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let path: PathBuf = entry.path()?.components()
+        let path: PathBuf = entry
+            .path()?
+            .components()
             .skip(1) // strip top-level directory
             .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
             .collect();
@@ -24,16 +32,27 @@ where R: Read, P: AsRef<Path>
 }
 
 fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> {
-    let response =ureq::get(url)
+    let response = ureq::get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let tar = GzDecoder::new(response.into_reader());
+    let content_length = response.header("Content-Length").and_then(|v| v.parse::<u64>().ok() );
+
+    let pb = match content_length {
+        Some(content_length) => ProgressBar::new(content_length),
+        None => ProgressBar::new_spinner(),
+    };
+
+    pb.set_style(ProgressStyle::default_bar()
+    .template("{spinner:.green} [{elapsed_precise}] [{bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}")
+                .progress_chars("=> "));
+
+    let foo = pb.wrap_read(response.into_reader());
+
+    let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
-    
     unpack_sans_parent(archive, &target_path)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
-    
     Ok(())
 }
 
@@ -92,13 +111,13 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
 
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
-        if config_data.installed_channels.iter().all(|j| {
-                match &j.1 {
-                    JuliaupConfigChannel::SystemChannel {version} => version != installed_version,
-                    JuliaupConfigChannel::LinkedChannel {command: _, args: _} => true
-                }
-            })
-        {
+        if config_data.installed_channels.iter().all(|j| match &j.1 {
+            JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
+            JuliaupConfigChannel::LinkedChannel {
+                command: _,
+                args: _,
+            } => true,
+        }) {
             let path_to_delete = home_path.join(&detail.path);
             let display = path_to_delete.display();
 
@@ -116,5 +135,3 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
 
     Ok(())
 }
-
-

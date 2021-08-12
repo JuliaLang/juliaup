@@ -26,6 +26,7 @@ normpath = "0.3"
 fs_extra = "1.2"
 windows = "0.18.0"
 thiserror = "1.0"
+indicatif = "0.16"
 
 [build-dependencies]
 anyhow = "1.0"
