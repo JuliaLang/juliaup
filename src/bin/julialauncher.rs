@@ -86,11 +86,11 @@ fn check_channel_uptodate(
         .version;
 
     if latest_version != current_version {
-        println!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
-        println!();
-        println!("  juliaup update");
-        println!();
-        println!(
+        eprintln!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
+        eprintln!();
+        eprintln!("  juliaup update");
+        eprintln!();
+        eprintln!(
             "to install Julia {} and update the `{}` channel to that version.",
             latest_version, channel
         );
@@ -158,8 +158,9 @@ fn run_app() -> Result<i32> {
     }
 
     // Set console title
-    // TODO #116 detect whether we are in a tty or not
-    println!("\x1b]2;Julia\x07");
+    if atty::is(atty::Stream::Stdout) {
+        println!("\x1b]2;Julia\x07");
+    }
 
     let juliaupconfig_path = get_juliaupconfig_path()
         .with_context(|| "The Julia launcher failed to find the juliaup configuration path.")?;
