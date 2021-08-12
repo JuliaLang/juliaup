@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
 pub enum JuliaupInvalidChannel {
-    #[error("invalid channel specified")]
+    #[error("Invalid channel specified")]
     FromCmdLine(),
 }
 
@@ -109,7 +109,7 @@ fn get_julia_path_from_channel(
         config_data
             .installed_channels
             .get(channel)
-            .ok_or_else(|| JuliaupInvalidChannel::FromCmdLine {})?
+            .ok_or_else(|| JuliaupInvalidChannel::FromCmdLine {})? // TODO #115 Handle this better in the main function
     } else {
         config_data.installed_channels.get(channel)
             .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel))?
@@ -158,7 +158,7 @@ fn run_app() -> Result<i32> {
     }
 
     // Set console title
-    // TODO detect whether we are in a tty or not
+    // TODO #116 detect whether we are in a tty or not
     println!("\x1b]2;Julia\x07");
 
     let juliaupconfig_path = get_juliaupconfig_path()
@@ -225,7 +225,7 @@ fn run_app() -> Result<i32> {
 
     let code = match status.code() {
         Some(code) => code,
-        None => 1, // TODO Is this the right call here? We get that if the sub process was terminated by a signal...
+        None => 1, // TODO #117 Is this the right call here? We get that if the sub process was terminated by a signal...
     };
 
     Ok(code)
