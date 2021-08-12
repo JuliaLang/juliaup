@@ -10,6 +10,7 @@ use juliaup::command_status::run_command_status;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 
 #[derive(Clap)]
+#[clap(name="Juliaup", version)]
 /// The Julia Version Manager
 enum Juliaup {
     /// Set the default Julia version
