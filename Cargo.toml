@@ -25,6 +25,7 @@ ureq = "2"
 normpath = "0.3"
 fs_extra = "1.2"
 windows = "0.18.0"
+thiserror = "1.0"
 
 [build-dependencies]
 anyhow = "1.0"
