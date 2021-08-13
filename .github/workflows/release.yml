@@ -38,6 +38,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
+        use-cross: ${{ os == 'ubuntu']
         args: --release --bins --target ${{matrix.arch}}-${{matrix.rstarget}}
     - uses: actions/upload-artifact@v2
       with:
