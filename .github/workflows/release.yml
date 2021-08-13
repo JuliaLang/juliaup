@@ -38,7 +38,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --release --bins
+        args: --release --bins --target ${{matrix.arch}}-${{matrix.rstarget}}
     - uses: actions/upload-artifact@v2
       with:
         name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
