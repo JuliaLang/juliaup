@@ -44,7 +44,7 @@ jobs:
       with:
         name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
         path: |
-          target/release/juliaup*
+          target/${{matrix.arch}}-${{matrix.rstarget}}/release/juliaup*
           target/release/julialauncher*
           !target/release/*.d
   
