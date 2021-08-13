@@ -32,6 +32,7 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
 
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
+        options.content_only = true;
         fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
         
         let mut juliaup_confi_data = JuliaupConfig {
