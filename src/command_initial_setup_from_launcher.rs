@@ -15,7 +15,10 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
 
     let my_own_path = std::env::current_exe()?;
 
-    let path_of_bundled_version = my_own_path.join("BundledJulia");
+    let path_of_bundled_version = my_own_path
+        .parent()
+        .unwrap() // unwrap OK because we can't get a path that does not have a parent
+        .join("BundledJulia");
 
     let platform = get_arch()?;
 
