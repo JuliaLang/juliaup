@@ -28,11 +28,12 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
         let target_folder_name = format!("julia-{}", full_version_string);
         let target_path = juliaup_folder.join(&target_folder_name);
 
+        std::fs::create_dir_all(&target_path)?;
+
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
-        // std::filesystem::create_directories(target_path);
-        // std::filesystem::copy(path_of_bundled_version, target_path, std::filesystem::copy_options::overwrite_existing | std::filesystem::copy_options::recursive);
+        
         let mut juliaup_confi_data = JuliaupConfig {
             default: Some("release".to_string()),
             installed_versions: HashMap::new(),

@@ -72,12 +72,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
         } else if target_os == "windows" && target_arch == "x86" {
             db.available_versions.insert(
                 format!("{}+0~x86", v),
-                JuliaupVersionDBVersion {
-                    url: format!(
-                        "https://julialang-s3.julialang.org/bin/winnt/x86/{}/julia-{}-win64.tar.gz",
-                        v.minor, v
-                    ),
-                },
+                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/winnt/x86/{}.{}/julia-{}-win32.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "linux" && target_arch == "x86_64" {
             db.available_versions.insert(
