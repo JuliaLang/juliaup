@@ -45,8 +45,8 @@ jobs:
         name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
         path: |
           target/${{matrix.arch}}-${{matrix.rstarget}}/release/juliaup*
-          target/release/julialauncher*
-          !target/release/*.d
+          target/${{matrix.arch}}-${{matrix.rstarget}}/release/julialauncher*
+          !target/${{matrix.arch}}-${{matrix.rstarget}}/release/*.d
   
   build-msix:
     needs: build-juliaup
