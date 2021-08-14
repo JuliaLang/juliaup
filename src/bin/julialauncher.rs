@@ -152,13 +152,13 @@ fn get_julia_path_from_channel(
 }
 
 fn run_app() -> Result<i32> {
-    if cfg!(windows) {
-        windows_enable_virtual_terminal_processing()
-            .with_context(|| "The Julia launcher failed failed to configure the terminal to use ENABLE_VIRTUAL_TERMINAL_PROCESSING.")?;
-    }
-
     // Set console title
     if atty::is(atty::Stream::Stdout) {
+        if cfg!(windows) {
+            windows_enable_virtual_terminal_processing()
+                .with_context(|| "The Julia launcher failed failed to configure the terminal to use ENABLE_VIRTUAL_TERMINAL_PROCESSING.")?;
+        }
+
         println!("\x1b]2;Julia\x07");
     }
 
