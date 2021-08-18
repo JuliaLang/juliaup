@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use semver::Version;
 use std::path::PathBuf;
 
@@ -10,7 +10,7 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
             let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
 
             if !path.is_absolute() {
-                return Err(anyhow!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display()));
+                bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
             };
 
             path
@@ -24,10 +24,10 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
         .join("juliaup");
 
             if !path.is_absolute() {
-                return Err(anyhow!(
+                bail!(
                     "The system returned an invalid home directory path `{}`.",
                     path.display()
-                ));
+                );
             };
 
             path
@@ -50,17 +50,17 @@ pub fn get_arch() -> Result<String> {
         return Ok("x64".to_string());
     }
 
-    Err(anyhow!("Running on an unknown arch."))
+    bail!("Running on an unknown arch: {}.", std::env::consts::ARCH)
 }
 
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
     let parts: Vec<&str> = value.split('~').collect();
 
     if parts.len() > 2 {
-        return Err(anyhow!(format!(
+        bail!(
             "`{}` is an invalid version specifier: multiple `~` characters are not allowed.",
             value
-        )));
+        );
     }
 
     let version = parts[0];

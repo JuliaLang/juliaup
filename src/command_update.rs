@@ -5,7 +5,7 @@ use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
 use crate::config_file::{load_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
-use anyhow::{Context, Result,anyhow};
+use anyhow::{Context, Result,anyhow,bail};
 
 fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {    
     let current_version = 
@@ -27,7 +27,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 );
             }  
         },
-        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => return Err(anyhow!("Failed to update '{}' because it is a linked channel.", channel))
+        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => bail!("Failed to update '{}' because it is a linked channel.", channel)
     }
 
     Ok(())
@@ -49,7 +49,7 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
         },
         Some(channel) => {
             if !config_data.installed_channels.contains_key(&channel) {
-                return Err(anyhow!("'{}' cannot be updated because it is currently not installed.", channel));
+                bail!("'{}' cannot be updated because it is currently not installed.", channel);
             }
 
             update_channel(&mut config_data, &channel, &version_db)?;
