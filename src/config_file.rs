@@ -79,7 +79,7 @@ pub fn save_config_db(config_data: &JuliaupConfig) -> Result<()> {
         )
     })?;
 
-    serde_json::to_writer(file, &config_data)
+    serde_json::to_writer_pretty(file, &config_data)
         .with_context(|| format!("Failed to write configuration file '{}'.", display))?;
     Ok(())
 }
