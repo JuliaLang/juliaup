@@ -1,9 +1,9 @@
 use crate::utils::get_juliaupconfig_path;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, ErrorKind};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
@@ -44,14 +44,18 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
 
     let file = match File::open(&path) {
         Ok(file) => file,
-        // TODO Change this to only return a default if the file doesn't exist, error otherwise.
-        Err(_) => {
-            return Ok(JuliaupConfig {
-                default: None,
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-            })
-        }
+        Err(error) =>  match error.kind() {
+            ErrorKind::NotFound => {
+                return Ok(JuliaupConfig {
+                    default: None,
+                    installed_versions: HashMap::new(),
+                    installed_channels: HashMap::new(),
+                })
+            },
+            other_error => {
+                bail!("Problem opening the file {}: {:?}", display, other_error)
+            }
+        },
     };
 
     let reader = BufReader::new(file);
