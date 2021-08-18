@@ -50,7 +50,7 @@ pub fn get_arch() -> Result<String> {
         return Ok("x64".to_string());
     }
 
-    bail!("Running on an unknown arch.")
+    bail!("Running on an unknown arch: {}.", std::env::consts::ARCH)
 }
 
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
