@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::utils::get_juliaupconfig_path;
@@ -30,7 +30,7 @@ fn windows_enable_virtual_terminal_processing() -> Result<()> {
         // Set output mode to handle virtual terminal sequences
         let console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
         if console_handle.is_invalid() {
-            return Err(anyhow!("The call to GetStdHandle failed."));
+            bail!("The call to GetStdHandle failed.");
         }
 
         let mut console_mode = CONSOLE_MODE::from(0);
