@@ -108,7 +108,9 @@ dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
+ "regex",
  "terminal_size",
+ "unicode-width",
  "winapi",
 ]
 
@@ -298,6 +300,7 @@ dependencies = [
  "anyhow",
  "atty",
  "clap",
+ "console",
  "dirs",
  "flate2",
  "fs_extra",
