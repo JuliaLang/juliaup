@@ -68,15 +68,14 @@ pub fn install_version(
         return Ok(());
     }
 
-    let download_url = version_db
+    let download_url = &version_db
         .available_versions
         .get(fullversion)
         .ok_or(anyhow!(
             "Failed to find download url in versions db for '{}'.",
             fullversion
         ))?
-        .url
-        .clone();
+        .url;
 
     let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
 
@@ -124,9 +123,9 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
-            Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
-            Ok(_) => ()
-        };
+                Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
+                Ok(_) => ()
+            };
             versions_to_uninstall.push(installed_version.clone());
         }
     }
