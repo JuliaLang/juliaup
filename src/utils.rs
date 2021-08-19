@@ -100,6 +100,6 @@ mod tests {
         let s = "1.1.1+0~x64";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
-        assert_eq!(v, Version::new(1, 1, 1));
+        assert_eq!(v, Version::parse("1.1.1+0").unwrap());
     }
 }
