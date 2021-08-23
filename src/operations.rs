@@ -5,6 +5,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use anyhow::{anyhow, Context, Result};
+use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
@@ -42,9 +43,10 @@ fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> 
         Some(content_length) => ProgressBar::new(content_length),
         None => ProgressBar::new_spinner(),
     };
-
+    
+    pb.set_prefix("  Downloading:");
     pb.set_style(ProgressStyle::default_bar()
-    .template("{spinner:.green} [{elapsed_precise}] [{bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}")
+    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
                 .progress_chars("=> "));
 
     let foo = pb.wrap_read(response.into_reader());
@@ -66,15 +68,14 @@ pub fn install_version(
         return Ok(());
     }
 
-    let download_url = version_db
+    let download_url = &version_db
         .available_versions
         .get(fullversion)
         .ok_or(anyhow!(
             "Failed to find download url in versions db for '{}'.",
             fullversion
         ))?
-        .url
-        .clone();
+        .url;
 
     let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
 
@@ -86,7 +87,7 @@ pub fn install_version(
 
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    eprintln!("Installing Julia {} ({}).", version, platform);
+    eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
 
     download_extract_sans_parent(&download_url, &target_path)?;
 
@@ -122,9 +123,9 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
-            Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
-            Ok(_) => ()
-        };
+                Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
+                Ok(_) => ()
+            };
             versions_to_uninstall.push(installed_version.clone());
         }
     }

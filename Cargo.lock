@@ -108,7 +108,9 @@ dependencies = [
  "encode_unicode",
  "lazy_static",
  "libc",
+ "regex",
  "terminal_size",
+ "unicode-width",
  "winapi",
 ]
 
@@ -293,11 +295,12 @@ dependencies = [
 
 [[package]]
 name = "juliaup"
-version = "1.1.15-alpha.0"
+version = "1.1.16-alpha.0"
 dependencies = [
  "anyhow",
  "atty",
  "clap",
+ "console",
  "dirs",
  "flate2",
  "fs_extra",

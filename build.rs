@@ -500,7 +500,7 @@ fn main() -> Result<()> {
 
     let version_db_path = out_path.join("versionsdb.json");
     let file = File::create(&version_db_path)?;
-    serde_json::to_writer(file, &db)?;
+    serde_json::to_writer_pretty(file, &db)?;
 
     let file = File::open(Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("versions.json"))?;
     let data: Value = serde_json::from_reader(file)?;
