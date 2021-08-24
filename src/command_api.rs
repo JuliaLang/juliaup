@@ -1,7 +1,7 @@
 use crate::config_file::load_config_db;
 use crate::config_file::JuliaupConfigChannel;
-use crate::utils::{get_juliaupconfig_path, parse_versionstring};
-use anyhow::{anyhow, Context, Result};
+use crate::utils::{get_juliaup_home_path, parse_versionstring};
+use anyhow::{bail, Context, Result};
 use normpath::PathExt;
 use serde::{Deserialize, Serialize};
 use semver::Version;
@@ -30,12 +30,11 @@ pub struct JuliaupApiGetinfoReturn {
 
 pub fn run_command_api(command: String) -> Result<()> {
     if command != "getconfig1" {
-        return Err(anyhow!("Wrong API command."));
+        bail!("Wrong API command.");
     }
 
-    let foo = get_juliaupconfig_path()?;
-
-    let julia_bin_root_path = foo.parent().unwrap();
+    let julia_bin_root_path = get_juliaup_home_path()
+        .with_context(|| "Failed to retrieve juliap folder while running the getconfig1 API command.")?;
 
     let mut ret_value = JuliaupApiGetinfoReturn {
         default: None,
@@ -43,26 +42,36 @@ pub fn run_command_api(command: String) -> Result<()> {
     };
 
     let config_data =
-        load_config_db().with_context(|| "`status` command failed to load configuration file.")?;
+        load_config_db()
+        .with_context(|| "Failed to load configuration file while running the getconfig1 API command.")?;
 
     for (key, value) in config_data.installed_channels {
         let curr = match value {
             JuliaupConfigChannel::SystemChannel {
                 version: fullversion,
             } => {
-                let (platform, mut version) = parse_versionstring(&fullversion).unwrap();
+                let (platform, mut version) = parse_versionstring(&fullversion)
+                    .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
                 version.build = semver::BuildMetadata::EMPTY;
 
                 match config_data.installed_versions.get(&fullversion) {
                     Some(channel) => JuliaupChannelInfo {
                         name: key.clone(),
-                        file: julia_bin_root_path.join(&channel.path).join("bin").join(format!("julia{}", std::env::consts::EXE_SUFFIX)).normalize()?.as_path().to_str().unwrap().to_string().clone(),
+                        file: julia_bin_root_path
+                            .join(&channel.path)
+                            .join("bin")
+                            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                            .normalize()
+                            .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
+                            .into_path_buf()
+                            .to_string_lossy()
+                            .to_string(),
                         args: Vec::new(),
                         version: version.to_string(),
                         arch: platform
                     },
-                    None => return Err(anyhow!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key))
+                    None => bail!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key)
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => 
