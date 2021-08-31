@@ -7,7 +7,7 @@ use crate::config_file::{load_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow,bail};
 
-fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB) -> Result<()> {    
+fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool) -> Result<()> {    
     let current_version = 
         config_db.installed_channels.get(channel).ok_or(anyhow!("asdf"))?;
 
@@ -27,7 +27,9 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 );
             }  
         },
-        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => bail!("Failed to update '{}' because it is a linked channel.", channel)
+        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => if !ignore_linked_channel {
+            bail!("Failed to update '{}' because it is a linked channel.", channel)
+        } else {()}
     }
 
     Ok(())
@@ -43,7 +45,7 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
     match channel {
         None => {
             for (k,_) in config_data.installed_channels.clone() {
-                update_channel(&mut config_data, &k, &version_db)?;
+                update_channel(&mut config_data, &k, &version_db, true)?;
             }
 
         },
@@ -52,7 +54,7 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
                 bail!("'{}' cannot be updated because it is currently not installed.", channel);
             }
 
-            update_channel(&mut config_data, &channel, &version_db)?;
+            update_channel(&mut config_data, &channel, &version_db, false)?;
         }
     };
 
