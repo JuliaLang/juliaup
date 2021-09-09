@@ -7,11 +7,21 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 ## Using Juliaup
 
 If you want to try it, here is what you should do:
+
+### Windows Users
 - Make sure you don't have any version of Julia on your PATH. `Juliaup` will handle all `PATH` related aspects of your Julia installation.
 - Install Julia from the Windows Store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN).
 
 Once you have that installed, `julia` is on the `PATH`, there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
+### Linux Users
+- Run `curl https://github.com/JuliaLang/juliaup/blob/master/juliaup-init.sh | sh`.  This will
+    create `$HOME/.julia/bin/juliaup`.
+- Optionally, add `~/.julia/bin` to your path (`export PATH=$HOME/.julia/bin:$PATH`).  If you skip
+    this step you'll need to specify the full path to get `juliaup`.
+- Run `juliaup` with the commands described below.
+
+### Subcommands
 Here are some of the things you can do with `juliaup`:
 - `juliaup update` installs the latest availabe Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
