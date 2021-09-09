@@ -7,11 +7,29 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 ## Using Juliaup
 
 If you want to try it, here is what you should do:
+
+### Windows Users
 - Make sure you don't have any version of Julia on your PATH. `Juliaup` will handle all `PATH` related aspects of your Julia installation.
+
+#### Microsoft Store
 - Install Julia from the Windows Store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN).
 
 Once you have that installed, `julia` is on the `PATH`, there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
+#### User Level Script
+- Run `powershell -nop -c iex (New-Object System.Net.WebClient).DownloadString('https://github.com/JuliaLang/juliaup/blob/master/juliaup-init.sh.cmd')`. 
+    This will install the juliaup binaries by default to `C:\Users\<User>\.juliaup\bin`.
+- Follow the prompt to add `julia` and `juliaup` to the `PATH`. This allows the VS Code extension and other programs to find `julia`.
+
+### Linux Users
+- Run `curl https://github.com/JuliaLang/juliaup/blob/master/juliaup-init.sh.cmd | sh`.  This will
+    create `~/.juliaup/bin/juliaup`.
+- Optionally, add `~/.juliaup/bin` binaries to your path. Super users can do this via symlinks:
+    `sudo ln "$HOME/.juliaup/bin/juliaup" /usr/local/bin/juliaup -s; sudo ln "$HOME/.juliaup/bin/julialauncher" /usr/local/bin/julia -s`.
+    Other users should add the line `export PATH=$HOME/.juliaup/bin:$PATH` to `~/.profile` (see [here](https://unix.stackexchange.com/a/26059)).
+- Run `juliaup` with the commands described below.
+
+### Subcommands
 Here are some of the things you can do with `juliaup`:
 - `juliaup update` installs the latest availabe Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
