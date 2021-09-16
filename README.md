@@ -21,7 +21,7 @@ Once you have that installed, `julia` is on the `PATH`, there is a start menu sh
     or [download and run](https://raw.githubusercontent.com/Julialang/juliaup/master/juliaup-init.sh.cmd) and follow the prompt.
 - Note, it's preferable to choose `yes` to _add juliaup.exe and julia.exe to user PATH_. This will allow the VS Code extension and other programs to access `julia`.
 
-### Linux Users
+### Linux and macOS Users
 - Run `curl https://raw.githubusercontent.com/Julialang/juliaup/master/juliaup-init.sh.cmd | sh` or [download and run](https://raw.githubusercontent.com/Julialang/juliaup/master/juliaup-init.sh.cmd) to install juliaup.
 - Optionally, add the `~/.juliaup/bin` binaries to your `PATH`. Preferably, add symlinks via sudo privileges: `sudo ln "$HOME/.juliaup/bin/juliaup" /usr/local/bin/juliaup -s; sudo ln "$HOME/.juliaup/bin/julialauncher" /usr/local/bin/julia -s`.
     Alternatively, add the line `export PATH=$HOME/.juliaup/bin:$PATH` to `~/.profile` (see [this explanation](https://unix.stackexchange.com/a/26059)).
