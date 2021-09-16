@@ -81,8 +81,8 @@ addtopath() {
      cat 1>&2 <<EOF
 
 To add juliaup to PATH, run:
-    sudo ln "$_bindir/juliaup" /usr/local/bin/juliaup -s
-    sudo ln "$_bindir/julialauncher" /usr/local/bin/julia -s 
+    sudo ln -s "$_bindir/juliaup" /usr/local/bin/juliaup
+    sudo ln -s "$_bindir/julialauncher" /usr/local/bin/julia
 EOF
 }
 
