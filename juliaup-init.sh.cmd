@@ -204,11 +204,13 @@ main() {
     # Move to installation location
     ignore rm -rf "$_bindir"
     ensure mkdir -p "$_bindir"
+    ensure cd "$_bindir"
+
     find "$_tarout" -type f -exec mv -i {} "$_bindir/." \;
 
     ensure chmod u+x "$_bindir/juliaup"
     ensure chmod u+x "$_bindir/julialauncher"
-    ensure ln -s "$_bindir/julialauncher" "$_bindir/julia"
+    ensure ln -s julialauncher julia
 
     if [ ! -x "$_bindir/julialauncher" ]; then
         printf '%s\n' "Cannot execute $_bindir/julialauncher (likely because $_bindir is set as noexec)." 1>&2
