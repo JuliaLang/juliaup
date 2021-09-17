@@ -1,25 +1,3 @@
-@{' 2>nul&::'={\"<<__sh__ 2>/dev/null;#"}}[0]<#
-
-
-
-:: ******************************************************************
-:: (1) juliaup-init bat version (Powershell trampoline)
-:: ******************************************************************
-@echo off
-setlocal 
-set "_arg1=%~1" &set "_arg2=%~2" &set "_arg3=%~3" &set "_arg4=%~4" &set "_arg5=%~5"
-powershell -NoLogo -NoP -Exec ByPass "iex (Get-Content '%~f0' -Raw)"
-
-:: Pause if this is a cmd pop-up from Explorer
-if /i "%comspec% /c __%~0_ _" equ "%cmdcmdline:"=_%" pause
-goto :EOF
-
-
-
-__sh__
-# ******************************************************************
-# (2) juliaup-init Unix version
-# ******************************************************************
 #!/bin/sh
 # shellcheck shell=dash
 
@@ -59,6 +37,7 @@ USAGE:
 
 FLAGS:
     -y, --yes               Disable confirmation prompt.
+        --no-add-to-path    Don't add to user PATH environment variable
     -h, --help              Prints help information
 
 OPTIONS:
@@ -77,14 +56,15 @@ Install juliaup to $JULIAUP_INSTALL_DIR ?
 EOF
 }
 
-addtopath() {
-     cat 1>&2 <<EOF
+pathprompt() {
+     cat 1>&2 <<'EOF'
 
-To add juliaup to PATH, run:
-    sudo ln -s "$_bindir/juliaup" /usr/local/bin/juliaup
-    sudo ln -s "$_bindir/julialauncher" /usr/local/bin/julia
+Add juliaup and julia to user $PATH variable?
+    [y] to confirm
+    [n] to deny
 EOF
 }
+
 
 main() {
     downloader --check
@@ -129,9 +109,10 @@ main() {
     fi
 
     # check if we have to use /dev/tty to prompt the user
-    local need_tty=yes
+    local _p=no
     local _y=no
-    local _p="no"
+    local need_tty=yes
+    local _addtopath=yes
     for arg in "$@"; do
         if [ "$_p" = "" ]; then
             _p=$arg
@@ -139,10 +120,11 @@ main() {
             continue
         fi
         case "$arg" in
-            "-h"|"--help") usage; exit 0       ;;
-            "-p"|"--path") _p=""               ;;
-            "-y"|"--yes")  _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
-            *)                                 ;;
+            "-h"|"--help")      usage; exit 0       ;;
+            "-p"|"--path")      _p=""               ;;
+            "-y"|"--yes")       _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
+            "--no-add-to-path") _addtopath=no       ;;
+            *)                                      ;;
         esac
     done
 
@@ -179,9 +161,32 @@ main() {
                 esac
             done
         fi
-        echo 1>&2
     fi
 
+    # prompt user if installation not specified
+    local _bindir="$JULIAUP_INSTALL_DIR/bin"
+    if [ "$_y" = "no" ]; then
+        if [ "$_addtopath" != "no" ]; then
+            need_cmd read
+            local _ans
+
+            pathprompt
+            while true; do 
+                if [ "$need_tty" = "yes" ]; then
+                    read -rp ">>> [y/n]: " _ans < /dev/tty
+                else
+                    read -rp ">>> [y/n]: " _ans
+                fi
+                case $_ans in
+                    [Yy]* ) _addtopath=yes; break;;
+                    [Nn]* ) _addtopath=no ; break;;
+                    * )     ;;
+                esac
+            done
+        fi
+    fi
+
+    echo 1>&2
 
     if $_ansi_escapes_are_valid; then
         printf "\33[1minfo:\33[0m downloading installer\n" 1>&2
@@ -219,6 +224,7 @@ main() {
         exit 1
     fi
 
+
     if [ "$need_tty" = "yes" ]; then
         ignore "$_bindir/julialauncher" -e nothing < /dev/tty
     else
@@ -226,8 +232,11 @@ main() {
     fi
     local _retval=$?
 
-    addtopath
-    echo 1>&2
+    if [ "$_addtopath" = "yes" ]; then
+        add_path_to_bash $_bindir
+        echo 'Run `. ~/.bashrc` to reload $PATH variable.' 1>&2
+    fi
+    echo 'Run `juliaup --help` for help' 1>&2
 
     ignore rm "$_file"
     ignore rmdir "$_dir"
@@ -752,195 +761,54 @@ get_strong_ciphersuites_for() {
     fi 
 }
 
+
+add_path_to_bash() {
+    need_cmd cat
+    need_cmd touch
+    need_cmd awk
+
+    local _bindir=$1
+    local _profilefile
+    local _tmpprofilefile
+    local _smarker="# >>> juliaup initialize >>>"
+    local _emarker="# <<< juliaup initialize <<<"
+    local _tmpcodefile=$(mktemp)
+
+    cat 1>&2 <<-EOF > $_tmpcodefile
+# !! Contents within this block are managed by juliaup !!
+
+# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings
+# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded
+
+case ":\$PATH:" in *:$_bindir:*);; *) 
+    export PATH=$_bindir\${PATH:+:\${PATH}};;
+esac
+EOF
+    for _profilefile in "$HOME/.bashrc" "$HOME/.profile"
+    do
+        touch "$_profilefile"
+
+        # Ensure markers are in profile file
+        case "$(cat $_profilefile)" in 
+            *$_smarker*$_emarker*);;
+            *)  
+                echo >> $_profilefile
+                echo $_smarker >> $_profilefile
+                echo $_emarker >> $_profilefile
+                ;;
+        esac
+
+        # Insert code between juliaup markers in profile file
+        _tmpprofilefile=$(mktemp)
+        awk "
+            BEGIN           {p=1}
+            /^${_smarker}/  {print;system(\"cat $_tmpcodefile\");p=0}
+            /^${_emarker}/  {p=1}
+            p
+        " $_profilefile > $_tmpprofilefile && mv $_tmpprofilefile $_profilefile
+    done
+
+    rm $_tmpcodefile
+}
+
 main "$@" || exit 1
-exit 0
-
-
-#>
-# ******************************************************************
-# (3) juliaup-init Windows Powershell version
-# ******************************************************************
-
-function Remove-FromUserPath {
-    param (
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [string] 
-        $dir
-    )
-
-    $dir = [io.path]::GetFullPath($dir)
-    $path = [Environment]::GetEnvironmentVariable("PATH", [System.EnvironmentVariableTarget]::User)
-    if (";$path;".Contains(";$dir;")) {
-        $path=((";$path;").replace(";$dir;", ";")).Trim(';')
-        [Environment]::SetEnvironmentVariable("PATH", $path, [EnvironmentVariableTarget]::User)
-        return
-    }
-}
-
-
-function Add-ToUserPath {
-    param (
-        [Parameter(Mandatory=$true)]
-        [ValidateNotNullOrEmpty()]
-        [string] 
-        $dir
-    )
-
-    $dir = [io.path]::GetFullPath($dir)
-    $path = [Environment]::GetEnvironmentVariable("PATH", [System.EnvironmentVariableTarget]::User)
-    if (!(";$path;".Contains(";$dir;"))) {
-        [Environment]::SetEnvironmentVariable("PATH", "$dir;$path", [EnvironmentVariableTarget]::User)
-        return
-    }
-}
-
-
-# Get args from batch, otherwise directly from powershell
-$cmdargs = @($env:_arg1, $env:_arg2, $env:_arg3, $env:_arg4, $env:_arg5).Where({ $_ -ne $null})
-if(-not $cmdargs){
-    $cmdargs = $args
-}
-
-$JULIAUP_UPDATE_ROOT='https://github.com/JuliaLang/juliaup/releases/latest/download/'
-$JULIAUP_INSTALL_DIR=(Resolve-Path '~/.juliaup')
-
-$usage = @'
-juliaup-init: the installer for juliaup
-
-USAGE:
-    juliaup-init [FLAGS] [OPTIONS]
-
-FLAGS:
-    -y, --yes               Answer y to all confirmation prompts.
-        --no-add-to-path    Don't add to user PATH environment variable
-    -h, --help              Prints help information
-
-OPTIONS:
-    -p, --path              Custom install path
-
-'@
-
-# Display help
-if(($cmdargs.Contains('-h')) -or ($cmdargs.Contains('--help'))){
-    Write-Host $usage
-    Exit
-}
-
-
-$dirprompt = @"
-
-Install juliaup to $JULIAUP_INSTALL_DIR ?
-    [y] to confirm
-    [n] to abort
-    ... Or enter a custom location
-"@
-
-
-$pathprompt = @"
-
-Add juliaup.exe and julia.exe to user PATH environment?
-    [y] to confirm
-    [n] to deny
-"@
-
-
-# User-defined path
-if(($cmdargs.Contains('-p')) -or ($cmdargs.Contains('--path'))){
-    $i = [array]::indexof($cmdargs, '-p')
-    if($i -lt 0){$i = [array]::indexof($cmdargs, '--path')}
-    $JULIAUP_INSTALL_DIR = $cmdargs[$i+1]
-
-# Ask user for path
-} elseif((-not $cmdargs.Contains('-y')) -and (-not $cmdargs.Contains('--yes'))) {
-    $ans = ""
-    Write-Host $dirprompt
-    while($ans -eq ""){
-        $ans = Read-Host -Prompt ">>> [y/n/...]"
-        if ($ans -ne "") {
-            if (($ans -eq "Y") -or ($ans -eq "y")){
-                #nothing
-            } elseif (($ans -eq "N") -or ($ans -eq "n")) {
-                Exit
-            } else {
-                $JULIAUP_INSTALL_DIR = $ans
-            }
-        }
-    }
-}
-
-$doAddPath = $true
-if($cmdargs.Contains('--no-add-to-path')){
-    $doAddPath = $false
-} else {
-    if((-not $cmdargs.Contains('-y')) -and (-not $cmdargs.Contains('--yes'))) {
-        $ans = ""
-        Write-Host $pathprompt
-        while(($ans -ne "Y") -and ($ans -ne "y") -and ($ans -ne "N") -and ($ans -ne "n")){
-            $ans = Read-Host -Prompt ">>> [y/n]"
-        
-            if (($ans -eq "N") -or ($ans -eq "n")){
-                $doAddPath = $false
-            }
-        }
-    }
-}
-
-
-# Create temp directory (try use same as caller)
-$tempFolderPath = Join-Path $Env:Temp $(New-Guid)
-New-Item -Type Directory -Force -Path $tempFolderPath | Out-Null
-
-
-$arch = 'x86_64-pc-windows-msvc'
-if ([IntPtr]::size -eq 4){
-    $arch = 'i686-pc-windows-msvc'
-}
-
-$url = "$JULIAUP_UPDATE_ROOT/${arch}.zip"
-$dst = "$tempFolderPath/${arch}.zip"
-$dstdir = "$tempFolderPath/${arch}"
-Write-Host ""
-Write-Host "info: downloading installer"
-
-# Suppress progress bar
-$tmppref = $global:ProgressPreference
-$global:ProgressPreference = "SilentlyContinue"
-
-try {
-    Invoke-WebRequest $url -OutFile $dst
-}
-catch {
-    (New-Object System.Net.WebClient).DownloadFile($url, $dst)
-}
-
-Expand-Archive -Path $dst -DestinationPath $dstdir
-
-# Restore progress bar
-$global:ProgressPreference = $tmppref
-
-
-# Move extracted to the final location
-$binDir = "$JULIAUP_INSTALL_DIR/bin"
-Remove-Item -Recurse -Force $binDir -ErrorAction Ignore
-New-Item -Type Directory -Force -Path $binDir | Out-Null
-
-Get-ChildItem -Path $dstdir -Recurse -File |
-    Move-Item -Destination {
-      Join-Path $binDir (Split-Path $_ -leaf)
-    }
-
-
-# Clear path from user PATH; then maybe add it back
-Remove-FromUserPath "$binDir"
-if ($doAddPath){
-    Add-ToUserPath "$binDir"
-}
-
-Remove-Item -Recurse -Force $tempFolderPath -ErrorAction Ignore
-
-# TODO: how can we reliably symlink on Windows?
-Copy-Item -Path "$binDir/julialauncher.exe" -Destination "$binDir/julia.exe" -Force
-
-# Trigger Julia download
-& "$binDir/julia.exe" -e nothing
