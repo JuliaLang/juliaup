@@ -47,6 +47,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     original_available_versions.push(Version::parse("1.6.0")?);
     original_available_versions.push(Version::parse("1.6.1")?);
     original_available_versions.push(Version::parse("1.6.2")?);
+    original_available_versions.push(Version::parse("1.6.3")?);
     original_available_versions.push(Version::parse("1.7.0-beta1")?);
     original_available_versions.push(Version::parse("1.7.0-beta2")?);
     original_available_versions.push(Version::parse("1.7.0-beta3")?);
