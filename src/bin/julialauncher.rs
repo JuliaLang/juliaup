@@ -1,4 +1,6 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
+#[cfg(target_os = "windows")]
+use anyhow::bail;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::utils::get_juliaupconfig_path;
