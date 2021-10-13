@@ -159,7 +159,7 @@ fn run_app() -> Result<i32> {
                 .with_context(|| "The Julia launcher failed failed to configure the terminal to use ENABLE_VIRTUAL_TERMINAL_PROCESSING.")?;
         }
 
-        println!("\x1b]2;Julia\x07");
+        print!("\x1b]2;Julia\x07");
     }
 
     let juliaupconfig_path = get_juliaupconfig_path()
