@@ -93,7 +93,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             );
         } else if target_os == "linux" && target_arch == "aarch64" {
             db.available_versions.insert(
-                format!("{}+0~x64", v),
+                format!("{}+0~aarch64", v),
                 JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/aarch64/{}.{}/julia-{}-linux-aarch64.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "macos" && target_arch == "x86_64"{
@@ -166,13 +166,13 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                 db.available_channels.insert(
                     format!("{}", v),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
                 db.available_channels.insert(
-                    format!("{}~x64", v),
+                    format!("{}~aarch64", v),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
             } else if target_os == "macos" {
@@ -265,13 +265,13 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                 db.available_channels.insert(
                     format!("{}.{}", major, minor),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
                 db.available_channels.insert(
-                    format!("{}.{}~x64", major, minor),
+                    format!("{}.{}~aarch64", major, minor),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
             } else if target_os == "macos" {
@@ -352,13 +352,13 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                 db.available_channels.insert(
                     format!("{}", major),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
                 db.available_channels.insert(
-                    format!("{}~x64", major),
+                    format!("{}~aarch64", major),
                     JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
+                        version: format!("{}+0~aarch64", v),
                     },
                 );
             } else if target_os == "macos" {
@@ -464,57 +464,112 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             },
         );
     } else if target_arch == "aarch64" {
-        db.available_channels.insert(
-            "release".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", release_version),
-            },
-        );
-        db.available_channels.insert(
-            "release~x64".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", release_version),
-            },
-        );
+        if target_os == "linux" {
+            db.available_channels.insert(
+                "release".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", release_version),
+                },
+            );
+            db.available_channels.insert(
+                "release~aarch64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", release_version),
+                },
+            );
 
-        db.available_channels.insert(
-            "lts".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", lts_version),
-            },
-        );
-        db.available_channels.insert(
-            "lts~x64".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", lts_version),
-            },
-        );
+            db.available_channels.insert(
+                "lts".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", lts_version),
+                },
+            );
+            db.available_channels.insert(
+                "lts~aarch64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", lts_version),
+                },
+            );
 
-        db.available_channels.insert(
-            "beta".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", beta_version),
-            },
-        );
-        db.available_channels.insert(
-            "beta~x64".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", beta_version),
-            },
-        );
+            db.available_channels.insert(
+                "beta".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", beta_version),
+                },
+            );
+            db.available_channels.insert(
+                "beta~aarch64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", beta_version),
+                },
+            );
 
-        db.available_channels.insert(
-            "rc".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", rc_version),
-            },
-        );
-        db.available_channels.insert(
-            "rc~x64".to_string(),
-            JuliaupVersionDBChannel {
-                version: format!("{}+0~x64", rc_version),
-            },
-        );
+            db.available_channels.insert(
+                "rc".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", rc_version),
+                },
+            );
+            db.available_channels.insert(
+                "rc~aarch64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~aarch64", rc_version),
+                },
+            );
+        }
+        else {
+            db.available_channels.insert(
+                "release".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", release_version),
+                },
+            );
+            db.available_channels.insert(
+                "release~x64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", release_version),
+                },
+            );
+
+            db.available_channels.insert(
+                "lts".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", lts_version),
+                },
+            );
+            db.available_channels.insert(
+                "lts~x64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", lts_version),
+                },
+            );
+
+            db.available_channels.insert(
+                "beta".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", beta_version),
+                },
+            );
+            db.available_channels.insert(
+                "beta~x64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", beta_version),
+                },
+            );
+
+            db.available_channels.insert(
+                "rc".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", rc_version),
+                },
+            );
+            db.available_channels.insert(
+                "rc~x64".to_string(),
+                JuliaupVersionDBChannel {
+                    version: format!("{}+0~x64", rc_version),
+                },
+            );
+        }
     } else if target_arch == "x86" {
         db.available_channels.insert(
             "release".to_string(),
