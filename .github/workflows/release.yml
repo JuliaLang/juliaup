@@ -341,7 +341,7 @@ jobs:
 
   deploy-releasepreview-channel-s3:
     needs: deploy-github-release
-    environment: releasepreview-channel
+    environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
