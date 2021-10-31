@@ -15,38 +15,40 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        os: [windows, macos, ubuntu]
-        arch: [x86_64, i686]
+        target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc, x86_64-apple-darwin, x86_64-unknown-linux-gnu, i686-unknown-linux-gnu, aarch64-unknown-linux-gnu]
         include:
-          - os: windows
-            rstarget: pc-windows-msvc
-          - os: macos
-            rstarget: apple-darwin
-          - os: ubuntu
-            rstarget: unknown-linux-gnu
-        exclude:
-          - os: macos
-            arch: i686
+          - target: x86_64-pc-windows-msvc
+            os: windows
+          - target: i686-pc-windows-msvc
+            os: windows
+          - target: x86_64-apple-darwin
+            os: macos
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu
+          - target: i686-unknown-linux-gnu
+            os: ubuntu
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         default: true
-        target: ${{matrix.arch}}-${{matrix.rstarget}}
+        target: ${{matrix.target}}
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
         command: build
-        use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bins --target ${{matrix.arch}}-${{matrix.rstarget}}
+        # use-cross: ${{ matrix.os == 'ubuntu' }}
+        args: --release --bins --target ${{matrix.target}}
     - uses: actions/upload-artifact@v2
       with:
-        name: juliaup-${{matrix.arch}}-${{matrix.rstarget}}
+        name: juliaup-${{matrix.target}}
         path: |
-          target/${{matrix.arch}}-${{matrix.rstarget}}/release/juliaup*
-          target/${{matrix.arch}}-${{matrix.rstarget}}/release/julialauncher*
-          !target/${{matrix.arch}}-${{matrix.rstarget}}/release/*.d
+          target/${{matrix.target}}/release/juliaup*
+          target/${{matrix.target}}/release/julialauncher*
+          !target/${{matrix.target}}/release/*.d
   
   build-msix:
     needs: build-juliaup
