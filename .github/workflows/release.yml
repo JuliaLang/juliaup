@@ -316,7 +316,7 @@ jobs:
 
   deploy-dev-channel-s3:
     needs: build-juliaup
-    # environment: dev-channel
+    environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -325,6 +325,7 @@ jobs:
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+          echo "$VERSION"
           echo "$VERSION" > public/DEVCHANNELVERSION
         env:
           GH_REF: ${{ github.ref }}
