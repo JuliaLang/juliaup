@@ -192,7 +192,9 @@ jobs:
         filename: 'x86_64-apple-darwin.tar.gz'
         path: target\x86_64-apple-darwin
     - name: Diagnostic output
-      run: ls target
+      run: |
+        ls
+        ls target
     - name: Archive MacOS aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
