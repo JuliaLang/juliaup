@@ -1,6 +1,6 @@
 use crate::config_file::*;
 use anyhow::{bail, Context, Result, anyhow};
-use crate::operations::{download_juliaup_version,download_extract};
+use crate::operations::{download_juliaup_version,download_extract_sans_parent};
 use crate::get_juliaup_target;
 
 pub fn run_command_selfupdate() -> Result<()> {
@@ -39,7 +39,7 @@ pub fn run_command_selfupdate() -> Result<()> {
     println!("We are on {}.", juliaup_target);
     println!("We will download from {}.", new_juliaup_url);
 
-    download_extract(&new_juliaup_url, &my_own_folder)?;
+    download_extract_sans_parent(&new_juliaup_url, &my_own_folder, 2)?;
 
     Ok(())
 }
