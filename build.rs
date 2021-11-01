@@ -677,5 +677,11 @@ fn main() -> Result<()> {
         build_winspecific();
     }
 
+    let various_constants_path = Path::new(&out_path).join("various_constants.rs");
+    std::fs::write(
+        &various_constants_path,
+        format!("pub const JULIAUP_TARGET: &str = \"{}\";", std::env::var("TARGET").unwrap())
+    ).unwrap();
+
     Ok(())
 }

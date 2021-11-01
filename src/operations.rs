@@ -13,6 +13,7 @@ use std::{
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
+use semver::Version;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P) -> Result<()>
 where
@@ -56,6 +57,48 @@ fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> 
     unpack_sans_parent(archive, &target_path)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
     Ok(())
+}
+
+pub fn download_extract(url: &String, target_path: &Path) -> Result<()> {
+    let response = ureq::get(url)
+        .call()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let content_length = response.header("Content-Length").and_then(|v| v.parse::<u64>().ok() );
+
+    let pb = match content_length {
+        Some(content_length) => ProgressBar::new(content_length),
+        None => ProgressBar::new_spinner(),
+    };
+    
+    pb.set_prefix("  Downloading:");
+    pb.set_style(ProgressStyle::default_bar()
+    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+                .progress_chars("=> "));
+
+    let foo = pb.wrap_read(response.into_reader());
+
+    let tar = GzDecoder::new(foo);
+    let mut archive = Archive::new(tar);
+    archive.set_overwrite(true);
+    archive.unpack(target_path)
+        .with_context(|| format!("Failed to extract new juliaup version."))?;
+
+    Ok(())
+}
+
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let response = ureq::get(url)
+        .call()?
+        .into_string()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?
+        .trim()
+        .to_string();
+
+    let version = Version::parse(&response)
+        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+
+    Ok(version)
 }
 
 pub fn install_version(

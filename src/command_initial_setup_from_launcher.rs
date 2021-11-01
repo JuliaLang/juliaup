@@ -39,6 +39,7 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
             default: Some("release".to_string()),
             installed_versions: HashMap::new(),
             installed_channels: HashMap::new(),
+            juliaup_channel: None,
         };
 
         juliaup_confi_data.installed_versions.insert(
@@ -63,6 +64,7 @@ pub fn run_command_initial_setup_from_launcher() -> Result<()> {
             default: Some("release".to_string()),
             installed_versions: HashMap::new(),
             installed_channels: HashMap::new(),
+            juliaup_channel: None,
         };
 
         juliaup_confi_data.installed_channels.insert(
