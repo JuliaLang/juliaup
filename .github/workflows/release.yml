@@ -178,8 +178,8 @@ jobs:
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
         echo "The version is $VERSION"
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-    -name: Diagnostics
-     run: |
+    - name: Diagnostics
+      run: |
         echo "Hello ${{ env.VERSION }}."
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
