@@ -174,9 +174,9 @@ jobs:
         chmod a+rx target/aarch64-unknown-linux-gnu/juliaup
         chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
     - name: Export version
-        run: |
-          export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-          echo "::set-env name=VERSION::$VERSION"
+      run: |
+        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+        echo "::set-env name=VERSION::$VERSION"
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
