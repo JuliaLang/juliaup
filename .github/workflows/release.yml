@@ -176,7 +176,7 @@ jobs:
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-        echo "::set-env name=VERSION::$VERSION"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
