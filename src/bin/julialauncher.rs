@@ -8,6 +8,7 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
+use ctrlc;
 
 #[derive(thiserror::Error, Debug)]
 pub enum JuliaupInvalidChannel {
@@ -220,6 +221,11 @@ fn run_app() -> Result<i32> {
             new_args.push(v.clone());
         }
     }
+
+    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+    // process to handle things.
+    ctrlc::set_handler(|| ())
+        .with_context(|| "Failed to set the Ctrl-C handler.")?;
 
     let status = std::process::Command::new(julia_path)
         .args(&new_args)
