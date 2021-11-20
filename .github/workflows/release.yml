@@ -163,16 +163,16 @@ jobs:
         path: target/aarch64-unknown-linux-gnu
     - name: Set permissions
       run: |
-        chmod a+rw target/x86_64-unknown-linux-gnu/juliaup
-        chmod a+rw target/x86_64-unknown-linux-gnu/julialauncher
-        chmod a+rw target/i686-unknown-linux-gnu/juliaup
-        chmod a+rw target/i686-unknown-linux-gnu/julialauncher
-        chmod a+rw target/x86_64-apple-darwin/juliaup
-        chmod a+rw target/x86_64-apple-darwin/julialauncher
-        chmod a+rw target/aarch64-apple-darwin/juliaup
-        chmod a+rw target/aarch64-apple-darwin/julialauncher
-        chmod a+rw target/aarch64-unknown-linux-gnu/juliaup
-        chmod a+rw target/aarch64-unknown-linux-gnu/julialauncher
+        chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
+        chmod a+rx target/x86_64-unknown-linux-gnu/julialauncher
+        chmod a+rx target/i686-unknown-linux-gnu/juliaup
+        chmod a+rx target/i686-unknown-linux-gnu/julialauncher
+        chmod a+rx target/x86_64-apple-darwin/juliaup
+        chmod a+rx target/x86_64-apple-darwin/julialauncher
+        chmod a+rx target/aarch64-apple-darwin/juliaup
+        chmod a+rx target/aarch64-apple-darwin/julialauncher
+        chmod a+rx target/aarch64-unknown-linux-gnu/juliaup
+        chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
