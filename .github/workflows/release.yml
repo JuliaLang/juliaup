@@ -191,11 +191,6 @@ jobs:
         type: 'tar'
         filename: 'x86_64-apple-darwin.tar.gz'
         path: target/x86_64-apple-darwin
-    - name: Diagnostic output
-      run: |
-        ls
-        ls target/aarch64-apple-darwin
-        ls target
     - name: Archive MacOS aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
@@ -208,6 +203,14 @@ jobs:
         type: 'tar'
         filename: 'aarch64-unknown-linux-gnu.tar.gz'
         path: target/aarch64-unknown-linux-gnu
+    - name: Diagnostic output
+      run: |
+        echo "SHOWING ."
+        ls
+        echo "SHOWING target"        
+        ls target
+        echo "SHOWING target/aarch64-apple-darwin"
+        ls target/aarch64-apple-darwin
     - name: Release
       uses: ncipollo/release-action@v1
       with:
