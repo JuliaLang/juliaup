@@ -179,7 +179,7 @@ jobs:
         echo "The version is $VERSION"
         echo "VERSION=$VERSION" >> $GITHUB_ENV
     -name: Diagnostics
-      run: |
+     run: |
         echo "Hello ${{ env.VERSION }}."
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
