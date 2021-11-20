@@ -161,6 +161,18 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
+    - name: Set permissions
+      run: |
+        chmod a+rw target/x86_64-unknown-linux-gnu/juliaup
+        chmod a+rw target/x86_64-unknown-linux-gnu/julialauncher
+        chmod a+rw target/i686-unknown-linux-gnu/juliaup
+        chmod a+rw target/i686-unknown-linux-gnu/julialauncher
+        chmod a+rw target/x86_64-apple-darwin/juliaup
+        chmod a+rw target/x86_64-apple-darwin/julialauncher
+        chmod a+rw target/aarch64-apple-darwin/juliaup
+        chmod a+rw target/aarch64-apple-darwin/julialauncher
+        chmod a+rw target/aarch64-unknown-linux-gnu/juliaup
+        chmod a+rw target/aarch64-unknown-linux-gnu/julialauncher
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
@@ -203,14 +215,6 @@ jobs:
         type: 'tar'
         filename: 'aarch64-unknown-linux-gnu.tar.gz'
         path: target/aarch64-unknown-linux-gnu
-    - name: Diagnostic output
-      run: |
-        echo "SHOWING ."
-        ls
-        echo "SHOWING target"        
-        ls target
-        echo "SHOWING target/aarch64-apple-darwin"
-        ls target/aarch64-apple-darwin
     - name: Release
       uses: ncipollo/release-action@v1
       with:
