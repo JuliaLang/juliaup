@@ -29,6 +29,7 @@ thiserror = "1.0"
 indicatif = "0.16"
 atty = "0.2.14"
 console = "0.14"
+ctrlc = "3.2.1"
 
 [build-dependencies]
 anyhow = "1.0"
