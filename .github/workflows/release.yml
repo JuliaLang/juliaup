@@ -366,7 +366,7 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
-          sed -i -e 's/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/'"$VERSION"'/g' public/juliaup-init-dev.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -398,7 +398,9 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-release-preview.sh
-          sed -i -e 's/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/'"$VERSION"'/g' public/juliaup-init-release-preview.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-release-preview.sh
+        env:
+          VERSION: ${{ env.VERSION }}
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
@@ -429,7 +431,9 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init.sh
-          sed -i -e 's/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/'"$VERSION"'/g' public/juliaup-init.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init.sh
+        env:
+          VERSION: ${{ env.VERSION }}
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
