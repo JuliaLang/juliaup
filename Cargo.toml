@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.2.16-alpha.0"
+version = "1.2.34-alpha.0"
 edition = "2018"
 default-run = "juliaup"
 publish = false
@@ -29,6 +29,7 @@ thiserror = "1.0"
 indicatif = "0.16"
 atty = "0.2.14"
 console = "0.14"
+ctrlc = "3.2.1"
 
 [build-dependencies]
 anyhow = "1.0"

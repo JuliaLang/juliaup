@@ -161,53 +161,86 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
+    - name: Set permissions
+      run: |
+        chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
+        chmod a+rx target/x86_64-unknown-linux-gnu/julialauncher
+        chmod a+rx target/i686-unknown-linux-gnu/juliaup
+        chmod a+rx target/i686-unknown-linux-gnu/julialauncher
+        chmod a+rx target/x86_64-apple-darwin/juliaup
+        chmod a+rx target/x86_64-apple-darwin/julialauncher
+        chmod a+rx target/aarch64-apple-darwin/juliaup
+        chmod a+rx target/aarch64-apple-darwin/julialauncher
+        chmod a+rx target/aarch64-unknown-linux-gnu/juliaup
+        chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
+    - name: Export version
+      run: |
+        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+      env:
+          GH_REF: ${{ github.ref }}
+    - name: Rename folders
+      run: |
+        mv ./target/i686-pc-windows-msvc ./target/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc
+        mv ./target/x86_64-pc-windows-msvc ./target/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc
+        mv ./target/x86_64-unknown-linux-gnu ./target/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu
+        mv ./target/i686-unknown-linux-gnu ./target/juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu
+        mv ./target/x86_64-apple-darwin ./target/juliaup-${{ env.VERSION }}-x86_64-apple-darwin
+        mv ./target/aarch64-apple-darwin ./target/juliaup-${{ env.VERSION }}-aarch64-apple-darwin
+        mv ./target/aarch64-unknown-linux-gnu ./target/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
-        filename: 'i686-pc-windows-msvc.zip'
-        path: target/i686-pc-windows-msvc
+        filename: 'juliaup-${{ env.VERSION }}-i686-pc-windows-msvc.zip'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-i686-pc-windows-msvc
     - name: Archive Windows x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
-        filename: 'x86_64-pc-windows-msvc.zip'
-        path: target/x86_64-pc-windows-msvc
+        filename: 'juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc
     - name: Archive Linux x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
-        filename: 'x86_64-unknown-linux-gnu.tar.gz'
-        path: target/x86_64-unknown-linux-gnu
+        filename: 'juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu
     - name: Archive Linux x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
-        filename: 'i686-unknown-linux-gnu.tar.gz'
-        path: target/i686-unknown-linux-gnu
+        filename: 'juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu.tar.gz'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu
     - name: Archive MacOS x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
-        filename: 'x86_64-apple-darwin.tar.gz'
-        path: target/x86_64-apple-darwin
-    - name: Diagnostic output
-      run: |
-        ls
-        ls target/aarch64-apple-darwin
-        ls target
+        filename: 'juliaup-${{ env.VERSION }}-x86_64-apple-darwin.tar.gz'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-apple-darwin
     - name: Archive MacOS aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
-        filename: 'aarch64-apple-darwin.tar.gz'
-        path: target/aarch64-apple-darwin
+        filename: 'juliaup-${{ env.VERSION }}-aarch64-apple-darwin.tar.gz'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-aarch64-apple-darwin
     - name: Archive Linux aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
-        filename: 'aarch64-unknown-linux-gnu.tar.gz'
-        path: target/aarch64-unknown-linux-gnu
+        filename: 'juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz'
+        directory: target
+        path: juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu
+    - name: Move archives
+      run: |
+        mv ./target/*.zip ./
+        mv ./target/*.tar.gz ./
     - name: Release
       uses: ncipollo/release-action@v1
       with:
