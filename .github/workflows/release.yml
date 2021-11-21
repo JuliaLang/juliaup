@@ -395,7 +395,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
           GH_REF: ${{ github.ref }}
-      -name: Copy shell script
+      - name: Copy shell script
         run: |
           copy deploy/shellscript/juliaup-init.sh public/juliaup-init-release-preview.sh
           sed -i -e 's/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g' public/juliaup-init-release-preview.sh
@@ -426,7 +426,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
           GH_REF: ${{ github.ref }}
-      -name: Copy shell script
+      - name: Copy shell script
         run: |
           copy deploy/shellscript/juliaup-init.sh public/juliaup-init.sh
           sed -i -e 's/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g' public/juliaup-init.sh
