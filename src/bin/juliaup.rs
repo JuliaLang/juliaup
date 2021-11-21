@@ -2,7 +2,7 @@ use juliaup::command_link::run_command_link;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
-use clap::Clap;
+use clap::Parser;
 use anyhow::{Result};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
@@ -10,7 +10,7 @@ use juliaup::command_status::run_command_status;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(name="Juliaup", version)]
 /// The Julia Version Manager
 enum Juliaup {

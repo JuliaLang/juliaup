@@ -17,14 +17,12 @@ pub enum JuliaupInvalidChannel {
 }
 
 #[cfg(target_os = "windows")]
-mod bindings {
-    windows::include_bindings!();
-}
-
-#[cfg(target_os = "windows")]
-use bindings::Windows::Win32::System::Console::{
-    GetConsoleMode, GetStdHandle, SetConsoleMode, CONSOLE_MODE, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
-    STD_OUTPUT_HANDLE,
+use windows::{
+    core::Handle,
+    Win32::System::Console::{
+        GetConsoleMode, GetStdHandle, SetConsoleMode, CONSOLE_MODE, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+        STD_OUTPUT_HANDLE,
+    }
 };
 
 #[cfg(target_os = "windows")]
@@ -44,7 +42,7 @@ fn windows_enable_virtual_terminal_processing() -> Result<()> {
         console_mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         SetConsoleMode(console_handle, console_mode)
             .ok()
-            .with_context(|| "Teh call to SetConsoleMode failed")?;
+            .with_context(|| "The call to SetConsoleMode failed")?;
         Ok(())
     }
 }
