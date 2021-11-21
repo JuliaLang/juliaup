@@ -179,57 +179,68 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
       env:
           GH_REF: ${{ github.ref }}
+    - name: Rename folders
+      run: |
+        mv ./target/i686-pc-windows-msvc ./target/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc
+        mv ./target/x86_64-pc-windows-msvc ./target/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc
+        mv ./target/x86_64-unknown-linux-gnu ./target/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu
+        mv ./target/i686-unknown-linux-gnu ./target/juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu
+        mv ./target/x86_64-apple-darwin ./target/juliaup-${{ env.VERSION }}-x86_64-apple-darwin
+        mv ./target/aarch64-apple-darwin ./target/juliaup-${{ env.VERSION }}-aarch64-apple-darwin
+        mv ./target/aarch64-unknown-linux-gnu ./juliaup-${{ env.VERSION }}-target/aarch64-unknown-linux-gnu
     - name: Archive Windows x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
         filename: 'juliaup-${{ env.VERSION }}-i686-pc-windows-msvc.zip'
-        directory: target/i686-pc-windows-msvc
+        directory: target
+        path: juliaup-${{ env.VERSION }}-i686-pc-windows-msvc
     - name: Archive Windows x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'zip'
         filename: 'juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip'
-        directory: target/x86_64-pc-windows-msvc
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc
     - name: Archive Linux x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz'
-        directory: target/x86_64-unknown-linux-gnu
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu
     - name: Archive Linux x86 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu.tar.gz'
-        directory: target/i686-unknown-linux-gnu
+        directory: target
+        path: juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu
     - name: Archive MacOS x64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'juliaup-${{ env.VERSION }}-x86_64-apple-darwin.tar.gz'
-        directory: target/x86_64-apple-darwin
+        directory: target
+        path: juliaup-${{ env.VERSION }}-x86_64-apple-darwin
     - name: Archive MacOS aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'juliaup-${{ env.VERSION }}-aarch64-apple-darwin.tar.gz'
-        directory: target/aarch64-apple-darwin
+        directory: target
+        path: juliaup-${{ env.VERSION }}-aarch64-apple-darwin
     - name: Archive Linux aarch64 juliaup
       uses: thedoctor0/zip-release@master
       with:
         type: 'tar'
         filename: 'juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz'
-        directory: target/aarch64-unknown-linux-gnu
+        directory: target
+        path: juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu
     - name: Move archives
       run: |
-        mv ./target/i686-pc-windows-msvc/*.zip ./
-        mv ./target/x86_64-pc-windows-msvc/*.zip ./
-        mv ./target/x86_64-unknown-linux-gnu/*.tar.gz ./
-        mv ./target/i686-unknown-linux-gnu/*.tar.gz ./
-        mv ./target/x86_64-apple-darwin/*.tar.gz ./
-        mv ./target/aarch64-apple-darwin/*.tar.gz ./
-        mv ./target/aarch64-unknown-linux-gnu/*.tar.gz ./
+        mv ./target/*.zip ./
+        mv ./target/*.tar.gz ./
     - name: Release
       uses: ncipollo/release-action@v1
       with:
