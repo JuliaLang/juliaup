@@ -363,7 +363,7 @@ jobs:
           echo "$VERSION" > public/DEVCHANNELVERSION
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
-          GH_REF: ${{ github.ref }}
+            GH_REF: ${{ github.ref }}
       -name: Copy shell script
         run: |
           copy deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
