@@ -361,8 +361,6 @@ jobs:
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "$VERSION" > public/DEVCHANNELVERSION          
-        env:
-          GH_REF: ${{ github.ref }}
       -name: Copy shell script
         run: |
           copy deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
