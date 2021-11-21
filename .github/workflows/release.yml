@@ -366,6 +366,7 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
+          echo "version is $VERSION"
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
         env:
           VERSION: ${{ env.VERSION }}
