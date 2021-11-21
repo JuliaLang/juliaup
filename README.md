@@ -7,25 +7,11 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 ## Using Juliaup
 
 If you want to try it, here is what you should do:
-
-### Windows Users
-Make sure you don't have any version of Julia on your PATH. `Juliaup` will handle all `PATH` related aspects of your Julia installation.
-
-#### Option 1: The Microsoft Store
+- Make sure you don't have any version of Julia on your PATH. `Juliaup` will handle all `PATH` related aspects of your Julia installation.
 - Install Julia from the Windows Store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN).
 
 Once you have that installed, `julia` is on the `PATH`, there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
-#### Option 2: User Level Installation Script
-- Run `powershell -nop -c iex (New-Object System.Net.WebClient).DownloadString('https://raw.github.com/Julialang/juliaup/master/juliaup-init.cmd')` 
-    or [download and run](https://raw.github.com/Julialang/juliaup/master/juliaup-init.cmd) to install juliaup.
-- To allow VS Code extension and other programs to access `julia`, choose `yes` to _add juliaup.exe and julia.exe to user $PATH environment_.
-
-### Linux and macOS Users
-- Run `curl https://raw.github.com/Julialang/juliaup/master/juliaup-init.sh | sh` or [download and run](https://raw.githubusercontent.com/Julialang/juliaup/master/juliaup-init.sh) to install juliaup.
-- To allow VS Code extension and other programs to access `julia`, choose `yes` to _add juliaup and julia to user $PATH environment_.
-
-### Subcommands
 Here are some of the things you can do with `juliaup`:
 - `juliaup update` installs the latest availabe Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
