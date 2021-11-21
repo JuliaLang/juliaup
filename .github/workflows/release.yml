@@ -359,7 +359,6 @@ jobs:
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-          echo "$VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "$VERSION" > public/DEVCHANNELVERSION          
         env:
@@ -392,7 +391,6 @@ jobs:
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-          echo "$VERSION"
           echo "$VERSION" > public/RELEASEPREVIEWCHANNELVERSION
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
