@@ -30,14 +30,8 @@ atty = "0.2.14"
 console = "0.15"
 ctrlc = "3.2.1"
 
-[dependencies.windows]
-version = "0.28.0"
-features = [
-    "alloc",
-    "std",
-    "Win32_Foundation",
-    "Win32_System_Console",
-]
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.28.0", features = ["alloc", "std", "Win32_Foundation", "Win32_System_Console"] }
 
 [build-dependencies]
 anyhow = "1.0"
