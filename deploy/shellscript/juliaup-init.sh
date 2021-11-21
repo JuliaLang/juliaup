@@ -24,8 +24,9 @@ fi
 set -u
 
 # If JULIAUP_UPDATE_ROOT is unset or empty, default it.
-JULIAUP_UPDATE_ROOT="https://github.com/JuliaLang/juliaup/releases/latest/download/"
+JULIAUP_UPDATE_ROOT="https://github.com/JuliaLang/juliaup/releases/download/"
 JULIAUP_INSTALL_DIR="${HOME}/.juliaup"
+JULIAUP_VERSION="THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
@@ -89,7 +90,7 @@ main() {
             ;;
     esac
 
-    local _url="${JULIAUP_UPDATE_ROOT}/${_arch}${_ext}"
+    local _url="${JULIAUP_UPDATE_ROOT}/v${VERSION}/juliaup-${VERSION}-${_arch}${_ext}"
 
     local _dir
     local _tarout
