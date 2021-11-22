@@ -233,6 +233,8 @@ main() {
     fi
     local _retval=$?
 
+    THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW
+
     if [ "$_addtopath" = "yes" ]; then
         add_path_to_bash $_bindir
         echo 'Run `. ~/.bashrc` to reload $PATH variable.' 1>&2
