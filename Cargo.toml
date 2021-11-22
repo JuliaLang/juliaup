@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.2.50-alpha.0"
+version = "1.2.50"
 edition = "2018"
 default-run = "juliaup"
 publish = false
