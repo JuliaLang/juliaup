@@ -360,6 +360,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-release-preview.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-release-preview.sh
+          cp public/juliaup-init-release-preview.sh public/juliaup-init-release-preview1.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -393,6 +394,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init.sh
+          cp public/juliaup-init.sh public/juliaup-init1.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
