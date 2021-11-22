@@ -82,7 +82,7 @@ pub fn install_version(
     let child_target_foldername = format!("julia-{}", fullversion);
 
     let target_path = get_juliaup_home_path()
-        .with_context(|| "Failed to retrieve juliap folder while trying to install new version.")?
+        .with_context(|| "Failed to retrieve juliaup folder while trying to install new version.")?
         .join(&child_target_foldername);
 
     std::fs::create_dir_all(target_path.parent().unwrap())?;
@@ -107,7 +107,7 @@ pub fn install_version(
 
 pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
     let home_path = get_juliaup_home_path().with_context(|| {
-        "Failed to retrieve juliap folder while trying to garbage collect versions."
+        "Failed to retrieve juliaup folder while trying to garbage collect versions."
     })?;
 
     let mut versions_to_uninstall: Vec<String> = Vec::new();
