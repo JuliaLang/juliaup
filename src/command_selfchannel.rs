@@ -1,5 +1,5 @@
 use crate::config_file::*;
-use anyhow::{bail, Context, Result, anyhow};
+use anyhow::{bail, Context, Result};
 
 pub fn run_command_selfchannel(channel: String) -> Result<()> {
     let mut config_data =

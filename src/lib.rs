@@ -13,6 +13,7 @@ pub mod command_update;
 pub mod command_initial_setup_from_launcher;
 pub mod command_api;
 pub mod command_selfupdate;
+pub mod command_selfchannel;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
 include!(concat!(env!("OUT_DIR"), "/various_constants.rs"));

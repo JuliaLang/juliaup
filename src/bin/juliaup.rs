@@ -12,7 +12,7 @@ use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
 use juliaup::command_selfupdate::run_command_selfupdate;
 #[cfg(feature = "selfupdate")]
-use juliaup::command_selfconfig::run_command_selfconfig;
+use juliaup::command_selfchannel::run_command_selfchannel;
 
 
 #[derive(Parser)]
