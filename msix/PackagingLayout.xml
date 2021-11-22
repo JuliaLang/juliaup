@@ -1,6 +1,6 @@
 <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="Julia-1.2.53.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-x64-1.2.53.0" ProcessorArchitecture="x64">
+  <PackageFamily ID="Julia-1.2.54.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
+    <Package ID="Julia-x64-1.2.54.0" ProcessorArchitecture="x64">
       <Files>
         <File DestinationPath="Julia\julialauncher.exe" SourcePath="..\target\x86_64-pc-windows-msvc\release\julialauncher.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\target\x86_64-pc-windows-msvc\release\juliaup.exe" />
@@ -10,7 +10,7 @@
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\src\julia.ico" />
       </Files>
     </Package>
-    <Package ID="Julia-x86-1.2.53.0" ProcessorArchitecture="x86">
+    <Package ID="Julia-x86-1.2.54.0" ProcessorArchitecture="x86">
       <Files>
         <File DestinationPath="Julia\julialauncher.exe" SourcePath="..\target\i686-pc-windows-msvc\release\julialauncher.exe" />
         <File DestinationPath="Julia\juliaup.exe" SourcePath="..\target\i686-pc-windows-msvc\release\juliaup.exe" />
@@ -20,7 +20,7 @@
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\src\julia.ico" />
       </Files>
     </Package>
-    <!--<Package ID="Julia-ARM64-1.2.53.0" ProcessorArchitecture="ARM64">
+    <!--<Package ID="Julia-ARM64-1.2.54.0" ProcessorArchitecture="ARM64">
       <Files>
         <File DestinationPath="Julia\*" SourcePath="..\target\aarch64-pc-windows-msvc\release\*.exe" />
         <File DestinationPath="Julia\*" SourcePath="..\target\aarch64-pc-windows-msvc\release\*.pdb" />
