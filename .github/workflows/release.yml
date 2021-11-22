@@ -327,7 +327,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
-          public/juliaup-init-dev1.sh
+          cp public/juliaup-init-dev.sh public/juliaup-init-dev1.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
