@@ -334,7 +334,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
-          sed -i -e "s/THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW/juliaup selfchannel dev/g" public/juliaup-init-dev.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup selfchannel dev|g' public/juliaup-init-dev.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -366,8 +366,8 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-release-preview.sh
-          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-release-preview.sh
-          sed -i -e "s/THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW/juliaup selfchannel releasepreview/g" public/juliaup-init-dev.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-releasepreview.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup selfchannel releasepreview|g' public/juliaup-init-releasepreview.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -401,7 +401,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init.sh
-          sed -i -e "s/THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW/juliaup selfchannel release/g" public/juliaup-init-dev.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup selfchannel release|g' public/juliaup-init.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
