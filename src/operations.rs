@@ -13,8 +13,9 @@ use std::{
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
+use semver::Version;
 
-fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P) -> Result<()>
+fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
     R: Read,
     P: AsRef<Path>,
@@ -24,7 +25,7 @@ where
         let path: PathBuf = entry
             .path()?
             .components()
-            .skip(1) // strip top-level directory
+            .skip(levels_to_skip) // strip top-level directory
             .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
             .collect();
         entry.unpack(dst.as_ref().join(path))?;
@@ -32,7 +33,7 @@ where
     Ok(())
 }
 
-fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> {
+pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let response = ureq::get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -53,9 +54,23 @@ fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> 
 
     let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
-    unpack_sans_parent(archive, &target_path)
+    unpack_sans_parent(archive, &target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
     Ok(())
+}
+
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let response = ureq::get(url)
+        .call()?
+        .into_string()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?
+        .trim()
+        .to_string();
+
+    let version = Version::parse(&response)
+        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+
+    Ok(version)
 }
 
 pub fn install_version(
@@ -89,7 +104,7 @@ pub fn install_version(
 
     eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
 
-    download_extract_sans_parent(&download_url, &target_path)?;
+    download_extract_sans_parent(&download_url, &target_path, 1)?;
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");

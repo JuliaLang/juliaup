@@ -34,6 +34,8 @@ pub struct JuliaupConfig {
     pub installed_versions: HashMap<String, JuliaupConfigVersion>,
     #[serde(rename = "InstalledChannels")]
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
+    #[serde(rename = "JuliaupChannel")]
+    pub juliaup_channel: Option<String>
 }
 
 pub fn load_config_db() -> Result<JuliaupConfig> {
@@ -50,6 +52,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                     default: None,
                     installed_versions: HashMap::new(),
                     installed_channels: HashMap::new(),
+                    juliaup_channel: None,
                 })
             },
             other_error => {

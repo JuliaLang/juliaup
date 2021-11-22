@@ -27,18 +27,25 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
+            features: dummy
           - target: x86_64-apple-darwin
             os: macos
+            features: selfupdate
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
+            features: selfupdate
           - target: i686-pc-windows-msvc
             os: windows
+            features: dummy
           - target: i686-unknown-linux-gnu
             os: ubuntu
+            features: selfupdate
           - target: aarch64-unknown-linux-gnu
             os: ubuntu
+            features: selfupdate
           - target: aarch64-apple-darwin
             os: macos
+            features: selfupdate
     steps:
     - uses: actions/checkout@v2
     - uses: actions-rs/toolchain@v1
@@ -51,7 +58,7 @@ jobs:
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bins --target ${{matrix.target}}
+        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v2
       with:
         name: juliaup-${{matrix.target}}
