@@ -23,7 +23,7 @@ pub fn run_command_selfupdate() -> Result<()> {
 
     let juliaup_target = get_juliaup_target();
 
-    let new_juliaup_url = format!("https://github.com/JuliaLang/juliaup/releases/download/v{}/{}.tar.gz", version, juliaup_target);
+    let new_juliaup_url = format!("https://github.com/JuliaLang/juliaup/releases/download/v{}/juliaup-{}-{}.tar.gz", version, version, juliaup_target);
 
     let my_own_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
@@ -39,7 +39,7 @@ pub fn run_command_selfupdate() -> Result<()> {
     println!("We are on {}.", juliaup_target);
     println!("We will download from {}.", new_juliaup_url);
 
-    download_extract_sans_parent(&new_juliaup_url, &my_own_folder, 2)?;
+    download_extract_sans_parent(&new_juliaup_url, &my_own_folder, 0)?;
 
     Ok(())
 }
