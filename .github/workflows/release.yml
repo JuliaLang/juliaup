@@ -191,10 +191,10 @@ jobs:
     - name: Create archives
       run: |
         cd target/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc
-        zip juliaup-${{ env.VERSION }}-i686-pc-windows-msvc.zip .
+        zip juliaup-${{ env.VERSION }}-i686-pc-windows-msvc.zip ./*
 
         cd ../../target/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc
-        zip juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip .
+        zip juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip ./*
 
         cd ../../target/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu
         tar -czvf ../../juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
