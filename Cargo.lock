@@ -311,7 +311,7 @@ dependencies = [
 
 [[package]]
 name = "juliaup"
-version = "1.2.48-alpha.0"
+version = "1.2.48"
 dependencies = [
  "anyhow",
  "atty",
