@@ -326,16 +326,14 @@ jobs:
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
-          echo "version is $VERSION"
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
-          echo "Now showing content of the modified file:"
-          cat public/juliaup-init-dev.sh
+          public/juliaup-init-dev1.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
-          args: --acl public-read --cache-control public,max-age=10 --metadata-directive REPLACE
+          args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
