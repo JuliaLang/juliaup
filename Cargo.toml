@@ -43,3 +43,4 @@ semver = "1"
 
 [features]
 selfupdate = []
+dummy = []

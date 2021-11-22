@@ -27,7 +27,7 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
-            features: default
+            features: dummy
           - target: x86_64-apple-darwin
             os: macos
             features: selfupdate
@@ -36,7 +36,7 @@ jobs:
             features: selfupdate
           - target: i686-pc-windows-msvc
             os: windows
-            features: default
+            features: dummy
           - target: i686-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
