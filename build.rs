@@ -632,23 +632,6 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     Ok(db)
 }
 
-#[cfg(target_os = "windows")]
-fn build_winspecific() {
-    windows::build! {
-        Windows::Win32::System::Console::GetStdHandle,
-        Windows::Win32::System::Console::GetConsoleMode,
-        Windows::Win32::System::Console::SetConsoleMode,
-        Windows::Win32::Foundation::INVALID_HANDLE_VALUE,
-        Windows::Win32::System::Console::STD_HANDLE,
-        Windows::Win32::System::Console::CONSOLE_MODE,
-    };
-}
-
-#[cfg(not(target_os = "windows"))]
-fn build_winspecific() {
-
-}
-
 fn main() -> Result<()> {
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -673,10 +656,6 @@ fn main() -> Result<()> {
         let mut res = winres::WindowsResource::new();
         res.set_icon("src/julia.ico");
         res.compile().unwrap();
-    }
-
-    if cfg!(target_os = "windows") {
-        build_winspecific();
     }
 
     let various_constants_path = Path::new(&out_path).join("various_constants.rs");
