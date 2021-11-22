@@ -365,7 +365,7 @@ jobs:
           GH_REF: ${{ github.ref }}
       - name: Copy shell script
         run: |
-          cp deploy/shellscript/juliaup-init.sh public/juliaup-init-release-preview.sh
+          cp deploy/shellscript/juliaup-init.sh public/juliaup-init-releasepreview.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-releasepreview.sh
           sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup selfchannel releasepreview|g' public/juliaup-init-releasepreview.sh
         env:
