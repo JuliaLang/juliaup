@@ -34,7 +34,7 @@ pub struct JuliaupConfig {
     pub installed_versions: HashMap<String, JuliaupConfigVersion>,
     #[serde(rename = "InstalledChannels")]
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
-    #[serde(rename = "JuliaupChannel")]
+    #[serde(rename = "JuliaupChannel", skip_serializing_if = "Option::is_none")]
     pub juliaup_channel: Option<String>
 }
 
