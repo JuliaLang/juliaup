@@ -90,7 +90,7 @@ main() {
             ;;
     esac
 
-    local _url="${JULIAUP_UPDATE_ROOT}/v${VERSION}/juliaup-${VERSION}-${_arch}${_ext}"
+    local _url="${JULIAUP_UPDATE_ROOT}/v${JULIAUP_VERSION}/juliaup-${JULIAUP_VERSION}-${_arch}${_ext}"
 
     local _dir
     local _tarout
