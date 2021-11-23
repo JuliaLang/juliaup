@@ -1,7 +1,9 @@
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
+use crate::get_bundled_julia_full_version;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::utils::get_arch;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use anyhow::{anyhow, Context, Result};
@@ -83,28 +85,43 @@ pub fn install_version(
         return Ok(());
     }
 
-    let download_url = &version_db
-        .available_versions
-        .get(fullversion)
-        .ok_or(anyhow!(
-            "Failed to find download url in versions db for '{}'.",
-            fullversion
-        ))?
-        .url;
-
-    let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
+    // TODO At some point we could put this behind a conditional compile, we know
+    // that we don't ship a bundled version for some platforms.
+    let platform = get_arch()?;
+    let full_version_string_of_bundled_version = format!("{}~{}", get_bundled_julia_full_version(), platform);
+    let my_own_path = std::env::current_exe()?;
+    let path_of_bundled_version = my_own_path
+        .parent()
+        .unwrap() // unwrap OK because we can't get a path that does not have a parent
+        .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
-
     let target_path = get_juliaup_home_path()
         .with_context(|| "Failed to retrieve juliaup folder while trying to install new version.")?
         .join(&child_target_foldername);
-
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
+    if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.overwrite = true;
+        options.content_only = true;
+        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;        
+    } else {
+        let download_url = &version_db
+            .available_versions
+            .get(fullversion)
+            .ok_or(anyhow!(
+                "Failed to find download url in versions db for '{}'.",
+                fullversion
+            ))?
+            .url;
 
-    download_extract_sans_parent(&download_url, &target_path, 1)?;
+        let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
+
+        eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
+
+        download_extract_sans_parent(&download_url, &target_path, 1)?;
+    }
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
