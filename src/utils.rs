@@ -48,6 +48,8 @@ pub fn get_arch() -> Result<String> {
         return Ok("x86".to_string());
     } else if std::env::consts::ARCH == "x86_64" {
         return Ok("x64".to_string());
+    } else if std::env::consts::ARCH == "aarch64" {
+        return Ok("aarch64".to_string());
     }
 
     bail!("Running on an unknown arch: {}.", std::env::consts::ARCH)
