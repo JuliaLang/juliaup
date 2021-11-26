@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct JuliaupVersionDBVersion {
-    #[serde(rename = "Url")]
-    pub url: String
+    #[serde(rename = "UrlPath")]
+    pub url_path: String
 }
 
 #[derive(Serialize, Deserialize)]

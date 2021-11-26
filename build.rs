@@ -69,45 +69,45 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
         if target_os == "windows" && target_arch == "x86_64" {
             db.available_versions.insert(
                 format!("{}+0~x64", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/winnt/x64/{}.{}/julia-{}-win64.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/winnt/x64/{}.{}/julia-{}-win64.tar.gz", v.major, v.minor, v)}
             );
             db.available_versions.insert(
                 format!("{}+0~x86", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/winnt/x86/{}.{}/julia-{}-win32.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/winnt/x86/{}.{}/julia-{}-win32.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "windows" && target_arch == "x86" {
             db.available_versions.insert(
                 format!("{}+0~x86", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/winnt/x86/{}.{}/julia-{}-win32.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/winnt/x86/{}.{}/julia-{}-win32.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "linux" && target_arch == "x86_64" {
             db.available_versions.insert(
                 format!("{}+0~x64", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/x64/{}.{}/julia-{}-linux-x86_64.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/linux/x64/{}.{}/julia-{}-linux-x86_64.tar.gz", v.major, v.minor, v)}
             );
             db.available_versions.insert(
                 format!("{}+0~x86", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/x86/{}.{}/julia-{}-linux-i686.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/linux/x86/{}.{}/julia-{}-linux-i686.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "linux" && target_arch == "x86" {
             db.available_versions.insert(
                 format!("{}+0~x86", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/x86/{}.{}/julia-{}-linux-i686.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/linux/x86/{}.{}/julia-{}-linux-i686.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "linux" && target_arch == "aarch64" {
             db.available_versions.insert(
                 format!("{}+0~aarch64", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/linux/aarch64/{}.{}/julia-{}-linux-aarch64.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/linux/aarch64/{}.{}/julia-{}-linux-aarch64.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "macos" && target_arch == "x86_64"{
             db.available_versions.insert(
                 format!("{}+0~x64", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
             );
         } else if target_os == "macos" && target_arch == "aarch64"{
             db.available_versions.insert(
                 format!("{}+0~x64", v),
-                JuliaupVersionDBVersion {url: format!("https://julialang-s3.julialang.org/bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
+                JuliaupVersionDBVersion {url_path: format!("bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
             );
         } else {
             panic!("Building on this platform is currently not supported.")

@@ -1,4 +1,5 @@
 use crate::config_file::*;
+use crate::utils::get_juliaserver_base_url;
 use anyhow::{bail, Context, Result, anyhow};
 use crate::operations::{download_juliaup_version,download_extract_sans_parent};
 use crate::get_juliaup_target;
@@ -12,14 +13,20 @@ pub fn run_command_selfupdate() -> Result<()> {
         None => "release".to_string()
     };
 
-    let version_url = match juliaup_channel.as_str() {
-        "release" => "https://julialang-s3.julialang.org/juliaup/RELEASECHANNELVERSION",
-        "releasepreview" => "https://julialang-s3.julialang.org/juliaup/RELEASEPREVIEWCHANNELVERSION",
-        "dev" => "https://julialang-s3.julialang.org/juliaup/DEVCHANNELVERSION",
+    let juliaupserver_base = get_juliaserver_base_url()
+            .with_context(|| "Failed to get Juliaup server base URL.")?;
+            
+    let version_url_path = match juliaup_channel.as_str() {
+        "release" => "juliaup/RELEASECHANNELVERSION",
+        "releasepreview" => "juliaup/RELEASEPREVIEWCHANNELVERSION",
+        "dev" => "juliaup/DEVCHANNELVERSION",
         _ => bail!("Juliaup is configured to a channel named '{}' that does not exist.", &juliaup_channel)
     };
 
-    let version = download_juliaup_version(version_url)?;
+    let version_url = juliaupserver_base.join(version_url_path)
+        .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, version_url_path))?;
+
+    let version = download_juliaup_version(&version_url.to_string())?;
 
     let juliaup_target = get_juliaup_target();
 
