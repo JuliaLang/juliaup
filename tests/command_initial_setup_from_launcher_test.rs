@@ -9,7 +9,7 @@ fn command_initial_setup() {
 
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
-    depot_dir.child(Path::new(".julia").join("juliaup")).assert(predicate::path::missing());
+    depot_dir.child(Path::new("juliaup")).assert(predicate::path::missing());
 
     let assert = cmd
         .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac")
@@ -18,5 +18,5 @@ fn command_initial_setup() {
     
     assert.success().stdout("");
 
-    depot_dir.child(Path::new(".julia").join("juliaup").join("juliaup.json")).assert(predicate::path::exists());
+    depot_dir.child(Path::new("juliaup").join("juliaup.json")).assert(predicate::path::exists());
 }
