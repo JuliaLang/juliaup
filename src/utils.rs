@@ -14,7 +14,7 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
                 bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
             };
 
-            path
+            path.join("juliaup")
         }
         Err(_) => {
     let path = dirs::home_dir()
