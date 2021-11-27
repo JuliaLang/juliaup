@@ -52,7 +52,7 @@ pub fn run_command_selfupdate() -> Result<()> {
     println!("We are on {}.", juliaup_target);
     println!("We will download from {}.", new_juliaup_url);
 
-    download_extract_sans_parent(&new_juliaup_url, &my_own_folder, 0)?;
+    download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
 
     Ok(())
 }
