@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use semver::Version;
 use std::path::PathBuf;
+use url::Url;
 
 pub fn get_juliaup_home_path() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
@@ -10,7 +11,7 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
             let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
 
             if !path.is_absolute() {
-                return Err(anyhow!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display()));
+                bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
             };
 
             path
@@ -24,10 +25,10 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
         .join("juliaup");
 
             if !path.is_absolute() {
-                return Err(anyhow!(
+                bail!(
                     "The system returned an invalid home directory path `{}`.",
                     path.display()
-                ));
+                );
             };
 
             path
@@ -35,6 +36,19 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
     };
 
     Ok(path)
+}
+
+pub fn get_juliaserver_base_url() -> Result<Url> {
+    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
+        val
+     } else {
+        "https://julialang-s3.julialang.org".to_string() 
+    };
+
+    let parsed_url = Url::parse(&base_url)
+        .with_context(|| format!("Failed to parse the value of JULIAUP_SERVER '{}' as a uri.", base_url))?;
+
+    Ok(parsed_url)
 }
 
 pub fn get_juliaupconfig_path() -> Result<PathBuf> {
@@ -48,19 +62,21 @@ pub fn get_arch() -> Result<String> {
         return Ok("x86".to_string());
     } else if std::env::consts::ARCH == "x86_64" {
         return Ok("x64".to_string());
+    } else if std::env::consts::ARCH == "aarch64" {
+        return Ok("aarch64".to_string());
     }
 
-    Err(anyhow!("Running on an unknown arch."))
+    bail!("Running on an unknown arch: {}.", std::env::consts::ARCH)
 }
 
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
     let parts: Vec<&str> = value.split('~').collect();
 
     if parts.len() > 2 {
-        return Err(anyhow!(format!(
+        bail!(
             "`{}` is an invalid version specifier: multiple `~` characters are not allowed.",
             value
-        )));
+        );
     }
 
     let version = parts[0];
@@ -100,6 +116,6 @@ mod tests {
         let s = "1.1.1+0~x64";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
-        assert_eq!(v, Version::new(1, 1, 1));
+        assert_eq!(v, Version::parse("1.1.1+0").unwrap());
     }
 }

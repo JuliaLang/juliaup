@@ -1,17 +1,17 @@
 use crate::versions_file::load_versions_db;
 use crate::config_file::{load_config_db,save_config_db};
-use anyhow::{anyhow,Context,Result};
+use anyhow::{bail,Context,Result};
 use crate::config_file::JuliaupConfigChannel;
 
 pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Result<()> {
     let mut config_data = load_config_db()
-        .with_context(|| "`status` command failed to load configuration file.")?;
+        .with_context(|| "`link` command failed to load configuration file.")?;
 
     let versiondb_data = load_versions_db()
-        .with_context(|| "`status` command failed to load versions db.")?;
+        .with_context(|| "`link` command failed to load versions db.")?;
 
     if config_data.installed_channels.contains_key(&channel) {
-        return Err(anyhow!("Channel name `{}` is already used.", channel))
+        bail!("Channel name `{}` is already used.", channel)
     }
 
     if versiondb_data.available_channels.contains_key(&channel) {

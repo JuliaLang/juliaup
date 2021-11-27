@@ -1,10 +1,14 @@
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
+use crate::get_bundled_julia_full_version;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::utils::get_arch;
+use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use anyhow::{anyhow, Context, Result};
+use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
@@ -12,8 +16,9 @@ use std::{
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
+use semver::Version;
 
-fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P) -> Result<()>
+fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
     R: Read,
     P: AsRef<Path>,
@@ -23,7 +28,7 @@ where
         let path: PathBuf = entry
             .path()?
             .components()
-            .skip(1) // strip top-level directory
+            .skip(levels_to_skip) // strip top-level directory
             .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
             .collect();
         entry.unpack(dst.as_ref().join(path))?;
@@ -31,7 +36,7 @@ where
     Ok(())
 }
 
-fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> {
+pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let response = ureq::get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -42,18 +47,33 @@ fn download_extract_sans_parent(url: &String, target_path: &Path) -> Result<()> 
         Some(content_length) => ProgressBar::new(content_length),
         None => ProgressBar::new_spinner(),
     };
-
+    
+    pb.set_prefix("  Downloading:");
     pb.set_style(ProgressStyle::default_bar()
-    .template("{spinner:.green} [{elapsed_precise}] [{bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}")
+    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
                 .progress_chars("=> "));
 
     let foo = pb.wrap_read(response.into_reader());
 
     let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
-    unpack_sans_parent(archive, &target_path)
+    unpack_sans_parent(archive, &target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
     Ok(())
+}
+
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let response = ureq::get(url)
+        .call()?
+        .into_string()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?
+        .trim()
+        .to_string();
+
+    let version = Version::parse(&response)
+        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+
+    Ok(version)
 }
 
 pub fn install_version(
@@ -66,29 +86,49 @@ pub fn install_version(
         return Ok(());
     }
 
-    let download_url = version_db
-        .available_versions
-        .get(fullversion)
-        .ok_or(anyhow!(
-            "Failed to find download url in versions db for '{}'.",
-            fullversion
-        ))?
-        .url
-        .clone();
-
-    let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
+    // TODO At some point we could put this behind a conditional compile, we know
+    // that we don't ship a bundled version for some platforms.
+    let platform = get_arch()?;
+    let full_version_string_of_bundled_version = format!("{}~{}", get_bundled_julia_full_version(), platform);
+    let my_own_path = std::env::current_exe()?;
+    let path_of_bundled_version = my_own_path
+        .parent()
+        .unwrap() // unwrap OK because we can't get a path that does not have a parent
+        .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
-
     let target_path = get_juliaup_home_path()
-        .with_context(|| "Failed to retrieve juliap folder while trying to install new version.")?
+        .with_context(|| "Failed to retrieve juliaup folder while trying to install new version.")?
         .join(&child_target_foldername);
-
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    eprintln!("Installing Julia {} ({}).", version, platform);
+    if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.overwrite = true;
+        options.content_only = true;
+        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;        
+    } else {
+        let juliaupserver_base = get_juliaserver_base_url()
+            .with_context(|| "Failed to get Juliaup server base URL.")?;
 
-    download_extract_sans_parent(&download_url, &target_path)?;
+        let download_url_path = &version_db
+            .available_versions
+            .get(fullversion)
+            .ok_or(anyhow!(
+                "Failed to find download url in versions db for '{}'.",
+                fullversion
+            ))?
+            .url_path;
+
+        let download_url = juliaupserver_base.join(download_url_path)
+            .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
+        
+        let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
+
+        eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
+
+        download_extract_sans_parent(&download_url.to_string(), &target_path, 1)?;
+    }
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
@@ -106,7 +146,7 @@ pub fn install_version(
 
 pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
     let home_path = get_juliaup_home_path().with_context(|| {
-        "Failed to retrieve juliap folder while trying to garbage collect versions."
+        "Failed to retrieve juliaup folder while trying to garbage collect versions."
     })?;
 
     let mut versions_to_uninstall: Vec<String> = Vec::new();
@@ -122,9 +162,9 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
-            Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
-            Ok(_) => ()
-        };
+                Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
+                Ok(_) => ()
+            };
             versions_to_uninstall.push(installed_version.clone());
         }
     }

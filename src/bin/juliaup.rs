@@ -2,14 +2,20 @@ use juliaup::command_link::run_command_link;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
-use clap::Clap;
+use clap::Parser;
 use anyhow::{Result};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
+use juliaup::command_api::run_command_api;
+#[cfg(feature = "selfupdate")]
+use juliaup::command_selfupdate::run_command_selfupdate;
+#[cfg(feature = "selfupdate")]
+use juliaup::command_selfchannel::run_command_selfchannel;
 
-#[derive(Clap)]
+
+#[derive(Parser)]
 #[clap(name="Juliaup", version)]
 /// The Julia Version Manager
 enum Juliaup {
@@ -44,9 +50,20 @@ enum Juliaup {
     /// Garbage collect uninstalled Julia versions
     Gc {
     },
+    #[clap(setting(clap::AppSettings::Hidden))]
+    Api {
+        command: String
+    },
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
     InitialSetupFromLauncher {
-    }
+    },
+    #[cfg(feature = "selfupdate")]
+    Selfupdate {        
+    },
+    #[cfg(feature = "selfupdate")]
+    Selfchannel {
+        channel: String
+    },
 }
 
 fn main() -> Result<()> {
@@ -60,6 +77,11 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel),
         Juliaup::Gc {} => run_command_gc(),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
-        Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher()
+        Juliaup::Api {command} => run_command_api(command),
+        Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
+        #[cfg(feature = "selfupdate")]
+        Juliaup::Selfupdate {} => run_command_selfupdate(),
+        #[cfg(feature = "selfupdate")]
+        Juliaup::Selfchannel {channel} => run_command_selfchannel(channel),
     }
 }
