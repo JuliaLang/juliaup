@@ -100,19 +100,6 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3993e6445baa160675931ec041a5e03ca84b9c6e32a056150d3aa2bdda0a1f45"
-dependencies = [
- "encode_unicode",
- "lazy_static",
- "libc",
- "terminal_size",
- "winapi",
-]
-
-[[package]]
-name = "console"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a28b32d32ca44b70c3e4acd7db1babf555fa026e385fb95f18028f88848b3c31"
@@ -279,7 +266,7 @@ version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d207dc617c7a380ab07ff572a6e52fa202a2a8f355860ac9c38e23f8196be1b"
 dependencies = [
- "console 0.14.1",
+ "console",
  "lazy_static",
  "number_prefix",
  "regex",
@@ -316,7 +303,7 @@ dependencies = [
  "anyhow",
  "atty",
  "clap",
- "console 0.15.0",
+ "console",
  "ctrlc",
  "dirs",
  "flate2",
@@ -331,6 +318,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "ureq",
+ "url",
  "windows",
  "winres",
 ]

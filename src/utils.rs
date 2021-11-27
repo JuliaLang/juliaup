@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use semver::Version;
 use std::path::PathBuf;
+use url::Url;
 
 pub fn get_juliaup_home_path() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
@@ -35,6 +36,19 @@ pub fn get_juliaup_home_path() -> Result<PathBuf> {
     };
 
     Ok(path)
+}
+
+pub fn get_juliaserver_base_url() -> Result<Url> {
+    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
+        val
+     } else {
+        "https://julialang-s3.julialang.org".to_string() 
+    };
+
+    let parsed_url = Url::parse(&base_url)
+        .with_context(|| format!("Failed to parse the value of JULIAUP_SERVER '{}' as a uri.", base_url))?;
+
+    Ok(parsed_url)
 }
 
 pub fn get_juliaupconfig_path() -> Result<PathBuf> {

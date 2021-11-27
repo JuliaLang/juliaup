@@ -4,6 +4,7 @@ use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_full_version;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_arch;
+use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use anyhow::{anyhow, Context, Result};
@@ -107,20 +108,26 @@ pub fn install_version(
         options.content_only = true;
         fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;        
     } else {
-        let download_url = &version_db
+        let juliaupserver_base = get_juliaserver_base_url()
+            .with_context(|| "Failed to get Juliaup server base URL.")?;
+
+        let download_url_path = &version_db
             .available_versions
             .get(fullversion)
             .ok_or(anyhow!(
                 "Failed to find download url in versions db for '{}'.",
                 fullversion
             ))?
-            .url;
+            .url_path;
 
+        let download_url = juliaupserver_base.join(download_url_path)
+            .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
+        
         let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
 
         eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
 
-        download_extract_sans_parent(&download_url, &target_path, 1)?;
+        download_extract_sans_parent(&download_url.to_string(), &target_path, 1)?;
     }
 
     let mut rel_path = PathBuf::new();
