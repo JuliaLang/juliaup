@@ -64,7 +64,7 @@ jobs:
       with:
         command: test
         use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --bins --target ${{matrix.target}} --features ${{matrix.features}}
+        args: --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v2
       with:
         name: juliaup-${{matrix.target}}
