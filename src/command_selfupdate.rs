@@ -30,7 +30,13 @@ pub fn run_command_selfupdate() -> Result<()> {
 
     let juliaup_target = get_juliaup_target();
 
-    let new_juliaup_url = format!("https://github.com/JuliaLang/juliaup/releases/download/v{}/juliaup-{}-{}.tar.gz", version, version, juliaup_target);
+    let juliaupserver_base = get_juliaserver_base_url()
+            .with_context(|| "Failed to get Juliaup server base URL.")?;
+
+    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
+
+    let new_juliaup_url = juliaupserver_base.join(&download_url_path)
+            .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
 
     let my_own_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
