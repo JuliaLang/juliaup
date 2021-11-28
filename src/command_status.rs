@@ -11,8 +11,11 @@ pub fn run_command_status() -> Result<()> {
         load_versions_db().with_context(|| "`status` command failed to load versions db.")?;
 
     println!("Installed Julia channels (default marked with *):");
+    
+    let mut installed_channels: Vec<_> = config_data.installed_channels.into_iter().collect();
+    installed_channels.sort_by_key(|i| i.0.to_string());
 
-    for (key, value) in config_data.installed_channels {
+    for (key, value) in installed_channels {
         match config_data.default {
             Some(ref default_value) => {
                 if &key == default_value {
