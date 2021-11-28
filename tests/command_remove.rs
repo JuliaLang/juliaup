@@ -15,7 +15,7 @@ fn command_remove() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("add")
-        .arg("lts")
+        .arg("1.6.4")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
@@ -27,7 +27,7 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  lts\n");
+        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n");
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -44,7 +44,7 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  lts\n     release\n");
+        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n     release\n");
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -61,5 +61,5 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  lts\n");
+        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n");
 }
