@@ -59,11 +59,60 @@ jobs:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: juliaup-${{matrix.target}}
+        path: |
+          target/${{matrix.target}}/release/juliaup*
+          target/${{matrix.target}}/release/julialauncher*
+          !target/${{matrix.target}}/release/*.d
+
+  test-juliaup:
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      matrix:
+        target: [
+          x86_64-pc-windows-msvc,
+          x86_64-apple-darwin,
+          x86_64-unknown-linux-gnu,
+          i686-pc-windows-msvc,
+          i686-unknown-linux-gnu, 
+          # aarch64-unknown-linux-gnu,
+          # aarch64-apple-darwin
+          ]
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows
+            features: dummy
+          - target: x86_64-apple-darwin
+            os: macos
+            features: selfupdate
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+          - target: i686-pc-windows-msvc
+            os: windows
+            features: dummy
+          - target: i686-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+          - target: aarch64-apple-darwin
+            os: macos
+            features: selfupdate
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+        target: ${{matrix.target}}
     - name: Test
       uses: actions-rs/cargo@v1
       with:
         command: test
-        use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v2
       with:
