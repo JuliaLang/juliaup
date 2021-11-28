@@ -74,10 +74,14 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
 }
 
 pub fn save_config_db(config_data: &JuliaupConfig) -> Result<()> {
-    let path =
-        get_juliaupconfig_path().with_context(|| "Failed to determine configuration file path.")?;
+    let path = get_juliaupconfig_path()
+        .with_context(|| "Failed to determine configuration file path.")?;
 
     let display = path.display();
+    let parent_path_display = path.parent().unwrap().display();
+
+    std::fs::create_dir_all(path.parent().unwrap())
+        .with_context(|| format!("Failed to create juliaup homedir '{}' from save_config_db.", parent_path_display))?;
 
     let file = File::create(&path).with_context(|| {
         format!(
