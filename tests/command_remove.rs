@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use predicates::boolean::PredicateBooleanExt;
 
 #[test]
 fn command_remove() {
@@ -10,7 +11,7 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n");
+        .stdout(predicates::str::contains("1.6.4").not());
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -27,7 +28,7 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n");
+        .stdout(predicates::str::contains("1.6.4"));
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -44,7 +45,7 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n     release\n");
+        .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release")));
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -61,5 +62,5 @@ fn command_remove() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n  *  1.6.4\n");
+        .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release").not()));
 }

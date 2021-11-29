@@ -10,7 +10,7 @@ fn command_status() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n");
+        .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -18,5 +18,5 @@ fn command_status() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("Installed Julia channels (default marked with *):\n");
+        .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");
 }
