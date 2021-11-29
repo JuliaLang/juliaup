@@ -102,13 +102,6 @@ jobs:
       with:
         command: test
         args: --target ${{matrix.target}} --features ${{matrix.features}}
-    - uses: actions/upload-artifact@v2
-      with:
-        name: juliaup-${{matrix.target}}
-        path: |
-          target/${{matrix.target}}/release/juliaup*
-          target/${{matrix.target}}/release/julialauncher*
-          !target/${{matrix.target}}/release/*.d
   
   build-tarballs:
     needs: [build-juliaup]
