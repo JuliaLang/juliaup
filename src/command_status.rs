@@ -76,7 +76,7 @@ pub fn run_command_status() -> Result<()> {
                         match versiondb_data.available_channels.get(i.0) {
                             Some(channel) => {
                                 if &channel.version != version {
-                                    format!("Update to {} available)", channel.version)
+                                    format!("Update to {} available", channel.version)
                                 } else {
                                     "".to_string()
                                 }
