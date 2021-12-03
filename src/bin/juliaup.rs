@@ -9,9 +9,8 @@ use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
-use juliaup::command_selfupdate::run_command_selfupdate;
 #[cfg(feature = "selfupdate")]
-use juliaup::command_selfchannel::run_command_selfchannel;
+use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate};
 
 
 #[derive(Parser)]
@@ -56,11 +55,19 @@ enum Juliaup {
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
     InitialSetupFromLauncher {
     },
-    Selfupdate {        
-    },
     #[cfg(feature = "selfupdate")]
+    #[clap(subcommand, name = "self")]
+    SelfSubCmd(SelfSubCmd),
+}
+
+#[cfg(feature = "selfupdate")]
+#[derive(Parser)]
+/// Manage this juliaup installation
+enum SelfSubCmd {
     /// Update juliaup itself
-    Selfchannel {
+    Update {},
+    /// Configure the channel to use for juliaup updates
+    Channel {
         channel: String
     },
 }
@@ -78,8 +85,10 @@ fn main() -> Result<()> {
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
-        Juliaup::Selfupdate {} => run_command_selfupdate(),
         #[cfg(feature = "selfupdate")]
-        Juliaup::Selfchannel {channel} => run_command_selfchannel(channel),
+        Juliaup::SelfSubCmd(subcmd) => match subcmd {
+            SelfSubCmd::Update {} => run_command_selfupdate(),
+            SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
+        }
     }
 }
