@@ -16,6 +16,9 @@ use crate::operations::{download_juliaup_version,download_extract_sans_parent};
 #[cfg(feature = "selfupdate")]
 #[cfg(not(feature = "windowsstore"))]
 use crate::get_juliaup_target;
+#[cfg(feature = "selfupdate")]
+#[cfg(not(feature = "windowsstore"))]
+use windows::Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow};
 
 #[cfg(not(feature = "selfupdate"))]
 pub fn run_command_selfupdate() -> Result<()> {
@@ -84,9 +87,24 @@ pub fn run_command_selfupdate() -> Result<()> {
 #[cfg(feature = "windowsstore")]
 pub fn run_command_selfupdate() -> Result<()> {
     println!("Step A");
-    let update_manager = windows::Services::Store::StoreContext::GetDefault()
-    .with_context(|| "Error 1")?;
+    let update_manager = windows::Services::Store::StoreContext::GetDefault()    
+        .with_context(|| "Error 1")?;
+
     println!("Step B");
+    let interop: IInitializeWithWindow = update_manager.cast()
+        .with_context(|| "Error 1a")?;
+
+    println!("Step B2");
+    unsafe {
+        let x = GetConsoleWindow();
+        println!("Step B3");
+        interop.Initialize(x)
+            .with_context(|| "Error 1b")?;
+        println!("Step B4");
+    }
+    
+    println!("Step B5");
+    
     let updates = update_manager.GetAppAndOptionalStorePackageUpdatesAsync()
         .with_context(|| "Error 2")?
         .get()
