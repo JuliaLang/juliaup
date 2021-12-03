@@ -34,7 +34,7 @@ cli-table = "0.4"
 itertools = "0.10"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.28", features = ["alloc", "std", "Win32_Foundation", "Win32_System_Console"] }
+windows = { version = "0.28", features = ["alloc", "std", "Win32_Foundation", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }
 
 [build-dependencies]
 anyhow = "1"
@@ -51,4 +51,5 @@ predicates = "2.1"
 
 [features]
 selfupdate = []
+windowsstore = []
 dummy = []
