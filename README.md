@@ -26,6 +26,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
 - `juliaup` shows you what other commands are available.
 
+To launch the Julia version in channel `release`, run `julia +release` in your terminal.\
 The available system provided channels are:
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
