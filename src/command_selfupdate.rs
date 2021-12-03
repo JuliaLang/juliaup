@@ -85,42 +85,35 @@ pub fn run_command_selfupdate() -> Result<()> {
 #[cfg(feature = "selfupdate")]
 #[cfg(feature = "windowsstore")]
 pub fn run_command_selfupdate() -> Result<()> {
-    println!("Step A");
     let update_manager = windows::Services::Store::StoreContext::GetDefault()    
-        .with_context(|| "Error 1")?;
+        .with_context(|| "Failed to get the store context.")?;
 
-    println!("Step B");
     let interop: IInitializeWithWindow = update_manager.cast()
-        .with_context(|| "Error 1a")?;
+        .with_context(|| "Failed to cast the store context to IInitializeWithWindow.")?;
 
-    println!("Step B2");
     unsafe {
         let x = GetConsoleWindow();
-        println!("Step B3");
+
         interop.Initialize(x)
-            .with_context(|| "Error 1b")?;
-        println!("Step B4");
+            .with_context(|| "Call to IInitializeWithWindow.Initialize failed.")?;
     }
     
-    println!("Step B5");
-    
     let updates = update_manager.GetAppAndOptionalStorePackageUpdatesAsync()
-        .with_context(|| "Error 2")?
+        .with_context(|| "Call to GetAppAndOptionalStorePackageUpdatesAsync failed.")?
         .get()
-        .with_context(|| "Error 3")?;
+        .with_context(|| "get on the return of GetAppAndOptionalStorePackageUpdatesAsync failed.")?;
 
-    println!("Step C");
-    if updates.Size().with_context(|| "Error 4")? > 0 {
-        println!("Step D");
+    if updates.Size().with_context(|| "Call to Size on update results failed.")? > 0 {
+        println!("An update is available.");
 
         let download_operation = update_manager.RequestDownloadAndInstallStorePackageUpdatesAsync(updates)
-            .with_context(|| "Error 5")?;
-        println!("Step E");
+            .with_context(|| "Call to RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
+
         download_operation.get()
-            .with_context(|| "Error 6")?;
-        println!("Step F")
+            .with_context(|| "get on result from RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
+        // This code will never be reached because the update logic terminates us during the update
     } else {
-        println!("Nothing to update.")
+        println!("No no updates available.");
     }
 
     Ok(())
