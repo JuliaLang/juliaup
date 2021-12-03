@@ -6,7 +6,9 @@ use crate::config_file::*;
 use crate::utils::get_juliaserver_base_url;
 #[cfg(feature = "selfupdate")]
 #[cfg(not(feature = "windowsstore"))]
-use anyhow::{bail, Context, anyhow};
+use anyhow::{bail, anyhow};
+#[cfg(feature = "selfupdate")]
+use anyhow::Context;
 use anyhow::Result;
 #[cfg(feature = "selfupdate")]
 #[cfg(not(feature = "windowsstore"))]
