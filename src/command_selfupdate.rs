@@ -111,7 +111,7 @@ pub fn run_command_selfupdate() -> Result<()> {
 
         download_operation.get()
             .with_context(|| "get on result from RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
-        // This code will never be reached because the update logic terminates us during the update
+        // This code will not be reached if the user opts to install updates
     } else {
         println!("No no updates available.");
     }
