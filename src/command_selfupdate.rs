@@ -17,7 +17,7 @@ use crate::operations::{download_juliaup_version,download_extract_sans_parent};
 #[cfg(not(feature = "windowsstore"))]
 use crate::get_juliaup_target;
 #[cfg(feature = "windowsstore")]
-use windows::Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow};
+use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
 #[cfg(not(feature = "selfupdate"))]
 pub fn run_command_selfupdate() -> Result<()> {
