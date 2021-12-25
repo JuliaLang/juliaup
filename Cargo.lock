@@ -171,6 +171,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cluFlock"
+version = "1.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc9a586f6ea37daf0f6154727023de0a52342bb84cf692451f09b2690e1034be"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "console"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -479,6 +489,7 @@ dependencies = [
  "atty",
  "clap",
  "cli-table",
+ "cluFlock",
  "console",
  "ctrlc",
  "dirs",

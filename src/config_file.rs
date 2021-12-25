@@ -1,9 +1,10 @@
 use crate::utils::get_juliaupconfig_path;
 use anyhow::{bail, Context, Result};
+use cluFlock::{SharedFlock, FlockLock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, ErrorKind};
+use std::io::{BufReader, ErrorKind, Seek};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
@@ -61,36 +62,23 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
         },
     };
 
-    let reader = BufReader::new(file);
+    let _file_lock = SharedFlock::wait_lock(&file).unwrap();
 
-    let v: JuliaupConfig = serde_json::from_reader(reader).with_context(|| {
-        format!(
-            "Failed to parse configuration file '{}' for reading.",
-            display
-        )
-    })?;
+    println!("Lock acquired! {:?}.", _file_lock);
+
+    let reader = BufReader::new(&file);
+
+    let v: JuliaupConfig = serde_json::from_reader(reader)
+        .with_context(|| format!("Failed to parse configuration file '{}' for reading.", display))?;
 
     Ok(v)
 }
 
-pub fn save_config_db(config_data: &JuliaupConfig) -> Result<()> {
-    let path = get_juliaupconfig_path()
-        .with_context(|| "Failed to determine configuration file path.")?;
-
-    let display = path.display();
-    let parent_path_display = path.parent().unwrap().display();
-
-    std::fs::create_dir_all(path.parent().unwrap())
-        .with_context(|| format!("Failed to create juliaup homedir '{}' from save_config_db.", parent_path_display))?;
-
-    let file = File::create(&path).with_context(|| {
-        format!(
-            "Failed to open configuration file '{}' for saving.",
-            display
-        )
-    })?;
+pub fn save_config_db(file: File, file_lock: FlockLock<&File>, config_data: &JuliaupConfig) -> Result<()> {
+    file.rewind()
+        .with_context(|| "Failed to rewind config file for write.")?;
 
     serde_json::to_writer_pretty(file, &config_data)
-        .with_context(|| format!("Failed to write configuration file '{}'.", display))?;
+        .with_context(|| format!("Failed to write configuration file."))?;
     Ok(())
 }
