@@ -54,7 +54,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
 
     let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
         Ok(file) => file,
-        Err(_e) => return Err(anyhow!("Could not create lockfile."))
+        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e))
     };
 
     let file_lock = match SharedFlock::try_lock(&lock_file) {
@@ -105,7 +105,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
 
     let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
         Ok(file) => file,
-        Err(_e) =>bail!("Could not create lockfile") // TODO Fix
+        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e))
     };
 
     let file_lock = match ExclusiveFlock::try_lock(lock_file) {
