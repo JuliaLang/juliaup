@@ -1,5 +1,5 @@
 use crate::operations::install_version;
-use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, open_mut_config_file,save_config_db};
+use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
 
@@ -16,30 +16,27 @@ pub fn run_command_add(channel: String) -> Result<()> {
         ))?
         .version;
 
-    let file = open_mut_config_file()
-        .with_context(|| "`add` command failed to open configuration file.")?;
-
-    let (mut config_data, file_lock) = load_mut_config_db(&file)
+    let mut config_file = load_mut_config_db()
         .with_context(|| "`add` command failed to load configuration data.")?;
 
-    if config_data.installed_channels.contains_key(&channel) {
+    if config_file.data.installed_channels.contains_key(&channel) {
         bail!("'{}' is already installed.", &channel);
     }
     
-    install_version(&required_version, &mut config_data, &version_db)?;
+    install_version(&required_version, &mut config_file.data, &version_db)?;
 
-    config_data.installed_channels.insert(
+    config_file.data.installed_channels.insert(
         channel.clone(),
         JuliaupConfigChannel::SystemChannel {
             version: required_version.clone(),
         },
     );
 
-    if config_data.default.is_none() {
-        config_data.default = Some(channel.clone());
+    if config_file.data.default.is_none() {
+        config_file.data.default = Some(channel.clone());
     }
 
-    save_config_db(&file, config_data, file_lock)
+    save_config_db(config_file)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
 
     Ok(())

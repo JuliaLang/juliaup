@@ -1,4 +1,4 @@
-use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db, open_mut_config_file};
+use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::operations::install_version;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
@@ -38,31 +38,28 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
     let version_db =
         load_versions_db().with_context(|| "`update` command failed to load versions db.")?;
 
-    let file = open_mut_config_file()
-        .with_context(|| "`update` command failed to open configuration file.")?;
-    
-    let (mut config_data, file_lock) = load_mut_config_db(&file)
+    let mut config_file = load_mut_config_db()
         .with_context(|| "`update` command failed to load configuration data.")?;
 
     match channel {
         None => {
-            for (k,_) in config_data.installed_channels.clone() {
-                update_channel(&mut config_data, &k, &version_db, true)?;
+            for (k,_) in config_file.data.installed_channels.clone() {
+                update_channel(&mut config_file.data, &k, &version_db, true)?;
             }
 
         },
         Some(channel) => {
-            if !config_data.installed_channels.contains_key(&channel) {
+            if !config_file.data.installed_channels.contains_key(&channel) {
                 bail!("'{}' cannot be updated because it is currently not installed.", channel);
             }
 
-            update_channel(&mut config_data, &channel, &version_db, false)?;
+            update_channel(&mut config_file.data, &channel, &version_db, false)?;
         }
     };
 
-    garbage_collect_versions(&mut config_data)?;
+    garbage_collect_versions(&mut config_file.data)?;
 
-    save_config_db(&file, config_data, file_lock)
+    save_config_db(config_file)
         .with_context(|| "`update` command failed to save configuration db.")?;
 
     Ok(())
