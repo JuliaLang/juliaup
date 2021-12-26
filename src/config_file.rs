@@ -1,4 +1,4 @@
-use crate::utils::{get_juliaupconfig_path, get_juliaupconfig_lockfile_path};
+use crate::utils::{get_juliaupconfig_path, get_juliaupconfig_lockfile_path, get_juliaup_home_path};
 use anyhow::{anyhow, bail, Context, Result};
 use cluFlock::{SharedFlock, FlockLock, ExclusiveFlock};
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,12 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
     let lockfile_path = get_juliaupconfig_lockfile_path()
         .with_context(|| "Failed to get path for lockfile.")?;
 
+    let juliaup_home_path = get_juliaup_home_path()
+        .with_context(|| "Could not determine the juliaup home path.")?;
+    
+    std::fs::create_dir_all(&juliaup_home_path)
+        .with_context(|| "Could not create juliaup home folder.")?;
+
     let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
         Ok(file) => file,
         Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e))
@@ -102,6 +108,12 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
 
     let lockfile_path = get_juliaupconfig_lockfile_path()
         .with_context(|| "Failed to get path for lockfile.")?;
+
+    let juliaup_home_path = get_juliaup_home_path()
+        .with_context(|| "Could not determine the juliaup home path.")?;
+    
+    std::fs::create_dir_all(&juliaup_home_path)
+        .with_context(|| "Could not create juliaup home folder.")?;
 
     let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
         Ok(file) => file,
