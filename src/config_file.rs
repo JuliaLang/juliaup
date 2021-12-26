@@ -95,7 +95,8 @@ pub fn open_mut_config_file() -> Result<File> {
                 let new_file_path = get_juliaup_home_path()?.join("~juliaup.json");
 
                 {
-                    let new_file = OpenOptions::new().create_new(true).open(&new_file_path)?;
+                    let new_file = OpenOptions::new().create_new(true).open(&new_file_path)
+                        .with_context(|| "Failed to create new `~juliaup.json` file.")?;
 
                     let new_config = JuliaupConfig {
                         default: None,
@@ -105,15 +106,17 @@ pub fn open_mut_config_file() -> Result<File> {
                     };
 
                     serde_json::to_writer_pretty(&new_file, &new_config)
-                        .with_context(|| format!("Failed to write configuration file.")).unwrap();
+                        .with_context(|| format!("Failed to write configuration file."))?;
 
                     new_file.sync_all()
-                        .with_context(|| "Failed to write configuration data to disc.").unwrap();
+                        .with_context(|| "Failed to write configuration data to disc.")?;
                 }
 
-                std::fs::rename(&new_file_path, &path)?;
+                std::fs::rename(&new_file_path, &path)
+                    .with_context(|| "Failed to rename temporary new config file to permanent one.")?;
 
-                std::fs::OpenOptions::new().read(true).write(true).open(&path)?
+                std::fs::OpenOptions::new().read(true).write(true).open(&path)
+                    .with_context(|| "Failed to open configuration file after a new one had been moved")?
             },
             other_error => {
                 bail!("Problem opening the file {}: {:?}", display, other_error)
