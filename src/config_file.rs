@@ -18,6 +18,8 @@ pub enum JuliaupConfigChannel {
     SystemChannel {
         #[serde(rename = "Version")]
         version: String,
+        //#[serde(rename = "Nightly")]
+        //nightly: String,
     },
     LinkedChannel {
         #[serde(rename = "Command")]

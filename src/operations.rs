@@ -4,7 +4,7 @@ use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_full_version;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_arch;
-use crate::utils::get_juliaserver_base_url;
+use crate::utils::{get_juliaserver_base_url, get_juliaserver_nightly_base_url};
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
@@ -84,8 +84,13 @@ pub fn install_version(
     config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
 ) -> Result<()> {
+    let nightly = version_db.available_versions
+        .get(fullversion)
+        .ok_or(anyhow!("Version {} does not exist", fullversion))?
+        .nightly;
+
     // Return immediately if the version is already installed.
-    if config_data.installed_versions.contains_key(fullversion) {
+    if !nightly && config_data.installed_versions.contains_key(fullversion) {
         return Ok(());
     }
 
@@ -111,8 +116,11 @@ pub fn install_version(
         options.content_only = true;
         fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;        
     } else {
-        let juliaupserver_base = get_juliaserver_base_url()
-            .with_context(|| "Failed to get Juliaup server base URL.")?;
+        let juliaupserver_base = if nightly {
+            get_juliaserver_nightly_base_url()
+        } else {
+            get_juliaserver_base_url()
+        }.with_context(|| "Failed to get Juliaup server base URL.")?;
 
         let download_url_path = &version_db
             .available_versions
