@@ -6,12 +6,6 @@ use itertools::Itertools;
 #[cfg(feature = "selfupdate")]
 #[cfg(not(feature = "windowsstore"))]
 pub fn run_command_selfuninstall() -> Result<()> {
-
-    let bar = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
-
-    let my_own_path = bar.to_str().unwrap();
-
     match std::env::var("WSL_DISTRO_NAME") {
         // This is the WSL case, where we schedule a Windows task to do the update
         Ok(val) => {            
@@ -19,24 +13,22 @@ pub fn run_command_selfuninstall() -> Result<()> {
                 .args([
                     "/delete",
                     "/tn",
-                    &format!("Juliaup WSL {}", val),
+                    &format!("Juliaup self update for WSL {} distribution", val),
                     "/f",
                 ])
                 .output()
-                .with_context(|| "Failed to remove task.")?;
+                .with_context(|| "Failed to remove Windows task for juliaupa.")?;
 
         },
         Err(_e) => {
             let output = std::process::Command::new("crontab")
-                .args([
-                    "-l",
-                ])
+                .args(["-l"])
                 .output()
-                .with_context(|| "Failed to remove task.")?;
+                .with_context(|| "Failed to remove cron task.")?;
 
-            let foo = String::from_utf8(output.stdout)?
+            let new_crontab_content = String::from_utf8(output.stdout)?
                 .lines()
-                .filter(|x| !x.contains(my_own_path))
+                .filter(|x| !x.contains("4c79c12db1d34bbbab1f6c6f838f423f"))
                 .chain([""])
                 .join("\n");
 
@@ -47,7 +39,7 @@ pub fn run_command_selfuninstall() -> Result<()> {
 
             let child_stdin = child.stdin.as_mut().unwrap();
 
-            child_stdin.write_all(foo.as_bytes())?;
+            child_stdin.write_all(new_crontab_content.as_bytes())?;
 
             // Close stdin to finish and avoid indefinite blocking
             drop(child_stdin);

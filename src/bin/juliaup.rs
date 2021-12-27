@@ -58,6 +58,11 @@ enum Juliaup {
     #[cfg(feature = "selfupdate")]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
+    // This is used for the cron jobs that we create. By using this UUID for the command
+    // We can identify the cron jobs that were created by juliaup for uninstall purposes
+    #[cfg(feature = "selfupdate")]
+    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", setting(clap::AppSettings::Hidden))]
+    SecretSelfUpdate {},
 }
 
 #[cfg(feature = "selfupdate")]
@@ -89,6 +94,8 @@ fn main() -> Result<()> {
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
+        #[cfg(feature = "selfupdate")]
+        SecretSelfUpdate {} => run_command_selfupdate(),
         #[cfg(feature = "selfupdate")]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
             SelfSubCmd::Update {} => run_command_selfupdate(),
