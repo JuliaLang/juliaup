@@ -15,16 +15,23 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
 
     match current_version {
         JuliaupConfigChannel::SystemChannel {version} => {
-            let should_version = version_db.available_channels.get(channel).ok_or(anyhow!("asdf"))?;
+            let should_version = &version_db.available_channels
+                .get(channel)
+                .ok_or(anyhow!("asdf"))?
+                .version;
+            let nightly = version_db.available_versions
+                .get(should_version)
+                .ok_or(anyhow!("asdf"))?
+                .nightly;
 
-            if &should_version.version != version {
-                install_version(&should_version.version, config_db, version_db, paths)
-                    .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
-
+            if nightly || should_version != version {
+                install_version(should_version, config_db, version_db)
+                    .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version, channel))?;
+        
                 config_db.installed_channels.insert(
                     channel.clone(),
                     JuliaupConfigChannel::SystemChannel {
-                        version: should_version.version.clone(),
+                        version: should_version.clone(),
                     },
                 );
 
@@ -32,7 +39,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 if config_db.settings.create_channel_symlinks {
                     create_symlink(
                         &JuliaupConfigChannel::SystemChannel {
-                            version: should_version.version.clone(),
+                            version: should_version.clone(),
                         },
                         &format!("julia-{}", channel),
                         paths,

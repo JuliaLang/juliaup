@@ -16,6 +16,31 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
     Ok(parsed_url)
 }
 
+pub fn get_juliaserver_nightly_base_url() -> Result<Url> {
+    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER_NIGHTLY") { 
+        val
+     } else {
+        "https://julialangnightlies-s3.julialang.org".to_string() 
+    };
+
+    let parsed_url = Url::parse(&base_url)
+        .with_context(|| format!("Failed to parse the value of JULIAUP_SERVER_NIGHTLY '{}' as a uri.", base_url))?;
+
+    Ok(parsed_url)
+}
+
+pub fn get_juliaupconfig_path() -> Result<PathBuf> {
+    let path = get_juliaup_home_path()?.join("juliaup.json");
+
+    Ok(path)
+}
+
+pub fn get_juliaupconfig_lockfile_path() -> Result<PathBuf> {
+    let path = get_juliaup_home_path()?.join(".juliaup-lock");
+
+    Ok(path)
+}
+
 pub fn get_bin_dir() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
 
