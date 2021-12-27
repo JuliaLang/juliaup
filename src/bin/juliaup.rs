@@ -1,4 +1,4 @@
-use juliaup::command_link::run_command_link;
+use juliaup::{command_link::run_command_link};
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
@@ -10,7 +10,7 @@ use juliaup::command_status::run_command_status;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
-use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate};
+use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
 
 
 #[derive(Parser)]
@@ -70,6 +70,10 @@ enum SelfSubCmd {
     Channel {
         channel: String
     },
+    /// Install this version of juliaup into the system
+    Install {},
+    /// Uninstall this version of juliaup from the system
+    Uninstall {},
 }
 
 fn main() -> Result<()> {
@@ -89,6 +93,8 @@ fn main() -> Result<()> {
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
             SelfSubCmd::Update {} => run_command_selfupdate(),
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
+            SelfSubCmd::Install {} => run_command_selfinstall(),
+            SelfSubCmd::Uninstall {} => run_command_selfuninstall(),
         }
     }
 }
