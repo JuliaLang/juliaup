@@ -1,4 +1,4 @@
-use crate::operations::install_version;
+use crate::operations::{install_version, create_symlink};
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
@@ -38,6 +38,15 @@ pub fn run_command_add(channel: String) -> Result<()> {
 
     save_config_db(config_file)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
+
+    if std::env::consts::OS != "windows" && config_data.create_symlinks {
+        create_symlink(
+            &JuliaupConfigChannel::SystemChannel {
+                version: required_version.clone(),
+            },
+            &format!("julia-{}", channel),
+        )?;
+    }
 
     Ok(())
 }

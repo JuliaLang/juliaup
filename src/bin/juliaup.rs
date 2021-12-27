@@ -7,6 +7,7 @@ use anyhow::{Result};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
+use juliaup::command_config::run_command_config;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
@@ -48,6 +49,11 @@ enum Juliaup {
     /// Garbage collect uninstalled Julia versions
     Gc {
     },
+    /// Change config values of Juliaup
+    Config {
+        property: String,
+        value: String
+    },
     #[clap(setting(clap::AppSettings::Hidden))]
     Api {
         command: String
@@ -83,6 +89,7 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel),
         Juliaup::Gc {} => run_command_gc(),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
+        Juliaup::Config {property, value} => run_command_config(property, value),
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
         #[cfg(feature = "selfupdate")]

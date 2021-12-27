@@ -1,4 +1,4 @@
-use crate::{operations::garbage_collect_versions, config_file::{load_mut_config_db, save_config_db}};
+use crate::{operations::{garbage_collect_versions, remove_symlink}, config_file::{load_mut_config_db, save_config_db}};
 use anyhow::{bail, Context, Result};
 
 pub fn run_command_remove(channel: String) -> Result<()> {
@@ -16,6 +16,10 @@ pub fn run_command_remove(channel: String) -> Result<()> {
     }
 
     config_file.data.installed_channels.remove(&channel);
+
+    if std::env::consts::OS != "windows" {
+        remove_symlink(&format!("julia-{}", channel))?;
+    }
 
     garbage_collect_versions(&mut config_file.data)?;
 

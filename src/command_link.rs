@@ -1,3 +1,4 @@
+use crate::operations::create_symlink;
 use crate::versions_file::load_versions_db;
 use crate::config_file::{save_config_db, load_mut_config_db};
 use anyhow::{bail,Context,Result};
@@ -18,10 +19,26 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
         eprintln!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
     }
 
-    config_file.data.installed_channels.insert(channel, JuliaupConfigChannel::LinkedChannel {command: file.clone(), args: Some(args.clone())});
+    config_data.installed_channels.insert(
+        channel.clone(),
+        JuliaupConfigChannel::LinkedChannel {
+            command: file.clone(),
+            args: Some(args.clone()),
+        },
+    );
 
     save_config_db(config_file)
         .with_context(|| "`link` command failed to save configuration db.")?;
+
+    if std::env::consts::OS != "windows" && config_data.create_symlinks {
+        create_symlink(
+            &JuliaupConfigChannel::LinkedChannel {
+                command: file.clone(),
+                args: Some(args.clone()),
+            },
+            &format!("julia-{}", channel),
+        )?;
+    }
 
     Ok(())
 }
