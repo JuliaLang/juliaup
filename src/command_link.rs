@@ -19,7 +19,7 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
         eprintln!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
     }
 
-    config_data.installed_channels.insert(
+    config_file.data.installed_channels.insert(
         channel.clone(),
         JuliaupConfigChannel::LinkedChannel {
             command: file.clone(),
@@ -27,10 +27,12 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
         },
     );
 
+    let create_symlinks = config_file.data.create_symlinks;
+
     save_config_db(config_file)
         .with_context(|| "`link` command failed to save configuration db.")?;
 
-    if std::env::consts::OS != "windows" && config_data.create_symlinks {
+    if std::env::consts::OS != "windows" && create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
                 command: file.clone(),

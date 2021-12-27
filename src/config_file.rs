@@ -145,6 +145,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
                 juliaup_channel: None,
+                create_symlinks: false,
             };
 
             serde_json::to_writer_pretty(&file, &new_config)

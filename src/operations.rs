@@ -229,7 +229,8 @@ pub fn create_symlink(
 
             eprintln!("{} {} for Julia {} ({}).", style("Creating symlink").cyan().bold(), symlink_name, version, platform);
 
-            std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)?;
+            std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
+                .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
         },
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             let formatted_command = match args {
@@ -247,11 +248,12 @@ r#"#!/bin/sh
 "#,
                     formatted_command,
                 ),
-            )?;
+            ).with_context(|| format!("failed to create shim `{}`.", symlink_path.to_string_lossy()))?;
 
             // set as executable
             let perms = std::fs::Permissions::from_mode(0o755);
-            std::fs::set_permissions(&symlink_path, perms)?;
+            std::fs::set_permissions(&symlink_path, perms)
+                .with_context(|| format!("failed to change permissions for shim `{}`.", symlink_path.to_string_lossy()))?;
         },
     };
 
