@@ -17,7 +17,7 @@ pub fn run_command_selfuninstall() -> Result<()> {
                     "/f",
                 ])
                 .output()
-                .with_context(|| "Failed to remove Windows task for juliaupa.")?;
+                .with_context(|| "Failed to remove Windows task for juliaup.")?;
 
         },
         Err(_e) => {
