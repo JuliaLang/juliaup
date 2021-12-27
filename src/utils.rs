@@ -57,6 +57,12 @@ pub fn get_juliaupconfig_path() -> Result<PathBuf> {
     Ok(path)
 }
 
+pub fn get_juliaupconfig_lockfile_path() -> Result<PathBuf> {
+    let path = get_juliaup_home_path()?.join(".juliaup-lock");
+
+    Ok(path)
+}
+
 pub fn get_arch() -> Result<String> {
     if std::env::consts::ARCH == "x86" {
         return Ok("x86".to_string());
