@@ -95,7 +95,7 @@ fn main() -> Result<()> {
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
         #[cfg(feature = "selfupdate")]
-        SecretSelfUpdate {} => run_command_selfupdate(),
+        Juliaup::SecretSelfUpdate {} => run_command_selfupdate(),
         #[cfg(feature = "selfupdate")]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
             SelfSubCmd::Update {} => run_command_selfupdate(),
