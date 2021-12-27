@@ -372,6 +372,7 @@ jobs:
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
           sed -i "s/^pkgver=.*\$/pkgver=${VERSION}/g" PKGBUILD
+          sed -i "s/^pkgrel=.*\$/pkgrel=1/g" PKGBUILD
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
@@ -383,10 +384,13 @@ jobs:
           srcinfo: true
       - name: Commit and push changes
         run: |
+          export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
           git config --global user.email "simeondavidschaub99@gmail.com"
           git config --global user.name 'Your friendly Juliaup bot'
-          git commit -a -m 'automated version bump'
+          git commit -a -m "Version ${VERSION} (automated version bump)"
           git push origin master
+        env:
+          GH_REF: ${{ github.ref }}
 
   deploy-dev-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
