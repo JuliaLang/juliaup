@@ -1,10 +1,11 @@
-use anyhow::{Context, Result};
-use itertools::Itertools;
-use std::{io::Write, process::Stdio};
+use anyhow::Result;
 
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
+#[cfg(all(not(feature = "windowsstore"),feature = "selfupdate"))]
 pub fn run_command_selfinstall() -> Result<()> {
+    use itertools::Itertools;
+    use std::{io::Write, process::Stdio};
+    use anyhow::Context;
+
     let own_exe_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
 
@@ -63,7 +64,7 @@ pub fn run_command_selfinstall() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "selfupdate"))]
+#[cfg(all(not(feature = "windowsstore"),not(feature = "selfupdate")))]
 pub fn run_command_selfinstall() -> Result<()> {    
     println!("This command is not supported in this version of juliaup.");
 
