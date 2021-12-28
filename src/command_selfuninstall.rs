@@ -1,11 +1,11 @@
-use anyhow::{Context,Result};
-use std::{io::Write, process::Stdio};
-use itertools::Itertools;
+use anyhow::Result;
 
-
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
+#[cfg(all(not(feature = "windowsstore"),feature = "selfupdate"))]
 pub fn run_command_selfuninstall() -> Result<()> {
+    use anyhow::Context;
+    use std::{io::Write, process::Stdio};
+    use itertools::Itertools;
+
     match std::env::var("WSL_DISTRO_NAME") {
         // This is the WSL case, where we schedule a Windows task to do the update
         Ok(val) => {            
@@ -53,7 +53,7 @@ pub fn run_command_selfuninstall() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "selfupdate"))]
+#[cfg(all(not(feature = "windowsstore"),not(feature = "selfupdate")))]
 pub fn run_command_selfuninstall() -> Result<()> {    
     println!("This command is not supported in this version of juliaup.");
 
