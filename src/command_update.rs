@@ -1,5 +1,5 @@
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
-use crate::operations::install_version;
+use crate::operations::{install_version, create_symlink};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
@@ -17,14 +17,23 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
             if &should_version.version != version {
                 install_version(&should_version.version, config_db, version_db)
                     .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
-        
+
                 config_db.installed_channels.insert(
                     channel.clone(),
                     JuliaupConfigChannel::SystemChannel {
                         version: should_version.version.clone(),
                     },
                 );
-            }  
+
+                if std::env::consts::OS != "windows" && config_db.create_symlinks {
+                    create_symlink(
+                        &JuliaupConfigChannel::SystemChannel {
+                            version: should_version.version.clone(),
+                        },
+                        &format!("julia-{}", channel),
+                    )?;
+                }
+            }
         },
         JuliaupConfigChannel::LinkedChannel {command: _, args: _} => if !ignore_linked_channel {
             bail!("Failed to update '{}' because it is a linked channel.", channel)

@@ -10,6 +10,7 @@ pub mod command_link;
 pub mod command_status;
 pub mod command_remove;
 pub mod command_update;
+pub mod command_config;
 pub mod command_initial_setup_from_launcher;
 pub mod command_api;
 pub mod command_selfupdate;

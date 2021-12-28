@@ -36,7 +36,9 @@ pub struct JuliaupConfig {
     #[serde(rename = "InstalledChannels")]
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
     #[serde(rename = "JuliaupChannel", skip_serializing_if = "Option::is_none")]
-    pub juliaup_channel: Option<String>
+    pub juliaup_channel: Option<String>,
+    #[serde(rename = "CreateSymlinks", default)]
+    pub create_symlinks: bool,
 }
 
 pub struct JuliaupConfigFile {
@@ -83,6 +85,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                     installed_versions: HashMap::new(),
                     installed_channels: HashMap::new(),
                     juliaup_channel: None,
+                    create_symlinks: false,
                 })
             },
             other_error => {
@@ -142,6 +145,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
                 juliaup_channel: None,
+                create_symlinks: false,
             };
 
             serde_json::to_writer_pretty(&file, &new_config)
