@@ -6,6 +6,10 @@ use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
 
+fn is_default<T: Default + PartialEq>(t: &T) -> bool {
+    t == &T::default()
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
@@ -37,7 +41,7 @@ pub struct JuliaupConfig {
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
     #[serde(rename = "JuliaupChannel", skip_serializing_if = "Option::is_none")]
     pub juliaup_channel: Option<String>,
-    #[serde(rename = "CreateSymlinks", default)]
+    #[serde(rename = "CreateSymlinks", default, skip_serializing_if = "is_default")]
     pub create_symlinks: bool,
 }
 
