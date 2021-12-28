@@ -89,8 +89,9 @@ enum SelfSubCmd {
 #[derive(Parser)]
 enum ConfigSubCmd {
     #[cfg(not(target_os = "windows"))]
+    #[clap(name="channelsymlinks")]
     /// Create a separate symlink per channel
-    Symlinks  {
+    ChannelSymlinks  {
         /// New Value
         value: Option<bool>
     }
@@ -109,7 +110,7 @@ fn main() -> Result<()> {
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
-            ConfigSubCmd::Symlinks {value} => run_command_config_symlinks(value),
+            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
         },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),

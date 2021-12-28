@@ -32,6 +32,16 @@ pub enum JuliaupConfigChannel {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct JuliaupConfigSettings {
+    #[serde(rename = "CreateChannelSymlinks", default, skip_serializing_if = "is_default")]
+    pub create_channel_symlinks: bool,
+}
+
+impl Default for JuliaupConfigSettings {
+    fn default() -> Self { JuliaupConfigSettings {create_channel_symlinks: false} }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfig {
     #[serde(rename = "Default")]
     pub default: Option<String>,
@@ -41,8 +51,8 @@ pub struct JuliaupConfig {
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
     #[serde(rename = "JuliaupChannel", skip_serializing_if = "Option::is_none")]
     pub juliaup_channel: Option<String>,
-    #[serde(rename = "CreateSymlinks", default, skip_serializing_if = "is_default")]
-    pub create_symlinks: bool,
+    #[serde(rename = "Settings", default)]
+    pub settings: JuliaupConfigSettings,
 }
 
 pub struct JuliaupConfigFile {
@@ -89,7 +99,9 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                     installed_versions: HashMap::new(),
                     installed_channels: HashMap::new(),
                     juliaup_channel: None,
-                    create_symlinks: false,
+                    settings: JuliaupConfigSettings {
+                        create_channel_symlinks: false,
+                    },
                 })
             },
             other_error => {
@@ -149,7 +161,9 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
                 juliaup_channel: None,
-                create_symlinks: false,
+                settings: JuliaupConfigSettings{
+                    create_channel_symlinks: false,
+                },
             };
 
             serde_json::to_writer_pretty(&file, &new_config)
