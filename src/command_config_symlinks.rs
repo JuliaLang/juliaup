@@ -15,8 +15,8 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
                 bail!("Symlinks not supported on Windows.");
             }
 
-            if value != config_file.data.create_symlinks {
-                config_file.data.create_symlinks = value;
+            if value != config_file.data.settings.create_channel_symlinks {
+                config_file.data.settings.create_channel_symlinks = value;
                 value_changed = true;
 
                 for (channel_name, channel) in &config_file.data.installed_channels {
@@ -33,17 +33,17 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
             if value_changed {
-                eprintln!("Property 'symlinks' set to '{}'", value);
+                eprintln!("Property 'channelsymlinks' set to '{}'", value);
             }
             else {
-                eprintln!("Property 'symlinks' is already set to '{}'", value);
+                eprintln!("Property 'channelsymlinks' is already set to '{}'", value);
             }
         },
         None => {
             let config_data = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
-            eprintln!("Property 'symlinks' set to '{}'", config_data.create_symlinks);
+            eprintln!("Property 'channelsymlinks' set to '{}'", config_data.settings.create_channel_symlinks);
         }
     };
 
