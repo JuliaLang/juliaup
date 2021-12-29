@@ -11,6 +11,7 @@ pub mod command_status;
 pub mod command_remove;
 pub mod command_update;
 pub mod command_config_symlinks;
+pub mod command_config_backgroundselfupdate;
 pub mod command_initial_setup_from_launcher;
 pub mod command_api;
 pub mod command_selfupdate;

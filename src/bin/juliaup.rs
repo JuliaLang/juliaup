@@ -1,3 +1,4 @@
+use juliaup::command_config_backgroundselfupdate::run_command_config_backgroundselfupdate;
 use juliaup::{command_link::run_command_link};
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
@@ -94,6 +95,12 @@ enum ConfigSubCmd {
     ChannelSymlinks  {
         /// New Value
         value: Option<bool>
+    },
+    #[cfg(not(target_os = "windows"))]
+    #[clap(name="backgroundselfupdateinterval")]
+    BackgroundSelfupdateInterval {
+        /// New Value
+        value: Option<i64>
     }
 }
 
@@ -111,6 +118,7 @@ fn main() -> Result<()> {
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
+            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
         },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
