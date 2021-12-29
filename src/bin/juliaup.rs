@@ -12,7 +12,9 @@ use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
-use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall, command_config_backgroundselfupdate::run_command_config_backgroundselfupdate};
+use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
+#[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
+use juliaup::command_config_backgroundselfupdate::run_command_config_backgroundselfupdate;
 
 
 #[derive(Parser)]
