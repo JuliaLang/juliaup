@@ -98,8 +98,9 @@ enum ConfigSubCmd {
     },
     #[cfg(not(target_os = "windows"))]
     #[clap(name="backgroundselfupdateinterval")]
+    /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
     BackgroundSelfupdateInterval {
-        /// New Value
+        /// New value
         value: Option<i64>
     }
 }
