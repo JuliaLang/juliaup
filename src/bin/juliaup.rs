@@ -1,4 +1,3 @@
-use juliaup::command_config_backgroundselfupdate::run_command_config_backgroundselfupdate;
 use juliaup::{command_link::run_command_link};
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
@@ -13,7 +12,7 @@ use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
-use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
+use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall, command_config_backgroundselfupdate::run_command_config_backgroundselfupdate};
 
 
 #[derive(Parser)]
@@ -96,7 +95,7 @@ enum ConfigSubCmd {
         /// New Value
         value: Option<bool>
     },
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(feature = "selfupdate")]
     #[clap(name="backgroundselfupdateinterval")]
     /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
     BackgroundSelfupdateInterval {
@@ -119,6 +118,7 @@ fn main() -> Result<()> {
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
+            #[cfg(feature = "selfupdate")]
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
         },
         Juliaup::Api {command} => run_command_api(command),
