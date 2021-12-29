@@ -271,3 +271,114 @@ r#"#!/bin/sh
 
 #[cfg(target_os = "windows")]
 pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok(()) }
+
+#[cfg(not(target_os = "windows"))]
+pub fn install_background_selfupdate(interval: i64) -> Result<()> {
+    use itertools::Itertools;
+    use std::{io::Write, process::Stdio};
+
+    let own_exe_path = std::env::current_exe()
+        .with_context(|| "Could not determine the path of the running exe.")?;
+
+    let my_own_path = own_exe_path.to_str().unwrap();
+
+    match std::env::var("WSL_DISTRO_NAME") {
+        // This is the WSL case, where we schedule a Windows task to do the update
+        Ok(val) => {
+            std::process::Command::new("schtasks.exe")
+                .args([
+                    "/create",
+                    "/sc",
+                    "minute",
+                    "/mo",
+                    &interval.to_string(),
+                    "/tn",
+                    &format!("Juliaup self update for WSL {} distribution", val),
+                    "/f",
+                    "/it",
+                    "/tr",
+                    &format!("wsl --distribution {} {} self update", val, my_own_path)
+                ])
+                .output()
+                .with_context(|| "Failed to create new Windows task for juliaup.")?;
+        },
+        Err(_e) => {
+            let output = std::process::Command::new("crontab")
+                .args(["-l"])
+                .output()
+                .with_context(|| "Failed to retrieve crontab configuration.")?;
+
+            let new_crontab_content = String::from_utf8(output.stdout)?
+                .lines()
+                .filter(|x| !x.contains("4c79c12db1d34bbbab1f6c6f838f423f"))
+                .chain([&format!("*/{} * * * * {} 4c79c12db1d34bbbab1f6c6f838f423f", interval, my_own_path), ""])
+                .join("\n");
+
+            let mut child = std::process::Command::new("crontab")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()?;
+
+            let child_stdin = child.stdin.as_mut().unwrap();
+
+            child_stdin.write_all(new_crontab_content.as_bytes())?;
+
+            // Close stdin to finish and avoid indefinite blocking
+            drop(child_stdin);
+                
+            child.wait_with_output()?;
+        },
+    };
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn uninstall_background_selfupdate() -> Result<()> {
+    use std::{io::Write, process::Stdio};
+    use itertools::Itertools;
+
+    match std::env::var("WSL_DISTRO_NAME") {
+        // This is the WSL case, where we schedule a Windows task to do the update
+        Ok(val) => {            
+            std::process::Command::new("schtasks.exe")
+                .args([
+                    "/delete",
+                    "/tn",
+                    &format!("Juliaup self update for WSL {} distribution", val),
+                    "/f",
+                ])
+                .output()
+                .with_context(|| "Failed to remove Windows task for juliaup.")?;
+
+        },
+        Err(_e) => {
+            let output = std::process::Command::new("crontab")
+                .args(["-l"])
+                .output()
+                .with_context(|| "Failed to remove cron task.")?;
+
+            let new_crontab_content = String::from_utf8(output.stdout)?
+                .lines()
+                .filter(|x| !x.contains("4c79c12db1d34bbbab1f6c6f838f423f"))
+                .chain([""])
+                .join("\n");
+
+            let mut child = std::process::Command::new("crontab")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()?;
+
+            let child_stdin = child.stdin.as_mut().unwrap();
+
+            child_stdin.write_all(new_crontab_content.as_bytes())?;
+
+            // Close stdin to finish and avoid indefinite blocking
+            drop(child_stdin);
+                
+            child.wait_with_output()?;
+        },
+    };
+
+    Ok(())
+}

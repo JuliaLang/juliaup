@@ -35,10 +35,17 @@ pub enum JuliaupConfigChannel {
 pub struct JuliaupConfigSettings {
     #[serde(rename = "CreateChannelSymlinks", default, skip_serializing_if = "is_default")]
     pub create_channel_symlinks: bool,
+    #[serde(rename = "BackgroundSelfUpdateInterval", skip_serializing_if = "Option::is_none")]
+    pub background_selfupdate_interval: Option<i64>,
 }
 
 impl Default for JuliaupConfigSettings {
-    fn default() -> Self { JuliaupConfigSettings {create_channel_symlinks: false} }
+    fn default() -> Self { 
+        JuliaupConfigSettings {
+            create_channel_symlinks: false,
+            background_selfupdate_interval: None,
+        }
+     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -101,6 +108,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                     juliaup_channel: None,
                     settings: JuliaupConfigSettings {
                         create_channel_symlinks: false,
+                        background_selfupdate_interval: None,
                     },
                 })
             },
@@ -163,6 +171,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                 juliaup_channel: None,
                 settings: JuliaupConfigSettings{
                     create_channel_symlinks: false,
+                    background_selfupdate_interval: None,
                 },
             };
 
