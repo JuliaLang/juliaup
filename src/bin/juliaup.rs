@@ -97,7 +97,7 @@ enum ConfigSubCmd {
         /// New Value
         value: Option<bool>
     },
-    #[cfg(feature = "selfupdate")]
+    #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
     #[clap(name="backgroundselfupdateinterval")]
     /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
     BackgroundSelfupdateInterval {
@@ -120,7 +120,7 @@ fn main() -> Result<()> {
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
-            #[cfg(feature = "selfupdate")]
+            #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
         },
         Juliaup::Api {command} => run_command_api(command),
