@@ -8,7 +8,7 @@ pub fn run_command_gc() -> Result<()> {
 
     garbage_collect_versions(&mut config_file.data)?;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`gc` command failed to save configuration db.")?;
 
     Ok(())

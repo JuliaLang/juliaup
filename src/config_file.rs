@@ -208,7 +208,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
     Ok(result)
 }
 
-pub fn save_config_db(mut juliaup_config_file: JuliaupConfigFile) -> Result<()> {
+pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()> {
     juliaup_config_file.file.rewind()
         .with_context(|| "Failed to rewind config file for write.")?;
 
@@ -220,9 +220,6 @@ pub fn save_config_db(mut juliaup_config_file: JuliaupConfigFile) -> Result<()> 
 
     juliaup_config_file.file.sync_all()
         .with_context(|| "Failed to write config data to disc.")?;
-
-    juliaup_config_file.lock.unlock()
-        .with_context(|| "Failed to unlock.")?;
 
     Ok(())
 }

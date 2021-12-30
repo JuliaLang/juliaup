@@ -29,7 +29,7 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
                 }
             }
 
-            save_config_db(config_file)
+            save_config_db(&mut config_file)
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
             if value_changed {

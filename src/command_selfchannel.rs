@@ -15,7 +15,7 @@ pub fn run_command_selfchannel(channel: String) -> Result<()> {
 
     config_file.data.juliaup_channel = Some(channel.clone());
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`selfchannel` command failed to save configuration db.")?;
 
     Ok(())

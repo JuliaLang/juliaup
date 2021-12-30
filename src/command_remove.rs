@@ -23,7 +23,7 @@ pub fn run_command_remove(channel: String) -> Result<()> {
 
     garbage_collect_versions(&mut config_file.data)?;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `remove` command after '{}' was installed.", channel))?;
 
     eprintln!("Julia '{}' successfully removed.", channel);
