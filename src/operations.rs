@@ -278,7 +278,7 @@ pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok((
 #[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
     use itertools::Itertools;
-    use std::{io::Write, process::Stdio};
+    use std::process::Stdio;
 
     let own_exe_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
@@ -338,7 +338,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
 
 #[cfg(feature = "selfupdate")]
 pub fn uninstall_background_selfupdate() -> Result<()> {
-    use std::{io::Write, process::Stdio};
+    use std::process::Stdio;
     use itertools::Itertools;
 
     match std::env::var("WSL_DISTRO_NAME") {
