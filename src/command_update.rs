@@ -25,7 +25,8 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                     },
                 );
 
-                if std::env::consts::OS != "windows" && config_db.settings.create_channel_symlinks {
+                #[cfg(not(target_os = "windows)"))]
+                if config_db.settings.create_channel_symlinks {
                     create_symlink(
                         &JuliaupConfigChannel::SystemChannel {
                             version: should_version.version.clone(),

@@ -77,7 +77,7 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(not(target_os = "windows"),feature = "selfupdate"))]
+#[cfg(feature = "selfupdate")]
 fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
@@ -108,7 +108,7 @@ fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
     Ok(())
 }
 
-#[cfg(any(target_os = "windows",not(feature = "selfupdate")))]
+#[cfg(not(feature = "selfupdate"))]
 fn run_selfupdate(_config_data: &JuliaupConfig) -> Result<()> {
     Ok(())
 }

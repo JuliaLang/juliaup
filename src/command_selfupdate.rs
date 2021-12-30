@@ -1,35 +1,15 @@
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-use crate::config_file::*;
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-use crate::utils::get_juliaserver_base_url;
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-use anyhow::{bail, anyhow};
-#[cfg(feature = "selfupdate")]
-use anyhow::Context;
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
 use anyhow::Result;
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-use crate::operations::{download_juliaup_version,download_extract_sans_parent};
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-use crate::get_juliaup_target;
-#[cfg(all(feature = "windowsstore", feature = "selfupdate"))]
-use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
-#[cfg(not(feature = "selfupdate"))]
+#[cfg(feature = "selfupdate")]
 pub fn run_command_selfupdate() -> Result<()> {
-    println!("error: self-update is disabled for this build of juliaup");
-    println!("error: you should probably use your system package manager to update juliaup");
+    use crate::config_file::{load_mut_config_db, save_config_db};
+    use crate::utils::get_juliaserver_base_url;
+    use anyhow::{bail, anyhow};
+    use anyhow::Context;
+    use crate::operations::{download_juliaup_version,download_extract_sans_parent};
+    use crate::get_juliaup_target;
 
-    Ok(())
-}
-
-#[cfg(feature = "selfupdate")]
-#[cfg(not(feature = "windowsstore"))]
-pub fn run_command_selfupdate() -> Result<()> {
     let mut config_data =
         load_mut_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
 
@@ -87,9 +67,10 @@ pub fn run_command_selfupdate() -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "selfupdate")]
 #[cfg(feature = "windowsstore")]
 pub fn run_command_selfupdate() -> Result<()> {
+    use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
+
     let update_manager = windows::Services::Store::StoreContext::GetDefault()    
         .with_context(|| "Failed to get the store context.")?;
 

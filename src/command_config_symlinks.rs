@@ -5,7 +5,7 @@ use anyhow::Result;
 pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
     use crate::operations::{create_symlink, remove_symlink};
-    use anyhow::{bail, Context};
+    use anyhow::Context;
 
     match value {
         Some(value) => {
@@ -13,10 +13,6 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
                 .with_context(|| "`config` command failed to load configuration data.")?;
     
             let mut value_changed = false;
-
-            if std::env::consts::OS == "windows" {
-                bail!("Symlinks not supported on Windows.");
-            }
 
             if value != config_file.data.settings.create_channel_symlinks {
                 config_file.data.settings.create_channel_symlinks = value;
