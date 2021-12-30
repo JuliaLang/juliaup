@@ -18,6 +18,7 @@ use juliaup::{
     command_selfuninstall::run_command_selfuninstall,
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
+    command_config_modifypath::run_command_config_modifypath,
 };
 #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
 use juliaup::command_selfupdate::run_command_selfupdate;
@@ -120,6 +121,13 @@ enum ConfigSubCmd {
         /// New value
         value: Option<i64>
     },
+    #[cfg(feature = "selfupdate")]
+    #[clap(name="modifypath")]
+    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
+    ModifyPath {
+        /// New value
+        value: Option<bool>
+    },
 }
 
 fn main() -> Result<()> {
@@ -140,6 +148,8 @@ fn main() -> Result<()> {
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
             #[cfg(feature = "selfupdate")]
             ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value),
+            #[cfg(feature = "selfupdate")]
+            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value),
         },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),

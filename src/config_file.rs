@@ -40,6 +40,8 @@ pub struct JuliaupConfigSettings {
     pub background_selfupdate_interval: Option<i64>,
     #[serde(rename = "StartupSelfUpdateInterval", skip_serializing_if = "Option::is_none")]
     pub startup_selfupdate_interval: Option<i64>,
+    #[serde(rename = "ModifyPath", default, skip_serializing_if = "is_default")]
+    pub modify_path: bool,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -48,6 +50,7 @@ impl Default for JuliaupConfigSettings {
             create_channel_symlinks: false,
             background_selfupdate_interval: None,
             startup_selfupdate_interval: None,
+            modify_path: false,
         }
      }
 }
@@ -116,6 +119,7 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                         create_channel_symlinks: false,
                         background_selfupdate_interval: None,
                         startup_selfupdate_interval: None,
+                        modify_path: false,
                     },
                     last_selfupdate: None,                    
                 })
@@ -181,6 +185,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                     create_channel_symlinks: false,
                     background_selfupdate_interval: None,
                     startup_selfupdate_interval: None,
+                    modify_path: false,
                 },
                 last_selfupdate: None,
             };

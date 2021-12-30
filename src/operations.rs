@@ -8,10 +8,13 @@ use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
+use anyhow::bail;
 use anyhow::{anyhow, Context, Result};
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::io::Seek;
+use std::io::Write;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
@@ -275,7 +278,7 @@ pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok((
 #[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
     use itertools::Itertools;
-    use std::{io::Write, process::Stdio};
+    use std::process::Stdio;
 
     let own_exe_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
@@ -335,7 +338,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
 
 #[cfg(feature = "selfupdate")]
 pub fn uninstall_background_selfupdate() -> Result<()> {
-    use std::{io::Write, process::Stdio};
+    use std::process::Stdio;
     use itertools::Itertools;
 
     match std::env::var("WSL_DISTRO_NAME") {
@@ -379,6 +382,181 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
             child.wait_with_output()?;
         },
     };
+
+    Ok(())
+}
+
+const S_MARKER: &str = "# >>> juliaup initialize >>>";
+const E_MARKER: &str = "# <<< juliaup initialize <<<";
+
+fn get_shell_script_juliaup_content() -> Result<String> {
+    let mut result = String::new();
+
+    let my_own_path = std::env::current_exe()
+            .with_context(|| "Could not determine the path of the running exe.")?;
+
+    let my_own_folder = my_own_path.parent()
+            .ok_or_else(|| anyhow!("Could not determine parent."))?;
+
+    let bin_path = my_own_folder.to_string_lossy();
+
+    result.push_str(S_MARKER);
+    result.push('\n');
+    result.push('\n');
+    result.push_str("# !! Contents within this block are managed by juliaup !!\n");
+    result.push('\n');
+    result.push_str("# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings\n");
+    result.push_str("# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded\n");
+    result.push('\n');
+    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path));
+    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path));
+    result.push_str("esac\n");
+    result.push('\n');
+    result.push_str(E_MARKER);
+
+    Ok(result)
+}
+
+fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,usize)>> {
+    let mut start_markers: Vec<_> = buffer.match_indices(S_MARKER).collect();
+    let mut end_markers: Vec<_> = buffer.match_indices(E_MARKER).collect();
+    
+    if start_markers.len() != end_markers.len() {
+        bail!("Different amount of markers.");
+    }
+    else if start_markers.len() > 1 {
+        bail!("More than one start marker found.");
+    }
+    else if start_markers.len()==1 {
+        if include_newlines {
+            let start_markers_with_newline: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
+            if start_markers_with_newline.len()==1 {
+                start_markers = start_markers_with_newline;
+            }
+
+            let end_markers_with_newline: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
+            if end_markers_with_newline.len()==1 {
+                end_markers = end_markers_with_newline;
+            }
+        }
+
+        Ok(Some((start_markers[0].0, end_markers[0].0 + end_markers[0].1.len())))
+    }
+    else {
+        Ok(None)
+    }
+}
+
+fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
+    .with_context(|| "Failed to open juliaup config file.")?;
+
+    let mut buffer = String::new();
+
+    file.read_to_string(&mut buffer)?;
+
+    let existing_code_pos = match_markers(&buffer, false)?;
+
+    let new_content = get_shell_script_juliaup_content().unwrap();
+
+    match existing_code_pos {
+        Some(pos) => {
+            buffer.replace_range(pos.0..pos.1, &new_content);
+        },
+        None => {
+            buffer.push('\n');
+            buffer.push_str(&new_content);
+            buffer.push('\n');
+        }
+    };
+
+    file.rewind().unwrap();
+
+    file.set_len(0).unwrap();
+
+    file.write_all(buffer.as_bytes()).unwrap();
+
+    file.sync_all().unwrap();
+
+    Ok(())
+}
+
+fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
+    .with_context(|| "Failed to open juliaup config file.")?;
+
+    let mut buffer = String::new();
+
+    file.read_to_string(&mut buffer)?;
+
+    let existing_code_pos = match_markers(&buffer, true)?;
+
+    if let Some(pos) = existing_code_pos {
+        buffer.replace_range(pos.0..pos.1, "");
+
+        file.rewind().unwrap();
+
+        file.set_len(0).unwrap();
+
+        file.write_all(buffer.as_bytes()).unwrap();
+
+        file.sync_all().unwrap();
+    }
+
+    Ok(())
+}
+
+pub fn add_binfolder_to_path_in_shell_scripts() -> Result<()> {
+    let home_dir = dirs::home_dir().unwrap();
+
+    add_path_to_specific_file(home_dir.join(".bashrc")).unwrap();
+
+    let mut edited_some_profile_file = false;
+
+    // We now check for all the various profile scripts that bash might run and
+    // edit all of them, as bash will only run one of them.
+    if home_dir.join(".profile").exists() {
+        add_path_to_specific_file(home_dir.join(".profile")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+    if home_dir.join(".bash_profile").exists() {
+        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+    if home_dir.join(".bash_login").exists() {
+        add_path_to_specific_file(home_dir.join(".bash_login")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+
+    // If none of the profile files exists, we create a `.bash_profile`
+    if !edited_some_profile_file {
+        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+    }
+
+    Ok(())
+}
+
+pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
+    let home_dir = dirs::home_dir().unwrap();
+
+    if home_dir.join(".profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".bashrc")).unwrap();
+    }
+
+    if home_dir.join(".profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".profile")).unwrap();
+    }
+
+    if home_dir.join(".bash_profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".bash_profile")).unwrap();
+    }
+
+    if home_dir.join(".bash_login").exists() {
+        remove_path_from_specific_file(home_dir.join(".bash_login")).unwrap();
+    }
 
     Ok(())
 }
