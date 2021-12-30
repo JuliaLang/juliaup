@@ -30,11 +30,11 @@ pub fn run_command_selfupdate() -> Result<()> {
 #[cfg(feature = "selfupdate")]
 #[cfg(not(feature = "windowsstore"))]
 pub fn run_command_selfupdate() -> Result<()> {
-    let config_data =
-        load_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
+    let mut config_data =
+        load_mut_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
 
-    let juliaup_channel = match config_data.juliaup_channel {
-        Some(juliaup_channel) => juliaup_channel,
+    let juliaup_channel = match &config_data.data.juliaup_channel {
+        Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string()
     };
 
@@ -52,6 +52,11 @@ pub fn run_command_selfupdate() -> Result<()> {
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, version_url_path))?;
 
     let version = download_juliaup_version(&version_url.to_string())?;
+
+    config_data.data.last_selfupdate = Some(chrono::Utc::now());
+
+    save_config_db(&mut config_data)
+        .with_context(|| "Failed to save configuration file.")?;
 
     let juliaup_target = get_juliaup_target();
 

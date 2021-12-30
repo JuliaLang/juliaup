@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 #[cfg(target_os = "windows")]
 use anyhow::bail;
+use chrono::Utc;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::utils::get_juliaupconfig_path;
@@ -8,6 +9,7 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Stdio;
 use ctrlc;
 
 #[derive(thiserror::Error, Debug)]
@@ -52,21 +54,61 @@ fn windows_enable_virtual_terminal_processing() -> Result<()> {
     Ok(())
 }
 
+fn get_juliaup_path() -> Result<PathBuf> {
+    let my_own_path = std::env::current_exe()
+    .with_context(|| "std::env::current_exe() did not find its own path.")?;
+
+    let juliaup_path = my_own_path
+        .parent()
+        .unwrap() // unwrap OK here because this can't happen
+        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+
+    Ok(juliaup_path)
+}
+
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
-        let my_own_path = std::env::current_exe()
-            .with_context(|| "std::env::current_exe() did not find its own path.")?;
-
-        let juliaup_path = my_own_path
-            .parent()
-            .unwrap() // unwrap OK here because this can't happen
-            .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+        let juliaup_path = get_juliaup_path()
+            .with_context(|| "Failed to obtain juliaup path.")?;
 
         std::process::Command::new(juliaup_path)
             .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
             .status()
             .with_context(|| "Failed to start juliaup for the initial setup.")?;
     }
+    Ok(())
+}
+
+#[cfg(all(not(target_os = "windows"),feature = "selfupdate"))]
+fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
+    if let Some(val) = config_data.settings.startup_selfupdate_interval {
+        let should_run = if let Some(last_selfupdate) = config_data.last_selfupdate {
+            let update_time = last_selfupdate + chrono::Duration::minutes(val);
+
+            if Utc::now() >= update_time {true} else {false}
+        } else {
+            true
+        };
+
+        if should_run {
+            let juliaup_path = get_juliaup_path()
+                .with_context(|| "Failed to obtain juliaup path.")?;
+
+            std::process::Command::new(juliaup_path)
+                .args(["self", "update"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .stdin(Stdio::null())
+                .spawn()
+                .with_context(|| "Failed to start juliaup for self update.")?;
+        };
+    }
+
+    Ok(())
+}
+
+#[cfg(any(target_os = "windows",not(feature = "selfupdate")))]
+fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
     Ok(())
 }
 
@@ -225,10 +267,16 @@ fn run_app() -> Result<i32> {
     ctrlc::set_handler(|| ())
         .with_context(|| "Failed to set the Ctrl-C handler.")?;
 
-    let status = std::process::Command::new(julia_path)
+    let mut child_process = std::process::Command::new(julia_path)
         .args(&new_args)
-        .status()
+        .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+
+    run_selfupdate(&config_data)
+        .with_context(|| "Failed to run selfupdate.")?;
+
+    let status = child_process.wait()
+        .with_context(|| "Failed to wait for Julia process to finish.")?;
 
     let code = match status.code() {
         Some(code) => code,
