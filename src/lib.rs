@@ -22,6 +22,7 @@ pub mod command_selfuninstall;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
 include!(concat!(env!("OUT_DIR"), "/various_constants.rs"));
+include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
 pub fn get_bundled_julia_full_version() -> &'static str {
     BUNDLED_JULIA_FULL_VERSION
@@ -29,4 +30,14 @@ pub fn get_bundled_julia_full_version() -> &'static str {
 
 pub fn get_juliaup_target() -> &'static str {
     JULIAUP_TARGET
+}
+
+pub fn get_own_version() -> anyhow::Result<semver::Version> {
+    use semver::Version;
+    use anyhow::Context;
+
+    let version = Version::parse(PKG_VERSION)
+        .with_context(|| "Failed to parse our own version.")?;
+
+    Ok(version)
 }
