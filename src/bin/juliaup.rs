@@ -131,6 +131,13 @@ enum ConfigSubCmd {
 }
 
 fn main() -> Result<()> {
+    human_panic::setup_panic!(human_panic::Metadata {
+        name: "Juliaup".into(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        authors: "".into(),
+        homepage: "https://github.com/JuliaLang/juliaup".into(),
+    });
+
     let args = Juliaup::parse();
 
     match args {

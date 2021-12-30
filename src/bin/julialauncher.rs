@@ -245,6 +245,13 @@ fn run_app() -> Result<i32> {
 }
 
 fn main() -> Result<()> {
+    human_panic::setup_panic!(human_panic::Metadata {
+        name: "Juliaup launcher".into(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        authors: "".into(),
+        homepage: "https://github.com/JuliaLang/juliaup".into(),
+    });
+
     let client_status = run_app()?;
 
     std::process::exit(client_status);
