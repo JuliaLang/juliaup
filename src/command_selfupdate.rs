@@ -8,7 +8,7 @@ pub fn run_command_selfupdate() -> Result<()> {
     use anyhow::{bail, anyhow};
     use anyhow::Context;
     use crate::operations::{download_juliaup_version,download_extract_sans_parent};
-    use crate::get_juliaup_target;
+    use crate::{get_juliaup_target, get_own_version};
 
     let mut config_data =
         load_mut_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
@@ -28,6 +28,8 @@ pub fn run_command_selfupdate() -> Result<()> {
         _ => bail!("Juliaup is configured to a channel named '{}' that does not exist.", &juliaup_channel)
     };
 
+    eprintln!("Checking for self-updates");
+
     let version_url = juliaupserver_base.join(version_url_path)
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, version_url_path))?;
 
@@ -38,31 +40,31 @@ pub fn run_command_selfupdate() -> Result<()> {
     save_config_db(&mut config_data)
         .with_context(|| "Failed to save configuration file.")?;
 
-    let juliaup_target = get_juliaup_target();
+    if version==get_own_version().unwrap() {
+        eprintln!("Juliaup unchanged on channel '{}' - {}", juliaup_channel, version);
+    }
+    else {
+        let juliaup_target = get_juliaup_target();
 
-    let juliaupserver_base = get_juliaserver_base_url()
-            .with_context(|| "Failed to get Juliaup server base URL.")?;
+        let juliaupserver_base = get_juliaserver_base_url()
+                .with_context(|| "Failed to get Juliaup server base URL.")?;
 
-    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
+        let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
 
-    let new_juliaup_url = juliaupserver_base.join(&download_url_path)
-            .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
+        let new_juliaup_url = juliaupserver_base.join(&download_url_path)
+                .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
 
-    let my_own_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
+        let my_own_path = std::env::current_exe()
+            .with_context(|| "Could not determine the path of the running exe.")?;
 
-    let my_own_folder = my_own_path.parent()
-        .ok_or_else(|| anyhow!("Could not determine parent."))?;
+        let my_own_folder = my_own_path.parent()
+            .ok_or_else(|| anyhow!("Could not determine parent."))?;
 
-    println!("We are on the juliaup channel '{}'.", juliaup_channel);
-    println!("The version URL is {}.", version_url);
-    println!("The current version is {}.", version);
-    println!("We will replace {:?}.", my_own_path);
-    println!("We will replace files in {:?}.", my_own_folder);
-    println!("We are on {}.", juliaup_target);
-    println!("We will download from {}.", new_juliaup_url);
+        eprintln!("Found new version {} on channel {}.", version, juliaup_channel);
 
-    download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
+        download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
+        eprintln!("Updated Juliaup to version {}.", version);
+    }
 
     Ok(())
 }
