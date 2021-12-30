@@ -1,9 +1,12 @@
-use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-use crate::operations::{create_symlink, remove_symlink};
-use anyhow::{bail, Context, Result};
+#[cfg(not(target_os = "windows"))]
+use anyhow::Result;
 
 #[cfg(not(target_os = "windows"))]
 pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
+    use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
+    use crate::operations::{create_symlink, remove_symlink};
+    use anyhow::{bail, Context};
+
     match value {
         Some(value) => {
             let mut config_file = load_mut_config_db()
@@ -29,7 +32,7 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
                 }
             }
 
-            save_config_db(config_file)
+            save_config_db(&mut config_file)
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
             if value_changed {

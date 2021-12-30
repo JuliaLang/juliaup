@@ -68,7 +68,7 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
 
     garbage_collect_versions(&mut config_file.data)?;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`update` command failed to save configuration db.")?;
 
     Ok(())

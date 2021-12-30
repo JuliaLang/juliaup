@@ -38,7 +38,7 @@ pub fn run_command_add(channel: String) -> Result<()> {
 
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
 
     if std::env::consts::OS != "windows" && create_symlinks {

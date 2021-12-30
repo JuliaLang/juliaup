@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
+use chrono::{DateTime,Utc};
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
@@ -37,6 +38,8 @@ pub struct JuliaupConfigSettings {
     pub create_channel_symlinks: bool,
     #[serde(rename = "BackgroundSelfUpdateInterval", skip_serializing_if = "Option::is_none")]
     pub background_selfupdate_interval: Option<i64>,
+    #[serde(rename = "StartupSelfUpdateInterval", skip_serializing_if = "Option::is_none")]
+    pub startup_selfupdate_interval: Option<i64>,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -44,6 +47,7 @@ impl Default for JuliaupConfigSettings {
         JuliaupConfigSettings {
             create_channel_symlinks: false,
             background_selfupdate_interval: None,
+            startup_selfupdate_interval: None,
         }
      }
 }
@@ -60,6 +64,8 @@ pub struct JuliaupConfig {
     pub juliaup_channel: Option<String>,
     #[serde(rename = "Settings", default)]
     pub settings: JuliaupConfigSettings,
+    #[serde(rename = "LastSelfUpdate", skip_serializing_if = "Option::is_none")]
+    pub last_selfupdate: Option<DateTime<Utc>>,
 }
 
 pub struct JuliaupConfigFile {
@@ -109,7 +115,9 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                     settings: JuliaupConfigSettings {
                         create_channel_symlinks: false,
                         background_selfupdate_interval: None,
+                        startup_selfupdate_interval: None,
                     },
+                    last_selfupdate: None,                    
                 })
             },
             other_error => {
@@ -172,7 +180,9 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings{
                     create_channel_symlinks: false,
                     background_selfupdate_interval: None,
+                    startup_selfupdate_interval: None,
                 },
+                last_selfupdate: None,
             };
 
             serde_json::to_writer_pretty(&file, &new_config)
@@ -208,7 +218,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
     Ok(result)
 }
 
-pub fn save_config_db(mut juliaup_config_file: JuliaupConfigFile) -> Result<()> {
+pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()> {
     juliaup_config_file.file.rewind()
         .with_context(|| "Failed to rewind config file for write.")?;
 
@@ -220,9 +230,6 @@ pub fn save_config_db(mut juliaup_config_file: JuliaupConfigFile) -> Result<()> 
 
     juliaup_config_file.file.sync_all()
         .with_context(|| "Failed to write config data to disc.")?;
-
-    juliaup_config_file.lock.unlock()
-        .with_context(|| "Failed to unlock.")?;
 
     Ok(())
 }
