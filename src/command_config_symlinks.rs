@@ -1,9 +1,10 @@
-use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-use crate::operations::{create_symlink, remove_symlink};
-use anyhow::{bail, Context, Result};
 
 #[cfg(not(target_os = "windows"))]
 pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
+    use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
+    use crate::operations::{create_symlink, remove_symlink};
+    use anyhow::{bail, Context, Result};
+
     match value {
         Some(value) => {
             let mut config_file = load_mut_config_db()

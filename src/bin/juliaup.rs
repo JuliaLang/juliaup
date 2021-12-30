@@ -1,4 +1,3 @@
-use juliaup::command_config_startupselfupdate::run_command_config_startupselfupdate;
 use juliaup::{command_link::run_command_link};
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
@@ -15,7 +14,7 @@ use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
 use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
 #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
-use juliaup::command_config_backgroundselfupdate::run_command_config_backgroundselfupdate;
+use juliaup::command_config_backgroundselfupdate::{run_command_config_backgroundselfupdate,run_command_config_startupselfupdate};
 
 
 #[derive(Parser)]
@@ -130,6 +129,7 @@ fn main() -> Result<()> {
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
             #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
+            #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
             ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value),
         },
         Juliaup::Api {command} => run_command_api(command),

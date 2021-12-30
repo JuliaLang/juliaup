@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 #[cfg(target_os = "windows")]
 use anyhow::bail;
-use chrono::Utc;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::utils::get_juliaupconfig_path;
@@ -9,7 +8,6 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Stdio;
 use ctrlc;
 
 #[derive(thiserror::Error, Debug)]
@@ -81,6 +79,9 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
 
 #[cfg(all(not(target_os = "windows"),feature = "selfupdate"))]
 fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
+    use chrono::Utc;
+    use std::process::Stdio;
+
     if let Some(val) = config_data.settings.startup_selfupdate_interval {
         let should_run = if let Some(last_selfupdate) = config_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
@@ -108,7 +109,7 @@ fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
 }
 
 #[cfg(any(target_os = "windows",not(feature = "selfupdate")))]
-fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
+fn run_selfupdate(_config_data: &JuliaupConfig) -> Result<()> {
     Ok(())
 }
 
