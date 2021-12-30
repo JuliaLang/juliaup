@@ -1,11 +1,11 @@
-#[cfg(not(feature = "windowsstore"))]
-use crate::config_file::*;
-#[cfg(not(feature = "windowsstore"))]
-use anyhow::{bail, Context};
+#[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
-#[cfg(not(feature = "windowsstore"))]
+#[cfg(feature = "selfupdate")]
 pub fn run_command_selfchannel(channel: String) -> Result<()> {
+    use crate::config_file::{load_mut_config_db, save_config_db};
+    use anyhow::{bail, Context};
+
     let mut config_file = load_mut_config_db()
         .with_context(|| "`self update` command failed to load configuration data.")?;
 
@@ -15,15 +15,8 @@ pub fn run_command_selfchannel(channel: String) -> Result<()> {
 
     config_file.data.juliaup_channel = Some(channel.clone());
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`selfchannel` command failed to save configuration db.")?;
-
-    Ok(())
-}
-
-#[cfg(feature = "windowsstore")]
-pub fn run_command_selfchannel(_channel: String) -> Result<()> {
-    println!("This command is currently not supported in the Windows Store distributed version of juliaup.");
 
     Ok(())
 }

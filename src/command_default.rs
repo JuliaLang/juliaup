@@ -17,7 +17,7 @@ pub fn run_command_default(channel: String) -> Result<()> {
 
     config_file.data.default = Some(channel.clone());
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`default` command failed to save configuration db.")?;
 
     eprintln!("Configured the default Julia version to be '{}'.", channel);

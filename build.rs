@@ -394,5 +394,7 @@ fn main() -> Result<()> {
         format!("pub const JULIAUP_TARGET: &str = \"{}\";", std::env::var("TARGET").unwrap())
     ).unwrap();
 
+    built::write_built_file().expect("Failed to acquire build-time information");
+    
     Ok(())
 }

@@ -17,13 +17,12 @@ pub fn run_command_remove(channel: String) -> Result<()> {
 
     config_file.data.installed_channels.remove(&channel);
 
-    if std::env::consts::OS != "windows" {
-        remove_symlink(&format!("julia-{}", channel))?;
-    }
+    #[cfg(not(target_os = "windows)"))]
+    remove_symlink(&format!("julia-{}", channel))?;
 
     garbage_collect_versions(&mut config_file.data)?;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `remove` command after '{}' was installed.", channel))?;
 
     eprintln!("Julia '{}' successfully removed.", channel);

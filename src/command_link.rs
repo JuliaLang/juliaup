@@ -27,12 +27,13 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
         },
     );
 
-    let create_symlinks = config_file.data.create_symlinks;
+    let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| "`link` command failed to save configuration db.")?;
 
-    if std::env::consts::OS != "windows" && create_symlinks {
+    #[cfg(not(target_os = "windows)"))]
+    if create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
                 command: file.clone(),

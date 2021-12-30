@@ -36,12 +36,13 @@ pub fn run_command_add(channel: String) -> Result<()> {
         config_file.data.default = Some(channel.clone());
     }
 
-    let create_symlinks = config_file.data.create_symlinks;
+    let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(config_file)
+    save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
 
-    if std::env::consts::OS != "windows" && create_symlinks {
+    #[cfg(not(target_os = "windows)"))]
+    if create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::SystemChannel {
                 version: required_version.clone(),

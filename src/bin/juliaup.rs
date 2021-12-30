@@ -7,12 +7,21 @@ use anyhow::{Result};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
-use juliaup::command_config::run_command_config;
+#[cfg(not(target_os = "windows"))]
+use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
-use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
-
+use juliaup::{
+    command_selfchannel::run_command_selfchannel,
+    command_selfinstall::run_command_selfinstall,
+    command_selfuninstall::run_command_selfuninstall,
+    command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
+    command_config_startupselfupdate::run_command_config_startupselfupdate,
+    command_config_modifypath::run_command_config_modifypath,
+};
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+use juliaup::command_selfupdate::run_command_selfupdate;
 
 #[derive(Parser)]
 #[clap(name="Juliaup", version)]
@@ -49,11 +58,9 @@ enum Juliaup {
     /// Garbage collect uninstalled Julia versions
     Gc {
     },
-    /// Change config values of Juliaup
-    Config {
-        property: String,
-        value: String
-    },
+    #[clap(subcommand, name = "config")]
+    /// Juliaup configuration
+    Config(ConfigSubCmd),
     #[clap(setting(clap::AppSettings::Hidden))]
     Api {
         command: String
@@ -61,7 +68,7 @@ enum Juliaup {
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
     InitialSetupFromLauncher {
     },
-    #[cfg(feature = "selfupdate")]
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     // This is used for the cron jobs that we create. By using this UUID for the command
@@ -71,20 +78,56 @@ enum Juliaup {
     SecretSelfUpdate {},
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
 #[derive(Parser)]
 /// Manage this juliaup installation
 enum SelfSubCmd {
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
     /// Update juliaup itself
     Update {},
+    #[cfg(feature = "selfupdate")]
     /// Configure the channel to use for juliaup updates
     Channel {
         channel: String
     },
+    #[cfg(feature = "selfupdate")]
     /// Install this version of juliaup into the system
     Install {},
+    #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
     Uninstall {},
+}
+
+#[derive(Parser)]
+enum ConfigSubCmd {
+    #[cfg(not(target_os = "windows"))]
+    #[clap(name="channelsymlinks")]
+    /// Create a separate symlink per channel
+    ChannelSymlinks  {
+        /// New Value
+        value: Option<bool>
+    },
+    #[cfg(feature = "selfupdate")]
+    #[clap(name="backgroundselfupdateinterval")]
+    /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
+    BackgroundSelfupdateInterval {
+        /// New value
+        value: Option<i64>
+    },
+    #[cfg(feature = "selfupdate")]
+    #[clap(name="startupselfupdateinterval")]
+    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
+    StartupSelfupdateInterval {
+        /// New value
+        value: Option<i64>
+    },
+    #[cfg(feature = "selfupdate")]
+    #[clap(name="modifypath")]
+    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
+    ModifyPath {
+        /// New value
+        value: Option<bool>
+    },
 }
 
 fn main() -> Result<()> {
@@ -98,16 +141,29 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel),
         Juliaup::Gc {} => run_command_gc(),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
-        Juliaup::Config {property, value} => run_command_config(property, value),
+        Juliaup::Config(subcmd) => match subcmd {
+            #[cfg(not(target_os = "windows"))]
+            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
+            #[cfg(feature = "selfupdate")]
+            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
+            #[cfg(feature = "selfupdate")]
+            ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value),
+            #[cfg(feature = "selfupdate")]
+            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value),
+        },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(),
-        #[cfg(feature = "selfupdate")]
+        #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
+            #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
             SelfSubCmd::Update {} => run_command_selfupdate(),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Install {} => run_command_selfinstall(),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(),
         }
     }
