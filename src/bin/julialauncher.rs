@@ -1,6 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-#[cfg(target_os = "windows")]
-use anyhow::bail;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::utils::get_juliaupconfig_path;
@@ -9,47 +7,12 @@ use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
 use ctrlc;
+use console::Term;
 
 #[derive(thiserror::Error, Debug)]
 pub enum JuliaupInvalidChannel {
     #[error("Invalid channel specified")]
     FromCmdLine(),
-}
-
-#[cfg(target_os = "windows")]
-use windows::{
-    core::Handle,
-    Win32::System::Console::{
-        GetConsoleMode, GetStdHandle, SetConsoleMode, CONSOLE_MODE, ENABLE_VIRTUAL_TERMINAL_PROCESSING,
-        STD_OUTPUT_HANDLE,
-    }
-};
-
-#[cfg(target_os = "windows")]
-fn windows_enable_virtual_terminal_processing() -> Result<()> {
-    unsafe {
-        // Set output mode to handle virtual terminal sequences
-        let console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-        if console_handle.is_invalid() {
-            bail!("The call to GetStdHandle failed.");
-        }
-
-        let mut console_mode = CONSOLE_MODE::from(0);
-        GetConsoleMode(console_handle, &mut console_mode as *mut _ as _)
-            .ok()
-            .with_context(|| "The call to GetConsoleMode failed.")?;
-
-        console_mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        SetConsoleMode(console_handle, console_mode)
-            .ok()
-            .with_context(|| "The call to SetConsoleMode failed")?;
-        Ok(())
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn windows_enable_virtual_terminal_processing() -> Result<()> {
-    Ok(())
 }
 
 fn get_juliaup_path() -> Result<PathBuf> {
@@ -197,14 +160,8 @@ fn get_julia_path_from_channel(
 
 fn run_app() -> Result<i32> {
     // Set console title
-    if atty::is(atty::Stream::Stdout) {
-        if cfg!(windows) {
-            windows_enable_virtual_terminal_processing()
-                .with_context(|| "The Julia launcher failed failed to configure the terminal to use ENABLE_VIRTUAL_TERMINAL_PROCESSING.")?;
-        }
-
-        print!("\x1b]2;Julia\x07");
-    }
+    let term = Term::stdout();
+    term.set_title("Julia");
 
     let juliaupconfig_path = get_juliaupconfig_path()
         .with_context(|| "The Julia launcher failed to find the juliaup configuration path.")?;
