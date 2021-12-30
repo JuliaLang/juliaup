@@ -252,6 +252,9 @@ fn main() -> Result<()> {
         homepage: "https://github.com/JuliaLang/juliaup".into(),
     });
 
+    let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
+    env_logger::init_from_env(env);
+
     let client_status = run_app()?;
 
     std::process::exit(client_status);

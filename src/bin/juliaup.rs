@@ -22,6 +22,7 @@ use juliaup::{
 };
 #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
 use juliaup::command_selfupdate::run_command_selfupdate;
+use log::info;
 
 #[derive(Parser)]
 #[clap(name="Juliaup", version)]
@@ -138,6 +139,10 @@ fn main() -> Result<()> {
         homepage: "https://github.com/JuliaLang/juliaup".into(),
     });
 
+    let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
+    env_logger::init_from_env(env);
+
+    info!("Parsing command line arguments.");
     let args = Juliaup::parse();
 
     match args {
