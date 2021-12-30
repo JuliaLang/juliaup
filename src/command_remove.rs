@@ -17,9 +17,8 @@ pub fn run_command_remove(channel: String) -> Result<()> {
 
     config_file.data.installed_channels.remove(&channel);
 
-    if std::env::consts::OS != "windows" {
-        remove_symlink(&format!("julia-{}", channel))?;
-    }
+    #[cfg(not(target_os = "windows)"))]
+    remove_symlink(&format!("julia-{}", channel))?;
 
     garbage_collect_versions(&mut config_file.data)?;
 

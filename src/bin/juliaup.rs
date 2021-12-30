@@ -12,12 +12,15 @@ use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
-use juliaup::{command_selfchannel::run_command_selfchannel,command_selfupdate::run_command_selfupdate,command_selfinstall::run_command_selfinstall, command_selfuninstall::run_command_selfuninstall};
-#[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
-use juliaup::command_config_backgroundselfupdate::run_command_config_backgroundselfupdate;
-#[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
-use juliaup::command_config_startupselfupdate::run_command_config_startupselfupdate;
-
+use juliaup::{
+    command_selfchannel::run_command_selfchannel,
+    command_selfinstall::run_command_selfinstall,
+    command_selfuninstall::run_command_selfuninstall,
+    command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
+    command_config_startupselfupdate::run_command_config_startupselfupdate,
+};
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+use juliaup::command_selfupdate::run_command_selfupdate;
 
 #[derive(Parser)]
 #[clap(name="Juliaup", version)]
@@ -64,7 +67,7 @@ enum Juliaup {
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
     InitialSetupFromLauncher {
     },
-    #[cfg(feature = "selfupdate")]
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     // This is used for the cron jobs that we create. By using this UUID for the command
@@ -74,18 +77,22 @@ enum Juliaup {
     SecretSelfUpdate {},
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
 #[derive(Parser)]
 /// Manage this juliaup installation
 enum SelfSubCmd {
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
     /// Update juliaup itself
     Update {},
+    #[cfg(feature = "selfupdate")]
     /// Configure the channel to use for juliaup updates
     Channel {
         channel: String
     },
+    #[cfg(feature = "selfupdate")]
     /// Install this version of juliaup into the system
     Install {},
+    #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
     Uninstall {},
 }
@@ -99,14 +106,14 @@ enum ConfigSubCmd {
         /// New Value
         value: Option<bool>
     },
-    #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
+    #[cfg(feature = "selfupdate")]
     #[clap(name="backgroundselfupdateinterval")]
     /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
     BackgroundSelfupdateInterval {
         /// New value
         value: Option<i64>
     },
-    #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
+    #[cfg(feature = "selfupdate")]
     #[clap(name="startupselfupdateinterval")]
     /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
     StartupSelfupdateInterval {
@@ -129,20 +136,24 @@ fn main() -> Result<()> {
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
-            #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
+            #[cfg(feature = "selfupdate")]
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
-            #[cfg(all(not(target_os = "windows"), feature = "selfupdate"))]
+            #[cfg(feature = "selfupdate")]
             ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value),
         },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(),
-        #[cfg(feature = "selfupdate")]
+        #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
+            #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
             SelfSubCmd::Update {} => run_command_selfupdate(),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Install {} => run_command_selfinstall(),
+            #[cfg(feature = "selfupdate")]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(),
         }
     }
