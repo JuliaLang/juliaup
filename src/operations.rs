@@ -417,17 +417,10 @@ fn get_shell_script_juliaup_content() -> Result<String> {
     Ok(result)
 }
 
-fn match_markers(buffer: &str) -> Result<Option<(usize,usize)>> {
-    let mut start_markers: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
-    if start_markers.len() != 1 {
-        start_markers = buffer.match_indices(S_MARKER).collect();
-    }
-
-    let mut end_markers: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
-    if end_markers.len() != 1 {
-        end_markers = buffer.match_indices(E_MARKER).collect();
-    }
-
+fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,usize)>> {
+    let mut start_markers: Vec<_> = buffer.match_indices(S_MARKER).collect();
+    let mut end_markers: Vec<_> = buffer.match_indices(E_MARKER).collect();
+    
     if start_markers.len() != end_markers.len() {
         bail!("Different amount of markers.");
     }
@@ -435,6 +428,18 @@ fn match_markers(buffer: &str) -> Result<Option<(usize,usize)>> {
         bail!("More than one start marker found.");
     }
     else if start_markers.len()==1 {
+        if include_newlines {
+            let start_markers_with_newline: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
+            if start_markers_with_newline.len()==1 {
+                start_markers = start_markers_with_newline;
+            }
+
+            let end_markers_with_newline: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
+            if end_markers_with_newline.len()==1 {
+                end_markers = end_markers_with_newline;
+            }
+        }
+
         Ok(Some((start_markers[0].0, end_markers[0].0 + end_markers[0].1.len())))
     }
     else {
@@ -450,7 +455,7 @@ fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_string(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer)?;
+    let existing_code_pos = match_markers(&buffer, false)?;
 
     let new_content = get_shell_script_juliaup_content().unwrap();
 
@@ -484,7 +489,7 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_string(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer)?;
+    let existing_code_pos = match_markers(&buffer, true)?;
 
     if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
