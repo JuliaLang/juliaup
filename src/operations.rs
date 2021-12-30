@@ -8,10 +8,13 @@ use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
+use anyhow::bail;
 use anyhow::{anyhow, Context, Result};
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::io::Seek;
+use std::io::Write;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
@@ -379,6 +382,177 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
             child.wait_with_output()?;
         },
     };
+
+    Ok(())
+}
+
+const S_MARKER: &str = "# >>> juliaup initialize >>>";
+const E_MARKER: &str = "# <<< juliaup initialize <<<";
+
+fn get_shell_script_juliaup_content() -> Result<String> {
+    let mut result = String::new();
+
+    let my_own_path = std::env::current_exe()
+            .with_context(|| "Could not determine the path of the running exe.")?;
+
+    let my_own_folder = my_own_path.parent()
+            .ok_or_else(|| anyhow!("Could not determine parent."))?;
+
+    let bin_path = my_own_folder.to_string_lossy();
+
+    result.push_str(S_MARKER);
+    result.push('\n');
+    result.push('\n');
+    result.push_str("# !! Contents within this block are managed by juliaup !!\n");
+    result.push('\n');
+    result.push_str("# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings\n");
+    result.push_str("# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded\n");
+    result.push('\n');
+    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path));
+    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path));
+    result.push_str("esac\n");
+    result.push('\n');
+    result.push_str(E_MARKER);
+
+    Ok(result)
+}
+
+fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
+    .with_context(|| "Failed to open juliaup config file.")?;
+
+    let mut buffer = String::new();
+
+    file.read_to_string(&mut buffer)?;
+
+    // We make a copy here so that we don't introduce an immutable borrow.
+    // Not ideal, but it gets the job done. Ideally we would have a
+    // match_indices function that only returned indices, not slices
+    // into the original buffer.
+    let copy_of_buffer = buffer.clone();
+    let start_markers: Vec<_> = copy_of_buffer.match_indices(S_MARKER).collect();
+    let end_markers: Vec<_> = copy_of_buffer.match_indices(E_MARKER).collect();
+
+    if start_markers.len() != end_markers.len() {
+        bail!("Different amount of markers.");
+    }
+    else if start_markers.len() > 1 {
+        bail!("More than one start marker found.");
+    }
+    else {
+        let new_content = get_shell_script_juliaup_content().unwrap();
+
+        if start_markers.len() == 0 {
+            buffer.push('\n');
+            buffer.push_str(&new_content);
+            buffer.push('\n');
+        }
+        else {
+            buffer.replace_range(start_markers[0].0..(end_markers[0].0 + end_markers[0].1.len()), &new_content);
+        }
+
+        file.rewind().unwrap();
+
+        file.set_len(0).unwrap();
+
+        file.write_all(buffer.as_bytes()).unwrap();
+
+        file.sync_all().unwrap();
+    }
+
+    Ok(())
+}
+
+fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
+    .with_context(|| "Failed to open juliaup config file.")?;
+
+    let mut buffer = String::new();
+
+    file.read_to_string(&mut buffer)?;
+
+    // We make a copy here so that we don't introduce an immutable borrow.
+    // Not ideal, but it gets the job done. Ideally we would have a
+    // match_indices function that only returned indices, not slices
+    // into the original buffer.
+    let copy_of_buffer = buffer.clone();
+    let start_markers: Vec<_> = copy_of_buffer.match_indices(S_MARKER).collect();
+    let end_markers: Vec<_> = copy_of_buffer.match_indices(E_MARKER).collect();
+
+    if start_markers.len() != end_markers.len() {
+        bail!("Different amount of markers.");
+    }
+    else if start_markers.len() > 1 {
+        bail!("More than one start marker found.");
+    }
+    else {
+        if start_markers.len() == 1 {
+            buffer.replace_range(start_markers[0].0..(end_markers[0].0 + end_markers[0].1.len()), "");
+
+            file.rewind().unwrap();
+
+            file.set_len(0).unwrap();
+
+            file.write_all(buffer.as_bytes()).unwrap();
+
+            file.sync_all().unwrap();
+        }
+    }
+
+    Ok(())
+}
+
+pub fn add_binfolder_to_path_in_shell_scripts() -> Result<()> {
+    let home_dir = dirs::home_dir().unwrap();
+
+    add_path_to_specific_file(home_dir.join(".bashrc")).unwrap();
+
+    let mut edited_some_profile_file = false;
+
+    // We now check for all the various profile scripts that bash might run and
+    // edit all of them, as bash will only run one of them.
+    if home_dir.join(".profile").exists() {
+        add_path_to_specific_file(home_dir.join(".profile")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+    if home_dir.join(".bash_profile").exists() {
+        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+    if home_dir.join(".bash_login").exists() {
+        add_path_to_specific_file(home_dir.join(".bash_login")).unwrap();
+
+        edited_some_profile_file = true;
+    }
+
+    // If none of the profile files exists, we create a `.bash_profile`
+    if !edited_some_profile_file {
+        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+    }
+
+    Ok(())
+}
+
+pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
+    let home_dir = dirs::home_dir().unwrap();
+
+    if home_dir.join(".profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".bashrc")).unwrap();
+    }
+
+    if home_dir.join(".profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".profile")).unwrap();
+    }
+
+    if home_dir.join(".bash_profile").exists() {
+        remove_path_from_specific_file(home_dir.join(".bash_profile")).unwrap();
+    }
+
+    if home_dir.join(".bash_login").exists() {
+        remove_path_from_specific_file(home_dir.join(".bash_login")).unwrap();
+    }
 
     Ok(())
 }
