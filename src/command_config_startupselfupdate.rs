@@ -1,7 +1,10 @@
 #[cfg(not(target_os = "windows"))]
+use anyhow::Result;
+
+#[cfg(not(target_os = "windows"))]
 pub fn run_command_config_startupselfupdate(value: Option<i64>) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-    use anyhow::{bail, Context, Result};
+    use anyhow::{bail, Context};
 
     match value {
         Some(value) => {
