@@ -399,8 +399,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
-      - name: Create output dir
-        run: mkdir public
+      - name: Create output dirs
+        run: |
+          mkdir public
+          mkdir publicscript
+          mkdir publicscript/dev
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -410,9 +413,9 @@ jobs:
           GH_REF: ${{ github.ref }}
       - name: Copy shell script
         run: |
-          cp deploy/shellscript/juliaup-init.sh public/juliaup-init-dev.sh
-          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-dev.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel dev|g' public/juliaup-init-dev.sh
+          cp deploy/shellscript/juliaup-init.sh publicscript/dev/install.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/dev/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel dev|g' publicscript/dev/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -424,6 +427,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
+      - name: Upload install script to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: 'publicscript'
+
 
   deploy-releasepreview-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
@@ -432,8 +445,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
-      - name: Create output dir
-        run: mkdir public
+      - name: Create output dirs
+        run: |
+          mkdir public
+          mkdir publicscript
+          mkdir publicscript/releasepreview
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -443,9 +459,9 @@ jobs:
           GH_REF: ${{ github.ref }}
       - name: Copy shell script
         run: |
-          cp deploy/shellscript/juliaup-init.sh public/juliaup-init-releasepreview.sh
-          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init-releasepreview.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel releasepreview|g' public/juliaup-init-releasepreview.sh
+          cp deploy/shellscript/juliaup-init.sh publicscript/releasepreview/install.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/releasepreview/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel releasepreview|g' publicscript/releasepreview/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -457,6 +473,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
+      - name: Upload install script to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: 'publicscript'
+
 
   deploy-release-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
@@ -465,8 +491,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
-      - name: Create output dir
-        run: mkdir public
+      - name: Create output dirs
+        run: |
+          mkdir public
+          mkdir publicscript
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -477,9 +505,9 @@ jobs:
           GH_REF: ${{ github.ref }}
       - name: Copy shell script
         run: |
-          cp deploy/shellscript/juliaup-init.sh public/juliaup-init.sh
-          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" public/juliaup-init.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel release|g' public/juliaup-init.sh
+          cp deploy/shellscript/juliaup-init.sh publicscript/install.sh
+          sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|$_bindir/juliaup self channel release|g' publicscript/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -491,3 +519,12 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
+      - name: Upload install script to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: 'publicscript'
