@@ -14,12 +14,13 @@ use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
 use juliaup::{
     command_selfchannel::run_command_selfchannel,
-    command_selfupdate::run_command_selfupdate,
     command_selfinstall::run_command_selfinstall,
     command_selfuninstall::run_command_selfuninstall,
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
 };
+#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+use juliaup::command_selfupdate::run_command_selfupdate;
 
 #[derive(Parser)]
 #[clap(name="Juliaup", version)]

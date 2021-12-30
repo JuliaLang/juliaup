@@ -272,7 +272,7 @@ r#"#!/bin/sh
 #[cfg(target_os = "windows")]
 pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok(()) }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
     use itertools::Itertools;
     use std::{io::Write, process::Stdio};
@@ -333,7 +333,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(feature = "selfupdate")]
 pub fn uninstall_background_selfupdate() -> Result<()> {
     use std::{io::Write, process::Stdio};
     use itertools::Itertools;

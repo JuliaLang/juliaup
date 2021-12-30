@@ -69,6 +69,7 @@ pub fn run_command_selfupdate() -> Result<()> {
 
 #[cfg(feature = "windowsstore")]
 pub fn run_command_selfupdate() -> Result<()> {
+    use anyhow::Context;
     use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
     let update_manager = windows::Services::Store::StoreContext::GetDefault()    
