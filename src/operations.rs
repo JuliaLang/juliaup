@@ -417,6 +417,31 @@ fn get_shell_script_juliaup_content() -> Result<String> {
     Ok(result)
 }
 
+fn match_markers(buffer: &str) -> Result<Option<(usize,usize)>> {
+    let mut start_markers: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
+    if start_markers.len() != 1 {
+        start_markers = buffer.match_indices(S_MARKER).collect();
+    }
+
+    let mut end_markers: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
+    if end_markers.len() != 1 {
+        end_markers = buffer.match_indices(E_MARKER).collect();
+    }
+
+    if start_markers.len() != end_markers.len() {
+        bail!("Different amount of markers.");
+    }
+    else if start_markers.len() > 1 {
+        bail!("More than one start marker found.");
+    }
+    else if start_markers.len()==1 {
+        Ok(Some((start_markers[0].0, end_markers[0].0 + end_markers[0].1.len())))
+    }
+    else {
+        Ok(None)
+    }
+}
+
 fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
     .with_context(|| "Failed to open juliaup config file.")?;
@@ -425,40 +450,28 @@ fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_string(&mut buffer)?;
 
-    // We make a copy here so that we don't introduce an immutable borrow.
-    // Not ideal, but it gets the job done. Ideally we would have a
-    // match_indices function that only returned indices, not slices
-    // into the original buffer.
-    let copy_of_buffer = buffer.clone();
-    let start_markers: Vec<_> = copy_of_buffer.match_indices(S_MARKER).collect();
-    let end_markers: Vec<_> = copy_of_buffer.match_indices(E_MARKER).collect();
+    let existing_code_pos = match_markers(&buffer)?;
 
-    if start_markers.len() != end_markers.len() {
-        bail!("Different amount of markers.");
-    }
-    else if start_markers.len() > 1 {
-        bail!("More than one start marker found.");
-    }
-    else {
-        let new_content = get_shell_script_juliaup_content().unwrap();
+    let new_content = get_shell_script_juliaup_content().unwrap();
 
-        if start_markers.len() == 0 {
+    match existing_code_pos {
+        Some(pos) => {
+            buffer.replace_range(pos.0..pos.1, &new_content);
+        },
+        None => {
             buffer.push('\n');
             buffer.push_str(&new_content);
             buffer.push('\n');
         }
-        else {
-            buffer.replace_range(start_markers[0].0..(end_markers[0].0 + end_markers[0].1.len()), &new_content);
-        }
+    };
 
-        file.rewind().unwrap();
+    file.rewind().unwrap();
 
-        file.set_len(0).unwrap();
+    file.set_len(0).unwrap();
 
-        file.write_all(buffer.as_bytes()).unwrap();
+    file.write_all(buffer.as_bytes()).unwrap();
 
-        file.sync_all().unwrap();
-    }
+    file.sync_all().unwrap();
 
     Ok(())
 }
@@ -471,32 +484,18 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_string(&mut buffer)?;
 
-    // We make a copy here so that we don't introduce an immutable borrow.
-    // Not ideal, but it gets the job done. Ideally we would have a
-    // match_indices function that only returned indices, not slices
-    // into the original buffer.
-    let copy_of_buffer = buffer.clone();
-    let start_markers: Vec<_> = copy_of_buffer.match_indices(S_MARKER).collect();
-    let end_markers: Vec<_> = copy_of_buffer.match_indices(E_MARKER).collect();
+    let existing_code_pos = match_markers(&buffer)?;
 
-    if start_markers.len() != end_markers.len() {
-        bail!("Different amount of markers.");
-    }
-    else if start_markers.len() > 1 {
-        bail!("More than one start marker found.");
-    }
-    else {
-        if start_markers.len() == 1 {
-            buffer.replace_range(start_markers[0].0..(end_markers[0].0 + end_markers[0].1.len()), "");
+    if let Some(pos) = existing_code_pos {
+        buffer.replace_range(pos.0..pos.1, "");
 
-            file.rewind().unwrap();
+        file.rewind().unwrap();
 
-            file.set_len(0).unwrap();
+        file.set_len(0).unwrap();
 
-            file.write_all(buffer.as_bytes()).unwrap();
+        file.write_all(buffer.as_bytes()).unwrap();
 
-            file.sync_all().unwrap();
-        }
+        file.sync_all().unwrap();
     }
 
     Ok(())
