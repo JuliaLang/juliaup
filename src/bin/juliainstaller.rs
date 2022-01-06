@@ -1,8 +1,6 @@
-use std::process::Stdio;
-
-use anyhow::{Result, anyhow, Context};
+use anyhow::Result;
 // use dialoguer::{Confirm, Input};
-use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{load_mut_config_db, save_config_db}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher};
+
 
 // fn run_individual_config_wizard() -> Result<(i64,i64,bool,bool)> {
 //     let new_modifypath = Confirm::new()
@@ -44,7 +42,10 @@ use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_versi
 //      ))
 // }
 
+#[cfg(feature = "selfupdate")]
 fn is_juliaup_installed() -> bool {
+    use std::process::Stdio;
+
     let exit_status = std::process::Command::new("juliaup")
         .args(["--version"])
         .stdout(Stdio::null())
@@ -55,7 +56,11 @@ fn is_juliaup_installed() -> bool {
     exit_status.is_ok()
 }
 
+#[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
+    use anyhow::{anyhow, Context};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{load_mut_config_db, save_config_db}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher};
+
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -176,4 +181,9 @@ pub fn main() -> Result<()> {
         .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
 
     Ok(())
+}
+
+#[cfg(not(feature = "selfupdate"))]
+pub fn main() -> Result<()> {
+    panic!("This should never run.");
 }
