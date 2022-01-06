@@ -62,7 +62,7 @@ fn is_juliaup_installed() -> bool {
 /// The Julia Installer
 struct Juliainstaller {
     /// Juliaup channel
-    #[clap(default_value = "release")]
+    #[clap(long, default_value = "release")]
     juliaupchannel: String,
 }
 
