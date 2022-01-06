@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::Parser;
 // use dialoguer::{Confirm, Input};
 
 
@@ -56,10 +57,19 @@ fn is_juliaup_installed() -> bool {
     exit_status.is_ok()
 }
 
+#[derive(Parser)]
+#[clap(name="Juliainstaller", version)]
+/// The Julia Installer
+struct Juliainstaller {
+    /// Juliaup channel
+    #[clap(default_value = "release")]
+    juliaupchannel: String,
+}
+
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
     use anyhow::{anyhow, Context};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{load_mut_config_db, save_config_db}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{load_mut_config_db, save_config_db}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -71,10 +81,14 @@ pub fn main() -> Result<()> {
     let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    info!("Parsing command line arguments.");
+    let args = Juliainstaller::parse();
+
     use console::Style;
     use dialoguer::{theme::ColorfulTheme, Select, Confirm};
 
     use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks, utils::get_juliaupconfig_path};
+    use log::info;
 
     let theme = ColorfulTheme {
         values_style: Style::new().yellow().dim(),
@@ -148,8 +162,8 @@ pub fn main() -> Result<()> {
     let juliaupserver_base = get_juliaserver_base_url()
         .with_context(|| "Failed to get Juliaup server base URL.")?;
 
-    let version = get_own_version().unwrap();
-    // let version = semver::Version::parse("1.5.7").unwrap();
+    // let version = get_own_version().unwrap();
+    let version = semver::Version::parse("1.5.7").unwrap();
 
     let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
 
@@ -172,6 +186,7 @@ pub fn main() -> Result<()> {
     run_command_config_startupselfupdate(Some(new_startupselfupdate)).unwrap();
     run_command_config_modifypath(Some(new_modifypath)).unwrap();
     run_command_config_symlinks(Some(new_symlinks)).unwrap();
+    run_command_selfchannel(args.juliaupchannel).unwrap();
 
     run_command_initial_setup_from_launcher()?;
 
