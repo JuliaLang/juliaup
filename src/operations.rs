@@ -389,16 +389,8 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &str = "# >>> juliaup initialize >>>";
 const E_MARKER: &str = "# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content() -> Result<String> {
+fn get_shell_script_juliaup_content(bin_path: &str) -> Result<String> {
     let mut result = String::new();
-
-    let my_own_path = std::env::current_exe()
-            .with_context(|| "Could not determine the path of the running exe.")?;
-
-    let my_own_folder = my_own_path.parent()
-            .ok_or_else(|| anyhow!("Could not determine parent."))?;
-
-    let bin_path = my_own_folder.to_string_lossy();
 
     result.push_str(S_MARKER);
     result.push('\n');
@@ -447,7 +439,7 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
     }
 }
 
-fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
+fn add_path_to_specific_file(bin_path: &str, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
     .with_context(|| "Failed to open juliaup config file.")?;
 
@@ -457,7 +449,7 @@ fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
 
     let existing_code_pos = match_markers(&buffer, false)?;
 
-    let new_content = get_shell_script_juliaup_content().unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path).unwrap();
 
     match existing_code_pos {
         Some(pos) => {
@@ -506,34 +498,34 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts() -> Result<()> {
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &str) -> Result<()> {
     let home_dir = dirs::home_dir().unwrap();
 
-    add_path_to_specific_file(home_dir.join(".bashrc")).unwrap();
+    add_path_to_specific_file(bin_path, home_dir.join(".bashrc")).unwrap();
 
     let mut edited_some_profile_file = false;
 
     // We now check for all the various profile scripts that bash might run and
     // edit all of them, as bash will only run one of them.
     if home_dir.join(".profile").exists() {
-        add_path_to_specific_file(home_dir.join(".profile")).unwrap();
+        add_path_to_specific_file(bin_path, home_dir.join(".profile")).unwrap();
 
         edited_some_profile_file = true;
     }
     if home_dir.join(".bash_profile").exists() {
-        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+        add_path_to_specific_file(bin_path, home_dir.join(".bash_profile")).unwrap();
 
         edited_some_profile_file = true;
     }
     if home_dir.join(".bash_login").exists() {
-        add_path_to_specific_file(home_dir.join(".bash_login")).unwrap();
+        add_path_to_specific_file(bin_path, home_dir.join(".bash_login")).unwrap();
 
         edited_some_profile_file = true;
     }
 
     // If none of the profile files exists, we create a `.bash_profile`
     if !edited_some_profile_file {
-        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+        add_path_to_specific_file(bin_path, home_dir.join(".bash_profile")).unwrap();
     }
 
     Ok(())

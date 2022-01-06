@@ -69,6 +69,8 @@ pub struct JuliaupConfig {
     pub settings: JuliaupConfigSettings,
     #[serde(rename = "LastSelfUpdate", skip_serializing_if = "Option::is_none")]
     pub last_selfupdate: Option<DateTime<Utc>>,
+    #[serde(rename = "SelfInstallLocation", skip_serializing_if = "Option::is_none")]
+    pub self_install_location: Option<String>,
 }
 
 pub struct JuliaupConfigFile {
@@ -121,7 +123,8 @@ pub fn load_config_db() -> Result<JuliaupConfig> {
                         startup_selfupdate_interval: None,
                         modify_path: false,
                     },
-                    last_selfupdate: None,                    
+                    last_selfupdate: None,
+                    self_install_location: None,                   
                 })
             },
             other_error => {
@@ -185,9 +188,10 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
                     create_channel_symlinks: false,
                     background_selfupdate_interval: None,
                     startup_selfupdate_interval: None,
-                    modify_path: false,
+                    modify_path: false,                    
                 },
                 last_selfupdate: None,
+                self_install_location: None,
             };
 
             serde_json::to_writer_pretty(&file, &new_config)

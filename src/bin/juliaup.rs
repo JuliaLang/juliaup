@@ -14,7 +14,6 @@ use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
 use juliaup::{
     command_selfchannel::run_command_selfchannel,
-    command_selfinstall::run_command_selfinstall,
     command_selfuninstall::run_command_selfuninstall,
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
@@ -91,9 +90,6 @@ enum SelfSubCmd {
     Channel {
         channel: String
     },
-    #[cfg(feature = "selfupdate")]
-    /// Install this version of juliaup into the system
-    Install {},
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
     Uninstall {},
@@ -173,8 +169,6 @@ fn main() -> Result<()> {
             SelfSubCmd::Update {} => run_command_selfupdate(),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
-            #[cfg(feature = "selfupdate")]
-            SelfSubCmd::Install {} => run_command_selfinstall(),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(),
         }

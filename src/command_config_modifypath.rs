@@ -5,7 +5,7 @@ use anyhow::Result;
 pub fn run_command_config_modifypath(value: Option<bool>) -> Result<()> {
     use crate::operations::{add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts};
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-    use anyhow::Context;
+    use anyhow::{Context,anyhow};
 
 
     match value {
@@ -13,6 +13,8 @@ pub fn run_command_config_modifypath(value: Option<bool>) -> Result<()> {
             let mut config_file = load_mut_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
     
+            let executable_path = config_file.data.clone().self_install_location.ok_or(anyhow!("Trying to configure PATH modifications but the config file is missing the field SelfInstallLocation."))?;
+
             let mut value_changed = false;
 
             if value != config_file.data.settings.modify_path {
@@ -22,7 +24,7 @@ pub fn run_command_config_modifypath(value: Option<bool>) -> Result<()> {
             }
 
             if value {
-                add_binfolder_to_path_in_shell_scripts().unwrap();
+                add_binfolder_to_path_in_shell_scripts(&executable_path).unwrap();
             }
             else {
                 remove_binfolder_from_path_in_shell_scripts().unwrap();
