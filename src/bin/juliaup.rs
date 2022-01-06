@@ -151,13 +151,13 @@ fn main() -> Result<()> {
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
-            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value),
+            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value),
+            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value, false),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value),
+            ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value, false),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value),
+            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false),
         },
         Juliaup::Api {command} => run_command_api(command),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),

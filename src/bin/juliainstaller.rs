@@ -182,10 +182,10 @@ pub fn main() -> Result<()> {
             .with_context(|| "Failed to save configuration file from `config` command.")?;
     }
 
-    run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate)).unwrap();
-    run_command_config_startupselfupdate(Some(new_startupselfupdate)).unwrap();
-    run_command_config_modifypath(Some(new_modifypath)).unwrap();
-    run_command_config_symlinks(Some(new_symlinks)).unwrap();
+    run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate), true).unwrap();
+    run_command_config_startupselfupdate(Some(new_startupselfupdate), true).unwrap();
+    run_command_config_modifypath(Some(new_modifypath), true).unwrap();
+    run_command_config_symlinks(Some(new_symlinks), true).unwrap();
     run_command_selfchannel(args.juliaupchannel).unwrap();
 
     run_command_initial_setup_from_launcher()?;
@@ -194,6 +194,13 @@ pub fn main() -> Result<()> {
 
     std::os::unix::fs::symlink(new_install_location.join("julialauncher"), &symlink_path)
         .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
+
+    eprintln!("Julia was successfully installed on your system.");
+
+    if new_modifypath {
+        eprintln!("");
+        eprintln!("Run `. ~/.bashrc` to reload $PATH variable.")
+    }
 
     Ok(())
 }

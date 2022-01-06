@@ -2,7 +2,7 @@
 use anyhow::Result;
 
 #[cfg(not(target_os = "windows"))]
-pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
+pub fn run_command_config_symlinks(value: Option<bool>, quiet: bool) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
     use crate::operations::{create_symlink, remove_symlink};
     use anyhow::Context;
@@ -31,18 +31,22 @@ pub fn run_command_config_symlinks(value: Option<bool>) -> Result<()> {
             save_config_db(&mut config_file)
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
-            if value_changed {
-                eprintln!("Property 'channelsymlinks' set to '{}'", value);
-            }
-            else {
-                eprintln!("Property 'channelsymlinks' is already set to '{}'", value);
+            if !quiet {
+                if value_changed {
+                    eprintln!("Property 'channelsymlinks' set to '{}'", value);
+                }
+                else {
+                    eprintln!("Property 'channelsymlinks' is already set to '{}'", value);
+                }
             }
         },
         None => {
             let config_data = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
-            eprintln!("Property 'channelsymlinks' set to '{}'", config_data.settings.create_channel_symlinks);
+            if !quiet {
+                eprintln!("Property 'channelsymlinks' set to '{}'", config_data.settings.create_channel_symlinks);
+            }
         }
     };
 

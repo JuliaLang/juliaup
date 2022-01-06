@@ -25,7 +25,6 @@ set -u
 
 # If JULIAUP_UPDATE_ROOT is unset or empty, default it.
 JULIAUP_UPDATE_ROOT="${JULIAUP_UPDATE_ROOT:-https://julialang-s3.julialang.org}"
-JULIAUP_INSTALL_DIR="${HOME}/.juliaup"
 JULIAUP_VERSION="THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
@@ -47,26 +46,6 @@ OPTIONS:
 EOF
 }
 
-dirprompt() {
-     cat 1>&2 <<EOF
-
-Install juliaup to $JULIAUP_INSTALL_DIR ?
-    [y] to confirm
-    [n] to abort
-    ... Or enter a custom location
-EOF
-}
-
-pathprompt() {
-     cat 1>&2 <<'EOF'
-
-Add juliaup and julia to user $PATH variable?
-    [y] to confirm
-    [n] to deny
-EOF
-}
-
-
 main() {
     downloader --check
     need_cmd uname
@@ -82,21 +61,18 @@ main() {
     local _arch="$RETVAL"
     assert_nz "$_arch" "arch"
 
-    local _ext=".tar.gz"
+    local _ext=""
     case "$_arch" in
         *windows*)
-            _ext=".zip"
-            need_cmd unzip
+            _ext=".exe"
             ;;
     esac
 
-    local _url="${JULIAUP_UPDATE_ROOT}/juliaup/bin/juliaup-${JULIAUP_VERSION}-${_arch}${_ext}"
+    local _url="${JULIAUP_UPDATE_ROOT}/juliaup/bin/juliainstaller-${JULIAUP_VERSION}-${_arch}${_ext}"
 
     local _dir
-    local _tarout
     _dir="$(ensure mktemp -d)"
-    _tarout="$(ensure mktemp -d)"
-    local _file="${_dir}/juliaup-init${_ext}"
+    local _file="${_dir}/juliainstaller${_ext}"
 
     local _ansi_escapes_are_valid=false
     if [ -t 2 ]; then
@@ -110,21 +86,12 @@ main() {
     fi
 
     # check if we have to use /dev/tty to prompt the user
-    local _p=no
-    local _y=no
+    # local _y=no
     local need_tty=yes
-    local _addtopath=yes
     for arg in "$@"; do
-        if [ "$_p" = "" ]; then
-            _p=$arg
-            JULIAUP_INSTALL_DIR=$_p
-            continue
-        fi
         case "$arg" in
             "-h"|"--help")      usage; exit 0       ;;
-            "-p"|"--path")      _p=""               ;;
-            "-y"|"--yes")       _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
-            "--no-add-to-path") _addtopath=no       ;;
+            # "-y"|"--yes")       _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
             *)                                      ;;
         esac
     done
@@ -136,54 +103,6 @@ main() {
     if [ "$need_tty" = "yes" ]; then
         if [ ! -t 1 ]; then
             err "Unable to run interactively. Run with -y to accept defaults, --help for additional options"
-        fi
-    fi
-
-
-    # prompt user if installation not specified
-    local _bindir="$JULIAUP_INSTALL_DIR/bin"
-    if [ "$_y" = "no" ]; then
-        if [ "$_p" = "" ] | [ "$_p" = "no" ]; then
-            need_cmd read
-            local _ans=""
-
-            dirprompt
-            while [ "$_ans" = "" ]; do 
-                if [ "$need_tty" = "yes" ]; then
-                    read -rp ">>> [y/n/...]: " _ans < /dev/tty
-                else
-                    read -rp ">>> [y/n/...]: " _ans
-                fi
-                case $_ans in
-                    [Yy]* ) ;;
-                    [Nn]* ) exit 0;;
-                    "")     ;;
-                    * )     _bindir="$_ans/bin";;
-                esac
-            done
-        fi
-    fi
-
-    # prompt user if installation not specified
-    local _bindir="$JULIAUP_INSTALL_DIR/bin"
-    if [ "$_y" = "no" ]; then
-        if [ "$_addtopath" != "no" ]; then
-            need_cmd read
-            local _ans
-
-            pathprompt
-            while true; do 
-                if [ "$need_tty" = "yes" ]; then
-                    read -rp ">>> [y/n]: " _ans < /dev/tty
-                else
-                    read -rp ">>> [y/n]: " _ans
-                fi
-                case $_ans in
-                    [Yy]* ) _addtopath=yes; break;;
-                    [Nn]* ) _addtopath=no ; break;;
-                    * )     ;;
-                esac
-            done
         fi
     fi
 
@@ -199,51 +118,24 @@ main() {
     ensure mkdir -p "$_dir"
     ensure downloader "$_url" "$_file" "$_arch"
 
-    # Extract juliaup
-    ensure mkdir -p "$_tarout"
-    if [ "$_ext" = ".zip" ]; then
-        ensure unzip "$_file" -d "$_tarout"  > /dev/null 2>&1
-    else
-        ensure tar xfz "$_file" -C "$_tarout"
-    fi;
+    ensure chmod u+x "$_file"
 
-    # Move to installation location
-    ignore rm -rf "$_bindir"
-    ensure mkdir -p "$_bindir"
-    ensure cd "$_bindir"
-
-    find "$_tarout" -type f -exec mv -i {} "$_bindir/." \;
-
-    ensure chmod u+x "$_bindir/juliaup"
-    ensure chmod u+x "$_bindir/julialauncher"
-    ensure ln -s julialauncher julia
-
-    if [ ! -x "$_bindir/julialauncher" ]; then
-        printf '%s\n' "Cannot execute $_bindir/julialauncher (likely because $_bindir is set as noexec)." 1>&2
+    if [ ! -x "$_file" ]; then
+        printf '%s\n' "Cannot execute $_file." 1>&2
 
         printf '%s\n' "Please install the files to a location where you can execute binaries." 1>&2
         exit 1
     fi
 
-
     if [ "$need_tty" = "yes" ]; then
-        ignore "$_bindir/julialauncher" -e nothing < /dev/tty
+        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW < /dev/tty
     else
-        ignore "$_bindir/julialauncher" -e nothing
+        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW
     fi
     local _retval=$?
 
-    THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW
-
-    if [ "$_addtopath" = "yes" ]; then
-        add_path_to_bash $_bindir
-        echo 'Run `. ~/.bashrc` to reload $PATH variable.' 1>&2
-    fi
-    echo 'Run `juliaup --help` for help' 1>&2
-
     ignore rm "$_file"
     ignore rmdir "$_dir"
-    ignore rm -rf "$_tarout"
 
     return "$_retval"
 }
@@ -762,56 +654,6 @@ get_strong_ciphersuites_for() {
         # Begin with SECURE128 (and higher) then remove/add to build cipher suites. Produces same 9 cipher suites as OpenSSL but in slightly different order.
         echo "SECURE128:-VERS-SSL3.0:-VERS-TLS1.0:-VERS-TLS1.1:-VERS-DTLS-ALL:-CIPHER-ALL:-MAC-ALL:-KX-ALL:+AEAD:+ECDHE-ECDSA:+ECDHE-RSA:+AES-128-GCM:+CHACHA20-POLY1305:+AES-256-GCM"
     fi 
-}
-
-
-add_path_to_bash() {
-    need_cmd cat
-    need_cmd touch
-    need_cmd awk
-
-    local _bindir=$1
-    local _profilefile
-    local _tmpprofilefile
-    local _smarker="# >>> juliaup initialize >>>"
-    local _emarker="# <<< juliaup initialize <<<"
-    local _tmpcodefile=$(mktemp)
-
-    cat 1>&2 <<-EOF > $_tmpcodefile
-# !! Contents within this block are managed by juliaup !!
-
-# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings
-# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded
-
-case ":\$PATH:" in *:$_bindir:*);; *) 
-    export PATH=$_bindir\${PATH:+:\${PATH}};;
-esac
-EOF
-    for _profilefile in "$HOME/.bashrc" "$HOME/.profile"
-    do
-        touch "$_profilefile"
-
-        # Ensure markers are in profile file
-        case "$(cat $_profilefile)" in 
-            *$_smarker*$_emarker*);;
-            *)  
-                echo >> $_profilefile
-                echo $_smarker >> $_profilefile
-                echo $_emarker >> $_profilefile
-                ;;
-        esac
-
-        # Insert code between juliaup markers in profile file
-        _tmpprofilefile=$(mktemp)
-        awk "
-            BEGIN           {p=1}
-            /^${_smarker}/  {print;system(\"cat $_tmpcodefile\");p=0}
-            /^${_emarker}/  {p=1}
-            p
-        " $_profilefile > $_tmpprofilefile && mv $_tmpprofilefile $_profilefile
-    done
-
-    rm $_tmpcodefile
 }
 
 main "$@" || exit 1

@@ -2,7 +2,7 @@
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_config_modifypath(value: Option<bool>) -> Result<()> {
+pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result<()> {
     use crate::operations::{add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts};
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
     use anyhow::{Context,anyhow};
@@ -33,18 +33,22 @@ pub fn run_command_config_modifypath(value: Option<bool>) -> Result<()> {
             save_config_db(&mut config_file)
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
-            if value_changed {
-                eprintln!("Property 'modifypath' set to '{}'", value);
-            }
-            else {
-                eprintln!("Property 'modifypath' is already set to '{}'", value);
+            if !quiet {
+                if value_changed {
+                    eprintln!("Property 'modifypath' set to '{}'", value);
+                }
+                else {
+                    eprintln!("Property 'modifypath' is already set to '{}'", value);
+                }
             }
         },
         None => {
             let config_data = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
-            eprintln!("Property 'modifypath' set to '{}'", config_data.settings.modify_path);
+            if !quiet {
+                eprintln!("Property 'modifypath' set to '{}'", config_data.settings.modify_path);
+            }
         }
     };
 
