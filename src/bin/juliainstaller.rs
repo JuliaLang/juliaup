@@ -162,8 +162,8 @@ pub fn main() -> Result<()> {
     let juliaupserver_base = get_juliaserver_base_url()
         .with_context(|| "Failed to get Juliaup server base URL.")?;
 
-    // let version = get_own_version().unwrap();
-    let version = semver::Version::parse("1.5.7").unwrap();
+    let version = get_own_version().unwrap();
+    // let version = semver::Version::parse("1.5.7").unwrap();
 
     let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
 
