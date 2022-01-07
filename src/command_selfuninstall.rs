@@ -5,7 +5,7 @@ use anyhow::Result;
 pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use dialoguer::Confirm;
 
-    use crate::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks, command_selfchannel::run_command_selfchannel};
+    use crate::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
 
     let choice = Confirm::new()
         .with_prompt("Do you really want to uninstall Julia?")
