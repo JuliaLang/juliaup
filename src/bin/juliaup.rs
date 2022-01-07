@@ -1,9 +1,10 @@
+use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
 use clap::Parser;
-use anyhow::{Result};
+use anyhow::{Result,Context};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
@@ -141,36 +142,39 @@ fn main() -> Result<()> {
     info!("Parsing command line arguments.");
     let args = Juliaup::parse();
 
+    let paths = get_paths()
+        .with_context(|| "Trying to load all global paths.")?;
+
     match args {
-        Juliaup::Default {channel} => run_command_default(channel),
-        Juliaup::Add {channel} => run_command_add(channel),
-        Juliaup::Remove {channel} => run_command_remove(channel),
-        Juliaup::Status {} => run_command_status(),
-        Juliaup::Update {channel} => run_command_update(channel),
-        Juliaup::Gc {} => run_command_gc(),
-        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args),
+        Juliaup::Default {channel} => run_command_default(channel, &paths),
+        Juliaup::Add {channel} => run_command_add(channel, &paths),
+        Juliaup::Remove {channel} => run_command_remove(channel, &paths),
+        Juliaup::Status {} => run_command_status(&paths),
+        Juliaup::Update {channel} => run_command_update(channel, &paths),
+        Juliaup::Gc {} => run_command_gc(&paths),
+        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
-            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false),
+            ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false, &paths),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value, false),
+            ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value, false, &paths),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value, false),
+            ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value, false, &paths),
             #[cfg(feature = "selfupdate")]
-            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false),
+            ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false, &paths),
         },
-        Juliaup::Api {command} => run_command_api(command),
-        Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(),
+        Juliaup::Api {command} => run_command_api(command, &paths),
+        Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         #[cfg(feature = "selfupdate")]
-        Juliaup::SecretSelfUpdate {} => run_command_selfupdate(),
+        Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
         #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
             #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
-            SelfSubCmd::Update {} => run_command_selfupdate(),
+            SelfSubCmd::Update {} => run_command_selfupdate(&paths),
             #[cfg(feature = "selfupdate")]
-            SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel),
+            SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel, &paths),
             #[cfg(feature = "selfupdate")]
-            SelfSubCmd::Uninstall {} => run_command_selfuninstall(),
+            SelfSubCmd::Uninstall {} => run_command_selfuninstall(&paths),
         }
     }
 }

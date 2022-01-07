@@ -1,4 +1,5 @@
 pub mod utils;
+pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod config_file;
 pub mod versions_file;

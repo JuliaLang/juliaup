@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
+use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::utils::get_juliaupconfig_path;
 use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
@@ -163,13 +163,13 @@ fn run_app() -> Result<i32> {
     let term = Term::stdout();
     term.set_title("Julia");
 
-    let juliaupconfig_path = get_juliaupconfig_path()
-        .with_context(|| "The Julia launcher failed to find the juliaup configuration path.")?;
+    let paths = get_paths()
+        .with_context(|| "Trying to load all global paths.")?;
 
-    do_initial_setup(&juliaupconfig_path)
+    do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_file = load_config_db()
+    let config_file = load_config_db(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data =
@@ -198,7 +198,7 @@ fn run_app() -> Result<i32> {
         &versiondb_data,
         &config_file.data,
         &julia_channel_to_use,
-        &juliaupconfig_path,
+        &paths.juliaupconfig,
         julia_version_from_cmd_line,
     )
     .with_context(|| {

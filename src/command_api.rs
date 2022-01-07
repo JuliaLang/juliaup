@@ -1,6 +1,7 @@
 use crate::config_file::load_config_db;
 use crate::config_file::JuliaupConfigChannel;
-use crate::utils::{get_juliaup_home_path, parse_versionstring};
+use crate::global_paths::GlobalPaths;
+use crate::utils::parse_versionstring;
 use anyhow::{bail, Context, Result};
 use normpath::PathExt;
 use serde::{Deserialize, Serialize};
@@ -28,13 +29,10 @@ pub struct JuliaupApiGetinfoReturn {
     pub other_versions: Vec<JuliaupChannelInfo>,
 }
 
-pub fn run_command_api(command: String) -> Result<()> {
+pub fn run_command_api(command: String, paths: &GlobalPaths) -> Result<()> {
     if command != "getconfig1" {
         bail!("Wrong API command.");
     }
-
-    let julia_bin_root_path = get_juliaup_home_path()
-        .with_context(|| "Failed to retrieve juliap folder while running the getconfig1 API command.")?;
 
     let mut ret_value = JuliaupApiGetinfoReturn {
         default: None,
@@ -42,7 +40,7 @@ pub fn run_command_api(command: String) -> Result<()> {
     };
 
     let config_file =
-        load_config_db()
+        load_config_db(paths)
         .with_context(|| "Failed to load configuration file while running the getconfig1 API command.")?;
 
     for (key, value) in config_file.data.installed_channels {
@@ -58,7 +56,7 @@ pub fn run_command_api(command: String) -> Result<()> {
                 match config_file.data.installed_versions.get(&fullversion) {
                     Some(channel) => JuliaupChannelInfo {
                         name: key.clone(),
-                        file: julia_bin_root_path
+                        file: paths.juliauphome
                             .join(&channel.path)
                             .join("bin")
                             .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
