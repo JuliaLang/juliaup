@@ -41,11 +41,11 @@ pub fn run_command_config_symlinks(value: Option<bool>, quiet: bool) -> Result<(
             }
         },
         None => {
-            let config_data = load_config_db()
+            let config_file = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!("Property 'channelsymlinks' set to '{}'", config_data.settings.create_channel_symlinks);
+                eprintln!("Property 'channelsymlinks' set to '{}'", config_file.data.settings.create_channel_symlinks);
             }
         }
     };

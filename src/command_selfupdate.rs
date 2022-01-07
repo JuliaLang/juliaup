@@ -10,10 +10,10 @@ pub fn run_command_selfupdate() -> Result<()> {
     use crate::operations::{download_juliaup_version,download_extract_sans_parent};
     use crate::{get_juliaup_target, get_own_version};
 
-    let mut config_data =
+    let mut config_file =
         load_mut_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
 
-    let juliaup_channel = match &config_data.data.juliaup_channel {
+    let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string()
     };
@@ -35,9 +35,9 @@ pub fn run_command_selfupdate() -> Result<()> {
 
     let version = download_juliaup_version(&version_url.to_string())?;
 
-    config_data.data.last_selfupdate = Some(chrono::Utc::now());
+    config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_data)
+    save_config_db(&mut config_file)
         .with_context(|| "Failed to save configuration file.")?;
 
     if version==get_own_version().unwrap() {

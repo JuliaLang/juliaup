@@ -41,11 +41,11 @@ pub fn run_command_api(command: String) -> Result<()> {
         other_versions: Vec::new(),
     };
 
-    let config_data =
+    let config_file =
         load_config_db()
         .with_context(|| "Failed to load configuration file while running the getconfig1 API command.")?;
 
-    for (key, value) in config_data.installed_channels {
+    for (key, value) in config_file.data.installed_channels {
         let curr = match value {
             JuliaupConfigChannel::SystemChannel {
                 version: fullversion,
@@ -55,7 +55,7 @@ pub fn run_command_api(command: String) -> Result<()> {
 
                 version.build = semver::BuildMetadata::EMPTY;
 
-                match config_data.installed_versions.get(&fullversion) {
+                match config_file.data.installed_versions.get(&fullversion) {
                     Some(channel) => JuliaupChannelInfo {
                         name: key.clone(),
                         file: julia_bin_root_path
@@ -111,7 +111,7 @@ pub fn run_command_api(command: String) -> Result<()> {
             },
         };
 
-        match config_data.default {
+        match config_file.data.default {
             Some(ref default_value) => {
                 if &key == default_value {
                     ret_value.default = Some(curr.clone());

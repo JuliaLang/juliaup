@@ -19,8 +19,8 @@ pub fn run_command_config_startupselfupdate(value: Option<i64>, quiet: bool) -> 
 
             let value = if value==0 {None} else {Some(value)};
 
-            if value != config_file.data.settings.startup_selfupdate_interval {
-                config_file.data.settings.startup_selfupdate_interval = value;
+            if value != config_file.self_data.startup_selfupdate_interval {
+                config_file.self_data.startup_selfupdate_interval = value;
 
                 value_changed = true;
             }
@@ -44,13 +44,13 @@ pub fn run_command_config_startupselfupdate(value: Option<i64>, quiet: bool) -> 
             }
         },
         None => {
-            let config_data = load_config_db()
+            let config_file = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
                 eprintln!(
                     "Property 'startupselfupdateinterval' set to '{}'",
-                    match config_data.settings.startup_selfupdate_interval {
+                    match config_file.self_data.startup_selfupdate_interval {
                         Some(value) => value,
                         None => 0
                     }

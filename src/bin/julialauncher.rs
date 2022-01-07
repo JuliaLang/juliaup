@@ -41,12 +41,12 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
 }
 
 #[cfg(feature = "selfupdate")]
-fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
+fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
-    if let Some(val) = config_data.settings.startup_selfupdate_interval {
-        let should_run = if let Some(last_selfupdate) = config_data.last_selfupdate {
+    if let Some(val) = config_file.self_data.startup_selfupdate_interval {
+        let should_run = if let Some(last_selfupdate) = config_file.self_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
 
             if Utc::now() >= update_time {true} else {false}
@@ -72,7 +72,7 @@ fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
 }
 
 #[cfg(not(feature = "selfupdate"))]
-fn run_selfupdate(_config_data: &JuliaupConfig) -> Result<()> {
+fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     Ok(())
 }
 
@@ -169,13 +169,13 @@ fn run_app() -> Result<i32> {
     do_initial_setup(&juliaupconfig_path)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_data = load_config_db()
+    let config_file = load_config_db()
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data =
         load_versions_db().with_context(|| "The Julia launcher failed to load a versions db.")?;
 
-    let mut julia_channel_to_use = config_data.default.clone();
+    let mut julia_channel_to_use = config_file.data.default.clone();
 
     let args: Vec<String> = std::env::args().collect();
 
@@ -196,7 +196,7 @@ fn run_app() -> Result<i32> {
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
-        &config_data,
+        &config_file.data,
         &julia_channel_to_use,
         &juliaupconfig_path,
         julia_version_from_cmd_line,
@@ -230,7 +230,7 @@ fn run_app() -> Result<i32> {
         .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-    run_selfupdate(&config_data)
+    run_selfupdate(&config_file)
         .with_context(|| "Failed to run selfupdate.")?;
 
     let status = child_process.wait()

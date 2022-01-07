@@ -5,20 +5,20 @@ use anyhow::Result;
 pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result<()> {
     use crate::operations::{add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts};
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-    use anyhow::{Context,anyhow};
-
+    use crate::utils::get_juliaup_executable_path;
+    use anyhow::Context;
 
     match value {
         Some(value) => {
             let mut config_file = load_mut_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
     
-            let executable_path = config_file.data.clone().self_install_location.ok_or(anyhow!("Trying to configure PATH modifications but the config file is missing the field SelfInstallLocation."))?;
+            let executable_path = get_juliaup_executable_path().unwrap();
 
             let mut value_changed = false;
 
-            if value != config_file.data.settings.modify_path {
-                config_file.data.settings.modify_path = value;
+            if value != config_file.self_data.modify_path {
+                config_file.self_data.modify_path = value;
 
                 value_changed = true;
             }
@@ -43,11 +43,11 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result
             }
         },
         None => {
-            let config_data = load_config_db()
+            let config_file = load_config_db()
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!("Property 'modifypath' set to '{}'", config_data.settings.modify_path);
+                eprintln!("Property 'modifypath' set to '{}'", config_file.self_data.modify_path);
             }
         }
     };
