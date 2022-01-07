@@ -70,7 +70,7 @@ jobs:
       with:
         name: juliainstaller-${{matrix.target}}
         path: |
-          target/${{matrix.target}}/release/juliainstaller
+          target/${{matrix.target}}/release/juliainstaller*
           !target/${{matrix.target}}/release/*.d
 
   test-juliaup:
