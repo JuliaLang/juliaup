@@ -1,16 +1,16 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use clap::Parser;
-use dialoguer::{Confirm, Input};
 
 
-fn run_individual_config_wizard(
+#[cfg(feature = "selfupdate")]
+fn run_individual_config_wizard(    
     new_backgroundselfupdate: i64,
     new_startupselfupdate: i64,
     new_symlinks: bool,
     new_modifypath: bool,
-    new_install_location: &str) -> Result<Option<(i64,i64,bool,bool,PathBuf)>> {
+    new_install_location: &str) -> Result<Option<(i64,i64,bool,bool,std::path::PathBuf)>> {
+
+    use dialoguer::{Confirm, Input};
 
     let new_install_location = match Input::new()
         .with_prompt("Enter the folder where you want to install Juliaup:")
