@@ -2,10 +2,10 @@ use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_full_version;
+use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_arch;
 use crate::utils::get_juliaserver_base_url;
-use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
 use anyhow::bail;
@@ -86,6 +86,7 @@ pub fn install_version(
     fullversion: &String,
     config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
+    paths: &GlobalPaths,
 ) -> Result<()> {
     // Return immediately if the version is already installed.
     if config_data.installed_versions.contains_key(fullversion) {
@@ -103,9 +104,7 @@ pub fn install_version(
         .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
-    let target_path = get_juliaup_home_path()
-        .with_context(|| "Failed to retrieve juliaup folder while trying to install new version.")?
-        .join(&child_target_foldername);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
     if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
@@ -150,11 +149,7 @@ pub fn install_version(
     Ok(())
 }
 
-pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
-    let home_path = get_juliaup_home_path().with_context(|| {
-        "Failed to retrieve juliaup folder while trying to garbage collect versions."
-    })?;
-
+pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalPaths) -> Result<()> {
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
         if config_data.installed_channels.iter().all(|j| match &j.1 {
@@ -164,7 +159,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
                 args: _,
             } => true,
         }) {
-            let path_to_delete = home_path.join(&detail.path);
+            let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
@@ -212,6 +207,7 @@ pub fn remove_symlink(
 pub fn create_symlink(
     channel: &JuliaupConfigChannel,
     symlink_name: &String,
+    paths: &GlobalPaths,
 ) -> Result<()> {
 
     let symlink_path = get_bin_dir()
@@ -224,9 +220,7 @@ pub fn create_symlink(
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_fullname = format!("julia-{}", version);
 
-            let target_path = get_juliaup_home_path()
-                .with_context(|| "Failed to retrieve juliaup folder while trying to create a symlink.")?
-                .join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(&child_target_fullname);
 
             let (platform, version) = parse_versionstring(version).with_context(|| format!(""))?;
 

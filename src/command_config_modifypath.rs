@@ -1,20 +1,14 @@
 #[cfg(feature = "selfupdate")]
-use anyhow::Result;
-
-#[cfg(feature = "selfupdate")]
-pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result<()> {
+pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool, paths: &crate::global_paths::GlobalPaths) -> anyhow::Result<()> {
     use crate::operations::{add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts};
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
-    use crate::utils::get_juliaup_executable_path;
     use anyhow::Context;
 
     match value {
         Some(value) => {
-            let mut config_file = load_mut_config_db()
+            let mut config_file = load_mut_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
     
-            let executable_path = get_juliaup_executable_path().unwrap();
-
             let mut value_changed = false;
 
             if value != config_file.self_data.modify_path {
@@ -24,7 +18,7 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result
             }
 
             if value {
-                add_binfolder_to_path_in_shell_scripts(&executable_path).unwrap();
+                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin).unwrap();
             }
             else {
                 remove_binfolder_from_path_in_shell_scripts().unwrap();
@@ -43,7 +37,7 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool) -> Result
             }
         },
         None => {
-            let config_file = load_config_db()
+            let config_file = load_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {

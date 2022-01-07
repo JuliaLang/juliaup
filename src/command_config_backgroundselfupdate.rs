@@ -2,7 +2,7 @@
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_config_backgroundselfupdate(value: Option<i64>, quiet: bool) -> Result<()> {
+pub fn run_command_config_backgroundselfupdate(value: Option<i64>, quiet: bool, paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use crate::operations::{install_background_selfupdate, uninstall_background_selfupdate};
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
     use anyhow::{bail, Context};
@@ -14,7 +14,7 @@ pub fn run_command_config_backgroundselfupdate(value: Option<i64>, quiet: bool) 
                 bail!("Invalid argument.");
             }
 
-            let mut config_file = load_mut_config_db()
+            let mut config_file = load_mut_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
     
             let mut value_changed = false;
@@ -55,7 +55,7 @@ pub fn run_command_config_backgroundselfupdate(value: Option<i64>, quiet: bool) 
             }
         },
         None => {
-            let config_file = load_config_db()
+            let config_file = load_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {

@@ -1,6 +1,3 @@
-use crate::utils::{get_juliaupconfig_path, get_juliaupconfig_lockfile_path, get_juliaup_home_path};
-#[cfg(feature = "selfupdate")]
-use crate::utils::get_juliaupselfconfig_path;
 use anyhow::{anyhow, bail, Context, Result};
 use cluFlock::{SharedFlock, FlockLock, ExclusiveFlock};
 use serde::{Deserialize, Serialize};
@@ -9,6 +6,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
 #[cfg(feature = "selfupdate")]
 use chrono::{DateTime,Utc};
+
+use crate::global_paths::GlobalPaths;
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
@@ -92,20 +91,11 @@ pub struct JuliaupReadonlyConfigFile {
     pub self_data: JuliaupSelfConfig
 }
 
-pub fn load_config_db() -> Result<JuliaupReadonlyConfigFile> {
-    let path =
-        get_juliaupconfig_path().with_context(|| "Failed to determine configuration file path.")?;
-
-    let lockfile_path = get_juliaupconfig_lockfile_path()
-        .with_context(|| "Failed to get path for lockfile.")?;
-
-    let juliaup_home_path = get_juliaup_home_path()
-        .with_context(|| "Could not determine the juliaup home path.")?;
-    
-    std::fs::create_dir_all(&juliaup_home_path)
+pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
+    std::fs::create_dir_all(&paths.juliauphome)
         .with_context(|| "Could not create juliaup home folder.")?;
 
-    let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
+    let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&paths.lockfile) {
         Ok(file) => file,
         Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e))
     };
@@ -119,14 +109,12 @@ pub fn load_config_db() -> Result<JuliaupReadonlyConfigFile> {
         }
     };
 
-    let display = path.display();
-
-    let v = match std::fs::OpenOptions::new().read(true).open(&path) {
+    let v = match std::fs::OpenOptions::new().read(true).open(&paths.juliaupconfig) {
         Ok(file) => {
             let reader = BufReader::new(&file);
 
             serde_json::from_reader(reader)
-                .with_context(|| format!("Failed to parse configuration file '{}' for reading.", display))?
+                .with_context(|| format!("Failed to parse configuration file '{:?}' for reading.", paths.juliaupconfig))?
         },
         Err(error) =>  match error.kind() {
             ErrorKind::NotFound => {
@@ -140,7 +128,7 @@ pub fn load_config_db() -> Result<JuliaupReadonlyConfigFile> {
                 }
             },
             other_error => {
-                bail!("Problem opening the file {}: {:?}", display, other_error)
+                bail!("Problem opening the file {:?}: {:?}", paths.juliaupconfig, other_error)
             }
         },
     };
@@ -149,16 +137,14 @@ pub fn load_config_db() -> Result<JuliaupReadonlyConfigFile> {
     let selfconfig: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        let self_config_path = get_juliaupselfconfig_path().unwrap();
-
-        selfconfig = match std::fs::OpenOptions::new().read(true).open(&self_config_path) {
+        selfconfig = match std::fs::OpenOptions::new().read(true).open(&paths.juliaupselfconfig) {
             Ok(file) => {
                 let reader = BufReader::new(&file);
     
                 serde_json::from_reader(reader)
-                    .with_context(|| format!("Failed to parse self configuration file '{:?}' for reading.", self_config_path))?
+                    .with_context(|| format!("Failed to parse self configuration file '{:?}' for reading.", paths.juliaupselfconfig))?
             },
-            Err(error) => bail!("Could not open self configuration file {:?}: {:?}", self_config_path, error)
+            Err(error) => bail!("Could not open self configuration file {:?}: {:?}", paths.juliaupselfconfig, error)
         };
     }
 
@@ -172,20 +158,11 @@ pub fn load_config_db() -> Result<JuliaupReadonlyConfigFile> {
     })
 }
 
-pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
-    let path =
-        get_juliaupconfig_path().with_context(|| "Failed to determine configuration file path.")?;
-
-    let lockfile_path = get_juliaupconfig_lockfile_path()
-        .with_context(|| "Failed to get path for lockfile.")?;
-
-    let juliaup_home_path = get_juliaup_home_path()
-        .with_context(|| "Could not determine the juliaup home path.")?;
-    
-    std::fs::create_dir_all(&juliaup_home_path)
+pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
+    std::fs::create_dir_all(&paths.juliauphome)
         .with_context(|| "Could not create juliaup home folder.")?;
 
-    let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&lockfile_path) {
+    let lock_file = match OpenOptions::new().read(true).write(true).create(true).open(&paths.lockfile) {
         Ok(file) => file,
         Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e))
     };
@@ -199,7 +176,7 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
         }
     };
 
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&paths.juliaupconfig)
         .with_context(|| "Failed to open juliaup config file.")?;
 
     let stream_len = file.seek(SeekFrom::End(0))
@@ -246,15 +223,13 @@ pub fn load_mut_config_db() -> Result<JuliaupConfigFile> {
     let self_data: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        let self_config_path = get_juliaupselfconfig_path().unwrap();
-
-        self_file = std::fs::OpenOptions::new().read(true).write(true).open(&self_config_path)
+        self_file = std::fs::OpenOptions::new().read(true).write(true).open(&paths.juliaupselfconfig)
             .with_context(|| "Failed to open juliaup config file.")?;
 
         let reader = BufReader::new(&self_file);
     
         self_data = serde_json::from_reader(reader)
-            .with_context(|| format!("Failed to parse self configuration file '{:?}' for reading.", self_config_path))?
+            .with_context(|| format!("Failed to parse self configuration file '{:?}' for reading.", paths.juliaupselfconfig))?
     }
 
     let result = JuliaupConfigFile {

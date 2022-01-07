@@ -71,7 +71,7 @@ pub fn main() -> Result<()> {
     use std::io::Seek;
 
     use anyhow::{anyhow, Context};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -86,10 +86,13 @@ pub fn main() -> Result<()> {
     info!("Parsing command line arguments.");
     let args = Juliainstaller::parse();
 
+    let mut paths = get_paths()
+        .with_context(|| "Trying to load all global paths.")?;
+
     use console::Style;
     use dialoguer::{theme::ColorfulTheme, Select, Confirm};
 
-    use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks, utils::get_juliaupconfig_path};
+    use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
     use log::info;
 
     let theme = ColorfulTheme {
@@ -108,7 +111,7 @@ pub fn main() -> Result<()> {
         return Ok(())
     }
 
-    if get_juliaupconfig_path()?.exists() {
+    if paths.juliaupconfig.exists() {
         eprintln!("While Juliaup does not seem to be installed on this system, there is a configuration file present from a previous installation.");
 
         let continue_with_setup = Confirm::new()
@@ -198,16 +201,19 @@ pub fn main() -> Result<()> {
             .with_context(|| format!("Failed to write self configuration file."))?;
 
         self_file.sync_all()
-            .with_context(|| "Failed to write config data to disc.")?;            
+            .with_context(|| "Failed to write config data to disc.")?;     
+            
+        paths.juliaupselfbin = new_install_location.clone();
+        paths.juliaupselfconfig = self_config_path.clone();
     }
 
-    run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate), true).unwrap();
-    run_command_config_startupselfupdate(Some(new_startupselfupdate), true).unwrap();
-    run_command_config_modifypath(Some(new_modifypath), true).unwrap();
-    run_command_config_symlinks(Some(new_symlinks), true).unwrap();
-    run_command_selfchannel(args.juliaupchannel).unwrap();
+    run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate), true, &paths).unwrap();
+    run_command_config_startupselfupdate(Some(new_startupselfupdate), true, &paths).unwrap();
+    run_command_config_modifypath(Some(new_modifypath), true, &paths).unwrap();
+    run_command_config_symlinks(Some(new_symlinks), true, &paths).unwrap();
+    run_command_selfchannel(args.juliaupchannel, &paths).unwrap();
 
-    run_command_initial_setup_from_launcher()?;
+    run_command_initial_setup_from_launcher(&paths)?;
 
     let symlink_path = new_install_location.join("julia");
 
