@@ -21,7 +21,7 @@ anyhow = "1"
 tempfile = "3"
 flate2 = "1"
 tar = "0.4"
-ureq = "2"
+ureq = { version = "2", features = ["default", "native-certs"] }
 normpath = "0.3"
 fs_extra = "1.2"
 thiserror = "1"
