@@ -14,7 +14,7 @@ fn run_individual_config_wizard(
     use std::path::PathBuf;
 
     let new_install_location = Input::new()
-        .with_prompt("Enter the folder where you want to install Juliaup:")
+        .with_prompt("Enter the folder where you want to install Juliaup")
         .validate_with(|input: &String| -> Result<(), &str> {
             match input.parse::<PathBuf>() {
                 Ok(_) => Ok(()),
