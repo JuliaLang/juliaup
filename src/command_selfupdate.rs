@@ -70,7 +70,7 @@ pub fn run_command_selfupdate(paths: &crate::global_paths::GlobalPaths) -> Resul
 }
 
 #[cfg(feature = "windowsstore")]
-pub fn run_command_selfupdate() -> Result<()> {
+pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use anyhow::Context;
     use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 

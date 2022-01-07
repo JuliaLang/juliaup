@@ -267,7 +267,7 @@ r#"#!/bin/sh
 }
 
 #[cfg(target_os = "windows")]
-pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok(()) }
+pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> { Ok(()) }
 
 #[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
