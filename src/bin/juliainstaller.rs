@@ -13,7 +13,7 @@ fn run_individual_config_wizard(
     use dialoguer::{Confirm, Input};
     use std::path::PathBuf;
 
-    let new_install_location = match Input::new()
+    let new_install_location = Input::new()
         .with_prompt("Enter the folder where you want to install Juliaup:")
         .validate_with(|input: &String| -> Result<(), &str> {
             match input.parse::<PathBuf>() {
@@ -21,11 +21,9 @@ fn run_individual_config_wizard(
                 Err(_) => Err("Not a valid input")
             }
         })
-        .default(new_install_location.to_string())
-        .interact() {
-            Ok(value) => value.parse::<PathBuf>().unwrap(),
-            Err(_) => return Ok(None)
-        };
+        .with_initial_text(new_install_location.to_string())
+        .interact_text()?
+        .parse::<PathBuf>().unwrap();
 
     let new_modifypath = match Confirm::new()
         .with_prompt("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
@@ -43,7 +41,7 @@ fn run_individual_config_wizard(
             None => return Ok(None)
         };
 
-    let new_startupselfupdate: String = match Input::new()
+    let new_startupselfupdate = Input::new()
         .with_prompt("Enter minutes between check for new version at julia startup, use 0 to disable")
         .validate_with(|input: &String| -> Result<(), &str> {
             match input.parse::<i64>() {
@@ -52,12 +50,10 @@ fn run_individual_config_wizard(
             }
         })
         .default(new_startupselfupdate.to_string())
-        .interact() {
-            Ok(value) => value,
-            Err(_) => return Ok(None)
-        };
+        .interact_text()?
+        .parse::<i64>().unwrap();
 
-    let new_backgroundselfupdate: String = match Input::new()
+    let new_backgroundselfupdate = Input::new()
         .with_prompt("Enter minutes between check for new version by a background task, use 0 to disable")
         .validate_with(|input: &String| -> Result<(), &str> {
             match input.parse::<i64>() {
@@ -66,14 +62,12 @@ fn run_individual_config_wizard(
             }
         })
         .default(new_backgroundselfupdate.to_string())
-        .interact() {
-            Ok(value) => value,
-            Err(_) => return Ok(None)
-        };
+        .interact_text()?
+        .parse::<i64>().unwrap();
 
     Ok(Some((
-        new_backgroundselfupdate.parse::<i64>().unwrap(),
-        new_startupselfupdate.parse::<i64>().unwrap(),
+        new_backgroundselfupdate,
+        new_startupselfupdate,
         new_symlinks,
         new_modifypath,
         new_install_location,
@@ -169,8 +163,7 @@ pub fn main() -> Result<()> {
     let default_modifypath = true; // TODO Later only set this if `~/.local/bin` is not on the `PATH`
     let default_install_location = dirs::home_dir()
         .ok_or(anyhow!("Could not determine the path of the user home directory."))?
-        .join(".juliaup")
-        .join("bin");
+        .join(".juliaup");
 
     let mut new_backgroundselfupdate = default_backgroundselfupdate;
     let mut new_startupselfupdate = default_startupselfupdate;
@@ -211,9 +204,11 @@ pub fn main() -> Result<()> {
         }
     }
 
+    let juliaupselfbin = new_install_location.join("bin");
+
     eprintln!("Now installing Juliaup");
 
-    std::fs::create_dir_all(&new_install_location)
+    std::fs::create_dir_all(&juliaupselfbin)
         .with_context(|| "Failed to create install folder for Juliaup.")?;
 
     let juliaup_target = get_juliaup_target();
@@ -229,7 +224,7 @@ pub fn main() -> Result<()> {
     let new_juliaup_url = juliaupserver_base.join(&download_url_path)
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
 
-    download_extract_sans_parent(&new_juliaup_url.to_string(), &new_install_location, 0)?;
+    download_extract_sans_parent(&new_juliaup_url.to_string(), &juliaupselfbin, 0)?;
 
     {
         let new_selfconfig_data = JuliaupSelfConfig {
@@ -240,7 +235,7 @@ pub fn main() -> Result<()> {
             last_selfupdate: None,
         };
 
-        let self_config_path = new_install_location.parent().unwrap().join("juliaupself.json");
+        let self_config_path = new_install_location.join("juliaupself.json");
 
         let mut self_file = std::fs::OpenOptions::new().create(true).write(true).open(&self_config_path)
             .with_context(|| "Failed to open juliaup config file.")?;
@@ -257,7 +252,7 @@ pub fn main() -> Result<()> {
         self_file.sync_all()
             .with_context(|| "Failed to write config data to disc.")?;     
             
-        paths.juliaupselfbin = new_install_location.clone();
+        paths.juliaupselfbin = juliaupselfbin.clone();
         paths.juliaupselfconfig = self_config_path.clone();
     }
 
@@ -269,9 +264,9 @@ pub fn main() -> Result<()> {
 
     run_command_initial_setup_from_launcher(&paths)?;
 
-    let symlink_path = new_install_location.join("julia");
+    let symlink_path = juliaupselfbin.join("julia");
 
-    std::os::unix::fs::symlink(new_install_location.join("julialauncher"), &symlink_path)
+    std::os::unix::fs::symlink(juliaupselfbin.join("julialauncher"), &symlink_path)
         .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
 
     eprintln!("Julia was successfully installed on your system.");
