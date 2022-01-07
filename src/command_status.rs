@@ -21,18 +21,18 @@ struct ChannelRow {
 }
 
 pub fn run_command_status() -> Result<()> {
-    let config_data =
+    let config_file =
         load_config_db().with_context(|| "`status` command failed to load configuration file.")?;
 
     let versiondb_data =
         load_versions_db().with_context(|| "`status` command failed to load versions db.")?;
 
-    let rows_in_table: Vec<_> = config_data.installed_channels
+    let rows_in_table: Vec<_> = config_file.data.installed_channels
         .iter()
         .sorted_by_key(|i| i.0.to_string())
         .map(|i| -> ChannelRow {
             ChannelRow {
-                default: match config_data.default {
+                default: match config_file.data.default {
                     Some(ref default_value) => {
                         if &i.0 == &default_value {
                             "*"

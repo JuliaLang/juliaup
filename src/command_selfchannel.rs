@@ -13,7 +13,7 @@ pub fn run_command_selfchannel(channel: String) -> Result<()> {
         bail!("'{}' is not a valid juliaup channel, you can only specify 'release', 'releasepreview' or 'dev'.", channel);
     }
 
-    config_file.data.juliaup_channel = Some(channel.clone());
+    config_file.self_data.juliaup_channel = Some(channel.clone());
 
     save_config_db(&mut config_file)
         .with_context(|| "`selfchannel` command failed to save configuration db.")?;

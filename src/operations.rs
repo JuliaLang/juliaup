@@ -389,7 +389,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &str = "# >>> juliaup initialize >>>";
 const E_MARKER: &str = "# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content(bin_path: &str) -> Result<String> {
+fn get_shell_script_juliaup_content(bin_path: &PathBuf) -> Result<String> {
     let mut result = String::new();
 
     result.push_str(S_MARKER);
@@ -400,8 +400,8 @@ fn get_shell_script_juliaup_content(bin_path: &str) -> Result<String> {
     result.push_str("# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings\n");
     result.push_str("# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded\n");
     result.push('\n');
-    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path));
-    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path));
+    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
+    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
     result.push_str("esac\n");
     result.push('\n');
     result.push_str(E_MARKER);
@@ -439,7 +439,7 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
     }
 }
 
-fn add_path_to_specific_file(bin_path: &str, path: PathBuf) -> Result<()> {
+fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
     .with_context(|| "Failed to open juliaup config file.")?;
 
@@ -498,7 +498,7 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &str) -> Result<()> {
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &PathBuf) -> Result<()> {
     let home_dir = dirs::home_dir().unwrap();
 
     add_path_to_specific_file(bin_path, home_dir.join(".bashrc")).unwrap();

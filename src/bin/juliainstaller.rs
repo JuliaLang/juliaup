@@ -68,8 +68,10 @@ struct Juliainstaller {
 
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
+    use std::io::Seek;
+
     use anyhow::{anyhow, Context};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{load_mut_config_db, save_config_db}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -173,13 +175,30 @@ pub fn main() -> Result<()> {
     download_extract_sans_parent(&new_juliaup_url.to_string(), &new_install_location, 0)?;
 
     {
-        let mut config_file = load_mut_config_db()
-            .with_context(|| "`config` command failed to load configuration data.")?;
+        let new_selfconfig_data = JuliaupSelfConfig {
+            background_selfupdate_interval: None,
+            startup_selfupdate_interval: None,
+            modify_path: false,
+            juliaup_channel: None,
+            last_selfupdate: None,
+        };
 
-        config_file.data.self_install_location = Some(new_install_location.to_string_lossy().to_string());
+        let self_config_path = new_install_location.parent().unwrap().join("juliaupself.json");
 
-        save_config_db(&mut config_file)
-            .with_context(|| "Failed to save configuration file from `config` command.")?;
+        let mut self_file = std::fs::OpenOptions::new().create(true).write(true).open(&self_config_path)
+            .with_context(|| "Failed to open juliaup config file.")?;
+
+        self_file.rewind()
+            .with_context(|| "Failed to rewind self config file for write.")?;
+
+        self_file.set_len(0)
+            .with_context(|| "Failed to set len to 0 for self config file before writing new content.")?;
+
+        serde_json::to_writer_pretty(&self_file, &new_selfconfig_data)
+            .with_context(|| format!("Failed to write self configuration file."))?;
+
+        self_file.sync_all()
+            .with_context(|| "Failed to write config data to disc.")?;            
     }
 
     run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate), true).unwrap();

@@ -63,6 +63,33 @@ pub fn get_juliaupconfig_lockfile_path() -> Result<PathBuf> {
     Ok(path)
 }
 
+#[cfg(feature = "selfupdate")]
+pub fn get_juliaupselfconfig_path() -> Result<PathBuf> {
+    let my_own_path = std::env::current_exe()
+            .with_context(|| "Could not determine the path of the running exe.")?;
+
+    let my_own_folder = my_own_path.parent()
+        .ok_or_else(|| anyhow!("Could not determine parent."))?;
+
+    let my_parent_folder = my_own_folder.parent()
+        .ok_or_else(|| anyhow!("Could not determine parent."))?;
+
+    let path = my_parent_folder.join("juliaupself.json");
+
+    Ok(path)
+}
+
+#[cfg(feature = "selfupdate")]
+pub fn get_juliaup_executable_path() -> Result<PathBuf> {
+    let my_own_path = std::env::current_exe()
+        .with_context(|| "Could not determine the path of the running exe.")?;
+
+    let my_own_folder = my_own_path.parent()
+        .ok_or_else(|| anyhow!("Could not determine parent."))?;
+
+    Ok(my_own_folder.to_path_buf())
+}
+
 pub fn get_bin_dir() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
 
