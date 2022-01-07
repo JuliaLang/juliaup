@@ -1,47 +1,83 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::Parser;
-// use dialoguer::{Confirm, Input};
+use dialoguer::{Confirm, Input};
 
 
-// fn run_individual_config_wizard() -> Result<(i64,i64,bool,bool)> {
-//     let new_modifypath = Confirm::new()
-//         .with_prompt("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
-//         .default(true)
-//         .interact_opt()?;
+fn run_individual_config_wizard(
+    new_backgroundselfupdate: i64,
+    new_startupselfupdate: i64,
+    new_symlinks: bool,
+    new_modifypath: bool,
+    new_install_location: &str) -> Result<Option<(i64,i64,bool,bool,PathBuf)>> {
 
-//     let new_symlinks = Confirm::new()
-//         .with_prompt("Do you want to add channel specific symlinks?")
-//         .default(false)
-//         .interact_opt()?;
+    let new_install_location = match Input::new()
+        .with_prompt("Enter the folder where you want to install Juliaup:")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            match input.parse::<PathBuf>() {
+                Ok(_) => Ok(()),
+                Err(_) => Err("Not a valid input")
+            }
+        })
+        .default(new_install_location.to_string())
+        .interact() {
+            Ok(value) => value.parse::<PathBuf>().unwrap(),
+            Err(_) => return Ok(None)
+        };
 
-//     let new_startupselfupdate: String = Input::new()
-//         .with_prompt("Enter minutes between check for new version at julia startup, use 0 to disable")
-//         .validate_with(|input: &String| -> Result<(), &str> {
-//             match input.parse::<i64>() {
-//                 Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
-//                 Err(_) => Err("Not a valid input")
-//             }
-//         })
-//         .interact()?;
+    let new_modifypath = match Confirm::new()
+        .with_prompt("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
+        .default(new_modifypath)
+        .interact_opt()? {
+            Some(value) => value,
+            None => return Ok(None)
+        };
 
-//     let new_backgroundselfupdate: String = Input::new()
-//         .with_prompt("Enter minutes between check for new version by a background task, use 0 to disable")
-//         .validate_with(|input: &String| -> Result<(), &str> {
-//             match input.parse::<i64>() {
-//                 Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
-//                 Err(_) => Err("Not a valid input")
-//             }
-//         })
-//         .interact()?;
+    let new_symlinks = match Confirm::new()
+        .with_prompt("Do you want to add channel specific symlinks?")
+        .default(new_symlinks)
+        .interact_opt()? {
+            Some(value) => value,
+            None => return Ok(None)
+        };
 
-//     Ok((
-//         new_backgroundselfupdate.parse::<i64>().unwrap(),
-//         new_startupselfupdate.parse::<i64>().unwrap(),
-//         true, true
-//         // new_symlinks,
-//         // new_modifypath,
-//      ))
-// }
+    let new_startupselfupdate: String = match Input::new()
+        .with_prompt("Enter minutes between check for new version at julia startup, use 0 to disable")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            match input.parse::<i64>() {
+                Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
+                Err(_) => Err("Not a valid input")
+            }
+        })
+        .default(new_startupselfupdate.to_string())
+        .interact() {
+            Ok(value) => value,
+            Err(_) => return Ok(None)
+        };
+
+    let new_backgroundselfupdate: String = match Input::new()
+        .with_prompt("Enter minutes between check for new version by a background task, use 0 to disable")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            match input.parse::<i64>() {
+                Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
+                Err(_) => Err("Not a valid input")
+            }
+        })
+        .default(new_backgroundselfupdate.to_string())
+        .interact() {
+            Ok(value) => value,
+            Err(_) => return Ok(None)
+        };
+
+    Ok(Some((
+        new_backgroundselfupdate.parse::<i64>().unwrap(),
+        new_startupselfupdate.parse::<i64>().unwrap(),
+        new_symlinks,
+        new_modifypath,
+        new_install_location,
+     )))
+}
 
 #[cfg(feature = "selfupdate")]
 fn is_juliaup_installed() -> bool {
@@ -90,7 +126,7 @@ pub fn main() -> Result<()> {
         .with_context(|| "Trying to load all global paths.")?;
 
     use console::Style;
-    use dialoguer::{theme::ColorfulTheme, Select, Confirm};
+    use dialoguer::{theme::ColorfulTheme, Select};
 
     use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
     use log::info;
@@ -135,11 +171,11 @@ pub fn main() -> Result<()> {
         .join(".juliaup")
         .join("bin");
 
-    let new_backgroundselfupdate = default_backgroundselfupdate;
-    let new_startupselfupdate = default_startupselfupdate;
-    let new_symlinks = default_symlinks;
-    let new_modifypath = default_modifypath;
-    let new_install_location = default_install_location;
+    let mut new_backgroundselfupdate = default_backgroundselfupdate;
+    let mut new_startupselfupdate = default_startupselfupdate;
+    let mut new_symlinks = default_symlinks;
+    let mut new_modifypath = default_modifypath;
+    let mut new_install_location = default_install_location;
 
     let choice = Select::with_theme(&theme)
             .with_prompt("Do you want to install with all default configuration values?")
@@ -153,9 +189,26 @@ pub fn main() -> Result<()> {
     if choice.is_none() {
         return Ok(())
     }
-    // else if choice.unwrap() == 1 {
-    //     let choice = run_individual_config_wizard();
-    // }
+    else if choice.unwrap() == 1 {
+        let choice = run_individual_config_wizard(
+            new_backgroundselfupdate,
+            new_startupselfupdate,
+            new_symlinks,
+            new_modifypath,
+            &new_install_location.to_string_lossy().to_string(),
+        )?;
+
+        match choice {
+            Some(value) => {
+                new_backgroundselfupdate = value.0;
+                new_startupselfupdate = value.1;
+                new_symlinks = value.2;
+                new_modifypath = value.3;
+                new_install_location= value.4;
+            },
+            None => return Ok(()) 
+        }
+    }
 
     eprintln!("Now installing Juliaup");
 
