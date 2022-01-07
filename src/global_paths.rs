@@ -7,6 +7,8 @@ pub struct GlobalPaths {
     pub juliaupconfig: PathBuf,
     pub lockfile: PathBuf,
     #[cfg(feature = "selfupdate")]
+    pub juliaupselfhome: PathBuf,
+    #[cfg(feature = "selfupdate")]
     pub juliaupselfconfig: PathBuf,
     #[cfg(feature = "selfupdate")]
     pub juliaupselfbin: PathBuf,
@@ -64,17 +66,23 @@ pub fn get_paths() -> Result<GlobalPaths> {
     let lockfile = juliauphome.join(".juliaup-lock");
 
     #[cfg(feature = "selfupdate")]
-    let juliaupselfconfig = my_own_path
+    let juliaupselfhome = my_own_path
         .parent()
         .ok_or_else(|| anyhow!("Failed to get path of folder of own executable."))?
         .parent()
         .ok_or_else(|| anyhow!("Failed to get parent path of folder of own executable."))?
+        .to_path_buf();
+
+    #[cfg(feature = "selfupdate")]
+    let juliaupselfconfig = juliaupselfhome
         .join("juliaupself.json");
 
     Ok(GlobalPaths {
         juliauphome,
         juliaupconfig,
         lockfile,
+        #[cfg(feature = "selfupdate")]
+        juliaupselfhome,
         #[cfg(feature = "selfupdate")]
         juliaupselfconfig,
         #[cfg(feature = "selfupdate")]
