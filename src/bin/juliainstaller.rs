@@ -11,6 +11,7 @@ fn run_individual_config_wizard(
     new_install_location: &str) -> Result<Option<(i64,i64,bool,bool,std::path::PathBuf)>> {
 
     use dialoguer::{Confirm, Input};
+    use std::path::PathBuf;
 
     let new_install_location = match Input::new()
         .with_prompt("Enter the folder where you want to install Juliaup:")
@@ -105,7 +106,7 @@ struct Juliainstaller {
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
     use std::io::Seek;
-
+    use dialoguer::Confirm;
     use anyhow::{anyhow, Context};
     use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
