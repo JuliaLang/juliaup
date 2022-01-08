@@ -124,7 +124,7 @@ pub fn main() -> Result<()> {
     use dialoguer::{theme::ColorfulTheme, Select};
 
     use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
-    use log::info;
+    use log::{info, trace, debug};
 
     let theme = ColorfulTheme {
         values_style: Style::new().yellow().dim(),
@@ -171,6 +171,8 @@ pub fn main() -> Result<()> {
     let mut new_modifypath = default_modifypath;
     let mut new_install_location = default_install_location;
 
+    debug!("Next running the prompt for default choices");
+
     let choice = Select::with_theme(&theme)
             .with_prompt("Do you want to install with all default configuration values?")
             .default(0)
@@ -178,12 +180,17 @@ pub fn main() -> Result<()> {
             .item("No, let me chose custom install options")
             .interact_opt()?;
 
+    trace!("choice is {:?}", choice);
+
     eprintln!("");
 
     if choice.is_none() {
+        debug!("Exiting because abort was chosen");
         return Ok(())
     }
     else if choice.unwrap() == 1 {
+        debug!("Next running the individual config wizard");
+
         let choice = run_individual_config_wizard(
             new_backgroundselfupdate,
             new_startupselfupdate,
@@ -191,6 +198,8 @@ pub fn main() -> Result<()> {
             new_modifypath,
             &new_install_location.to_string_lossy().to_string(),
         )?;
+
+        trace!("choice is {:?}", choice);
 
         match choice {
             Some(value) => {
@@ -200,11 +209,16 @@ pub fn main() -> Result<()> {
                 new_modifypath = value.3;
                 new_install_location= value.4;
             },
-            None => return Ok(()) 
+            None => {
+                debug!("Exiting because abort was chosen");
+                return Ok(())
+            }
         }
     }
 
     let juliaupselfbin = new_install_location.join("bin");
+
+    trace!("Set juliaupselfbin to `{:?}`", juliaupselfbin);
 
     eprintln!("Now installing Juliaup");
 
