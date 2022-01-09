@@ -114,6 +114,10 @@ pub fn main() -> Result<()> {
     let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    if atty::isnt(atty::Stream::Stdin) {
+        return Err(anyhow!("Stdin is not a tty, this scenario is not yet supported."))
+    }
+
     info!("Parsing command line arguments.");
     let args = Juliainstaller::parse();
 
