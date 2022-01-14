@@ -56,6 +56,7 @@ main() {
     need_cmd rmdir
     need_cmd ln
     need_cmd cat
+    need_cmd tty
 
     get_architecture || return 1
     local _arch="$RETVAL"
@@ -127,8 +128,10 @@ main() {
         exit 1
     fi
 
+    _ttyname="$(tty)"
+
     if [ "$need_tty" = "yes" ]; then
-        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW < /dev/tty
+        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW < "$_ttyname"
     else
         ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW
     fi
