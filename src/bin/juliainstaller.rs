@@ -12,57 +12,54 @@ fn run_individual_config_wizard(
 
     use std::path::PathBuf;
 
-    let new_install_location = Input::new()
-        .with_prompt("Enter the folder where you want to install Juliaup")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            match input.parse::<PathBuf>() {
+    use requestty::{Question, prompt};
+
+    let question_new_installation_location = Question::input("new_install_location")
+        .message("Enter the folder where you want to install Juliaup")
+        .default(new_install_location.to_string())
+        .validate(|input, _previous_answer| match input.parse::<PathBuf>() {
                 Ok(_) => Ok(()),
-                Err(_) => Err("Not a valid input")
-            }
+                Err(_) => Err("Not a valid input".to_owned())
         })
-        .with_initial_text(new_install_location.to_string())
-        .interact_text()?
-        .parse::<PathBuf>().unwrap();
+        .build();
 
-    let new_modifypath = match Confirm::new()
-        .with_prompt("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
+    let question_modifypath = Question::confirm("modifypath")
+        .message("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
         .default(new_modifypath)
-        .interact_opt()? {
-            Some(value) => value,
-            None => return Ok(None)
-        };
+        .build();
 
-    let new_symlinks = match Confirm::new()
-        .with_prompt("Do you want to add channel specific symlinks?")
+    let question_symlinks = Question::confirm("symlinks")
+        .message("Do you want to add channel specific symlinks?")
         .default(new_symlinks)
-        .interact_opt()? {
-            Some(value) => value,
-            None => return Ok(None)
-        };
+        .build();
 
-    let new_startupselfupdate = Input::new()
-        .with_prompt("Enter minutes between check for new version at julia startup, use 0 to disable")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            match input.parse::<i64>() {
-                Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
-                Err(_) => Err("Not a valid input")
-            }
-        })
-        .default(new_startupselfupdate.to_string())
-        .interact_text()?
-        .parse::<i64>().unwrap();
+    let question_startupselfupdate = Question::int("startupselfupdate")
+        .message("Enter minutes between check for new version at julia startup, use 0 to disable")
+        .validate(|input, _previous| if input>0 {Ok(())} else {Err("Not a valid input".to_owned())})
+        .default(new_startupselfupdate)
+        .build();
 
-    let new_backgroundselfupdate = Input::new()
-        .with_prompt("Enter minutes between check for new version by a background task, use 0 to disable")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            match input.parse::<i64>() {
-                Ok(val) => if val>=0 {Ok(())} else {Err("Not a valid input")},
-                Err(_) => Err("Not a valid input")
-            }
-        })
-        .default(new_backgroundselfupdate.to_string())
-        .interact_text()?
-        .parse::<i64>().unwrap();
+    let question_backgroundselfupdate = Question::int("backgroundselfupdate")
+        .message("Enter minutes between check for new version by a background task, use 0 to disable")
+        .validate(|input, _previous| if input>0 {Ok(())} else {Err("Not a valid input".to_owned())})
+        .default(new_backgroundselfupdate)
+        .build();
+
+    let questions = vec![
+        question_new_installation_location,
+        question_modifypath,
+        question_symlinks,
+        question_startupselfupdate,
+        question_backgroundselfupdate,
+    ];
+
+    let answers = prompt(questions)?;
+
+    let new_install_location = answers["new_install_location"].as_string().unwrap().parse::<PathBuf>().unwrap();
+    let new_modifypath = answers["modifypath"].as_bool().unwrap();
+    let new_symlinks = answers["symlinks"].as_bool().unwrap();
+    let new_startupselfupdate = answers["startupselfupdate"].as_int().unwrap();
+    let new_backgroundselfupdate = answers["backgroundselfupdate"].as_int().unwrap();
 
     Ok(Some((
         new_backgroundselfupdate,
@@ -124,15 +121,9 @@ pub fn main() -> Result<()> {
 
     use juliaup::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
     use log::{info, trace, debug};
-
-    let theme = ColorfulTheme {
-        values_style: Style::new().yellow().dim(),
-        ..ColorfulTheme::default()
-    };
+    use requestty::{Question, prompt_one};
 
     eprintln!("Welcome to the Julia setup wizard");
-    eprintln!("");
-    eprintln!("You can abort at any time with Esc or q, in which case no changes will be made to your system.");
     eprintln!("");
 
     if is_juliaup_installed() {
@@ -144,14 +135,15 @@ pub fn main() -> Result<()> {
     if paths.juliaupconfig.exists() {
         eprintln!("While Juliaup does not seem to be installed on this system, there is a configuration file present from a previous installation.");
 
-        let continue_with_setup = Confirm::new()
-            .with_prompt("Do you want to continue with the installation and overwrite the existing Juliaup configuration file?")
+        let question_continue_with_setup = Question::confirm("overwrite")
+            .message("Do you want to continue with the installation and overwrite the existing Juliaup configuration file?")
             .default(true)
-            .interact_opt()?;
+            .build();
 
-        if !continue_with_setup.unwrap_or(false) {
-            return Ok(())
+        if !prompt_one(question_continue_with_setup)?.as_bool().unwrap() {
+            return Ok(());
         }
+
         eprintln!("");
     }
 
@@ -172,22 +164,22 @@ pub fn main() -> Result<()> {
 
     debug!("Next running the prompt for default choices");
 
-    let choice = Select::with_theme(&theme)
-            .with_prompt("Do you want to install with all default configuration values?")
+    let question_default = Question::select("default")
+            .message("Do you want to install with all default configuration values?")
+            .choice("Yes, install with defaults")
+            .choice("No, let me chose custom install options")
+            .choice("Abort installation")
             .default(0)
-            .item("Yes, install with defaults")
-            .item("No, let me chose custom install options")
-            .interact_opt()?;
+            .build();
 
-    trace!("choice is {:?}", choice);
+    let answer_default = prompt_one(question_default)?;
+    let answer_default = answer_default.as_list_item().unwrap();
+
+    trace!("choice is {:?}", answer_default);
 
     eprintln!("");
 
-    if choice.is_none() {
-        debug!("Exiting because abort was chosen");
-        return Ok(())
-    }
-    else if choice.unwrap() == 1 {
+    if answer_default.index == 1 {
         debug!("Next running the individual config wizard");
 
         let choice = run_individual_config_wizard(
@@ -213,6 +205,9 @@ pub fn main() -> Result<()> {
                 return Ok(())
             }
         }
+    }
+    else if answer_default.index == 2 {
+        return Ok(());
     }
 
     let juliaupselfbin = new_install_location.join("bin");
