@@ -3,16 +3,18 @@ use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
 pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
-    use dialoguer::Confirm;
+    use requestty::{Question, prompt_one};
 
     use crate::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
 
-    let choice = Confirm::new()
-        .with_prompt("Do you really want to uninstall Julia?")
+    let question_confirm_uninstall = Question::confirm("uninstall")
+        .message("Do you really want to uninstall Julia?")
         .default(false)
-        .interact()?;
+        .build();
+
+    let answer = prompt_one(question_confirm_uninstall)?;
     
-    if !choice {
+    if !answer.as_bool().unwrap() {
         return Ok(());
     }
 
