@@ -507,7 +507,9 @@ pub fn find_shell_scripts_to_be_modified() -> Result<Vec<PathBuf>> {
 
     let result = paths_to_test
         .iter()
-        .filter(|p| p.exists())
+        .filter(|p| p.exists() ||
+            (p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell
+        )
         .map(|p|p.clone())
         .collect();
 
