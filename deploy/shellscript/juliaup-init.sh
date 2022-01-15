@@ -128,7 +128,7 @@ main() {
         exit 1
     fi
 
-    _ttyname="$(tty)"
+    _ttyname="/dev/$(ps -p $$ -o tty= | xargs)"
 
     if [ "$need_tty" = "yes" ]; then
         ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW < "$_ttyname"
