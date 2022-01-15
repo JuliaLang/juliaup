@@ -392,7 +392,8 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Resul
     result.push_str("# !! Contents within this block are managed by juliaup !!\n");
     result.push('\n');
     if path.file_name().unwrap()==".zshrc" {
-        result.push_str(&format!("path=('{}' $path)", bin_path.to_string_lossy()));
+        result.push_str(&format!("path=('{}' $path)\n", bin_path.to_string_lossy()));
+        result.push_str("export PATH\n");
     }
     else {
         result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
