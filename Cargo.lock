@@ -628,6 +628,7 @@ dependencies = [
  "cli-table",
  "cluFlock",
  "console",
+ "crossterm",
  "ctrlc",
  "dirs",
  "env_logger",

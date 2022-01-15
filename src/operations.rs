@@ -383,7 +383,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &str = "# >>> juliaup initialize >>>";
 const E_MARKER: &str = "# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content(bin_path: &PathBuf) -> Result<String> {
+fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Result<String> {
     let mut result = String::new();
 
     result.push_str(S_MARKER);
@@ -391,12 +391,14 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf) -> Result<String> {
     result.push('\n');
     result.push_str("# !! Contents within this block are managed by juliaup !!\n");
     result.push('\n');
-    result.push_str("# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings\n");
-    result.push_str("# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded\n");
-    result.push('\n');
-    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
-    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
-    result.push_str("esac\n");
+    if path.file_name().unwrap()==".zshrc" {
+        result.push_str(&format!("path=('{}' $path)", bin_path.to_string_lossy()));
+    }
+    else {
+        result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
+        result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
+        result.push_str("esac\n");    
+    }
     result.push('\n');
     result.push_str(E_MARKER);
 
@@ -435,7 +437,7 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
 
 fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
-    .with_context(|| "Failed to open juliaup config file.")?;
+        .with_context(|| "Failed to open juliaup config file.")?;
 
     let mut buffer = String::new();
 
@@ -443,7 +445,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
 
     let existing_code_pos = match_markers(&buffer, false)?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path).unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path, &path).unwrap();
 
     match existing_code_pos {
         Some(pos) => {
@@ -492,57 +494,42 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &PathBuf) -> Result<()> {
+pub fn find_shell_scripts_to_be_modified() -> Result<Vec<PathBuf>> {
     let home_dir = dirs::home_dir().unwrap();
 
-    add_path_to_specific_file(bin_path, home_dir.join(".bashrc")).unwrap();
+    let paths_to_test: Vec<PathBuf> = vec![
+        home_dir.join(".bashrc").into(),
+        home_dir.join(".profile").into(),
+        home_dir.join(".bash_profile").into(),
+        home_dir.join(".bash_login").into(),
+        home_dir.join(".zshrc").into(),
+    ];
 
-    let mut edited_some_profile_file = false;
+    let result = paths_to_test
+        .iter()
+        .filter(|p| p.exists())
+        .map(|p|p.clone())
+        .collect();
 
-    // We now check for all the various profile scripts that bash might run and
-    // edit all of them, as bash will only run one of them.
-    if home_dir.join(".profile").exists() {
-        add_path_to_specific_file(bin_path, home_dir.join(".profile")).unwrap();
+    Ok(result)
+}
 
-        edited_some_profile_file = true;
-    }
-    if home_dir.join(".bash_profile").exists() {
-        add_path_to_specific_file(bin_path, home_dir.join(".bash_profile")).unwrap();
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &PathBuf) -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified()?;
 
-        edited_some_profile_file = true;
-    }
-    if home_dir.join(".bash_login").exists() {
-        add_path_to_specific_file(bin_path, home_dir.join(".bash_login")).unwrap();
-
-        edited_some_profile_file = true;
-    }
-
-    // If none of the profile files exists, we create a `.bash_profile`
-    if !edited_some_profile_file {
-        add_path_to_specific_file(bin_path, home_dir.join(".bash_profile")).unwrap();
-    }
+    paths.into_iter().for_each(|p| {
+        add_path_to_specific_file(bin_path, p).unwrap();
+    });
 
     Ok(())
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    let home_dir = dirs::home_dir().unwrap();
+    let paths = find_shell_scripts_to_be_modified()?;
 
-    if home_dir.join(".profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".bashrc")).unwrap();
-    }
-
-    if home_dir.join(".profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".profile")).unwrap();
-    }
-
-    if home_dir.join(".bash_profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".bash_profile")).unwrap();
-    }
-
-    if home_dir.join(".bash_login").exists() {
-        remove_path_from_specific_file(home_dir.join(".bash_login")).unwrap();
-    }
+    paths.into_iter().for_each(|p| {
+        remove_path_from_specific_file(p).unwrap();
+    });
 
     Ok(())
 }

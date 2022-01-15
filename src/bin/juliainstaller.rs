@@ -3,20 +3,20 @@ use clap::Parser;
 
 
 #[cfg(feature = "selfupdate")]
-fn run_individual_config_wizard(    
-    new_backgroundselfupdate: i64,
-    new_startupselfupdate: i64,
-    new_symlinks: bool,
-    new_modifypath: bool,
-    new_install_location: &str) -> Result<Option<(i64,i64,bool,bool,std::path::PathBuf)>> {
+fn run_individual_config_wizard(install_choices: &mut InstallChoices) -> Result<()> {
 
     use std::path::PathBuf;
 
+    use log::trace;
     use requestty::{Question, prompt};
 
-    let question_new_installation_location = Question::input("new_install_location")
+    trace!("install_location pre inside the prompt function {:?}", install_choices.install_location);
+
+    let question_installation_location = Question::input("new_install_location")
         .message("Enter the folder where you want to install Juliaup")
-        .default(new_install_location.to_string())
+        // TODO There is a bug here that if we specify a default, and the user just presses Enter
+        // we get an empty return value
+        // .default(install_choices.install_location.to_string_lossy().clone())
         .validate(|input, _previous_answer| match input.parse::<PathBuf>() {
                 Ok(_) => Ok(()),
                 Err(_) => Err("Not a valid input".to_owned())
@@ -25,28 +25,28 @@ fn run_individual_config_wizard(
 
     let question_modifypath = Question::confirm("modifypath")
         .message("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
-        .default(new_modifypath)
+        .default(install_choices.modifypath)
         .build();
 
     let question_symlinks = Question::confirm("symlinks")
         .message("Do you want to add channel specific symlinks?")
-        .default(new_symlinks)
+        .default(install_choices.symlinks)
         .build();
 
     let question_startupselfupdate = Question::int("startupselfupdate")
         .message("Enter minutes between check for new version at julia startup, use 0 to disable")
         .validate(|input, _previous| if input>0 {Ok(())} else {Err("Not a valid input".to_owned())})
-        .default(new_startupselfupdate)
+        .default(install_choices.startupselfupdate)
         .build();
 
     let question_backgroundselfupdate = Question::int("backgroundselfupdate")
         .message("Enter minutes between check for new version by a background task, use 0 to disable")
         .validate(|input, _previous| if input>0 {Ok(())} else {Err("Not a valid input".to_owned())})
-        .default(new_backgroundselfupdate)
+        .default(install_choices.backgroundselfupdate)
         .build();
 
     let questions = vec![
-        question_new_installation_location,
+        question_installation_location,
         question_modifypath,
         question_symlinks,
         question_startupselfupdate,
@@ -55,19 +55,15 @@ fn run_individual_config_wizard(
 
     let answers = prompt(questions)?;
 
-    let new_install_location = answers["new_install_location"].as_string().unwrap().parse::<PathBuf>().unwrap();
-    let new_modifypath = answers["modifypath"].as_bool().unwrap();
-    let new_symlinks = answers["symlinks"].as_bool().unwrap();
-    let new_startupselfupdate = answers["startupselfupdate"].as_int().unwrap();
-    let new_backgroundselfupdate = answers["backgroundselfupdate"].as_int().unwrap();
+    trace!("install_location post inside the prompt function {}", answers["new_install_location"].as_string().unwrap());
 
-    Ok(Some((
-        new_backgroundselfupdate,
-        new_startupselfupdate,
-        new_symlinks,
-        new_modifypath,
-        new_install_location,
-     )))
+    install_choices.install_location = answers["new_install_location"].as_string().unwrap().parse::<PathBuf>().unwrap();
+    install_choices.modifypath = answers["modifypath"].as_bool().unwrap();
+    install_choices.symlinks = answers["symlinks"].as_bool().unwrap();
+    install_choices.startupselfupdate = answers["startupselfupdate"].as_int().unwrap();
+    install_choices.backgroundselfupdate = answers["backgroundselfupdate"].as_int().unwrap();
+
+    Ok(())
 }
 
 #[cfg(feature = "selfupdate")]
@@ -94,10 +90,45 @@ struct Juliainstaller {
 }
 
 #[cfg(feature = "selfupdate")]
+struct InstallChoices {
+    backgroundselfupdate: i64,
+    startupselfupdate: i64,
+    symlinks: bool,
+    modifypath: bool,
+    install_location: std::path::PathBuf,
+    modifypath_files: Vec<std::path::PathBuf>,
+}
+
+#[cfg(feature = "selfupdate")]
+fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
+    use crossterm::{style::{Stylize, Attribute}};
+
+    println!("Juliaup will be installed into the Juliaup home directory, located at:");
+    println!("");
+    println!("  {}", install_choices.install_location.to_string_lossy());
+    println!("");
+    println!("The {}, {} and other commands will be added to", "julia".attribute(Attribute::Bold), "juliaup".attribute(Attribute::Bold));
+    println!("Juliaup's bin directory, located at:");
+    println!("");
+    println!("  {}", install_choices.install_location.join("bin").to_string_lossy());
+    println!("");
+    println!("This path will then be added to your {} environment variable by", "PATH".attribute(Attribute::Bold));
+    println!("modifying the profile files located at:");
+    println!("");
+    for p in &install_choices.modifypath_files {
+        println!("  {}", p.to_string_lossy());
+    }
+    println!("");
+
+    Ok(())
+}
+
+#[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
     use std::io::Seek;
     use anyhow::{anyhow, Context};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::download_extract_sans_parent, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
+    use crossterm::style::{Stylize, Attribute};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -123,17 +154,22 @@ pub fn main() -> Result<()> {
     use log::{info, trace, debug};
     use requestty::{Question, prompt_one};
 
-    eprintln!("Welcome to the Julia setup wizard");
-    eprintln!("");
+    println!("{}", "Welcome to Julia!".attribute(Attribute::Bold));
+    println!("");
 
     if is_juliaup_installed() {
-        eprintln!("It seems that Juliaup is already installed on this system. Please remove the previous installation of Juliaup before you try to install a new version.");
+        println!("It seems that Juliaup is already installed on this system. Please remove the previous installation of Juliaup before you try to install a new version.");
 
         return Ok(())
     }
 
+    println!("This will download and install the official Julia Language distribution");
+    println!("and its version manager Juliaup.");
+    println!();
+
     if paths.juliaupconfig.exists() {
-        eprintln!("While Juliaup does not seem to be installed on this system, there is a configuration file present from a previous installation.");
+        println!("While Juliaup does not seem to be installed on this system, there is a");
+        println!("Juliaup configuration file present from a previous installation.");
 
         let question_continue_with_setup = Question::confirm("overwrite")
             .message("Do you want to continue with the installation and overwrite the existing Juliaup configuration file?")
@@ -144,31 +180,33 @@ pub fn main() -> Result<()> {
             return Ok(());
         }
 
-        eprintln!("");
+        println!("");
     }
 
-    // First step is to figure out what defaults we would use on this system.
-    let default_backgroundselfupdate = 0;
-    let default_startupselfupdate = 1440;
-    let default_symlinks = false;
-    let default_modifypath = true; // TODO Later only set this if `~/.local/bin` is not on the `PATH`
-    let default_install_location = dirs::home_dir()
-        .ok_or(anyhow!("Could not determine the path of the user home directory."))?
-        .join(".juliaup");
+    let mut install_choices = InstallChoices {
+        backgroundselfupdate: 0,
+        startupselfupdate: 1440,
+        symlinks: false,
+        modifypath: true,
+        install_location: dirs::home_dir()
+            .ok_or(anyhow!("Could not determine the path of the user home directory."))?
+            .join(".juliaup"),
+        modifypath_files: find_shell_scripts_to_be_modified()?,
+    };
 
-    let mut new_backgroundselfupdate = default_backgroundselfupdate;
-    let mut new_startupselfupdate = default_startupselfupdate;
-    let mut new_symlinks = default_symlinks;
-    let mut new_modifypath = default_modifypath;
-    let mut new_install_location = default_install_location;
+    print_install_choices(&install_choices)?;
+
+    println!("You can uninstall at any time with {} and these", "juliaup self uninstall".attribute(Attribute::Bold));
+    println!("changes will be reverted.");
+    println!("");
 
     debug!("Next running the prompt for default choices");
 
     let question_default = Question::select("default")
-            .message("Do you want to install with all default configuration values?")
-            .choice("Yes, install with defaults")
-            .choice("No, let me chose custom install options")
-            .choice("Abort installation")
+            .message("Do you want to install with these default configuration choices?")
+            .choice("Proceed with installation")
+            .choice("Customize installation")
+            .choice("Cancel installation")
             .default(0)
             .build();
 
@@ -177,32 +215,34 @@ pub fn main() -> Result<()> {
 
     trace!("choice is {:?}", answer_default);
 
-    eprintln!("");
+    println!("");
 
     if answer_default.index == 1 {
         debug!("Next running the individual config wizard");
 
-        let choice = run_individual_config_wizard(
-            new_backgroundselfupdate,
-            new_startupselfupdate,
-            new_symlinks,
-            new_modifypath,
-            &new_install_location.to_string_lossy().to_string(),
-        )?;
+        loop {
+            run_individual_config_wizard(&mut install_choices)?;
 
-        trace!("choice is {:?}", choice);
+            print_install_choices(&install_choices)?;
+    
+            let question_confirmcustom = Question::select("confirmcustom")
+                .message("Do you want to install with these custom configuration choices?")
+                .choice("Proceed with installation")
+                .choice("Customize installation")
+                .choice("Cancel installation")
+                .default(0)
+                .build();
 
-        match choice {
-            Some(value) => {
-                new_backgroundselfupdate = value.0;
-                new_startupselfupdate = value.1;
-                new_symlinks = value.2;
-                new_modifypath = value.3;
-                new_install_location= value.4;
-            },
-            None => {
-                debug!("Exiting because abort was chosen");
-                return Ok(())
+            trace!("homedir is {:?}", install_choices.install_location);
+    
+            let answer_confirmcustom = prompt_one(question_confirmcustom)?;
+            let answer_confirmcustom = answer_confirmcustom.as_list_item().unwrap();
+
+            if answer_confirmcustom.index == 0 {
+                break;
+            }
+            else if answer_confirmcustom.index == 2 {
+                return Ok(());
             }
         }
     }
@@ -210,11 +250,11 @@ pub fn main() -> Result<()> {
         return Ok(());
     }
 
-    let juliaupselfbin = new_install_location.join("bin");
+    let juliaupselfbin = install_choices.install_location.join("bin");
 
     trace!("Set juliaupselfbin to `{:?}`", juliaupselfbin);
 
-    eprintln!("Now installing Juliaup");
+    println!("Now installing Juliaup");
 
     std::fs::create_dir_all(&juliaupselfbin)
         .with_context(|| "Failed to create install folder for Juliaup.")?;
@@ -243,7 +283,7 @@ pub fn main() -> Result<()> {
             last_selfupdate: None,
         };
 
-        let self_config_path = new_install_location.join("juliaupself.json");
+        let self_config_path = install_choices.install_location.join("juliaupself.json");
 
         let mut self_file = std::fs::OpenOptions::new().create(true).write(true).open(&self_config_path)
             .with_context(|| "Failed to open juliaup config file.")?;
@@ -264,10 +304,10 @@ pub fn main() -> Result<()> {
         paths.juliaupselfconfig = self_config_path.clone();
     }
 
-    run_command_config_backgroundselfupdate(Some(new_backgroundselfupdate), true, &paths).unwrap();
-    run_command_config_startupselfupdate(Some(new_startupselfupdate), true, &paths).unwrap();
-    run_command_config_modifypath(Some(new_modifypath), true, &paths).unwrap();
-    run_command_config_symlinks(Some(new_symlinks), true, &paths).unwrap();
+    run_command_config_backgroundselfupdate(Some(install_choices.backgroundselfupdate), true, &paths).unwrap();
+    run_command_config_startupselfupdate(Some(install_choices.startupselfupdate), true, &paths).unwrap();
+    run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
+    run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
     run_command_selfchannel(args.juliaupchannel, &paths).unwrap();
 
     run_command_initial_setup_from_launcher(&paths)?;
@@ -277,11 +317,17 @@ pub fn main() -> Result<()> {
     std::os::unix::fs::symlink(juliaupselfbin.join("julialauncher"), &symlink_path)
         .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
 
-    eprintln!("Julia was successfully installed on your system.");
+    println!("Julia was successfully installed on your system.");
 
-    if new_modifypath {
-        eprintln!("");
-        eprintln!("Run `. ~/.bashrc` to reload $PATH variable.")
+    if install_choices.modifypath {
+        println!("");
+        println!("Depending on which shell you are using, run one of the following");
+        println!("commands to reload the the {} environment variable:", "PATH".attribute(Attribute::Bold));
+        println!("");
+        for p in &install_choices.modifypath_files {
+            println!("  . {}", p.to_string_lossy());
+        }
+        println!("");
     }
 
     Ok(())
