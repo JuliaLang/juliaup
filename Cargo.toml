@@ -61,3 +61,6 @@ predicates = "2.1"
 selfupdate = []
 windowsstore = []
 dummy = []
+
+[package.metadata.msix]
+main = "msix/PackagingLayout.xml"
