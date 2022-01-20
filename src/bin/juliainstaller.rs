@@ -21,7 +21,7 @@ fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &di
         .with_initial_text(install_choices.install_location.to_string_lossy().clone())        
         .interact_text()?;
 
-    let new_install_location = shellexpand::tilde(new_install_location)
+    let new_install_location = shellexpand::tilde(&new_install_location)
         .parse::<PathBuf>().unwrap();
 
     let new_modifypath = match Confirm::with_theme(theme)
