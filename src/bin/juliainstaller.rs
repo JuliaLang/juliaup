@@ -207,7 +207,7 @@ pub fn main() -> Result<()> {
             .default(true)
             .interact_opt()?;
 
-        if continue_with_setup.unwrap_or(false) {
+        if !continue_with_setup.unwrap_or(false) {
             return Ok(());
         }
 
@@ -281,6 +281,10 @@ pub fn main() -> Result<()> {
 
     println!("Now installing Juliaup");
 
+    if paths.juliaupconfig.exists() {
+        std::fs::remove_file(&paths.juliaupconfig).unwrap();
+    }
+
     std::fs::create_dir_all(&juliaupselfbin)
         .with_context(|| "Failed to create install folder for Juliaup.")?;
 
@@ -290,7 +294,7 @@ pub fn main() -> Result<()> {
         .with_context(|| "Failed to get Juliaup server base URL.")?;
 
     let version = get_own_version().unwrap();
-    // let version = semver::Version::parse("1.5.7").unwrap();
+    // let version = semver::Version::parse("1.5.29").unwrap();
 
     let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
 
