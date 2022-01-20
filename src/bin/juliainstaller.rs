@@ -117,13 +117,32 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     println!("");
     println!("  {}", install_choices.install_location.join("bin").to_string_lossy());
     println!("");
-    println!("This path will then be added to your {} environment variable by", style("PATH").bold());
-    println!("modifying the profile files located at:");
-    println!("");
-    for p in &install_choices.modifypath_files {
-        println!("  {}", p.to_string_lossy());
+
+    if install_choices.modifypath {
+        println!("This path will then be added to your {} environment variable by", style("PATH").bold());
+        println!("modifying the profile files located at:");
+        println!("");
+        for p in &install_choices.modifypath_files {
+            println!("  {}", p.to_string_lossy());
+        }
+        println!("");
     }
-    println!("");
+
+    if install_choices.backgroundselfupdate>0 {
+        println!("The installer will configure a CRON job that checks for updates of");
+        println!("Juliaup itself. This CRON job will run every {} seconds.", install_choices.backgroundselfupdate);
+        println!("");
+    }
+
+    if install_choices.startupselfupdate>0 {
+        println!("Julia will look for a new version of Juliaup itself every {} seconds when you start julia.", install_choices.startupselfupdate);
+        println!("");
+    }
+
+    if install_choices.symlinks {
+        println!("Julia will create a symlink for every channel you install that is named julia-<CHANNELNAME>.");
+        println!("");
+    }
 
     Ok(())
 }
