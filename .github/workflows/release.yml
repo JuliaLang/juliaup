@@ -400,6 +400,18 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
+  deploy-release-channel-brew:
+    needs: [build-juliaup,test-juliaup]
+    environment: release-preview-channel
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Update Homebrew formula
+      uses: dawidd6/action-homebrew-bump-formula@v3
+      with:
+        token: ${{secrets.TOKEN_FOR_HOMEBREW}}
+        formula: juliaup
+
   deploy-release-channel-aur:
     needs: [build-juliaup,test-juliaup]
     environment: release-preview-channel
