@@ -29,11 +29,15 @@ A prerelease version of the installer can be installed on Linux or Mac by execut
 curl -fsSL https://install.julialang.org/releasepreview | sh
 ```
 
-in a shell. [Homebrew](https://brew.sh) users can also do
+in a shell.
+
+Alternatively, [Homebrew](https://brew.sh) users can run
 
 ```
 brew install juliaup
 ```
+
+in a shell.
 
 Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
