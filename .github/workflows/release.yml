@@ -600,3 +600,4 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
+        allowUpdates: true
