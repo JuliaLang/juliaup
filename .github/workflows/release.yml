@@ -412,6 +412,7 @@ jobs:
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup
+        force: true
 
   deploy-release-channel-aur:
     needs: [build-juliaup,test-juliaup]
