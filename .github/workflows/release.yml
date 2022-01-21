@@ -403,7 +403,7 @@ jobs:
 
   deploy-release-channel-brew:
     needs: [build-juliaup,test-juliaup]
-    environment: release-preview-channel
+    environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -591,7 +591,7 @@ jobs:
 
   deploy-release-channel-github:
     needs: [deploy-github-release-binaries]
-    environment: release-preview-channel
+    environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
