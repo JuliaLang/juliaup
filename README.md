@@ -43,7 +43,7 @@ Note that the Mac and Linux version are considered prerelease, have known bugs a
 
 ### Arch Linux
 
-On Arch Linux this installer and Juliaup are available in the system package manager.
+On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
 
 ## Using Juliaup
 
