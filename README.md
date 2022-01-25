@@ -26,7 +26,7 @@ on a command line.
 A prerelease version of the installer can be installed on Linux or Mac by executing
 
 ```
-curl -fsSL https://install.julialang.org/releasepreview | sh
+curl -fsSL https://install.julialang.org | sh
 ```
 
 in a shell.
