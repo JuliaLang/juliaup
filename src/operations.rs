@@ -6,7 +6,6 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_arch;
 use crate::utils::{get_juliaserver_base_url, get_juliaserver_nightly_base_url};
-use crate::utils::get_juliaup_home_path;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
 use anyhow::bail;
