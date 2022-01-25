@@ -1,16 +1,53 @@
-# Juliaup - Julia version manager and Windows Store installer
+# Juliaup - Julia version manager
 
-This repository contains an experimental MSIX installer for Julia for the Windows Store.
+This repository contains a cross-platform installer for the Julia programming language.
 
-The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction. The installer is published to the Windows Store and you can try it from [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN).
+The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction.
+
+## Status
+
+The Windows version of this installer is considered production ready. The Linux and Mac versions are prerelease versions that should not be used in production environments.
+
+## Installation
+
+On all platforms it is recommended that you first uninstall any previous Julia versions and undo any modifications you might have made to put `julia` on the `PATH` before you install Julia with the installer in this repository.
+### Windows
+
+On Windows Julia and Juliaup can be installed directly from the Windows store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN). One can also install exactly the same version by executing
+
+```
+winget install julia -s msstore
+```
+
+on a command line.
+
+### Mac and Linux
+
+A prerelease version of the installer can be installed on Linux or Mac by executing
+
+```
+curl -fsSL https://install.julialang.org/releasepreview | sh
+```
+
+in a shell.
+
+Alternatively, [Homebrew](https://brew.sh) users can run
+
+```
+brew install juliaup
+```
+
+in a shell.
+
+Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
+
+### Arch Linux
+
+On Arch Linux this installer and Juliaup are available in the system package manager.
 
 ## Using Juliaup
 
-If you want to try it, here is what you should do:
-- Make sure you don't have any version of Julia on your PATH. `Juliaup` will handle all `PATH` related aspects of your Julia installation.
-- Install Julia from the Windows Store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN).
-
-Once you have that installed, `julia` is on the `PATH`, there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
+Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
 Here are some of the things you can do with `juliaup`:
 - `juliaup update` installs the latest availabe Julia version for all your channels.
@@ -26,7 +63,8 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
 - `juliaup` shows you what other commands are available.
 
-To launch the Julia version in channel `release`, run `julia +release` in your terminal.\
+To launch the Julia version in channel `release`, run `julia +release` in your terminal.
+
 The available system provided channels are:
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
@@ -36,6 +74,8 @@ The available system provided channels are:
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.
 
-All of these channels can be combined with the `~x86` or `~x64` suffix to download a specific platform version.
+All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
 
-This entire system around `juliaup` installs Julia versions into `~/.julia/juliaup`. If you want to restart from scratch, just delete that entire folder.
+## More information
+
+[This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.

@@ -1,4 +1,5 @@
 pub mod utils;
+pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod config_file;
 pub mod versions_file;
@@ -18,7 +19,6 @@ pub mod command_initial_setup_from_launcher;
 pub mod command_api;
 pub mod command_selfupdate;
 pub mod command_selfchannel;
-pub mod command_selfinstall;
 pub mod command_selfuninstall;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));

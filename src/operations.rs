@@ -2,6 +2,7 @@ use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_full_version;
+use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_arch;
 use crate::utils::{get_juliaserver_base_url, get_juliaserver_nightly_base_url};
@@ -86,6 +87,7 @@ pub fn install_version(
     fullversion: &String,
     config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
+    paths: &GlobalPaths,
 ) -> Result<()> {
     let nightly = version_db.available_versions
         .get(fullversion)
@@ -108,9 +110,7 @@ pub fn install_version(
         .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
-    let target_path = get_juliaup_home_path()
-        .with_context(|| "Failed to retrieve juliaup folder while trying to install new version.")?
-        .join(&child_target_foldername);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
     if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
@@ -158,11 +158,7 @@ pub fn install_version(
     Ok(())
 }
 
-pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
-    let home_path = get_juliaup_home_path().with_context(|| {
-        "Failed to retrieve juliaup folder while trying to garbage collect versions."
-    })?;
-
+pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalPaths) -> Result<()> {
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
         if config_data.installed_channels.iter().all(|j| match &j.1 {
@@ -172,7 +168,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig) -> Result<()> {
                 args: _,
             } => true,
         }) {
-            let path_to_delete = home_path.join(&detail.path);
+            let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
@@ -220,6 +216,7 @@ pub fn remove_symlink(
 pub fn create_symlink(
     channel: &JuliaupConfigChannel,
     symlink_name: &String,
+    paths: &GlobalPaths,
 ) -> Result<()> {
 
     let symlink_path = get_bin_dir()
@@ -232,9 +229,7 @@ pub fn create_symlink(
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_fullname = format!("julia-{}", version);
 
-            let target_path = get_juliaup_home_path()
-                .with_context(|| "Failed to retrieve juliaup folder while trying to create a symlink.")?
-                .join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(&child_target_fullname);
 
             let (platform, version) = parse_versionstring(version).with_context(|| format!(""))?;
 
@@ -281,7 +276,7 @@ r#"#!/bin/sh
 }
 
 #[cfg(target_os = "windows")]
-pub fn create_symlink(_: &JuliaupConfigChannel, _: &String) -> Result<()> { Ok(()) }
+pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> { Ok(()) }
 
 #[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
@@ -397,28 +392,23 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &str = "# >>> juliaup initialize >>>";
 const E_MARKER: &str = "# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content() -> Result<String> {
+fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Result<String> {
     let mut result = String::new();
-
-    let my_own_path = std::env::current_exe()
-            .with_context(|| "Could not determine the path of the running exe.")?;
-
-    let my_own_folder = my_own_path.parent()
-            .ok_or_else(|| anyhow!("Could not determine parent."))?;
-
-    let bin_path = my_own_folder.to_string_lossy();
 
     result.push_str(S_MARKER);
     result.push('\n');
     result.push('\n');
     result.push_str("# !! Contents within this block are managed by juliaup !!\n");
     result.push('\n');
-    result.push_str("# This is added to both ~/.bashrc ~/.profile to mitigate each's shortcommings\n");
-    result.push_str("# e.g. ~/.bashrc is is only for interactive shells and ~/.profile is often not loaded\n");
-    result.push('\n');
-    result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path));
-    result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path));
-    result.push_str("esac\n");
+    if path.file_name().unwrap()==".zshrc" {
+        result.push_str(&format!("path=('{}' $path)\n", bin_path.to_string_lossy()));
+        result.push_str("export PATH\n");
+    }
+    else {
+        result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
+        result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
+        result.push_str("esac\n");    
+    }
     result.push('\n');
     result.push_str(E_MARKER);
 
@@ -455,9 +445,9 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
     }
 }
 
-fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
+fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
-    .with_context(|| "Failed to open juliaup config file.")?;
+        .with_context(|| "Failed to open juliaup config file.")?;
 
     let mut buffer = String::new();
 
@@ -465,7 +455,7 @@ fn add_path_to_specific_file(path: PathBuf) -> Result<()> {
 
     let existing_code_pos = match_markers(&buffer, false)?;
 
-    let new_content = get_shell_script_juliaup_content().unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path, &path).unwrap();
 
     match existing_code_pos {
         Some(pos) => {
@@ -514,57 +504,44 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts() -> Result<()> {
+pub fn find_shell_scripts_to_be_modified() -> Result<Vec<PathBuf>> {
     let home_dir = dirs::home_dir().unwrap();
 
-    add_path_to_specific_file(home_dir.join(".bashrc")).unwrap();
+    let paths_to_test: Vec<PathBuf> = vec![
+        home_dir.join(".bashrc").into(),
+        home_dir.join(".profile").into(),
+        home_dir.join(".bash_profile").into(),
+        home_dir.join(".bash_login").into(),
+        home_dir.join(".zshrc").into(),
+    ];
 
-    let mut edited_some_profile_file = false;
+    let result = paths_to_test
+        .iter()
+        .filter(|p| p.exists() ||
+            (p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell
+        )
+        .map(|p|p.clone())
+        .collect();
 
-    // We now check for all the various profile scripts that bash might run and
-    // edit all of them, as bash will only run one of them.
-    if home_dir.join(".profile").exists() {
-        add_path_to_specific_file(home_dir.join(".profile")).unwrap();
+    Ok(result)
+}
 
-        edited_some_profile_file = true;
-    }
-    if home_dir.join(".bash_profile").exists() {
-        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &PathBuf) -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified()?;
 
-        edited_some_profile_file = true;
-    }
-    if home_dir.join(".bash_login").exists() {
-        add_path_to_specific_file(home_dir.join(".bash_login")).unwrap();
-
-        edited_some_profile_file = true;
-    }
-
-    // If none of the profile files exists, we create a `.bash_profile`
-    if !edited_some_profile_file {
-        add_path_to_specific_file(home_dir.join(".bash_profile")).unwrap();
-    }
+    paths.into_iter().for_each(|p| {
+        add_path_to_specific_file(bin_path, p).unwrap();
+    });
 
     Ok(())
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    let home_dir = dirs::home_dir().unwrap();
+    let paths = find_shell_scripts_to_be_modified()?;
 
-    if home_dir.join(".profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".bashrc")).unwrap();
-    }
-
-    if home_dir.join(".profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".profile")).unwrap();
-    }
-
-    if home_dir.join(".bash_profile").exists() {
-        remove_path_from_specific_file(home_dir.join(".bash_profile")).unwrap();
-    }
-
-    if home_dir.join(".bash_login").exists() {
-        remove_path_from_specific_file(home_dir.join(".bash_login")).unwrap();
-    }
+    paths.into_iter().for_each(|p| {
+        remove_path_from_specific_file(p).unwrap();
+    });
 
     Ok(())
 }

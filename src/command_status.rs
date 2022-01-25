@@ -1,5 +1,6 @@
 use crate::config_file::load_config_db;
 use crate::config_file::JuliaupConfigChannel;
+use crate::global_paths::GlobalPaths;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
 use cli_table::ColorChoice;
@@ -20,19 +21,19 @@ struct ChannelRow {
     update: String,
 }
 
-pub fn run_command_status() -> Result<()> {
-    let config_data =
-        load_config_db().with_context(|| "`status` command failed to load configuration file.")?;
+pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
+    let config_file =
+        load_config_db(paths).with_context(|| "`status` command failed to load configuration file.")?;
 
     let versiondb_data =
         load_versions_db().with_context(|| "`status` command failed to load versions db.")?;
 
-    let rows_in_table: Vec<_> = config_data.installed_channels
+    let rows_in_table: Vec<_> = config_file.data.installed_channels
         .iter()
         .sorted_by_key(|i| i.0.to_string())
         .map(|i| -> ChannelRow {
             ChannelRow {
-                default: match config_data.default {
+                default: match config_file.data.default {
                     Some(ref default_value) => {
                         if &i.0 == &default_value {
                             "*"

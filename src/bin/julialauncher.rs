@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
+use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::utils::get_juliaupconfig_path;
 use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
@@ -41,12 +41,12 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
 }
 
 #[cfg(feature = "selfupdate")]
-fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
+fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
-    if let Some(val) = config_data.settings.startup_selfupdate_interval {
-        let should_run = if let Some(last_selfupdate) = config_data.last_selfupdate {
+    if let Some(val) = config_file.self_data.startup_selfupdate_interval {
+        let should_run = if let Some(last_selfupdate) = config_file.self_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
 
             if Utc::now() >= update_time {true} else {false}
@@ -72,7 +72,7 @@ fn run_selfupdate(config_data: &JuliaupConfig) -> Result<()> {
 }
 
 #[cfg(not(feature = "selfupdate"))]
-fn run_selfupdate(_config_data: &JuliaupConfig) -> Result<()> {
+fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     Ok(())
 }
 
@@ -163,19 +163,19 @@ fn run_app() -> Result<i32> {
     let term = Term::stdout();
     term.set_title("Julia");
 
-    let juliaupconfig_path = get_juliaupconfig_path()
-        .with_context(|| "The Julia launcher failed to find the juliaup configuration path.")?;
+    let paths = get_paths()
+        .with_context(|| "Trying to load all global paths.")?;
 
-    do_initial_setup(&juliaupconfig_path)
+    do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_data = load_config_db()
+    let config_file = load_config_db(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data =
         load_versions_db().with_context(|| "The Julia launcher failed to load a versions db.")?;
 
-    let mut julia_channel_to_use = config_data.default.clone();
+    let mut julia_channel_to_use = config_file.data.default.clone();
 
     let args: Vec<String> = std::env::args().collect();
 
@@ -196,9 +196,9 @@ fn run_app() -> Result<i32> {
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
-        &config_data,
+        &config_file.data,
         &julia_channel_to_use,
-        &juliaupconfig_path,
+        &paths.juliaupconfig,
         julia_version_from_cmd_line,
     )
     .with_context(|| {
@@ -230,7 +230,7 @@ fn run_app() -> Result<i32> {
         .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-    run_selfupdate(&config_data)
+    run_selfupdate(&config_file)
         .with_context(|| "Failed to run selfupdate.")?;
 
     let status = child_process.wait()
@@ -245,6 +245,16 @@ fn run_app() -> Result<i32> {
 }
 
 fn main() -> Result<()> {
+    human_panic::setup_panic!(human_panic::Metadata {
+        name: "Juliaup launcher".into(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        authors: "".into(),
+        homepage: "https://github.com/JuliaLang/juliaup".into(),
+    });
+
+    let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
+    env_logger::init_from_env(env);
+
     let client_status = run_app()?;
 
     std::process::exit(client_status);

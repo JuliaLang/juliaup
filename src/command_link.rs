@@ -1,11 +1,12 @@
+use crate::global_paths::GlobalPaths;
 use crate::operations::create_symlink;
 use crate::versions_file::load_versions_db;
 use crate::config_file::{save_config_db, load_mut_config_db};
 use anyhow::{bail,Context,Result};
 use crate::config_file::JuliaupConfigChannel;
 
-pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Result<()> {
-    let mut config_file = load_mut_config_db()
+pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths: &GlobalPaths) -> Result<()> {
+    let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`link` command failed to load configuration data.")?;
 
     let versiondb_data = load_versions_db()
@@ -40,6 +41,7 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>) -> Res
                 args: Some(args.clone()),
             },
             &format!("julia-{}", channel),
+            paths,
         )?;
     }
 

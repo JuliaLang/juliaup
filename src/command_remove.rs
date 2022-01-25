@@ -1,8 +1,8 @@
-use crate::{operations::{garbage_collect_versions, remove_symlink}, config_file::{load_mut_config_db, save_config_db}};
+use crate::{operations::{garbage_collect_versions, remove_symlink}, config_file::{load_mut_config_db, save_config_db}, global_paths::GlobalPaths};
 use anyhow::{bail, Context, Result};
 
-pub fn run_command_remove(channel: String) -> Result<()> {
-    let mut config_file = load_mut_config_db()
+pub fn run_command_remove(channel: String, paths: &GlobalPaths) -> Result<()> {
+    let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`remove` command failed to load configuration data.")?;
 
     if !config_file.data.installed_channels.contains_key(&channel) {
@@ -20,7 +20,7 @@ pub fn run_command_remove(channel: String) -> Result<()> {
     #[cfg(not(target_os = "windows)"))]
     remove_symlink(&format!("julia-{}", channel))?;
 
-    garbage_collect_versions(&mut config_file.data)?;
+    garbage_collect_versions(&mut config_file.data, paths)?;
 
     save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `remove` command after '{}' was installed.", channel))?;

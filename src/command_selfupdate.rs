@@ -2,7 +2,7 @@
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_selfupdate() -> Result<()> {
+pub fn run_command_selfupdate(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db};
     use crate::utils::get_juliaserver_base_url;
     use anyhow::{bail, anyhow};
@@ -10,10 +10,10 @@ pub fn run_command_selfupdate() -> Result<()> {
     use crate::operations::{download_juliaup_version,download_extract_sans_parent};
     use crate::{get_juliaup_target, get_own_version};
 
-    let mut config_data =
-        load_mut_config_db().with_context(|| "`selfupdate` command failed to load configuration db.")?;
+    let mut config_file =
+        load_mut_config_db(paths).with_context(|| "`selfupdate` command failed to load configuration db.")?;
 
-    let juliaup_channel = match &config_data.data.juliaup_channel {
+    let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string()
     };
@@ -35,9 +35,9 @@ pub fn run_command_selfupdate() -> Result<()> {
 
     let version = download_juliaup_version(&version_url.to_string())?;
 
-    config_data.data.last_selfupdate = Some(chrono::Utc::now());
+    config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_data)
+    save_config_db(&mut config_file)
         .with_context(|| "Failed to save configuration file.")?;
 
     if version==get_own_version().unwrap() {
@@ -70,7 +70,7 @@ pub fn run_command_selfupdate() -> Result<()> {
 }
 
 #[cfg(feature = "windowsstore")]
-pub fn run_command_selfupdate() -> Result<()> {
+pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use anyhow::Context;
     use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
@@ -102,7 +102,7 @@ pub fn run_command_selfupdate() -> Result<()> {
             .with_context(|| "get on result from RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
         // This code will not be reached if the user opts to install updates
     } else {
-        println!("No no updates available.");
+        println!("No updates available.");
     }
 
     Ok(())

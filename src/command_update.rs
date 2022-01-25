@@ -1,4 +1,5 @@
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
+use crate::global_paths::GlobalPaths;
 use crate::operations::{install_version, create_symlink};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
@@ -6,7 +7,7 @@ use crate::operations::garbage_collect_versions;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow,bail};
 
-fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool) -> Result<()> {    
+fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
         config_db.installed_channels.get(channel).ok_or(anyhow!("asdf"))?;
 
@@ -22,7 +23,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 .nightly;
 
             if nightly || should_version != version {
-                install_version(should_version, config_db, version_db)
+                install_version(should_version, config_db, version_db, paths)
                     .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version, channel))?;
         
                 config_db.installed_channels.insert(
@@ -39,6 +40,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                             version: should_version.clone(),
                         },
                         &format!("julia-{}", channel),
+                        paths,
                     )?;
                 }
             }
@@ -51,17 +53,17 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
     Ok(())
 }
 
-pub fn run_command_update(channel: Option<String>) -> Result<()> {
+pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Result<()> {
     let version_db =
         load_versions_db().with_context(|| "`update` command failed to load versions db.")?;
 
-    let mut config_file = load_mut_config_db()
+    let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`update` command failed to load configuration data.")?;
 
     match channel {
         None => {
             for (k,_) in config_file.data.installed_channels.clone() {
-                update_channel(&mut config_file.data, &k, &version_db, true)?;
+                update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
             }
 
         },
@@ -70,11 +72,11 @@ pub fn run_command_update(channel: Option<String>) -> Result<()> {
                 bail!("'{}' cannot be updated because it is currently not installed.", channel);
             }
 
-            update_channel(&mut config_file.data, &channel, &version_db, false)?;
+            update_channel(&mut config_file.data, &channel, &version_db, false, paths)?;
         }
     };
 
-    garbage_collect_versions(&mut config_file.data)?;
+    garbage_collect_versions(&mut config_file.data, paths)?;
 
     save_config_db(&mut config_file)
         .with_context(|| "`update` command failed to save configuration db.")?;

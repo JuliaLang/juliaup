@@ -3,41 +3,6 @@ use semver::Version;
 use std::path::PathBuf;
 use url::Url;
 
-pub fn get_juliaup_home_path() -> Result<PathBuf> {
-    let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
-
-    let path = match std::env::var("JULIA_DEPOT_PATH") {
-        Ok(val) => {
-            let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
-
-            if !path.is_absolute() {
-                bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
-            };
-
-            path.join("juliaup")
-        }
-        Err(_) => {
-    let path = dirs::home_dir()
-        .ok_or(anyhow!(
-            "Could not determine the path of the user home directory."
-        ))?
-        .join(".julia")
-        .join("juliaup");
-
-            if !path.is_absolute() {
-                bail!(
-                    "The system returned an invalid home directory path `{}`.",
-                    path.display()
-                );
-            };
-
-            path
-        }
-    };
-
-    Ok(path)
-}
-
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
         val
@@ -62,18 +27,6 @@ pub fn get_juliaserver_nightly_base_url() -> Result<Url> {
         .with_context(|| format!("Failed to parse the value of JULIAUP_SERVER_NIGHTLY '{}' as a uri.", base_url))?;
 
     Ok(parsed_url)
-}
-
-pub fn get_juliaupconfig_path() -> Result<PathBuf> {
-    let path = get_juliaup_home_path()?.join("juliaup.json");
-
-    Ok(path)
-}
-
-pub fn get_juliaupconfig_lockfile_path() -> Result<PathBuf> {
-    let path = get_juliaup_home_path()?.join(".juliaup-lock");
-
-    Ok(path)
 }
 
 pub fn get_bin_dir() -> Result<PathBuf> {
