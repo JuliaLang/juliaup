@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.5.27-alpha.0"
+version = "1.5.35-alpha.0"
 edition = "2018"
 default-run = "juliaup"
 publish = false
@@ -37,8 +37,8 @@ chrono = {version = "0.4", features = ["serde"]}
 human-panic = "1.0.3"
 log = "0.4.14"
 env_logger = "0.9.0"
-requestty = "0.2.1"
-crossterm = "0.22.1"
+dialoguer = "0.9.0"
+shellexpand = "2.1.0"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.29", features = ["alloc", "std", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }

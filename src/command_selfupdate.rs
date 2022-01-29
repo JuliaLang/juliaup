@@ -102,7 +102,7 @@ pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Resu
             .with_context(|| "get on result from RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
         // This code will not be reached if the user opts to install updates
     } else {
-        println!("No no updates available.");
+        println!("No updates available.");
     }
 
     Ok(())

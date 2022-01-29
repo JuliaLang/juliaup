@@ -26,14 +26,24 @@ on a command line.
 A prerelease version of the installer can be installed on Linux or Mac by executing
 
 ```
-curl -fsSL https://install.julialang.org/releasepreview | sh
+curl -fsSL https://install.julialang.org | sh
 ```
 
-in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
+in a shell.
+
+Alternatively, [Homebrew](https://brew.sh) users can run
+
+```
+brew install juliaup
+```
+
+in a shell.
+
+Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
 ### Arch Linux
 
-On Arch Linux this installer and Juliaup are available in the system package manager.
+On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
 
 ## Using Juliaup
 

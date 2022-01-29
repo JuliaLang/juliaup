@@ -392,7 +392,8 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Resul
     result.push_str("# !! Contents within this block are managed by juliaup !!\n");
     result.push('\n');
     if path.file_name().unwrap()==".zshrc" {
-        result.push_str(&format!("path=('{}' $path)", bin_path.to_string_lossy()));
+        result.push_str(&format!("path=('{}' $path)\n", bin_path.to_string_lossy()));
+        result.push_str("export PATH\n");
     }
     else {
         result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
@@ -507,7 +508,9 @@ pub fn find_shell_scripts_to_be_modified() -> Result<Vec<PathBuf>> {
 
     let result = paths_to_test
         .iter()
-        .filter(|p| p.exists())
+        .filter(|p| p.exists() ||
+            (p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell
+        )
         .map(|p|p.clone())
         .collect();
 

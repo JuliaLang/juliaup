@@ -272,6 +272,7 @@ jobs:
       with:
         artifacts: "public/bin/*.zip,public/bin/*.tar.gz"
         token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: true
 
   deploy-s3-release-binaries:
     needs: [build-tarballs,test-juliaup]
@@ -399,6 +400,19 @@ jobs:
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+
+  deploy-release-channel-brew:
+    needs: [build-juliaup,test-juliaup]
+    environment: release-channel
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Update Homebrew formula
+      uses: dawidd6/action-homebrew-bump-formula@v3
+      with:
+        token: ${{secrets.TOKEN_FOR_HOMEBREW}}
+        formula: juliaup
+        force: true
 
   deploy-release-channel-aur:
     needs: [build-juliaup,test-juliaup]
@@ -574,3 +588,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'publicscript'
+
+  deploy-release-channel-github:
+    needs: [deploy-github-release-binaries]
+    environment: release-channel
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Release
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: false
+        allowUpdates: true
