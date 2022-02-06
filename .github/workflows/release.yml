@@ -202,6 +202,15 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+    - name: Install cargo-msix
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-msix
     - name: Download and extract bundled Julia versions
       run: |      
         $versions = Get-Content versions.json | ConvertFrom-Json
@@ -228,10 +237,10 @@ jobs:
         name: juliaup-x86_64-pc-windows-msvc
         path: target\x86_64-pc-windows-msvc\release        
     - name: Build MSIX
-      run: |
-        push-location msix
-        &"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /f PackagingLayout.xml /op ..\target\msix
-        pop-location
+      uses: actions-rs/cargo@v1
+      with:
+        command: msix
+        args: --store-publisher CN=7FB784C5-4411-4067-914E-A7B06CC00FFC --store-name JuliaComputingInc.Julia --release
     - uses: actions/upload-artifact@v2
       with:
         name: msixinstaller

@@ -1,34 +1,35 @@
-<PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017">
-  <PackageFamily ID="Julia-1.5.34.0" FlatBundle="false" ManifestPath="appxmanifest.xml" ResourceManager="false">
-    <Package ID="Julia-x64-1.5.34.0" ProcessorArchitecture="x64">
+<!-- <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017"> -->
+<PackagingLayout>
+  <PackageFamily Filename="Julia-{{Version}}.0.appxbundle" FlatBundle="false" ManifestPath="appxmanifest.xml">
+    <Package Filename="Julia-x64-{{Version}}.0.appx" ProcessorArchitecture="x64">
       <Files>
-        <File DestinationPath="Julia\julialauncher.exe" SourcePath="..\target\x86_64-pc-windows-msvc\release\julialauncher.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\target\x86_64-pc-windows-msvc\release\juliaup.exe" />
-        <File DestinationPath="Julia\BundledJulia\**" SourcePath="..\target\bundledjulia\extracted\x64\**" />
-        <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
+        <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="x86_64-pc-windows-msvc" />
+        <BuildOutput DestinationPath="Julia\juliaup.exe" SourceTarget="juliaup" SourcePlatform="x86_64-pc-windows-msvc" />
+        <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../target/bundledjulia/extracted/x64" SourcePattern="**/*.*" />
+        <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
+        <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\src\julia.ico" />
       </Files>
     </Package>
-    <Package ID="Julia-x86-1.5.34.0" ProcessorArchitecture="x86">
+    <Package Filename="Julia-x86-{{Version}}.0.appx" ProcessorArchitecture="x86">
       <Files>
-        <File DestinationPath="Julia\julialauncher.exe" SourcePath="..\target\i686-pc-windows-msvc\release\julialauncher.exe" />
-        <File DestinationPath="Julia\juliaup.exe" SourcePath="..\target\i686-pc-windows-msvc\release\juliaup.exe" />
-        <File DestinationPath="Julia\BundledJulia\**" SourcePath="..\target\bundledjulia\extracted\x86\**" />
-        <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
+        <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="i686-pc-windows-msvc" />
+        <BuildOutput DestinationPath="Julia\juliaup.exe" SourceTarget="juliaup" SourcePlatform="i686-pc-windows-msvc" />
+        <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../target/bundledjulia/extracted/x86" SourcePattern="**/*.*" />
+        <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
+        <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\src\julia.ico" />
       </Files>
     </Package>
-    <!--<Package ID="Julia-ARM64-1.5.34.0" ProcessorArchitecture="ARM64">
+    <!-- <Package Filename="Julia-ARM64-{{Version}}.appx" ProcessorArchitecture="ARM64">
       <Files>
-        <File DestinationPath="Julia\*" SourcePath="..\target\aarch64-pc-windows-msvc\release\*.exe" />
-        <File DestinationPath="Julia\*" SourcePath="..\target\aarch64-pc-windows-msvc\release\*.pdb" />
-        <File DestinationPath="Julia\BundledJulia\**" SourcePath="..\build\juliaversions\x64\julia-1.6.2\**" />
-        <File DestinationPath="Images\*.png" SourcePath="Images\*.png" />
-        <File DestinationPath="Public\Fragments\*" SourcePath="Fragments\*" />
+        <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="aarch64-pc-windows-msvc"/>
+        <BuildOutput DestinationPath="Julia\juliaup.exe" SourceTarget="juliaup" SourcePlatform="aarch64-pc-windows-msvc" />
+        <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../target/bundledjulia/extracted/x64" SourcePattern="**/*.*" />
+        <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
+        <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\src\julia.ico" />
       </Files>
-    </Package>-->
+    </Package> -->
   </PackageFamily>
 </PackagingLayout>
