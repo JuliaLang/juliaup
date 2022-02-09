@@ -79,7 +79,7 @@ All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suff
 ## Juliaup server
 
 Juliaup by default downloads julia binary tarballs from the official server "https://julialang-s3.julialang.org".
-If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-patry mirror server.
+If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-party mirror server.
 
 ## More information
 
