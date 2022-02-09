@@ -76,6 +76,11 @@ The available system provided channels are:
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
 
+## Juliaup server
+
+Juliaup by default downloads julia binary tarballs from the official server "https://julialang-s3.julialang.org".
+If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-patry mirror server.
+
 ## More information
 
 [This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.
