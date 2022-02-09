@@ -5,7 +5,7 @@ use url::Url;
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
-        val
+        if val.ends_with("/") {val} else {format!("{}/", val)}
      } else {
         "https://julialang-s3.julialang.org".to_string() 
     };
