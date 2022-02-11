@@ -668,6 +668,7 @@ dependencies = [
  "indicatif",
  "itertools",
  "log",
+ "native-tls",
  "normpath",
  "predicates",
  "semver",
@@ -1087,6 +1088,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-native-certs"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca9ebdfa27d3fc180e42879037b5338ab1c040c06affd00d8338598e7800943"
+dependencies = [
+ "openssl-probe",
+ "rustls-pemfile",
+ "schannel",
+ "security-framework",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
+dependencies = [
+ "base64",
+]
+
+[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1381,6 +1403,7 @@ dependencies = [
  "native-tls",
  "once_cell",
  "rustls",
+ "rustls-native-certs",
  "url",
  "webpki",
  "webpki-roots",

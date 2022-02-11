@@ -13,16 +13,16 @@ use anyhow::{anyhow, Context, Result};
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::Seek;
-use std::io::Write;
-use std::{
-    io::Read,
-    path::{Component::Normal, Path, PathBuf},
-};
+use std::path::{Component::Normal, Path, PathBuf};
+use std::io::{Seek, Write, Read};
 use tar::Archive;
 use semver::Version;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(feature = "tls-native")]
+use std::sync::Arc;
+#[cfg(feature = "tls-native")]
+use native_tls::TlsConnector;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -42,7 +42,8 @@ where
     Ok(())
 }
 
-pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+#[cfg(feature = "tls-rustls")]
+pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let response = ureq::get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -68,8 +69,59 @@ pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_
     Ok(())
 }
 
+#[cfg(feature = "tls-native")]
+pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    let agent = ureq::AgentBuilder::new()
+        .tls_connector(Arc::new(TlsConnector::new()?))
+        .build();
+    
+    let response = agent.get(url)
+        .call()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let content_length = response.header("Content-Length").and_then(|v| v.parse::<u64>().ok() );
+
+    let pb = match content_length {
+        Some(content_length) => ProgressBar::new(content_length),
+        None => ProgressBar::new_spinner(),
+    };
+    
+    pb.set_prefix("  Downloading:");
+    pb.set_style(ProgressStyle::default_bar()
+    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+                .progress_chars("=> "));
+
+    let foo = pb.wrap_read(response.into_reader());
+
+    let tar = GzDecoder::new(foo);
+    let archive = Archive::new(tar);
+    unpack_sans_parent(archive, &target_path, levels_to_skip)
+        .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+    Ok(())
+}
+
+#[cfg(feature = "tls-rustls")]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = ureq::get(url)
+        .call()?
+        .into_string()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?
+        .trim()
+        .to_string();
+
+    let version = Version::parse(&response)
+        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+
+    Ok(version)
+}
+
+#[cfg(feature = "tls-native")]
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let agent = ureq::AgentBuilder::new()
+        .tls_connector(Arc::new(TlsConnector::new()?))
+        .build();
+    
+    let response = agent.get(url)
         .call()?
         .into_string()
         .with_context(|| format!("Failed to download from url `{}`.", url))?
