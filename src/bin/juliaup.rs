@@ -121,7 +121,7 @@ enum ConfigSubCmd {
     },
     #[cfg(feature = "selfupdate")]
     #[clap(name="modifypath")]
-    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
+    /// Add the Julia binaries to your PATH by manipulating various shell startup scripts.
     ModifyPath {
         /// New value
         value: Option<bool>
