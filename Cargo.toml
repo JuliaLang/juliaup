@@ -59,12 +59,10 @@ assert_fs = "1"
 predicates = "2.1"
 
 [features]
-default = ["tls-rustls"]
 selfupdate = []
 windowsstore = []
 dummy = []
 tls-native = ["native-tls", "ureq/native-tls"]
-tls-rustls = []
 native-certs = ["ureq/native-certs"]
 
 [package.metadata.msix]

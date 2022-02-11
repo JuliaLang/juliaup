@@ -42,7 +42,7 @@ where
     Ok(())
 }
 
-#[cfg(feature = "tls-rustls")]
+#[cfg(not(feature = "tls-native"))]
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let response = ureq::get(url)
         .call()
@@ -100,7 +100,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     Ok(())
 }
 
-#[cfg(feature = "tls-rustls")]
+#[cfg(not(feature = "tls-native"))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = ureq::get(url)
         .call()?
