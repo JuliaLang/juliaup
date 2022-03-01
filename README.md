@@ -61,6 +61,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup add 1.6.1~x86` installs the 32 bit version of Julia 1.6.1 on your system.
 - `juliaup default 1.6~x86` configures the `julia` command to start the latest 1.6.x 32 bit version of Julia you have installed on your system.
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
+- `juliaup self update` installs the latest version, which is necessary if new releases reach the beta channel, etc.
 - `juliaup` shows you what other commands are available.
 
 To launch the Julia version in channel `release`, run `julia +release` in your terminal.
