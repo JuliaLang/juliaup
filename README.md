@@ -45,6 +45,16 @@ Note that the Mac and Linux version are considered prerelease, have known bugs a
 
 On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
 
+### openSUSE Tumbleweed
+
+On openSUSE Tumbleweed, Juliaup is available now in Factory. To install, run with root privileges:
+
+```sh
+zypper addrepo https://download.opensuse.org/repositories/openSUSE:Factory/standard/openSUSE:Factory.repo
+zypper refresh
+zypper install juliaup
+```
+
 ## Using Juliaup
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
