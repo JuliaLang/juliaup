@@ -50,8 +50,6 @@ On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://
 On openSUSE Tumbleweed, Juliaup is available now in Factory. To install, run with root privileges:
 
 ```sh
-zypper addrepo https://download.opensuse.org/repositories/openSUSE:Factory/standard/openSUSE:Factory.repo
-zypper refresh
 zypper install juliaup
 ```
 
