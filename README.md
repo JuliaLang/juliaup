@@ -47,7 +47,7 @@ On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://
 
 ### openSUSE Tumbleweed
 
-On openSUSE Tumbleweed, Juliaup is available now in Factory. To install, run with root privileges:
+On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileges:
 
 ```sh
 zypper install juliaup
