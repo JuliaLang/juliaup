@@ -47,7 +47,7 @@ jobs:
             os: macos
             features: selfupdate
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -97,7 +97,7 @@ jobs:
             os: windows
             features: dummy
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -201,7 +201,7 @@ jobs:
     needs: build-juliaup
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -250,7 +250,7 @@ jobs:
     needs: [build-msix]
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install StoreBroker
       run: |
         Install-Module -Name StoreBroker -Force
@@ -467,7 +467,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create output dirs
         run: |
           mkdir public
@@ -513,7 +513,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create output dirs
         run: |
           mkdir public
@@ -559,7 +559,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Create output dirs
         run: |
           mkdir public
