@@ -1,8 +1,9 @@
 extern crate itertools;
 extern crate semver;
 extern crate serde;
-extern crate winres;
 extern crate serde_json;
+#[cfg(windows)]
+extern crate winres;
 #[path = "src/jsonstructs_versionsdb.rs"]
 mod jsonstructs_versionsdb;
 
@@ -763,7 +764,8 @@ fn main() -> Result<()> {
         format!("pub const BUNDLED_JULIA_VERSION: &str = {}; pub const BUNDLED_JULIA_FULL_VERSION: &str = {};", bundled_version, bundled_full_version)
     ).unwrap();
 
-    if cfg!(target_os = "windows") {
+    #[cfg(windows)]
+    {
         let mut res = winres::WindowsResource::new();
         res.set_icon("src/julia.ico");
         res.compile().unwrap();
