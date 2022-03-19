@@ -62,11 +62,11 @@ enum Juliaup {
     #[clap(subcommand, name = "config")]
     /// Juliaup configuration
     Config(ConfigSubCmd),
-    #[clap(setting(clap::AppSettings::Hidden))]
+    #[clap(hide = true)]
     Api {
         command: String
     },
-    #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
+    #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", hide = true)]
     InitialSetupFromLauncher {
     },
     #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
@@ -75,7 +75,7 @@ enum Juliaup {
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
-    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", setting(clap::AppSettings::Hidden))]
+    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", hide = true)]
     SecretSelfUpdate {},
 }
 
