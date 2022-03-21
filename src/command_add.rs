@@ -23,6 +23,29 @@ pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
     if config_file.data.installed_channels.contains_key(&channel) {
         bail!("'{}' is already installed.", &channel);
     }
+
+    #[cfg(all(target_os="macos", target_arch="aarch64"))]
+    {
+        use crate::utils::parse_versionstring;
+
+        let (platform, _) = parse_versionstring(&required_version)?;
+
+        if platform=="x64" {
+            match std::process::Command::new("arch")
+                .args(["-x86_64", "/bin/bash", "-c", "arch"])
+                .output() {
+                    Ok(value) => {
+                        if String::from_utf8(value.stdout)? != "i386" {
+                            bail!("It seems that you have not yet installed Rosetta, please install it with `softwareupdate --install-rosetta` before you try to install Julia.");
+                        }
+                        ()
+                    },
+                    Err(_err) => {
+                        bail!("It seems that you have not yet installed Rosetta, please install it with `softwareupdate --install-rosetta` before you try to install Julia.");
+                    }
+            }
+        }
+    }
     
     install_version(&required_version, &mut config_file.data, &version_db, paths)?;
 
