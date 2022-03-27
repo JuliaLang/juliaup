@@ -1,5 +1,6 @@
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
+use juliaup::command_list::run_command_list;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
@@ -41,6 +42,10 @@ enum Juliaup {
         channel: String,
         file: String,
         args: Vec<String>
+    },
+    /// List all available channels
+    List {
+
     },
     #[clap(alias="up")]
     /// Update all or a specific channel to the latest Julia version
@@ -153,6 +158,7 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel, &paths),
         Juliaup::Gc {} => run_command_gc(&paths),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
+        Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false, &paths),
