@@ -35,7 +35,7 @@ itertools = "0.10"
 cluFlock = "1.2.5"
 chrono = {version = "0.4", features = ["serde"]}
 human-panic = "1.0.3"
-log = "0.4.14"
+log = "0.4.16"
 env_logger = "0.9.0"
 dialoguer = "0.10.0"
 shellexpand = "2.1.0"
