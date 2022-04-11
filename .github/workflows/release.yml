@@ -59,14 +59,14 @@ jobs:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.target}}
         path: |
           target/${{matrix.target}}/release/juliaup*
           target/${{matrix.target}}/release/julialauncher*
           !target/${{matrix.target}}/release/*.d
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: juliainstaller-${{matrix.target}}
         path: |
@@ -192,7 +192,7 @@ jobs:
 
         cd ../../target/aarch64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz .
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: juliaup-tarballs
         path: public/bin/*
@@ -241,7 +241,7 @@ jobs:
       with:
         command: msix
         args: --store-publisher CN=7FB784C5-4411-4067-914E-A7B06CC00FFC --store-name JuliaComputingInc.Julia --release
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: msixinstaller
         path: target\msix\*.appxbundle
@@ -261,7 +261,7 @@ jobs:
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
         New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "images") -AppxPath *.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: storepackage
         path: storepackage\*.*
