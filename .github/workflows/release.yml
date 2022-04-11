@@ -115,37 +115,37 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download Windows x86 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-pc-windows-msvc
         path: target/i686-pc-windows-msvc
     - name: Download Windows x64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-pc-windows-msvc
         path: target/x86_64-pc-windows-msvc
     - name: Download Linux x64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-unknown-linux-gnu
         path: target/x86_64-unknown-linux-gnu
     - name: Download Linux x86 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-unknown-linux-gnu
         path: target/i686-unknown-linux-gnu
     - name: Download MacOS x64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-apple-darwin
         path: target/x86_64-apple-darwin
     - name: Download MacOS aarch64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
     - name: Download Linux aarch64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
@@ -227,12 +227,12 @@ jobs:
         Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x86/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win32.tar.gz" -OutFile "target\bundledjulia\downloads\julia-$($bundledVersionAsString)-win32.tar.gz"
         tar -xvzf "target\bundledjulia\downloads\julia-$($bundledVersion)-win32.tar.gz" -C target\bundledjulia\extracted\x86 --strip-components=1
     - name: Download x86 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-pc-windows-msvc
         path: target\i686-pc-windows-msvc\release
     - name: Download x64 juliaup artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-pc-windows-msvc
         path: target\x86_64-pc-windows-msvc\release        
@@ -254,7 +254,7 @@ jobs:
     - name: Install StoreBroker
       run: |
         Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: msixinstaller
     - name: Package
@@ -272,7 +272,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download tarball artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-tarballs
         path: public/bin
@@ -296,32 +296,32 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: Download tarball artifacts
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliaup-tarballs
         path: public/bin
     - name: Download installer artifacts for x86_64-apple-darwin
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliainstaller-x86_64-apple-darwin
         path: target/x86_64-apple-darwin
     - name: Download installer artifacts for x86_64-unknown-linux-gnu
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliainstaller-x86_64-unknown-linux-gnu
         path: target/x86_64-unknown-linux-gnu
     - name: Download installer artifacts for i686-unknown-linux-gnu
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliainstaller-i686-unknown-linux-gnu
         path: target/i686-unknown-linux-gnu
     - name: Download installer artifacts for aarch64-unknown-linux-gnu
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliainstaller-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
     - name: Download installer artifacts for aarch64-apple-darwin
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
@@ -352,7 +352,7 @@ jobs:
     steps:
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: storepackage      
     - name: Authenticate with store
@@ -374,7 +374,7 @@ jobs:
     steps:
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: storepackage      
     - name: Authenticate with store
@@ -396,7 +396,7 @@ jobs:
     steps:
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: storepackage      
     - name: Authenticate with store
