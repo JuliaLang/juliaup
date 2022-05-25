@@ -23,7 +23,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
 
     let lts_version = Version::parse("1.6.6")?;
     let beta_version = Version::parse("1.8.0-beta3")?;
-    let rc_version = Version::parse("1.7.2")?;
+    let rc_version = Version::parse("1.7.3")?;
 
     original_available_versions.push(Version::parse("0.7.0")?);
     original_available_versions.push(Version::parse("1.0.0")?);
@@ -62,6 +62,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     original_available_versions.push(Version::parse("1.7.0")?);
     original_available_versions.push(Version::parse("1.7.1")?);
     original_available_versions.push(Version::parse("1.7.2")?);
+    original_available_versions.push(Version::parse("1.7.3")?);
     original_available_versions.push(Version::parse("1.8.0-beta1")?);
     original_available_versions.push(Version::parse("1.8.0-beta3")?);
 
@@ -118,7 +119,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                 JuliaupVersionDBVersion {url_path: format!("bin/mac/x64/{}.{}/julia-{}-mac64.tar.gz", v.major, v.minor, v)}
             );
 
-            if v >= &Version::new(1,7, 0) {
+            if v >= &Version::new(1,7, 0) && v != &Version::new(1,7, 3){
                 db.available_versions.insert(
                     format!("{}+0~aarch64", v),
                     JuliaupVersionDBVersion {url_path: format!("bin/mac/aarch64/{}.{}/julia-{}-macaarch64.tar.gz", v.major, v.minor, v)}
@@ -207,7 +208,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                         version: format!("{}+0~x64", v),
                     },
                 );
-                if v >= &Version::new(1,7, 0) {
+                if v >= &Version::new(1,7, 0) && v != &Version::new(1,7, 3) {
                     db.available_channels.insert(
                         format!("{}~aarch64", v),
                         JuliaupVersionDBChannel {
@@ -315,7 +316,15 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     },
                 );
 
-                if v >= &&Version::new(1,7, 0) {
+                if v == &&Version::new(1,7, 3) {
+                    // This is a hack because there is no aarch64 for 1.7.3, so we fall back to the 1.7.2 version
+                    db.available_channels.insert(
+                        format!("{}.{}~aarch64", major, minor),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~aarch64", Version::new(1,7, 2)),
+                        },
+                    );
+                } else if v >= &&Version::new(1,7, 0) {
                     db.available_channels.insert(
                         format!("{}.{}~aarch64", major, minor),
                         JuliaupVersionDBChannel {
@@ -411,7 +420,15 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     },
                 );
 
-                if v >= &&Version::new(1,7, 0) {
+                if v == &&Version::new(1,7, 3) {
+                    // This is a hack because there is no aarch64 for 1.7.3, so we fall back to the 1.7.2 version
+                    db.available_channels.insert(
+                        format!("{}~aarch64", major),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~aarch64", Version::new(1,7,2)),
+                        },
+                    );
+                } else if v >= &&Version::new(1,7, 0) {
                     db.available_channels.insert(
                         format!("{}~aarch64", major),
                         JuliaupVersionDBChannel {
@@ -578,7 +595,8 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "release~aarch64".to_string(),
                 JuliaupVersionDBChannel {
-                    version: format!("{}+0~aarch64", release_version),
+                    // version: format!("{}+0~aarch64", release_version),
+                    version: format!("{}+0~aarch64", Version::new(1,7,2)), // TODO Remove this and go back to the previous line once we have a new aarch64 build again
                 },
             );
 
@@ -630,7 +648,8 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "rc~aarch64".to_string(),
                 JuliaupVersionDBChannel {
-                    version: format!("{}+0~aarch64", rc_version),
+                    // version: format!("{}+0~aarch64", rc_version),
+                    version: format!("{}+0~aarch64", Version::new(1,7,2)), // TODO Remove this and go back to the previous line once we have a new aarch64 build again
                 },
             );  
         }
