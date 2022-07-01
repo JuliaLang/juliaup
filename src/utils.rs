@@ -29,18 +29,6 @@ pub fn get_juliaserver_nightly_base_url() -> Result<Url> {
     Ok(parsed_url)
 }
 
-pub fn get_juliaupconfig_path() -> Result<PathBuf> {
-    let path = get_juliaup_home_path()?.join("juliaup.json");
-
-    Ok(path)
-}
-
-pub fn get_juliaupconfig_lockfile_path() -> Result<PathBuf> {
-    let path = get_juliaup_home_path()?.join(".juliaup-lock");
-
-    Ok(path)
-}
-
 pub fn get_bin_dir() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
 
