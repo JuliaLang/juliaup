@@ -25,7 +25,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                 .nightly;
 
             if nightly || should_version != version {
-                install_version(should_version, config_db, version_db)
+                install_version(should_version, config_db, version_db, paths)
                     .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version, channel))?;
         
                 config_db.installed_channels.insert(
