@@ -32,11 +32,10 @@ jobs:
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
-    - name: Install gcc and podman
+    - name: Install gcc
       run: |
        yum -y update
        yum -y group install "Development Tools"
-       yum -y install podman
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -48,7 +47,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        use-cross: true
+        use-cross: false
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v2
       with:
