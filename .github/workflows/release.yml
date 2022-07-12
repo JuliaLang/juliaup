@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-juliaup-linux:
-    runs-on: windows-latest
+    runs-on: macOS-latest
     strategy:
       matrix:
         include:
