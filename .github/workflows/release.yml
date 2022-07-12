@@ -35,8 +35,6 @@ jobs:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
-    - name: Print glibc version
-      run: /lib64/libc.so.6
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
