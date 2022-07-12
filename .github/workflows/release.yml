@@ -23,10 +23,6 @@ jobs:
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
-    - name: Install gcc
-      run: |
-        yum -y update
-        yum -y group install "Development Tools"
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
