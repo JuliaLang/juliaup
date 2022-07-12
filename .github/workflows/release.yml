@@ -13,7 +13,7 @@ jobs:
   build-juliaup-linux:
     runs-on: ubuntu-latest
     container:
-      image: centos:6
+      image: centos:7 # which uses glibc 2.17
     strategy:
       matrix:
         # target: [
