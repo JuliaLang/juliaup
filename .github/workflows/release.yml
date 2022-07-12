@@ -142,7 +142,7 @@ jobs:
         args: --target ${{matrix.target}} --features ${{matrix.features}}
 
   build-tarballs:
-    needs: [build-juliaup]
+    needs: [build-juliaup-linux, build-juliaup-notlinux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -230,7 +230,7 @@ jobs:
         path: public/bin/*
 
   build-msix:
-    needs: build-juliaup
+    needs: [build-juliaup-linux, build-juliaup-notlinux]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
@@ -443,7 +443,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup-linux, build-juliaup-notlinux, test-juliaup]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -456,7 +456,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup-linux, build-juliaup-notlinux, test-juliaup]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
