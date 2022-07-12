@@ -30,13 +30,17 @@ jobs:
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
-    - run: yum -y update
-    - run: yum -y group install "Development Tools"
+    - name: Install gcc
+      run: |
+        yum -y update
+        yum -y group install "Development Tools"
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
+    - name: Print glibc version
+      run: /lib64/libc.so.6
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
