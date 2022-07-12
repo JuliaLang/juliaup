@@ -11,16 +11,9 @@ on:
 
 jobs:
   build-juliaup-linux:
-    runs-on: ubuntu-latest
-    container:
-      image: centos:7 # which uses glibc 2.17
+    runs-on: windows-latest
     strategy:
       matrix:
-        # target: [
-        #   x86_64-unknown-linux-gnu,
-        #   i686-unknown-linux-gnu,
-        #   aarch64-unknown-linux-gnu
-        #   ]
         include:
           - target: x86_64-unknown-linux-gnu
             features: selfupdate
@@ -65,12 +58,6 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        # target: [
-        #   x86_64-pc-windows-msvc,
-        #   x86_64-apple-darwin,
-        #   i686-pc-windows-msvc,
-        #   aarch64-apple-darwin
-        #   ]
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
@@ -95,7 +82,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        use-cross: false
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v2
       with:
@@ -115,12 +102,6 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        target: [
-          x86_64-pc-windows-msvc,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          i686-pc-windows-msvc,
-          ]
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
