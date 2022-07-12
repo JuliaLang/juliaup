@@ -10,20 +10,61 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-juliaup-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: centos:6
+    strategy:
+      matrix:
+        # target: [
+        #   x86_64-unknown-linux-gnu,
+        #   i686-unknown-linux-gnu,
+        #   aarch64-unknown-linux-gnu
+        #   ]
+        include:
+          - target: x86_64-unknown-linux-gnu
+            features: selfupdate
+          - target: i686-unknown-linux-gnu
+            features: selfupdate
+          - target: aarch64-unknown-linux-gnu
+            features: selfupdate
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+        target: ${{matrix.target}}
+    - name: Release build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        use-cross: true
+        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: juliaup-${{matrix.target}}
+        path: |
+          target/${{matrix.target}}/release/juliaup*
+          target/${{matrix.target}}/release/julialauncher*
+          !target/${{matrix.target}}/release/*.d
+    - uses: actions/upload-artifact@v2
+      with:
+        name: juliainstaller-${{matrix.target}}
+        path: |
+          target/${{matrix.target}}/release/juliainstaller*
+          !target/${{matrix.target}}/release/*.d
 
-  build-juliaup:
+  build-juliaup-notlinux:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        target: [
-          x86_64-pc-windows-msvc,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          i686-pc-windows-msvc,
-          i686-unknown-linux-gnu, 
-          aarch64-unknown-linux-gnu,
-          aarch64-apple-darwin
-          ]
+        # target: [
+        #   x86_64-pc-windows-msvc,
+        #   x86_64-apple-darwin,
+        #   i686-pc-windows-msvc,
+        #   aarch64-apple-darwin
+        #   ]
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
@@ -31,18 +72,9 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos
             features: selfupdate
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu
-            features: selfupdate
           - target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
-          - target: i686-unknown-linux-gnu
-            os: ubuntu
-            features: selfupdate
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu
-            features: selfupdate
           - target: aarch64-apple-darwin
             os: macos
             features: selfupdate
@@ -108,7 +140,7 @@ jobs:
       with:
         command: test
         args: --target ${{matrix.target}} --features ${{matrix.features}}
-  
+
   build-tarballs:
     needs: [build-juliaup]
     runs-on: ubuntu-latest
@@ -180,7 +212,7 @@ jobs:
 
         cd ../../target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
-        
+
         cd ../../target/i686-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu.tar.gz .
 
@@ -212,7 +244,7 @@ jobs:
         command: install
         args: cargo-msix
     - name: Download and extract bundled Julia versions
-      run: |      
+      run: |
         $versions = Get-Content versions.json | ConvertFrom-Json
         [version]$bundledVersion = $versions.JuliaAppPackage.BundledJuliaVersion
         $bundledVersionAsString = $versions.JuliaAppPackage.BundledJuliaVersion
@@ -235,7 +267,7 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: juliaup-x86_64-pc-windows-msvc
-        path: target\x86_64-pc-windows-msvc\release        
+        path: target\x86_64-pc-windows-msvc\release
     - name: Build MSIX
       uses: actions-rs/cargo@v1
       with:
@@ -354,7 +386,7 @@ jobs:
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v2
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -376,7 +408,7 @@ jobs:
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v2
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -398,7 +430,7 @@ jobs:
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v2
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -477,7 +509,7 @@ jobs:
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "$VERSION" > public/DEVCHANNELVERSION          
+          echo "$VERSION" > public/DEVCHANNELVERSION
         env:
           GH_REF: ${{ github.ref }}
       - name: Copy shell script
