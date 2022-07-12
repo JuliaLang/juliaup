@@ -30,8 +30,8 @@ jobs:
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
-    - run: yum update
-    - run: yum group install "Development Tools"
+    - run: yum -y update
+    - run: yum -y group install "Development Tools"
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
