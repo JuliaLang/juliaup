@@ -19,6 +19,8 @@ jobs:
   build-juliaup-linux:
     runs-on: macOS-latest
     timeout-minutes: 60
+    container:
+      image: centos:7 # which uses glibc 2.17
     strategy:
       matrix:
         include:
@@ -30,11 +32,18 @@ jobs:
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
+    - name: Install gcc and podman
+      run: |
+       yum -y update
+       yum -y group install "Development Tools"
+       yum -y install podman
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
+    - name: Print glibc version
+      run: /lib64/libc.so.6
     - name: Release build
       uses: actions-rs/cargo@v1
       with:
