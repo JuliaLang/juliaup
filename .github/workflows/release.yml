@@ -22,6 +22,7 @@ jobs:
     container:
       image: centos:7 # which uses glibc 2.17
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
