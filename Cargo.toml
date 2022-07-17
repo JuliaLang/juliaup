@@ -41,7 +41,7 @@ dialoguer = "0.10.0"
 shellexpand = "2.1.0"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.37", features = ["alloc", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }
+windows = { version = "0.38", features = ["alloc", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }
 
 [build-dependencies]
 anyhow = "1"
