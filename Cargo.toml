@@ -48,7 +48,7 @@ native-tls = "0.2.10"
 ureq = { version = "2", features = ["native-tls"] }
 native-tls = "0.2.10"
 
-[target.'cfg(unix)'.dependencies]
+[target.'cfg(not(any(windows,macos)))'.dependencies]
 ureq = { version = "2", features = ["native-certs"] }
 
 [build-dependencies]
