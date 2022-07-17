@@ -62,7 +62,8 @@ pub fn get_ureq_agent() -> Result<ureq::Agent> {
 }
 
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let agent = get_ureq_agent();
+    let agent = get_ureq_agent()
+        .with_context(|| format!("Failed to construct download agent."))?;
     
     let response = agent.get(url)
         .call()
@@ -90,7 +91,8 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 }
 
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = get_ureq_agent();
+    let agent = get_ureq_agent()
+        .with_context(|| format!("Failed to construct download agent."))?;
     
     let response = agent.get(url)
         .call()?
