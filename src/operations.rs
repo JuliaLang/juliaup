@@ -23,10 +23,6 @@ use tar::Archive;
 use semver::Version;
 #[cfg(not(target_os = "windows"))]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(feature = "tls-native")]
-use std::sync::Arc;
-#[cfg(feature = "tls-native")]
-use native_tls::TlsConnector;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -46,13 +42,16 @@ where
     Ok(())
 }
 
-#[cfg(not(feature = "tls-native"))]
+#[cfg(target_os = "unix")]
 pub fn get_ureq_agent() -> ureq::Agent {
     ureq::AgentBuilder::new().build()
 }
 
-#[cfg(feature = "tls-native")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub fn get_ureq_agent() -> ureq::Agent {
+    use std::sync::Arc;
+    use native_tls::TlsConnector;
+
     ureq::AgentBuilder::new()
         .tls_connector(Arc::new(TlsConnector::new()?))
         .build()

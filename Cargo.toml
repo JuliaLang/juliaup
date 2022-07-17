@@ -21,7 +21,6 @@ anyhow = "1"
 tempfile = "3"
 flate2 = "1"
 tar = "0.4"
-ureq = "2"
 normpath = "0.3"
 fs_extra = "1.2"
 thiserror = "1"
@@ -39,10 +38,18 @@ log = "0.4.14"
 env_logger = "0.9.0"
 dialoguer = "0.10.0"
 shellexpand = "2.1.0"
-native-tls = { version = "0.2.8", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.38.0", features = ["alloc", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }
+ureq = { version = "2", features = ["native-tls"] }
+native-tls = "0.2.10"
+
+[target.'cfg(macos)'.dependencies]
+ureq = { version = "2", features = ["native-tls"] }
+native-tls = "0.2.10"
+
+[target.'cfg(unix)'.dependencies]
+ureq = { version = "2", features = ["native-certs"] }
 
 [build-dependencies]
 anyhow = "1"
@@ -61,12 +68,9 @@ assert_fs = "1"
 predicates = "2.1"
 
 [features]
-default = ["tls-native", "native-certs"]
 selfupdate = []
 windowsstore = []
 dummy = []
-tls-native = ["native-tls", "ureq/native-tls"]
-native-certs = ["ureq/native-certs"]
 
 [package.metadata.msix]
 main = "msix/PackagingLayout.xml"
