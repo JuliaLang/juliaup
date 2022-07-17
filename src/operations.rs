@@ -43,18 +43,22 @@ where
 }
 
 #[cfg(target_os = "unix")]
-pub fn get_ureq_agent() -> ureq::Agent {
-    ureq::AgentBuilder::new().build()
+pub fn get_ureq_agent() -> Result<ureq::Agent> {
+    let agent = ureq::AgentBuilder::new().build();
+
+    Ok(agent)
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-pub fn get_ureq_agent() -> ureq::Agent {
+pub fn get_ureq_agent() -> Result<ureq::Agent> {
     use std::sync::Arc;
     use native_tls::TlsConnector;
 
-    ureq::AgentBuilder::new()
+    let agent = ureq::AgentBuilder::new()
         .tls_connector(Arc::new(TlsConnector::new()?))
-        .build()
+        .build();
+
+    Ok(agent)
 }
 
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
