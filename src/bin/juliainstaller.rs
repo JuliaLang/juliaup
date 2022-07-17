@@ -221,7 +221,8 @@ pub fn main() -> Result<()> {
         modifypath: true,
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
-            .join(".juliaup"),
+            .join(".julia")
+            .join("juliaup"),
         modifypath_files: find_shell_scripts_to_be_modified()?,
     };
 
