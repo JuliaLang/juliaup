@@ -10,6 +10,7 @@ mod jsonstructs_versionsdb;
 use anyhow::Result;
 use itertools::Itertools;
 use jsonstructs_versionsdb::{JuliaupVersionDB, JuliaupVersionDBChannel, JuliaupVersionDBVersion};
+use semver::Prerelease;
 use semver::Version;
 use std::collections::HashMap;
 use std::env;
@@ -198,12 +199,21 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     },
                 );
             } else if target_os == "macos" {
-                db.available_channels.insert(
-                    format!("{}", v),
-                    JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
-                    },
-                );
+                if v >= &(Version { major: 1, minor: 8, patch: 0, pre: Prerelease::new("rc3").unwrap(), build: semver::BuildMetadata::EMPTY}) {
+                    db.available_channels.insert(
+                        format!("{}", v),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~aarch64", v),
+                        },
+                    );
+                } else {
+                    db.available_channels.insert(
+                        format!("{}", v),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~x64", v),
+                        },
+                    );
+                }
                 db.available_channels.insert(
                     format!("{}~x64", v),
                     JuliaupVersionDBChannel {
@@ -305,12 +315,21 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     },
                 );
             } else if target_os == "macos" {
-                db.available_channels.insert(
-                    format!("{}.{}", major, minor),
-                    JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
-                    },
-                );
+                if v >= &&(Version { major: 1, minor: 8, patch: 0, pre: Prerelease::new("rc3").unwrap(), build: semver::BuildMetadata::EMPTY}) {
+                    db.available_channels.insert(
+                        format!("{}.{}", major, minor),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~aarch64", v),
+                        },
+                    );
+                } else {
+                    db.available_channels.insert(
+                        format!("{}.{}", major, minor),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~x64", v),
+                        },
+                    );
+                }
                 db.available_channels.insert(
                     format!("{}.{}~x64", major, minor),
                     JuliaupVersionDBChannel {
@@ -409,12 +428,21 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
                     },
                 );
             } else if target_os == "macos" {
-                db.available_channels.insert(
-                    format!("{}", major),
-                    JuliaupVersionDBChannel {
-                        version: format!("{}+0~x64", v),
-                    },
-                );
+                if v >= &&(Version { major: 1, minor: 8, patch: 0, pre: Prerelease::new("rc3").unwrap(), build: semver::BuildMetadata::EMPTY}) {
+                    db.available_channels.insert(
+                        format!("{}", major),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~aarch64", v),
+                        },
+                    );
+                } else {
+                    db.available_channels.insert(
+                        format!("{}", major),
+                        JuliaupVersionDBChannel {
+                            version: format!("{}+0~x64", v),
+                        },
+                    );    
+                }
                 db.available_channels.insert(
                     format!("{}~x64", major),
                     JuliaupVersionDBChannel {
@@ -619,7 +647,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "beta".to_string(),
                 JuliaupVersionDBChannel {
-                    version: format!("{}+0~x64", beta_version),
+                    version: format!("{}+0~aarch64", beta_version),
                 },
             );
             db.available_channels.insert(
@@ -638,7 +666,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "rc".to_string(),
                 JuliaupVersionDBChannel {
-                    version: format!("{}+0~x64", rc_version),
+                    version: format!("{}+0~aarch64", rc_version),
                 },
             );
             db.available_channels.insert(
