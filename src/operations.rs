@@ -52,7 +52,7 @@ pub fn get_ureq_agent() -> ureq::Agent {
 }
 
 #[cfg(feature = "tls-native")]
-pub fn get_ureq_agent() {
+pub fn get_ureq_agent() -> ureq::Agent {
     ureq::AgentBuilder::new()
         .tls_connector(Arc::new(TlsConnector::new()?))
         .build()
