@@ -23,8 +23,8 @@ fi
 
 set -u
 
-# If JULIAUP_UPDATE_ROOT is unset or empty, default it.
-JULIAUP_UPDATE_ROOT="${JULIAUP_UPDATE_ROOT:-https://julialang-s3.julialang.org}"
+# If JULIAUP_SERVER is unset or empty, default it.
+JULIAUP_SERVER="${JULIAUP_SERVER:-https://julialang-s3.julialang.org}"
 JULIAUP_VERSION="THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
@@ -69,7 +69,7 @@ main() {
             ;;
     esac
 
-    local _url="${JULIAUP_UPDATE_ROOT}/juliaup/bin/juliainstaller-${JULIAUP_VERSION}-${_arch}${_ext}"
+    local _url="${JULIAUP_SERVER}/juliaup/bin/juliainstaller-${JULIAUP_VERSION}-${_arch}${_ext}"
 
     local _dir
     _dir="$(ensure mktemp -d)"
