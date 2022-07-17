@@ -42,7 +42,7 @@ where
     Ok(())
 }
 
-#[cfg(target_os = "unix")]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
     let agent = ureq::AgentBuilder::new().build();
 
