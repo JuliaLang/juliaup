@@ -47,37 +47,19 @@ where
 }
 
 #[cfg(not(feature = "tls-native"))]
-pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let response = ureq::get(url)
-        .call()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
-
-    let content_length = response.header("Content-Length").and_then(|v| v.parse::<u64>().ok() );
-
-    let pb = match content_length {
-        Some(content_length) => ProgressBar::new(content_length),
-        None => ProgressBar::new_spinner(),
-    };
-    
-    pb.set_prefix("  Downloading:");
-    pb.set_style(ProgressStyle::default_bar()
-    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-                .progress_chars("=> "));
-
-    let foo = pb.wrap_read(response.into_reader());
-
-    let tar = GzDecoder::new(foo);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, &target_path, levels_to_skip)
-        .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
-    Ok(())
+pub fn get_ureq_agent() -> ureq::Agent {
+    ureq::AgentBuilder::new().build()
 }
 
 #[cfg(feature = "tls-native")]
-pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let agent = ureq::AgentBuilder::new()
+pub fn get_ureq_agent() {
+    ureq::AgentBuilder::new()
         .tls_connector(Arc::new(TlsConnector::new()?))
-        .build();
+        .build()
+}
+
+pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    let agent = get_ureq_agent();
     
     let response = agent.get(url)
         .call()
@@ -104,26 +86,8 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     Ok(())
 }
 
-#[cfg(not(feature = "tls-native"))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = ureq::get(url)
-        .call()?
-        .into_string()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .trim()
-        .to_string();
-
-    let version = Version::parse(&response)
-        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
-
-    Ok(version)
-}
-
-#[cfg(feature = "tls-native")]
-pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = ureq::AgentBuilder::new()
-        .tls_connector(Arc::new(TlsConnector::new()?))
-        .build();
+    let agent = get_ureq_agent();
     
     let response = agent.get(url)
         .call()?
