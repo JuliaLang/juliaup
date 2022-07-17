@@ -81,7 +81,7 @@ https://rustup.rs/.
     }
 }
 
-$JULIAUP_UPDATE_ROOT='https://github.com/JuliaLang/juliaup/releases/latest/download/'
+$JULIAUP_SERVER='https://github.com/JuliaLang/juliaup/releases/latest/download/'
 $JULIAUP_INSTALL_DIR=(Resolve-Path '~/.juliaup')
 
 $usage = @'
@@ -176,7 +176,7 @@ if ([IntPtr]::size -eq 4){
     $arch = 'i686-pc-windows-msvc'
 }
 
-$url = "$JULIAUP_UPDATE_ROOT/${arch}.zip"
+$url = "$JULIAUP_SERVER/${arch}.zip"
 $dst = "$tempFolderPath/${arch}.zip"
 $dstdir = "$tempFolderPath/${arch}"
 Write-Host ""
