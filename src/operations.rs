@@ -13,8 +13,12 @@ use anyhow::{anyhow, Context, Result};
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::path::{Component::Normal, Path, PathBuf};
-use std::io::{Seek, Write, Read};
+use std::io::Seek;
+use std::io::Write;
+use std::{
+    io::Read,
+    path::{Component::Normal, Path, PathBuf},
+};
 use tar::Archive;
 use semver::Version;
 #[cfg(not(target_os = "windows"))]

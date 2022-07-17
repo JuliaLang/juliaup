@@ -14,14 +14,14 @@ codegen-units = 1
 [dependencies]
 clap = { version = "3.0.5", features = ["derive"] }
 dirs = "4"
-serde = { version = "1", features = ["derive"] }
+serde = {version = "1", features = ["derive"] }
 serde_json = "1"
 semver = "1"
 anyhow = "1"
 tempfile = "3"
 flate2 = "1"
 tar = "0.4"
-ureq = { version = "2" }
+ureq = "2"
 normpath = "0.3"
 fs_extra = "1.2"
 thiserror = "1"
@@ -33,7 +33,7 @@ url = "2"
 cli-table = "0.4"
 itertools = "0.10"
 cluFlock = "1.2.5"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = {version = "0.4", features = ["serde"]}
 human-panic = "1.0.3"
 log = "0.4.14"
 env_logger = "0.9.0"
@@ -47,7 +47,7 @@ windows = { version = "0.38.0", features = ["alloc", "Win32_Foundation", "Win32_
 [build-dependencies]
 anyhow = "1"
 itertools = "0.10"
-serde = { version = "1", features = ["derive"] }
+serde = {version = "1", features = ["derive"] }
 serde_json = "1"
 semver = "1"
 built = "0.5.1"
