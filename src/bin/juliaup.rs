@@ -1,5 +1,6 @@
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
+use juliaup::command_list::run_command_list;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
 use juliaup::command_remove::run_command_remove;
@@ -42,6 +43,10 @@ enum Juliaup {
         file: String,
         args: Vec<String>
     },
+    /// List all available channels
+    List {
+
+    },
     #[clap(alias="up")]
     /// Update all or a specific channel to the latest Julia version
     Update {
@@ -62,11 +67,11 @@ enum Juliaup {
     #[clap(subcommand, name = "config")]
     /// Juliaup configuration
     Config(ConfigSubCmd),
-    #[clap(setting(clap::AppSettings::Hidden))]
+    #[clap(hide = true)]
     Api {
         command: String
     },
-    #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", setting(clap::AppSettings::Hidden))]
+    #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", hide = true)]
     InitialSetupFromLauncher {
     },
     #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
@@ -75,7 +80,7 @@ enum Juliaup {
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
-    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", setting(clap::AppSettings::Hidden))]
+    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", hide = true)]
     SecretSelfUpdate {},
 }
 
@@ -121,7 +126,7 @@ enum ConfigSubCmd {
     },
     #[cfg(feature = "selfupdate")]
     #[clap(name="modifypath")]
-    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
+    /// Add the Julia binaries to your PATH by manipulating various shell startup scripts.
     ModifyPath {
         /// New value
         value: Option<bool>
@@ -153,6 +158,7 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel, &paths),
         Juliaup::Gc {} => run_command_gc(&paths),
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
+        Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(target_os = "windows"))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false, &paths),

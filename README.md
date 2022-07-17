@@ -45,6 +45,14 @@ Note that the Mac and Linux version are considered prerelease, have known bugs a
 
 On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
 
+### openSUSE Tumbleweed
+
+On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileges:
+
+```sh
+zypper install juliaup
+```
+
 ## Using Juliaup
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
@@ -61,6 +69,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup add 1.6.1~x86` installs the 32 bit version of Julia 1.6.1 on your system.
 - `juliaup default 1.6~x86` configures the `julia` command to start the latest 1.6.x 32 bit version of Julia you have installed on your system.
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
+- `juliaup self update` installs the latest version, which is necessary if new releases reach the beta channel, etc.
 - `juliaup` shows you what other commands are available.
 
 To launch the Julia version in channel `release`, run `julia +release` in your terminal.
