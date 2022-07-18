@@ -42,14 +42,14 @@ where
     Ok(())
 }
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[cfg(not(any(windows, macos)))]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
     let agent = ureq::AgentBuilder::new().build();
 
     Ok(agent)
 }
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(any(windows, macos))]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
     use std::sync::Arc;
     use native_tls::TlsConnector;
