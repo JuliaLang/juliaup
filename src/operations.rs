@@ -44,6 +44,7 @@ where
 
 #[cfg(not(any(windows, macos)))]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
+    eprintln!("NOT USING NATIVE TLS");
     let agent = ureq::AgentBuilder::new().build();
 
     Ok(agent)
@@ -51,6 +52,7 @@ pub fn get_ureq_agent() -> Result<ureq::Agent> {
 
 #[cfg(any(windows, macos))]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
+    eprintln!("USING NATIVE TLS");
     use std::sync::Arc;
     use native_tls::TlsConnector;
 
