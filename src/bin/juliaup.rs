@@ -9,7 +9,7 @@ use anyhow::{Result,Context};
 use juliaup::command_add::run_command_add;
 use juliaup::command_default::run_command_default;
 use juliaup::command_status::run_command_status;
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_api::run_command_api;
@@ -103,7 +103,7 @@ enum SelfSubCmd {
 
 #[derive(Parser)]
 enum ConfigSubCmd {
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(windows))]
     #[clap(name="channelsymlinks")]
     /// Create a separate symlink per channel
     ChannelSymlinks  {
@@ -160,7 +160,7 @@ fn main() -> Result<()> {
         Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
-            #[cfg(not(target_os = "windows"))]
+            #[cfg(not(windows))]
             ConfigSubCmd::ChannelSymlinks {value} => run_command_config_symlinks(value, false, &paths),
             #[cfg(feature = "selfupdate")]
             ConfigSubCmd::BackgroundSelfupdateInterval {value} => run_command_config_backgroundselfupdate(value, false, &paths),
