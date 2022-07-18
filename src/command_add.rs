@@ -1,5 +1,7 @@
 use crate::global_paths::GlobalPaths;
-use crate::operations::{install_version, create_symlink};
+use crate::operations::install_version;
+#[cfg(not(windows))]
+use crate::operations::create_symlink;
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
@@ -37,12 +39,13 @@ pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
         config_file.data.default = Some(channel.clone());
     }
 
+    #[cfg(not(windows))]
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
     save_config_db(&mut config_file)
         .with_context(|| format!("Failed to save configuration file from `add` command after '{}' was installed.", channel))?;
 
-    #[cfg(not(target_os = "windows)"))]
+    #[cfg(not(windows))]
     if create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::SystemChannel {

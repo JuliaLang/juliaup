@@ -1,11 +1,13 @@
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
-use crate::operations::{install_version, create_symlink};
+use crate::operations::{install_version};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow,bail};
+#[cfg(not(windows))]
+use crate::operations::create_symlink;
 
 fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
@@ -26,7 +28,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
                     },
                 );
 
-                #[cfg(not(target_os = "windows)"))]
+                #[cfg(not(windows))]
                 if config_db.settings.create_channel_symlinks {
                     create_symlink(
                         &JuliaupConfigChannel::SystemChannel {

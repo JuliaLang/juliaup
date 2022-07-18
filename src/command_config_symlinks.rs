@@ -1,7 +1,7 @@
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 use anyhow::Result;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 pub fn run_command_config_symlinks(value: Option<bool>, quiet: bool, paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
     use crate::operations::{create_symlink, remove_symlink};
