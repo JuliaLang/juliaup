@@ -21,7 +21,7 @@ use std::{
 };
 use tar::Archive;
 use semver::Version;
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
@@ -203,7 +203,7 @@ pub fn remove_symlink(
     Ok(())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(windows))]
 pub fn create_symlink(
     channel: &JuliaupConfigChannel,
     symlink_name: &String,
@@ -266,7 +266,7 @@ r#"#!/bin/sh
     Ok(())
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> { Ok(()) }
 
 #[cfg(feature = "selfupdate")]

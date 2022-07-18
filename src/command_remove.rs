@@ -1,4 +1,4 @@
-use crate::{operations::{garbage_collect_versions, remove_symlink}, config_file::{load_mut_config_db, save_config_db}, global_paths::GlobalPaths};
+use crate::{operations::{garbage_collect_versions}, config_file::{load_mut_config_db, save_config_db}, global_paths::GlobalPaths};
 use anyhow::{bail, Context, Result};
 
 pub fn run_command_remove(channel: String, paths: &GlobalPaths) -> Result<()> {
@@ -17,8 +17,8 @@ pub fn run_command_remove(channel: String, paths: &GlobalPaths) -> Result<()> {
 
     config_file.data.installed_channels.remove(&channel);
 
-    #[cfg(not(target_os = "windows)"))]
-    remove_symlink(&format!("julia-{}", channel))?;
+    #[cfg(not(windows))]
+    operations::remove_symlink(&format!("julia-{}", channel))?;
 
     garbage_collect_versions(&mut config_file.data, paths)?;
 

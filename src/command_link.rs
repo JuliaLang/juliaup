@@ -1,5 +1,4 @@
 use crate::global_paths::GlobalPaths;
-use crate::operations::create_symlink;
 use crate::versions_file::load_versions_db;
 use crate::config_file::{save_config_db, load_mut_config_db};
 use anyhow::{bail,Context,Result};
@@ -28,14 +27,15 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths:
         },
     );
 
+    #[cfg(not(windows))]
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
     save_config_db(&mut config_file)
         .with_context(|| "`link` command failed to save configuration db.")?;
 
-    #[cfg(not(target_os = "windows)"))]
+    #[cfg(not(windows))]
     if create_symlinks {
-        create_symlink(
+        operations::create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
                 command: file.clone(),
                 args: Some(args.clone()),
