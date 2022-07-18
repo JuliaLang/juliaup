@@ -1,5 +1,7 @@
 use crate::global_paths::GlobalPaths;
-use crate::operations::{install_version};
+use crate::operations::install_version;
+#[cfg(not(windows))]
+use crate::operations::create_symlink;
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
@@ -45,7 +47,7 @@ pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
 
     #[cfg(not(windows))]
     if create_symlinks {
-        operations::create_symlink(
+        create_symlink(
             &JuliaupConfigChannel::SystemChannel {
                 version: required_version.clone(),
             },

@@ -6,6 +6,8 @@ use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result,anyhow,bail};
+#[cfg(not(windows))]
+use crate::operations::create_symlink;
 
 fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
@@ -28,7 +30,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
 
                 #[cfg(not(windows))]
                 if config_db.settings.create_channel_symlinks {
-                    operations::create_symlink(
+                    create_symlink(
                         &JuliaupConfigChannel::SystemChannel {
                             version: should_version.version.clone(),
                         },
