@@ -42,8 +42,30 @@ where
     Ok(())
 }
 
-pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let response = ureq::get(url)
+#[cfg(not(any(windows, macos)))]
+pub fn get_ureq_agent() -> Result<ureq::Agent> {
+    let agent = ureq::AgentBuilder::new().build();
+
+    Ok(agent)
+}
+
+#[cfg(any(windows, macos))]
+pub fn get_ureq_agent() -> Result<ureq::Agent> {
+    use std::sync::Arc;
+    use native_tls::TlsConnector;
+
+    let agent = ureq::AgentBuilder::new()
+        .tls_connector(Arc::new(TlsConnector::new()?))
+        .build();
+
+    Ok(agent)
+}
+
+pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    let agent = get_ureq_agent()
+        .with_context(|| format!("Failed to construct download agent."))?;
+    
+    let response = agent.get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
@@ -69,7 +91,10 @@ pub fn download_extract_sans_parent(url: &String, target_path: &Path, levels_to_
 }
 
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = ureq::get(url)
+    let agent = get_ureq_agent()
+        .with_context(|| format!("Failed to construct download agent."))?;
+    
+    let response = agent.get(url)
         .call()?
         .into_string()
         .with_context(|| format!("Failed to download from url `{}`.", url))?

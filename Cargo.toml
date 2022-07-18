@@ -21,7 +21,6 @@ anyhow = "1"
 tempfile = "3"
 flate2 = "1"
 tar = "0.4"
-ureq = "2"
 normpath = "0.3"
 fs_extra = "1.2"
 thiserror = "1"
@@ -42,6 +41,15 @@ shellexpand = "2.1.0"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.38.0", features = ["alloc", "Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections"] }
+ureq = { version = "2", features = ["native-tls"] }
+native-tls = "0.2.10"
+
+[target.'cfg(macos)'.dependencies]
+ureq = { version = "2", features = ["native-tls"] }
+native-tls = "0.2.10"
+
+[target.'cfg(all(not(macos),not(windows)))'.dependencies]
+ureq = { version = "2", features = ["native-certs"] }
 
 [build-dependencies]
 anyhow = "1"
