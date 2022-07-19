@@ -12,39 +12,30 @@ on:
 jobs:
 
   build-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target: [
-          x86_64-pc-windows-msvc,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          i686-pc-windows-msvc,
-          i686-unknown-linux-gnu, 
-          aarch64-unknown-linux-gnu,
-          aarch64-apple-darwin
-          ]
         include:
           - target: x86_64-pc-windows-msvc
-            os: windows
+            os: windows-latest
             features: windowsstore
           - target: x86_64-apple-darwin
-            os: macos
+            os: macos-latest
             features: selfupdate
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu
+            os: ubuntu-18.04
             features: selfupdate
           - target: i686-pc-windows-msvc
-            os: windows
+            os: windows-latest
             features: windowsstore
           - target: i686-unknown-linux-gnu
-            os: ubuntu
+            os: ubuntu-18.04
             features: selfupdate
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu
+            os: ubuntu-18.04
             features: selfupdate
           - target: aarch64-apple-darwin
-            os: macos
+            os: macos-latest
             features: selfupdate
     steps:
     - uses: actions/checkout@v3
@@ -74,27 +65,21 @@ jobs:
           !target/${{matrix.target}}/release/*.d
 
   test-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        target: [
-          x86_64-pc-windows-msvc,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          i686-pc-windows-msvc,
-          ]
         include:
           - target: x86_64-pc-windows-msvc
-            os: windows
+            os: windows-latest
             features: dummy
           - target: x86_64-apple-darwin
-            os: macos
+            os: macos-latest
             features: dummy
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu
+            os: ubuntu-18.04
             features: dummy
           - target: i686-pc-windows-msvc
-            os: windows
+            os: windows-latest
             features: dummy
     steps:
     - uses: actions/checkout@v3
@@ -111,7 +96,7 @@ jobs:
   
   build-tarballs:
     needs: [build-juliaup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download Windows x86 juliaup artifact
@@ -268,7 +253,7 @@ jobs:
 
   deploy-github-release-binaries:
     needs: [build-tarballs,test-juliaup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download tarball artifacts
@@ -285,7 +270,7 @@ jobs:
 
   deploy-s3-release-binaries:
     needs: [build-tarballs,test-juliaup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     environment: dev-channel
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -426,7 +411,7 @@ jobs:
   deploy-release-channel-aur:
     needs: [build-juliaup,test-juliaup]
     environment: release-preview-channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout PKGBUILD repo
@@ -464,7 +449,7 @@ jobs:
   deploy-dev-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
     environment: dev-channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v3
@@ -510,7 +495,7 @@ jobs:
   deploy-releasepreview-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
     environment: release-preview-channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v3
@@ -556,7 +541,7 @@ jobs:
   deploy-release-channel-s3:
     needs: [deploy-s3-release-binaries,test-juliaup]
     environment: release-channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v3
@@ -601,7 +586,7 @@ jobs:
   deploy-release-channel-github:
     needs: [deploy-github-release-binaries]
     environment: release-channel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Release
