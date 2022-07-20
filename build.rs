@@ -22,7 +22,7 @@ use serde_json::Value;
 fn produce_version_db() -> Result<JuliaupVersionDB> {
     let mut original_available_versions: Vec<Version> = Vec::new();
 
-    let lts_version = Version::parse("1.6.6")?;
+    let lts_version = Version::parse("1.6.7")?;
     let beta_version = Version::parse("1.8.0-rc3")?;
     let rc_version = Version::parse("1.8.0-rc3")?;
     let nightly_version = Version::parse("1.9.0-latest")?;
@@ -54,6 +54,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     original_available_versions.push(Version::parse("1.6.4")?);
     original_available_versions.push(Version::parse("1.6.5")?);
     original_available_versions.push(Version::parse("1.6.6")?);
+    original_available_versions.push(Version::parse("1.6.7")?);
     original_available_versions.push(Version::parse("1.7.0-beta1")?);
     original_available_versions.push(Version::parse("1.7.0-beta2")?);
     original_available_versions.push(Version::parse("1.7.0-beta3")?);
