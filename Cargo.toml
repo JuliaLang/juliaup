@@ -50,6 +50,9 @@ native-tls = "0.2.10"
 
 [target.'cfg(all(not(macos),not(windows)))'.dependencies]
 ureq = { version = "2", features = ["native-certs"] }
+rustls = "0.20"
+rustls-native-certs = "0.6"
+webpki-roots = "0.22"
 
 [build-dependencies]
 anyhow = "1"

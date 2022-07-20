@@ -695,6 +695,8 @@ dependencies = [
  "native-tls",
  "normpath",
  "predicates",
+ "rustls",
+ "rustls-native-certs",
  "semver",
  "serde",
  "serde_json",
@@ -704,6 +706,7 @@ dependencies = [
  "thiserror",
  "ureq",
  "url",
+ "webpki-roots",
  "windows",
  "winres",
 ]
