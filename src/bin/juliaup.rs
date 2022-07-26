@@ -33,7 +33,7 @@ enum Juliaup {
     Default {
         channel: String
     },
-    /// Add a specific Julia version or channel to your system
+    /// Add a specific Julia version or channel to your system. Access via `julia +{channel}` i.e. `julia +1.6`
     Add {
         channel: String
     },
