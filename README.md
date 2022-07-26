@@ -72,8 +72,6 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup self update` installs the latest version, which is necessary if new releases reach the beta channel, etc.
 - `juliaup` shows you what other commands are available.
 
-To launch the Julia version in channel `release`, run `julia +release` in your terminal.
-
 The available system provided channels are:
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
@@ -84,6 +82,12 @@ The available system provided channels are:
 - major version channels, e.g. `1`.
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
+
+## Using installed julia versions
+
+To launch the default Julia version simply run `julia` in your terminal.
+
+To launch a specific Julia version, say in channel `release`, run `julia +release`.
 
 ## Juliaup server
 
