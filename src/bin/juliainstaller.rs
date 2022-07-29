@@ -137,7 +137,7 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     }
 
     if install_choices.startupselfupdate>0 {
-        println!("Julia will look for a new version of Juliaup itself every {} seconds when you start julia.", install_choices.startupselfupdate);
+        println!("Julia will look for a new version of Juliaup itself every {} minutes when you start julia.", install_choices.startupselfupdate);
         println!("");
     }
 
