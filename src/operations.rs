@@ -90,6 +90,48 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     Ok(())
 }
 
+#[cfg(all(feature = "selfupdate", not(windows)))]
+pub fn download_and_replace_juliaup(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    download_extract_sans_parent(url, target_path, levels_to_skip)?;
+
+    Ok(())
+}
+
+#[cfg(all(feature = "selfupdate", windows))]
+pub fn download_and_replace_juliaup(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    // First download the new version into a temporary folder
+    let tempdir = tempfile::tempdir()?;
+    download_extract_sans_parent(url, tempdir.path(), levels_to_skip)?;
+
+    // Next, move the existing juliaup and julialauncher into a temporary folder
+    // we do this instead of delete because they will be in use
+    for file in std::fs::read_dir(target_path)? {
+        let file = file.unwrap();
+
+        let temp_target_dir = std::env::temp_dir().join("juliaupselfupdate");
+
+        if file.file_type().unwrap().is_file() {
+            if file.file_name().to_string_lossy().ends_with(".exe") {                
+                let temp_uuid = uuid::Uuid::new_v4();
+                let target_filename = temp_target_dir.join(temp_uuid.to_string());
+
+                std::fs::rename(file.path(), target_filename)?;
+            }
+        }
+    }
+
+    // Now we can move the downloaded files into their destination location
+    for file in std::fs::read_dir(tempdir.path())? {
+        let file = file.unwrap();
+
+        if file.file_type().unwrap().is_file() {
+            std::fs::rename(file.path(), target_path.join(file.file_name()))?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let agent = get_ureq_agent()
         .with_context(|| format!("Failed to construct download agent."))?;
