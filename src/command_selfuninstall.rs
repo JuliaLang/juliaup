@@ -5,7 +5,9 @@ use anyhow::Result;
 pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use dialoguer::Confirm;
 
-    use crate::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath, command_config_symlinks::run_command_config_symlinks};
+    use crate::{command_config_backgroundselfupdate::run_command_config_backgroundselfupdate, command_config_startupselfupdate::run_command_config_startupselfupdate, command_config_modifypath::run_command_config_modifypath};
+    #[cfg(not(windows))]
+    use crate::command_config_symlinks::run_command_config_symlinks;
 
     let choice = Confirm::new()
         .with_prompt("Do you really want to uninstall Julia?")
@@ -34,11 +36,14 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         Err(_) => eprintln!(" Failed.")
     };
 
-    eprint!("Removing symlinks.");
-    match run_command_config_symlinks(Some(false), true, &paths) {
-        Ok(_) => eprintln!(" Success."),
-        Err(_) => eprintln!(" Failed.")
-    };
+    #[cfg(not(windows))]
+    {
+        eprint!("Removing symlinks.");
+        match run_command_config_symlinks(Some(false), true, &paths) {
+            Ok(_) => eprintln!(" Success."),
+            Err(_) => eprintln!(" Failed.")
+        };
+    }
 
     eprint!("Deleting Juliaup home folder {:?}.", paths.juliauphome);
     match std::fs::remove_dir_all(&paths.juliauphome) {

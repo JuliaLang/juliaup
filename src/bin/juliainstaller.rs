@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 
 
-#[cfg(feature = "selfupdate")]
+#[cfg(all(not(windows), feature = "selfupdate"))]
 fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &dialoguer::theme::ColorfulTheme) -> Result<Option<()>> {
 
     use std::path::PathBuf;
@@ -73,7 +73,7 @@ fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &di
     Ok(Some(()))
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(all(not(windows), feature = "selfupdate"))]
 fn is_juliaup_installed() -> bool {
     use std::process::Stdio;
 
@@ -96,7 +96,7 @@ struct Juliainstaller {
     juliaupchannel: String,
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(all(not(windows), feature = "selfupdate"))]
 struct InstallChoices {
     backgroundselfupdate: i64,
     startupselfupdate: i64,
@@ -106,7 +106,7 @@ struct InstallChoices {
     modifypath_files: Vec<std::path::PathBuf>,
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(all(not(windows), feature = "selfupdate"))]
 fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     use console::style;
 
@@ -149,7 +149,7 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "selfupdate")]
+#[cfg(all(not(windows), feature = "selfupdate"))]
 pub fn main() -> Result<()> {
     use std::io::Seek;
     use anyhow::{anyhow, Context};
@@ -363,7 +363,7 @@ pub fn main() -> Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "selfupdate"))]
+#[cfg(any(windows, not(feature = "selfupdate")))]
 pub fn main() -> Result<()> {
     panic!("This should never run.");
 }
