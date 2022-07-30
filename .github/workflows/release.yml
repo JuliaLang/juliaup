@@ -17,9 +17,11 @@ jobs:
       matrix:
         label: [
           x86_64-pc-windows-msvc-windowsstore,
+          x86_64-pc-windows-msvc-standalone,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           i686-pc-windows-msvc-windowsstore,
+          i686-pc-windows-msvc-standalone,
           i686-unknown-linux-gnu, 
           aarch64-unknown-linux-gnu,
           aarch64-apple-darwin
@@ -29,6 +31,10 @@ jobs:
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsstore
+          - label: x86_64-pc-windows-msvc-standalone
+            target: x86_64-pc-windows-msvc
+            os: windows
+            features: selfupdate
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
@@ -41,6 +47,10 @@ jobs:
             target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
+          - label: i686-pc-windows-msvc-standalone
+            target: i686-pc-windows-msvc
+            os: windows
+            features: selfupdate
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
@@ -121,16 +131,26 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - name: Download Windows x86 juliaup artifact
+    - name: Download Windows x86 Store juliaup artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-pc-windows-msvc-windowsstore
         path: target/i686-pc-windows-msvc-windowsstore
-    - name: Download Windows x64 juliaup artifact
+    - name: Download Windows x86 Standalone juliaup artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-pc-windows-msvc-standalone
+        path: target/i686-pc-windows-msvc-standalone
+    - name: Download Windows x64 Store juliaup artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsstore
         path: target/x86_64-pc-windows-msvc-windowsstore
+    - name: Download Windows x64 Standalonejuliaup artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-pc-windows-msvc-standalone
+        path: target/x86_64-pc-windows-msvc-standalone
     - name: Download Linux x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
@@ -182,8 +202,14 @@ jobs:
         cd target/i686-pc-windows-msvc-windowsstore
         zip ../../public/bin/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc-windowsstore.zip ./*
 
+        cd target/i686-pc-windows-msvc-standalone
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc-standalone.tar.gz .
+
         cd ../../target/x86_64-pc-windows-msvc-windowsstore
         zip ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc-windowsstore.zip ./*
+
+        cd ../../target/x86_64-pc-windows-msvc-standalone
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc-standalone.tar.gz .
 
         cd ../../target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
@@ -332,6 +358,16 @@ jobs:
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
+    - name: Download installer artifacts for x86_64-pc-windows-msvc-standalone
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-x86_64-pc-windows-msvc-standalone
+        path: target/x86_64-pc-windows-msvc-standalone
+    - name: Download installer artifacts for i686-pc-windows-msvc-standalone
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-i686-pc-windows-msvc-standalone
+        path: target/i686-pc-windows-msvc-standalone
     - name: Rename and move juliainstaller
       run: |
         ls target
@@ -341,6 +377,9 @@ jobs:
         mv target/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
         mv target/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
         mv target/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
+        mv target/x86_64-pc-windows-msvc-standalone/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-pc-windows-msvc-standalone
+        mv target/i686-pc-windows-msvc-standalone/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-pc-windows-msvc-standalone
+
     - name: Upload to S3
       uses: jakejarvis/s3-sync-action@master
       with:
