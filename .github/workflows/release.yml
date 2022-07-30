@@ -15,35 +15,42 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     strategy:
       matrix:
-        target: [
-          x86_64-pc-windows-msvc,
+        label: [
+          x86_64-pc-windows-msvc-windowsstore,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
-          i686-pc-windows-msvc,
+          i686-pc-windows-msvc-windowsstore,
           i686-unknown-linux-gnu, 
           aarch64-unknown-linux-gnu,
           aarch64-apple-darwin
           ]
         include:
-          - target: x86_64-pc-windows-msvc
+          - label: x86_64-pc-windows-msvc-windowsstore
+            target: x86_64-pc-windows-msvc
             os: windows
             features: windowsstore
-          - target: x86_64-apple-darwin
+          - label: x86_64-apple-darwin
+            target: x86_64-apple-darwin
             os: macos
             features: selfupdate
-          - target: x86_64-unknown-linux-gnu
+          - label: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
-          - target: i686-pc-windows-msvc
+          - label: i686-pc-windows-msvc-windowsstore
+            target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
-          - target: i686-unknown-linux-gnu
+          - label: i686-unknown-linux-gnu
+            target: i686-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
-          - target: aarch64-unknown-linux-gnu
+          - label: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
-          - target: aarch64-apple-darwin
+          - label: aarch64-apple-darwin
+            target: aarch64-apple-darwin
             os: macos
             features: selfupdate
     steps:
@@ -61,14 +68,14 @@ jobs:
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v3
       with:
-        name: juliaup-${{matrix.target}}
+        name: juliaup-${{matrix.label}}
         path: |
           target/${{matrix.target}}/release/juliaup*
           target/${{matrix.target}}/release/julialauncher*
           !target/${{matrix.target}}/release/*.d
     - uses: actions/upload-artifact@v3
       with:
-        name: juliainstaller-${{matrix.target}}
+        name: juliainstaller-${{matrix.label}}
         path: |
           target/${{matrix.target}}/release/juliainstaller*
           !target/${{matrix.target}}/release/*.d
@@ -117,13 +124,13 @@ jobs:
     - name: Download Windows x86 juliaup artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-i686-pc-windows-msvc
-        path: target/i686-pc-windows-msvc
+        name: juliaup-i686-pc-windows-msvc-windowsstore
+        path: target/i686-pc-windows-msvc-windowsstore
     - name: Download Windows x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-x86_64-pc-windows-msvc
-        path: target/x86_64-pc-windows-msvc
+        name: juliaup-x86_64-pc-windows-msvc-windowsstore
+        path: target/x86_64-pc-windows-msvc-windowsstore
     - name: Download Linux x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
@@ -172,11 +179,11 @@ jobs:
         mkdir public
         mkdir public/bin
 
-        cd target/i686-pc-windows-msvc
-        zip ../../public/bin/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc.zip ./*
+        cd target/i686-pc-windows-msvc-windowsstore
+        zip ../../public/bin/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc-windowsstore.zip ./*
 
-        cd ../../target/x86_64-pc-windows-msvc
-        zip ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip ./*
+        cd ../../target/x86_64-pc-windows-msvc-windowsstore
+        zip ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc-windowsstore.zip ./*
 
         cd ../../target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
@@ -229,12 +236,12 @@ jobs:
     - name: Download x86 juliaup artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-i686-pc-windows-msvc
+        name: juliaup-i686-pc-windows-msvc-windowsstore
         path: target\i686-pc-windows-msvc\release
     - name: Download x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-x86_64-pc-windows-msvc
+        name: juliaup-x86_64-pc-windows-msvc-windowsstore
         path: target\x86_64-pc-windows-msvc\release        
     - name: Build MSIX
       uses: actions-rs/cargo@v1
