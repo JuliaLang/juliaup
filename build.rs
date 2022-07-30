@@ -86,7 +86,6 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
 
     let minor_channels = &original_available_versions
         .iter()
-        .filter(|&v| v.pre == semver::Prerelease::EMPTY)
         .into_grouping_map_by(|&v| (v.major, v.minor))
         .max();
 
