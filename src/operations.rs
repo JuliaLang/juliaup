@@ -497,7 +497,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
 
 fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
-    .with_context(|| "Failed to open juliaup config file.")?;
+    .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
     let mut buffer = String::new();
 
