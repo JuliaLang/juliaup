@@ -223,7 +223,7 @@ pub fn main() -> Result<()> {
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
             .join(".julia")
             .join("juliaup"),
-        modifypath_files: find_shell_scripts_to_be_modified()?,
+        modifypath_files: find_shell_scripts_to_be_modified(true)?,
     };
 
     print_install_choices(&install_choices)?;
