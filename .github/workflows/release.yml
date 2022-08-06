@@ -68,7 +68,7 @@ jobs:
         default: true
         target: ${{matrix.target}}
     - name: Release build
-      uses: action-rs/cargo@v1
+      uses: actions-rs/cargo@v1
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
