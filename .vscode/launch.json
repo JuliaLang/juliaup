@@ -1,0 +1,271 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'juliaup'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "juliaup",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'juliainstaller'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=juliainstaller",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "juliainstaller",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'juliainstaller'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=juliainstaller",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "juliainstaller",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'julialauncher'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=julialauncher",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "julialauncher",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'julialauncher'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=julialauncher",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "julialauncher",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'juliaup'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=juliaup",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "juliaup",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'juliaup'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=juliaup",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "juliaup",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_add'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_add",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_add",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_default'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_default",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_default",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_initial_setup_from_launcher_test'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_initial_setup_from_launcher_test",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_initial_setup_from_launcher_test",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_list_test'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_list_test",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_list_test",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_remove'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_remove",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_remove",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_status_test'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_status_test",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_status_test",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'command_update'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=command_update",
+                    "--package=juliaup"
+                ],
+                "filter": {
+                    "name": "command_update",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
