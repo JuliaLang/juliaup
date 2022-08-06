@@ -43,7 +43,10 @@ where
 }
 
 fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
+    trace!("identifying proxy for url: {url}");
+    use log::trace;
     let proxy_url = env_proxy::for_url_str(url).to_string();
+    trace!("identified proxy: {:?}", proxy_url);
 
     // Option<Result<...>> is returned to handle both cases:
     //      1. No proxy URL is specified => None
