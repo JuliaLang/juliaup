@@ -49,7 +49,7 @@ pub fn get_ureq_agent() -> Result<ureq::Agent> {
     Ok(agent)
 }
 
-#[cfg(any(windows, macos))]
+#[cfg(macos)]
 pub fn get_ureq_agent() -> Result<ureq::Agent> {
     use std::sync::Arc;
     use native_tls::TlsConnector;
@@ -61,6 +61,8 @@ pub fn get_ureq_agent() -> Result<ureq::Agent> {
     Ok(agent)
 }
 
+
+#[cfg(not(windows))]
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let agent = get_ureq_agent()
         .with_context(|| format!("Failed to construct download agent."))?;
@@ -90,6 +92,81 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     Ok(())
 }
 
+#[cfg(windows)]
+struct DataReaderWrap(windows::Storage::Streams::DataReader);
+
+#[cfg(windows)]
+impl std::io::Read for DataReaderWrap {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut bytes =
+            self.0
+                .LoadAsync(buf.len() as u32)
+                .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))?
+                .get()
+                .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))? as usize;
+        bytes = bytes.min(buf.len());
+        self.0
+            .ReadBytes(&mut buf[0..bytes])
+            .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))
+            .map(|_| bytes)
+    }
+}
+
+#[cfg(windows)]
+pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
+    let http_client = windows::Web::Http::HttpClient::new()
+        .with_context(|| "Failed to create HttpClient.")?;
+
+    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+        .with_context(|| "Failed to convert url string to Uri.")?;
+
+    let http_response = http_client.GetAsync(&request_uri)
+        .with_context(|| "Failed to initiate download.")?
+        .get()
+        .with_context(|| "Failed to complete async download operation.")?;
+
+    http_response.EnsureSuccessStatusCode()
+        .with_context(|| "HTTP download reported error status code.")?;
+
+    let http_response_content = http_response.Content()
+        .with_context(|| "Failed to obtain content from http response.")?;
+
+    let response_stream = http_response_content.ReadAsInputStreamAsync()
+        .with_context(|| "Failed to initiate get input stream from response")?
+        .get()
+        .with_context(|| "Failed to obtain input stream from http response")?;
+
+    let reader = windows::Storage::Streams::DataReader::CreateDataReader(response_stream)
+        .with_context(|| "Failed to create DataReader.")?;
+
+    reader.SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
+        .with_context(|| "Failed to set input stream options.")?;
+
+    let mut content_length: u64 = 0;
+    let pb = if http_response_content.TryComputeLength(&mut content_length)? {        
+        ProgressBar::new(content_length)
+    } else {
+        ProgressBar::new_spinner()
+    };
+   
+    pb.set_prefix("  Downloading:");
+    pb.set_style(ProgressStyle::default_bar()
+    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+                .progress_chars("=> "));
+
+    let foo = pb.wrap_read(DataReaderWrap(reader));
+
+    let tar = GzDecoder::new(foo);
+
+    let archive = Archive::new(tar);
+
+    unpack_sans_parent(archive, &target_path, levels_to_skip)
+        .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
+    Ok(())
+}
+
+#[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let agent = get_ureq_agent()
         .with_context(|| format!("Failed to construct download agent."))?;
@@ -103,6 +180,28 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let version = Version::parse(&response)
         .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+
+    Ok(version)
+}
+
+#[cfg(windows)]
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let http_client = windows::Web::Http::HttpClient::new()
+        .with_context(|| "Failed to create HttpClient.")?;
+
+    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+        .with_context(|| "Failed to convert url string to Uri.")?;
+
+    let response = http_client.GetStringAsync(request_uri)
+        .with_context(|| "")?
+        .get()
+        .with_context(|| "")?
+        .to_string();
+
+    let trimmed_response = response.trim();
+
+    let version = Version::parse(trimmed_response)
+        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", trimmed_response))?;
 
     Ok(version)
 }
