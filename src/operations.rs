@@ -178,7 +178,8 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     pb.set_prefix("  Downloading:");
     pb.set_style(ProgressStyle::default_bar()
     .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-                .progress_chars("=> "));
+        .unwrap()()
+        .progress_chars("=> "));
 
     let foo = pb.wrap_read(DataReaderWrap(reader));
 
