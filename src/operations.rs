@@ -42,6 +42,7 @@ where
     Ok(())
 }
 
+#[cfg(not(windows))]
 fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
     trace!("identifying proxy for url: {url}");
     use log::trace;
