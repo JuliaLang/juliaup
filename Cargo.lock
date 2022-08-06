@@ -398,6 +398,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_proxy"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a5019be18538406a43b5419a5501461f0c8b49ea7dfda0cfc32f4e51fc44be1"
+dependencies = [
+ "log",
+ "url",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -665,6 +675,7 @@ dependencies = [
  "dialoguer",
  "dirs",
  "env_logger",
+ "env_proxy",
  "flate2",
  "fs_extra",
  "human-panic",
