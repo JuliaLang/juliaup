@@ -74,4 +74,4 @@ windowsstore = []
 dummy = []
 
 [package.metadata.msix]
-main = "msix/PackagingLayout.xml"
+main = "deploy/msix/PackagingLayout.xml"

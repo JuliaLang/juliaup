@@ -267,7 +267,7 @@ jobs:
     - name: Package
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
-        New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "storesubmission" "images") -AppxPath *.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
+        New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "images") -AppxPath *.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
     - uses: actions/upload-artifact@v3
       with:
         name: storepackage
