@@ -24,7 +24,7 @@ tar = "0.4"
 normpath = "0.3"
 fs_extra = "1.2"
 thiserror = "1"
-indicatif = "0.16"
+indicatif = "0.17.0"
 atty = "0.2.14"
 console = "0.15"
 ctrlc = "3.2.1"
@@ -72,4 +72,4 @@ windowsstore = []
 dummy = []
 
 [package.metadata.msix]
-main = "msix/PackagingLayout.xml"
+main = "deploy/msix/PackagingLayout.xml"
