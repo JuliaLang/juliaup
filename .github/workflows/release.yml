@@ -35,8 +35,8 @@ jobs:
             os: macos
             features: selfupdate
             rustflags: 
-          - label: x86_64-unknown-linux-gnu
-            target: x86_64-unknown-linux-gnu
+          - label: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-musl
             os: ubuntu
             features: selfupdate
             rustflags: -C target-feature=+crt-static
@@ -45,13 +45,13 @@ jobs:
             os: windows
             features: windowsstore
             rustflags: 
-          - label: i686-unknown-linux-gnu
-            target: i686-unknown-linux-gnu
+          - label: i686-unknown-linux-musl
+            target: i686-unknown-linux-musl
             os: ubuntu
             features: selfupdate
             rustflags: -C target-feature=+crt-static
-          - label: aarch64-unknown-linux-gnu
-            target: aarch64-unknown-linux-gnu
+          - label: aarch64-unknown-linux-musl
+            target: aarch64-unknown-linux-musl
             os: ubuntu
             features: selfupdate
             rustflags: -C target-feature=+crt-static
