@@ -67,8 +67,14 @@ jobs:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
-    - name : Release build
-      run: RUSTFLAGS='${{matrix.rustflags}}' cargo build --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+    - name: Release build
+      uses: action-rs/cargo@v1
+      with:
+        command: build
+        use-cross: ${{ matrix.os == 'ubuntu' }}
+        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+      env:
+        RUSTFLAGS: ${{matrix.rustflags}}
     - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.label}}
