@@ -29,30 +29,37 @@ jobs:
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsstore
+            rustflags: 
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
             features: selfupdate
+            rustflags: 
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
+            rustflags: 
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
             features: selfupdate
+            rustflags: 
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
@@ -60,12 +67,8 @@ jobs:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
-    - name: Release build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+    - name : Release build
+      run: RUSTFLAGS='${{matrix.rustflags}}' cargo build --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.label}}
