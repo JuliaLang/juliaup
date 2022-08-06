@@ -42,21 +42,45 @@ where
     Ok(())
 }
 
+fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
+    trace!("identifying proxy for url: {url}");
+    use log::trace;
+    let proxy_url = env_proxy::for_url_str(url).to_string();
+    trace!("identified proxy: {:?}", proxy_url);
+
+    // Option<Result<...>> is returned to handle both cases:
+    //      1. No proxy URL is specified => None
+    //      2. An invalid proxy URL is specified => Err(...)
+    proxy_url.map(|url| {
+        ureq::Proxy::new(&url)
+            .with_context(|| format!("Could not create proxy from proxy url: {url}"))
+    })
+}
+
 #[cfg(not(any(windows, macos)))]
-pub fn get_ureq_agent() -> Result<ureq::Agent> {
-    let agent = ureq::AgentBuilder::new().build();
+pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
+    let agent = match get_proxy(url) {
+        Some(proxy) => ureq::AgentBuilder::new().proxy(proxy?).build(),
+        None => ureq::AgentBuilder::new().build(),
+    };
 
     Ok(agent)
 }
 
 #[cfg(macos)]
-pub fn get_ureq_agent() -> Result<ureq::Agent> {
-    use std::sync::Arc;
+pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     use native_tls::TlsConnector;
+    use std::sync::Arc;
 
-    let agent = ureq::AgentBuilder::new()
-        .tls_connector(Arc::new(TlsConnector::new()?))
-        .build();
+    let agent = match get_proxy(url) {
+        Some(proxy) => ureq::AgentBuilder::new()
+            .tls_connector(Arc::new(TlsConnector::new()?))
+            .proxy(proxy?)
+            .build(),
+        None => ureq::AgentBuilder::new()
+            .tls_connector(Arc::new(TlsConnector::new()?))
+            .build(),
+    };
 
     Ok(agent)
 }
@@ -64,7 +88,7 @@ pub fn get_ureq_agent() -> Result<ureq::Agent> {
 
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let agent = get_ureq_agent()
+    let agent = get_ureq_agent(url)
         .with_context(|| format!("Failed to construct download agent."))?;
     
     let response = agent.get(url)
@@ -168,7 +192,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = get_ureq_agent()
+    let agent = get_ureq_agent(url)
         .with_context(|| format!("Failed to construct download agent."))?;
     
     let response = agent.get(url)
