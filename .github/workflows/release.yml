@@ -20,7 +20,7 @@ jobs:
           x86_64-apple-darwin,
           x86_64-unknown-linux-musl,
           i686-pc-windows-msvc-windowsstore,
-          i686-unknown-linux-musl, 
+          # i686-unknown-linux-musl, 
           # aarch64-unknown-linux-musl,
           aarch64-apple-darwin
           ]
@@ -45,11 +45,11 @@ jobs:
             os: windows
             features: windowsstore
             rustflags: 
-          - label: i686-unknown-linux-musl
-            target: i686-unknown-linux-musl
-            os: ubuntu
-            features: selfupdate
-            rustflags: -C target-feature=+crt-static
+          # - label: i686-unknown-linux-musl
+          #   target: i686-unknown-linux-musl
+          #   os: ubuntu
+          #   features: selfupdate
+          #   rustflags: -C target-feature=+crt-static
           # - label: aarch64-unknown-linux-musl
           #   target: aarch64-unknown-linux-musl
           #   os: ubuntu
