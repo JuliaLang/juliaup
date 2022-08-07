@@ -73,3 +73,6 @@ dummy = []
 
 [package.metadata.msix]
 main = "deploy/msix/PackagingLayout.xml"
+
+[package.metadata.winappinstaller]
+main = "deploy/winappinstaller/Julia.appinstaller"

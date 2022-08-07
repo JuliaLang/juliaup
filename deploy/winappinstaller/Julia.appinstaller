@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppInstaller
+    xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2"
+    Version="{{Version}}.0"
+    Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia.appinstaller" >
+
+    <MainBundle
+        Name="JuliaApp"
+        Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+        Version="{{Version}}.0"
+        Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia-{{Version}}.0.appxbundle" />
+
+    <UpdateSettings>
+        <OnLaunch HoursBetweenUpdateChecks="0"/>   
+    </UpdateSettings>
+
+</AppInstaller>
