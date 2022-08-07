@@ -71,17 +71,12 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        use-cross: true
+        use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl_RUSTFLAGS: ${{matrix.rustflags}}
-      if: matrix.os == 'ubuntu'
-    - name: Release build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
-      if: matrix.os != 'ubuntu'
+        CARGO_TARGET_i686-unknown-linux-musl_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_aarch64-unknown-linux-musl_RUSTFLAGS: ${{matrix.rustflags}}
     - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.label}}
