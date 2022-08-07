@@ -61,9 +61,6 @@ jobs:
             features: selfupdate
             rustflags: 
     steps:
-    - name: Foo
-      run: sudo apt update && sudo apt install -y musl-tools
-      if: matrix.os == 'ubuntu'
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
@@ -74,10 +71,17 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        use-cross: true
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
-        RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_x86_64-unknown-linux-musl_RUSTFLAGS: ${{matrix.rustflags}}
+      if: matrix.os == 'ubuntu'
+    - name: Release build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+      if: matrix.os != 'ubuntu'
     - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.label}}
