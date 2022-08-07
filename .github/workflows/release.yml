@@ -50,11 +50,11 @@ jobs:
             os: ubuntu
             features: selfupdate
             rustflags: -C target-feature=+crt-static
-          - label: aarch64-unknown-linux-musl
-            target: aarch64-unknown-linux-musl
-            os: ubuntu
-            features: selfupdate
-            rustflags:
+          # - label: aarch64-unknown-linux-musl
+          #   target: aarch64-unknown-linux-musl
+          #   os: ubuntu
+          #   features: selfupdate
+          #   rustflags:
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
