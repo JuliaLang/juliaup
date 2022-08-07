@@ -74,7 +74,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        # use-cross: ${{ matrix.os == 'ubuntu' }}
+        use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         RUSTFLAGS: ${{matrix.rustflags}}
