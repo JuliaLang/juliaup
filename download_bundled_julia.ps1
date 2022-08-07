@@ -21,10 +21,3 @@ if (-Not (Test-Path "target\bundledjulia\downloads\julia-$($bundledVersionAsStri
     Remove-Item target\bundledjulia\extracted\x86\* -Force -Recurse
     tar -xvzf "target\bundledjulia\downloads\julia-$($bundledVersion)-win32.tar.gz" -C target\bundledjulia\extracted\x86 --strip-components=1
 }
-
-push-location deploy\msix
-&"C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\MakeAppx.exe" build /f PackagingLayout.xml /op ..\..\target\msix
-#  /pv $version /bv $version
-pop-location
-
-# Move-Item .\build\msix\*.appxbundle .\output -Force
