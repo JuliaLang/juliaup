@@ -62,7 +62,7 @@ jobs:
             rustflags: 
     steps:
     - name: Foo
-      run: apt update && apt install -y musl-tools
+      run: sudo apt update && sudo apt install -y musl-tools
       if: matrix.os == 'ubuntu'
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
