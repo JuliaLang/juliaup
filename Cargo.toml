@@ -72,7 +72,8 @@ windowsstore = []
 dummy = []
 
 [package.metadata.msix]
-main = "deploy/msix/PackagingLayout.xml"
+winstore = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="false"}, {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}] }
+winappinstaller = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="true"}, {name = "IdentityPublisher", value = "CN=David Anthoff, O=David Anthoff, S=California, C=US"}] }
 
 [package.metadata.winappinstaller]
-main = "deploy/winappinstaller/Julia.appinstaller"
+winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
