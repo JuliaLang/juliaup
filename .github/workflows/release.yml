@@ -354,7 +354,7 @@ jobs:
       run: |
         Get-ChildItem target/msix/winappinstaller | ForEach-Object {
           $msixPath = $_.FullName
-          & AzureSignTool sign -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultName }} -tr http://timestamp.digicert.com -v $msixPath
+          & azuresigntool sign -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultName }} -tr http://timestamp.digicert.com -v $msixPath
         }
       shell: pwsh
     - name: Rename and move juliainstaller
