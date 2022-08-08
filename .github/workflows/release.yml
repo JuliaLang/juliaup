@@ -112,21 +112,12 @@ jobs:
         command: test
         args: --target ${{matrix.target}} --features ${{matrix.features}}
   
-  build-tarballs:
-    needs: [build-juliaup]
+  package-mac-linux:
+    needs: [build-juliaup,test-juliaup]
+    environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - name: Download Windows x86 juliaup artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: juliaup-i686-pc-windows-msvc-windowsstore
-        path: target/i686-pc-windows-msvc-windowsstore
-    - name: Download Windows x64 juliaup artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: juliaup-x86_64-pc-windows-msvc-windowsstore
-        path: target/x86_64-pc-windows-msvc-windowsstore
     - name: Download Linux x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
@@ -152,6 +143,31 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
+    - name: Download installer artifacts for x86_64-apple-darwin
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-x86_64-apple-darwin
+        path: target/installer/x86_64-apple-darwin
+    - name: Download installer artifacts for x86_64-unknown-linux-gnu
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-x86_64-unknown-linux-gnu
+        path: target/installer/x86_64-unknown-linux-gnu
+    - name: Download installer artifacts for i686-unknown-linux-gnu
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-i686-unknown-linux-gnu
+        path: target/installer/i686-unknown-linux-gnu
+    - name: Download installer artifacts for aarch64-unknown-linux-gnu
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-aarch64-unknown-linux-gnu
+        path: target/installer/aarch64-unknown-linux-gnu
+    - name: Download installer artifacts for aarch64-apple-darwin
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-aarch64-apple-darwin
+        path: target/installer/aarch64-apple-darwin
     - name: Set permissions
       run: |
         chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
@@ -175,12 +191,6 @@ jobs:
         mkdir public
         mkdir public/bin
 
-        cd target/i686-pc-windows-msvc-windowsstore
-        zip ../../public/bin/juliaup-${{ env.VERSION }}-i686-pc-windows-msvc-windowsstore.zip ./*
-
-        cd ../../target/x86_64-pc-windows-msvc-windowsstore
-        zip ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-pc-windows-msvc-windowsstore.zip ./*
-
         cd ../../target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
         
@@ -195,15 +205,28 @@ jobs:
 
         cd ../../target/aarch64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz .
-    - uses: actions/upload-artifact@v3
+    - name: Rename and move juliainstaller
+      run: |
+        mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
+        mv target/installer/x86_64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-gnu
+        mv target/installer/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
+        mv target/installer/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
+        mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
+    - name: Upload to S3
+      uses: jakejarvis/s3-sync-action@master
       with:
-        name: juliaup-tarballs
-        path: public/bin/*
+        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'public'
 
-  build-msix:
-    needs: build-juliaup
+  package-windows:
+    needs: [build-juliaup,test-juliaup]
     runs-on: windows-latest
     environment: dev-channel
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
     - uses: actions/checkout@v3
     - name: Install AzureSignTool
@@ -217,6 +240,8 @@ jobs:
       with:
         command: install
         args: cargo-msix
+    - name: Install StoreBroker
+      run: Install-Module -Name StoreBroker -Force
     - name: Download and extract bundled Julia versions
       run: |      
         $versions = Get-Content versions.json | ConvertFrom-Json
@@ -254,38 +279,31 @@ jobs:
           & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultName }} -tr http://timestamp.digicert.com -v $msixPath
         }
       shell: pwsh
-    - uses: actions/upload-artifact@v3
-      with:
-        name: winstoremsix
-        path: target\msix\winstoremsix\*.appxbundle
-    - uses: actions/upload-artifact@v3
-      with:
-        name: winappinstallermsix
-        path: target\msix\winappinstallermsix\*.*
-    - uses: actions/upload-artifact@v3
-      with:
-        name: winappinstaller
-        path: target\msix\winappinstaller\Julia.appinstaller
-
-  build-storepayload:
-    needs: [build-msix]
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install StoreBroker
-      run: |
-        Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v3
-      with:
-        name: winstoremsix
-    - name: Package
+    - name: Package Windows Store payload
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
-        New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "images") -AppxPath *.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
+        New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "images") -AppxPath target\msix\winstoremsix\*.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
+    - name: Rename and move juliainstaller
+      run: |
+        md public/winappinstaller
+        mv target/msix/winappinstaller/* public/winappinstaller/*
+    - name: Upload to S3
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'public'
     - uses: actions/upload-artifact@v3
       with:
         name: storepackage
         path: storepackage\*.*
+    - uses: actions/upload-artifact@v3
+      with:
+        name: winappinstaller
+        path: target\msix\winappinstaller\Julia.appinstaller
 
   deploy-github-release-binaries:
     needs: [test-juliaup]
@@ -298,76 +316,8 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
 
-  deploy-s3-release-binaries:
-    needs: [build-tarballs,test-juliaup,build-msix]
-    runs-on: ubuntu-latest
-    environment: dev-channel
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-    - name: Export version
-      run: |
-        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-      env:
-          GH_REF: ${{ github.ref }}
-    - name: Download tarball artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: juliaup-tarballs
-        path: public/bin
-    - name: Download installer artifacts for x86_64-apple-darwin
-      uses: actions/download-artifact@v3
-      with:
-        name: juliainstaller-x86_64-apple-darwin
-        path: target/x86_64-apple-darwin
-    - name: Download installer artifacts for x86_64-unknown-linux-gnu
-      uses: actions/download-artifact@v3
-      with:
-        name: juliainstaller-x86_64-unknown-linux-gnu
-        path: target/x86_64-unknown-linux-gnu
-    - name: Download installer artifacts for i686-unknown-linux-gnu
-      uses: actions/download-artifact@v3
-      with:
-        name: juliainstaller-i686-unknown-linux-gnu
-        path: target/i686-unknown-linux-gnu
-    - name: Download installer artifacts for aarch64-unknown-linux-gnu
-      uses: actions/download-artifact@v3
-      with:
-        name: juliainstaller-aarch64-unknown-linux-gnu
-        path: target/aarch64-unknown-linux-gnu
-    - name: Download installer artifacts for aarch64-apple-darwin
-      uses: actions/download-artifact@v3
-      with:
-        name: juliainstaller-aarch64-apple-darwin
-        path: target/aarch64-apple-darwin
-    - name: Download Windows App Installer files
-      uses: actions/download-artifact@v3
-      with:
-        name: winappinstallermsix
-        path: target/msix/winappinstaller    
-    - name: Rename and move juliainstaller
-      run: |
-        ls target
-        ls target/x86_64-apple-darwin
-        mv target/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
-        mv target/x86_64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-gnu
-        mv target/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
-        mv target/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
-        mv target/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
-        mkdir public/winappinstaller
-        mv target/msix/winappinstaller/* public/winappinstaller/*
-    - name: Upload to S3
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'public'
-
   deploy-dev-channel-winstore:
-    needs: [build-storepayload,test-juliaup]
+    needs: [package-windows]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -389,7 +339,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [build-storepayload,test-juliaup]
+    needs: [package-windows]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -411,7 +361,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [build-storepayload,test-juliaup]
+    needs: [package-windows]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -433,7 +383,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [build-juliaup,test-juliaup]
+    needs: [package-mac-linux]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -446,7 +396,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [build-juliaup,test-juliaup]
+    needs: [package-mac-linux]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -484,7 +434,7 @@ jobs:
           GH_REF: ${{ github.ref }}
 
   deploy-dev-channel-s3:
-    needs: [deploy-s3-release-binaries,test-juliaup,build-msix]
+    needs: [package-mac-linux,package-windows]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -534,7 +484,7 @@ jobs:
 
 
   deploy-releasepreview-channel-s3:
-    needs: [deploy-s3-release-binaries,test-juliaup]
+    needs: [package-mac-linux,package-windows]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -580,7 +530,7 @@ jobs:
 
 
   deploy-release-channel-s3:
-    needs: [deploy-s3-release-binaries,test-juliaup]
+    needs: [package-mac-linux,package-windows]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
