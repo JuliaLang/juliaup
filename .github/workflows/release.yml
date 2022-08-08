@@ -251,7 +251,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: winstoremsix
-        path: target\msix\winstore\*.appxbundle
+        path: target\msix\winstoremsix\*.appxbundle
     - uses: actions/upload-artifact@v3
       with:
         name: winappinstallermsix
