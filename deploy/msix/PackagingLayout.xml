@@ -1,6 +1,6 @@
 <!-- <PackagingLayout xmlns="http://schemas.microsoft.com/appx/makeappx/2017"> -->
 <PackagingLayout>
-  <PackageFamily Filename="Julia-{{Version}}.0.appxbundle" FlatBundle="true" ManifestPath="appxmanifest.xml">
+  <PackageFamily Filename="Julia-{{Version}}.0.appxbundle" FlatBundle="{{FlatBundle}}" ManifestPath="appxmanifest.xml">
     <Package Filename="Julia-x64-{{Version}}.0.appx" ProcessorArchitecture="x64">
       <Files>
         <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="x86_64-pc-windows-msvc" />
