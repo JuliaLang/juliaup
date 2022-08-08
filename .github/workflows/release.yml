@@ -247,11 +247,15 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: msix
-        args: --store-publisher CN=7FB784C5-4411-4067-914E-A7B06CC00FFC --store-name JuliaComputingInc.Julia --release
+        args: --release
     - uses: actions/upload-artifact@v3
       with:
-        name: msixinstaller
-        path: target\msix\*.appxbundle
+        name: winstoremsix
+        path: target\msix\winstore\*.appxbundle
+    - uses: actions/upload-artifact@v3
+      with:
+        name: winappinstallermsix
+        path: target\msix\winappinstaller\*.*
 
   build-storepayload:
     needs: [build-msix]
@@ -263,7 +267,7 @@ jobs:
         Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v3
       with:
-        name: msixinstaller
+        name: winstoremsix
     - name: Package
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
