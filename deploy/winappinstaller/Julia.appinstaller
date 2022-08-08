@@ -5,7 +5,7 @@
     Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia.appinstaller" >
 
     <MainBundle
-        Name="JuliaApp"
+        Name="DavidAnthoff.Julia"
         Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
         Version="{{Version}}.0"
         Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia-{{Version}}.0.appxbundle" />
