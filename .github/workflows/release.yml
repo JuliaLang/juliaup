@@ -288,19 +288,13 @@ jobs:
         path: storepackage\*.*
 
   deploy-github-release-binaries:
-    needs: [build-tarballs,test-juliaup]
+    needs: [test-juliaup]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - name: Download tarball artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: juliaup-tarballs
-        path: public/bin
     - name: Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "public/bin/*.zip,public/bin/*.tar.gz"
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
 
