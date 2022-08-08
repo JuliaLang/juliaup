@@ -255,7 +255,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: winappinstallermsix
-        path: target\msix\winappinstaller\*.*
+        path: target\msix\winappinstallermsix\*.*
 
   build-storepayload:
     needs: [build-msix]
@@ -336,6 +336,11 @@ jobs:
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
+    - name: Download Windows App Installer files
+      uses: actions/download-artifact@v3
+      with:
+        name: winappinstallermsix
+        path: target/msix/winappinstaller
     - name: Rename and move juliainstaller
       run: |
         ls target
@@ -345,6 +350,8 @@ jobs:
         mv target/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
         mv target/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
         mv target/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
+        mkdir public/winappinstaller
+        mv target/msix/winappinstaller/* public/winappinstaller/*
     - name: Upload to S3
       uses: jakejarvis/s3-sync-action@master
       with:

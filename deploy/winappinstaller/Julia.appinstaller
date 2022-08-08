@@ -2,13 +2,13 @@
 <AppInstaller
     xmlns="http://schemas.microsoft.com/appx/appinstaller/2017/2"
     Version="{{Version}}.0"
-    Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia.appinstaller" >
+    Uri="https://install.julialang.org/Julia.appinstaller" >
 
     <MainBundle
         Name="DavidAnthoff.Julia"
         Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
         Version="{{Version}}.0"
-        Uri="https://winjulia.s3.us-west-1.amazonaws.com/Julia-{{Version}}.0.appxbundle" />
+        Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
 
     <UpdateSettings>
         <OnLaunch HoursBetweenUpdateChecks="0"/>   
