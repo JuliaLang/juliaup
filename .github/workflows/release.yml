@@ -207,8 +207,11 @@ jobs:
   build-msix:
     needs: build-juliaup
     runs-on: windows-latest
+    environment: dev-channel
     steps:
     - uses: actions/checkout@v3
+    - name: Install AzureSignTool
+      run: dotnet tool install --global AzureSignTool
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -248,6 +251,13 @@ jobs:
       with:
         command: msix
         args: --release
+    - name: Sign msix files
+      run: |
+        Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
+          $msixPath = $_.FullName
+          & azuresigntool sign -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultName }} -tr http://timestamp.digicert.com -v $msixPath
+        }
+      shell: pwsh
     - uses: actions/upload-artifact@v3
       with:
         name: winstoremsix
@@ -304,11 +314,6 @@ jobs:
     environment: dev-channel
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: '6.0.x'
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -349,14 +354,7 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: winappinstallermsix
-        path: target/msix/winappinstaller
-    - name: Sign msix files
-      run: |
-        Get-ChildItem target/msix/winappinstaller | ForEach-Object {
-          $msixPath = $_.FullName
-          & azuresigntool sign -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultName }} -tr http://timestamp.digicert.com -v $msixPath
-        }
-      shell: pwsh
+        path: target/msix/winappinstaller    
     - name: Rename and move juliainstaller
       run: |
         ls target
