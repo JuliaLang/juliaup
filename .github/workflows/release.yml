@@ -256,6 +256,10 @@ jobs:
       with:
         name: winappinstallermsix
         path: target\msix\winappinstallermsix\*.*
+    - uses: actions/upload-artifact@v3
+      with:
+        name: winappinstaller
+        path: target\msix\winappinstaller\Julia.appinstaller
 
   build-storepayload:
     needs: [build-msix]
@@ -492,7 +496,7 @@ jobs:
           GH_REF: ${{ github.ref }}
 
   deploy-dev-channel-s3:
-    needs: [deploy-s3-release-binaries,test-juliaup]
+    needs: [deploy-s3-release-binaries,test-juliaup,build-msix]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -510,6 +514,10 @@ jobs:
           echo "$VERSION" > public/DEVCHANNELVERSION          
         env:
           GH_REF: ${{ github.ref }}
+      - uses: actions/download-artifact@v3
+        with:
+          name: winappinstaller
+          path: publicscript
       - name: Copy shell script
         run: |
           cp deploy/shellscript/juliaup-init.sh publicscript/dev/install.sh
