@@ -10,6 +10,33 @@
         Version="{{Version}}.0"
         Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
 
+    <Dependencies>
+        <Package 
+            Name="Microsoft.VCLibs.140.00" 
+            Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
+            Version="14.0.30704.0"
+            ProcessorArchitecture="x86"
+            Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.x86.14.00.Desktop.appx" />
+        <Package 
+            Name="Microsoft.VCLibs.140.00" 
+            Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
+            Version="14.0.30704.0" 
+            ProcessorArchitecture="x64" 
+            Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.x64.14.00.Desktop.appx" />
+        <Package 
+            Name="Microsoft.VCLibs.140.00" 
+            Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
+            Version="14.0.30704.0" 
+            ProcessorArchitecture="arm64" 
+            Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.arm64.14.00.Desktop.appx" />
+        <Package 
+            Name="Microsoft.VCLibs.140.00" 
+            Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
+            Version="14.0.30704.0" 
+            ProcessorArchitecture="arm" 
+            Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.arm.14.00.Desktop.appx" />
+    </Dependencies>
+
     <UpdateSettings>
         <OnLaunch HoursBetweenUpdateChecks="0"/>   
     </UpdateSettings>
