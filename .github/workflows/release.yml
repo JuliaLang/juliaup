@@ -191,7 +191,7 @@ jobs:
         mkdir public
         mkdir public/bin
 
-        cd ../../target/x86_64-unknown-linux-gnu
+        cd target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
         
         cd ../../target/i686-unknown-linux-gnu
@@ -205,6 +205,8 @@ jobs:
 
         cd ../../target/aarch64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz .
+
+        cd ../..
     - name: Rename and move juliainstaller
       run: |
         mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
@@ -317,7 +319,7 @@ jobs:
         prerelease: true
 
   deploy-dev-channel-winstore:
-    needs: [package-windows]
+    needs: [package-mac-linux,package-windows]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -339,7 +341,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [package-windows]
+    needs: [package-mac-linux,package-windows]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -361,7 +363,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [package-windows]
+    needs: [package-mac-linux,package-windows]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -383,7 +385,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [package-mac-linux]
+    needs: [package-mac-linux,package-windows]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -396,7 +398,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [package-mac-linux]
+    needs: [package-mac-linux,package-windows]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -482,7 +484,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'publicscript'
 
-
   deploy-releasepreview-channel-s3:
     needs: [package-mac-linux,package-windows]
     environment: release-preview-channel
@@ -527,7 +528,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'publicscript'
-
 
   deploy-release-channel-s3:
     needs: [package-mac-linux,package-windows]
@@ -575,7 +575,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [deploy-github-release-binaries]
+    needs: [deploy-github-release-binaries,package-mac-linux,package-windows]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
