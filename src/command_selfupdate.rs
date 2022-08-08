@@ -95,7 +95,7 @@ pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Resu
     if updates.Size().with_context(|| "Call to Size on update results failed.")? > 0 {
         println!("An update is available.");
 
-        let download_operation = update_manager.RequestDownloadAndInstallStorePackageUpdatesAsync(updates)
+        let download_operation = update_manager.RequestDownloadAndInstallStorePackageUpdatesAsync(&updates)
             .with_context(|| "Call to RequestDownloadAndInstallStorePackageUpdatesAsync failed.")?;
 
         download_operation.get()

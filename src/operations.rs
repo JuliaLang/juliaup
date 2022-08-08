@@ -162,7 +162,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
         .get()
         .with_context(|| "Failed to obtain input stream from http response")?;
 
-    let reader = windows::Storage::Streams::DataReader::CreateDataReader(response_stream)
+    let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
         .with_context(|| "Failed to create DataReader.")?;
 
     reader.SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
@@ -219,7 +219,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let response = http_client.GetStringAsync(request_uri)
+    let response = http_client.GetStringAsync(&request_uri)
         .with_context(|| "")?
         .get()
         .with_context(|| "")?
