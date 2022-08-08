@@ -5,7 +5,7 @@
     Uri="https://install.julialang.org/Julia.appinstaller" >
 
     <MainBundle
-        Name="DavidAnthoff.Julia"
+        Name="JuliaComputingInc.Julia"
         Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
         Version="{{Version}}.0"
         Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
