@@ -12,25 +12,25 @@
 
     <Dependencies>
         <Package 
-            Name="Microsoft.VCLibs.140.00" 
+            Name="Microsoft.VCLibs.140.00.UWPDesktop" 
             Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
             Version="14.0.30704.0"
             ProcessorArchitecture="x86"
             Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.x86.14.00.Desktop.appx" />
         <Package 
-            Name="Microsoft.VCLibs.140.00" 
+            Name="Microsoft.VCLibs.140.00.UWPDesktop" 
             Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
             Version="14.0.30704.0" 
             ProcessorArchitecture="x64" 
             Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.x64.14.00.Desktop.appx" />
         <Package 
-            Name="Microsoft.VCLibs.140.00" 
+            Name="Microsoft.VCLibs.140.00.UWPDesktop" 
             Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
             Version="14.0.30704.0" 
             ProcessorArchitecture="arm64" 
             Uri="https://julialang-s3.julialang.org/juliaup/microsoftvclibs/Microsoft.VCLibs.arm64.14.00.Desktop.appx" />
         <Package 
-            Name="Microsoft.VCLibs.140.00" 
+            Name="Microsoft.VCLibs.140.00.UWPDesktop" 
             Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" 
             Version="14.0.30704.0" 
             ProcessorArchitecture="arm" 
