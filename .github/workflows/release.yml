@@ -293,7 +293,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: msix
-        args: --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
+        args: --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
     - name: Build MSIX App Installer
       uses: actions-rs/cargo@v1
       with:
