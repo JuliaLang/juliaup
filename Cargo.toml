@@ -69,6 +69,7 @@ predicates = "2.1"
 [features]
 selfupdate = []
 windowsstore = []
+windowsappinstaller = []
 dummy = []
 
 [package.metadata.msix]

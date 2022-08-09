@@ -1,4 +1,4 @@
-#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+#[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
@@ -105,5 +105,11 @@ pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Resu
         println!("No updates available.");
     }
 
+    Ok(())
+}
+
+#[cfg(feature = "windowsappinstaller")]
+pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
+    println!("Not yet implemented.");
     Ok(())
 }

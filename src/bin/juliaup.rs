@@ -21,7 +21,7 @@ use juliaup::{
     command_config_startupselfupdate::run_command_config_startupselfupdate,
     command_config_modifypath::run_command_config_modifypath,
 };
-#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+#[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
 use juliaup::command_selfupdate::run_command_selfupdate;
 use log::info;
 
@@ -74,7 +74,7 @@ enum Juliaup {
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", hide = true)]
     InitialSetupFromLauncher {
     },
-    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     // This is used for the cron jobs that we create. By using this UUID for the command
@@ -84,11 +84,11 @@ enum Juliaup {
     SecretSelfUpdate {},
 }
 
-#[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+#[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
 #[derive(Parser)]
 /// Manage this juliaup installation
 enum SelfSubCmd {
-    #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+    #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
     /// Update juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
@@ -173,9 +173,9 @@ fn main() -> Result<()> {
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
-        #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+        #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
-            #[cfg(any(feature = "selfupdate", feature = "windowsstore"))]
+            #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
             SelfSubCmd::Update {} => run_command_selfupdate(&paths),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel, &paths),

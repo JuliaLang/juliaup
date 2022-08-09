@@ -13,9 +13,11 @@ jobs:
       matrix:
         label: [
           x86_64-pc-windows-msvc-windowsstore,
+          x86_64-pc-windows-msvc-windowsappinstaller,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           i686-pc-windows-msvc-windowsstore,
+          i686-pc-windows-msvc-windowsappinstaller,
           i686-unknown-linux-gnu, 
           aarch64-unknown-linux-gnu,
           aarch64-apple-darwin
@@ -25,6 +27,10 @@ jobs:
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsstore
+          - label: x86_64-pc-windows-msvc-windowsappinstaller
+            target: x86_64-pc-windows-msvc
+            os: windows
+            features: windowsappinstaller
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
@@ -37,6 +43,10 @@ jobs:
             target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
+          - label: i686-pc-windows-msvc-windowsappinstaller
+            target: i686-pc-windows-msvc
+            os: windows
+            features: windowsappinstaller
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
