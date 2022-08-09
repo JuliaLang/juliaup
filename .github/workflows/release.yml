@@ -269,21 +269,36 @@ jobs:
 
         Invoke-WebRequest "https://julialang-s3.julialang.org/bin/winnt/x86/$($bundledVersion.Major).$($bundledVersion.Minor)/julia-$($bundledVersionAsString)-win32.tar.gz" -OutFile "target\bundledjulia\downloads\julia-$($bundledVersionAsString)-win32.tar.gz"
         tar -xvzf "target\bundledjulia\downloads\julia-$($bundledVersion)-win32.tar.gz" -C target\bundledjulia\extracted\x86 --strip-components=1
-    - name: Download x86 juliaup artifact
+    - name: Download x86 Juliaup Windows Store artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-pc-windows-msvc-windowsstore
-        path: target\i686-pc-windows-msvc\release
-    - name: Download x64 juliaup artifact
+        path: target\windowsstore\i686-pc-windows-msvc\release
+    - name: Download x64 Juliaup Windows Store artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsstore
-        path: target\x86_64-pc-windows-msvc\release        
-    - name: Build MSIX
+        path: target\windowsstore\x86_64-pc-windows-msvc\release
+    - name: Download x86 Juliaup Windows AppInstaller artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-pc-windows-msvc-winappinstaller
+        path: target\winappinstaller\i686-pc-windows-msvc\release
+    - name: Download x64 Juliaup Windows AppInstaller artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-pc-windows-msvc-winappinstaller
+        path: target\winappinstaller\x86_64-pc-windows-msvc\release
+    - name: Build MSIX Windows Store
       uses: actions-rs/cargo@v1
       with:
         command: msix
-        args: --release
+        args: --release --bundle-name winstoremsix --source-build-output-path (Join-Path $env:GITHUB_WORKSPACE "target" "windowsstore")
+    - name: Build MSIX Windows Store
+      uses: actions-rs/cargo@v1
+      with:
+        command: msix
+        args: --release --bundle-name winappinstaller --source-build-output-path (Join-Path $env:GITHUB_WORKSPACE "target" "winappinstaller")        
     - name: Sign msix files
       run: |
         Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
