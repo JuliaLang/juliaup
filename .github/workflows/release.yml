@@ -282,12 +282,12 @@ jobs:
     - name: Download x86 Juliaup Windows AppInstaller artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-i686-pc-windows-msvc-winappinstaller
+        name: juliaup-i686-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\i686-pc-windows-msvc\release
     - name: Download x64 Juliaup Windows AppInstaller artifact
       uses: actions/download-artifact@v3
       with:
-        name: juliaup-x86_64-pc-windows-msvc-winappinstaller
+        name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: Build MSIX Windows Store
       uses: actions-rs/cargo@v1
