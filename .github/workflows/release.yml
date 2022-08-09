@@ -293,12 +293,12 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: msix
-        args: --release --bundle-name winstoremsix --source-build-output-path {{ format('{0}/target/windowsstore', env.GITHUB_WORKSPACE) }}
+        args: --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', env.GITHUB_WORKSPACE) }}
     - name: Build MSIX App Installer
       uses: actions-rs/cargo@v1
       with:
         command: msix
-        args: --release --bundle-name winappinstaller --source-build-output-path {{ format('{0}/target/winappinstaller', env.GITHUB_WORKSPACE) }}
+        args: --release --bundle-name winappinstaller --source-build-output-path ${{ format('{0}/target/winappinstaller', env.GITHUB_WORKSPACE) }}
     - name: Sign msix files
       run: |
         Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
