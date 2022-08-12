@@ -58,6 +58,7 @@ zypper install juliaup
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
 Here are some of the things you can do with `juliaup`:
+- `juliaup list` lists all the available channels.
 - `juliaup update` installs the latest availabe Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
 - `juliaup status` shows you which Julia versions you have installed and which one is configured as the default.
