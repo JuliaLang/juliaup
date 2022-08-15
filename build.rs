@@ -10,6 +10,7 @@ mod jsonstructs_versionsdb;
 use anyhow::Result;
 use itertools::Itertools;
 use jsonstructs_versionsdb::{JuliaupVersionDB, JuliaupVersionDBChannel, JuliaupVersionDBVersion};
+use semver::Prerelease;
 use semver::Version;
 use std::collections::HashMap;
 use std::env;
@@ -340,12 +341,21 @@ fn add_channels(
                 },
             );
         } else if target_os == "macos" {
-            db.available_channels.insert(
-                format!("{}", name),
-                JuliaupVersionDBChannel {
-                    version: format!("{}+0~x64", v),
-                },
-            );
+            if v >= &&(Version { major: 1, minor: 8, patch: 0, pre: Prerelease::new("rc3").unwrap(), build: semver::BuildMetadata::EMPTY}) {
+                db.available_channels.insert(
+                    format!("{}", name),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~aarch64", v),
+                    },
+                );
+            } else {
+                db.available_channels.insert(
+                    format!("{}", name),
+                    JuliaupVersionDBChannel {
+                        version: format!("{}+0~x64", v),
+                    },
+                );
+            }
             db.available_channels.insert(
                 format!("{}~x64", name),
                 JuliaupVersionDBChannel {
