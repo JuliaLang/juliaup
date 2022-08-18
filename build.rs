@@ -615,7 +615,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "release".to_string(),
                 JuliaupVersionDBChannel {
-                    version: format!("{}+0.x64", release_version),
+                    version: format!("{}+0.aarch64", release_version),
                 },
             );
             db.available_channels.insert(
@@ -627,8 +627,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
             db.available_channels.insert(
                 "release~aarch64".to_string(),
                 JuliaupVersionDBChannel {
-                    // version: format!("{}+0.aarch64", release_version),
-                    version: format!("{}+0.aarch64", Version::new(1,7,2)), // TODO Remove this and go back to the previous line once we have a new aarch64 build again
+                    version: format!("{}+0.aarch64", release_version),
                 },
             );
 
