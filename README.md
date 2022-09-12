@@ -23,29 +23,29 @@ on a command line.
 
 ### Mac and Linux
 
-A prerelease version of the installer can be installed on Linux or Mac by executing
+Juliaup can be installed on Linux or Mac by executing
 
 ```
 curl -fsSL https://install.julialang.org | sh
 ```
 
-in a shell.
+in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
-Alternatively, [Homebrew](https://brew.sh) users can run
+#### Software Repositories
+
+**Important note:** As of now, we strongly recommend to install Juliaup via the `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future).
+
+##### [Homebrew](https://brew.sh)
 
 ```
 brew install juliaup
 ```
 
-in a shell.
-
-Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
-
-### Arch Linux
+##### [Arch Linux - AUR](https://aur.archlinux.org/packages/juliaup/)
 
 On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
 
-### openSUSE Tumbleweed
+##### [openSUSE Tumbleweed](https://get.opensuse.org/tumbleweed/)
 
 On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileges:
 
