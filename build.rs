@@ -23,8 +23,8 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     let mut original_available_versions: Vec<Version> = Vec::new();
 
     let lts_version = Version::parse("1.6.7")?;
-    let beta_version = Version::parse("1.8.1")?;
-    let rc_version = Version::parse("1.8.1")?;
+    let beta_version = Version::parse("1.8.2")?;
+    let rc_version = Version::parse("1.8.2")?;
 
     original_available_versions.push(Version::parse("0.7.0")?);
     original_available_versions.push(Version::parse("1.0.0")?);
@@ -72,6 +72,7 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     original_available_versions.push(Version::parse("1.8.0-rc4")?);
     original_available_versions.push(Version::parse("1.8.0")?);
     original_available_versions.push(Version::parse("1.8.1")?);
+    original_available_versions.push(Version::parse("1.8.2")?);
 
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH")?;
     let target_os = std::env::var("CARGO_CFG_TARGET_OS")?;
