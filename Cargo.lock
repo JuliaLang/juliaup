@@ -1365,6 +1365,8 @@ dependencies = [
  "native-tls",
  "once_cell",
  "rustls",
+ "serde",
+ "serde_json",
  "url",
  "webpki",
  "webpki-roots",
