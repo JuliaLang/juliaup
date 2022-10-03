@@ -156,7 +156,7 @@ pub fn load_versions_db() -> Result<JuliaupVersionDB> {
     let lts_version = Version::parse("1.6.7")?;
 
     let mut original_available_versions: Vec<Version> = Vec::new();
-    let up_server_json_url = get_juliaserver_base_url()?.join("/bin/versions.json");
+    let up_server_json_url = get_juliaserver_base_url()?.join("./bin/versions.json");
     let json_versions: JsonVersion = ureq::get(up_server_json_url?.as_str())
         .call()?
         .into_json()?;
