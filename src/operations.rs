@@ -145,7 +145,25 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
-
+    let headers = http_client.DefaultRequestHeaders()?;
+    headers.TryAppendWithoutValidation(
+        &windows::core::HSTRING::from("Accept"),
+        &windows::core::HSTRING::from("text/html,application/xhtml+xml,application/xml"),
+    )?;
+    headers.TryAppendWithoutValidation(
+        &windows::core::HSTRING::from("Accept-Encoding"),
+        &windows::core::HSTRING::from("gzip, deflate"),
+    )?;
+    headers.TryAppendWithoutValidation(
+        &windows::core::HSTRING::from("User-Agent"),
+        &windows::core::HSTRING::from(
+            "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:19.0) Gecko/20100101 Firefox/19.0",
+        ),
+    )?;
+    headers.TryAppendWithoutValidation(
+        &windows::core::HSTRING::from("Accept-Charset"),
+        &windows::core::HSTRING::from("UTF-8"),
+    )?;
     let http_response = http_client.GetAsync(&request_uri)
         .with_context(|| "Failed to initiate download.")?
         .get()

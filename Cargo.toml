@@ -42,7 +42,7 @@ env_proxy = "0.4.1"
 ureq = { version = "2", features = ["json"] }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
+windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams", "Web_Http_Headers",] }
 
 [target.'cfg(macos)'.dependencies]
 ureq = { version = "2", features = ["native-tls"] }
