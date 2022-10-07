@@ -23,8 +23,8 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     let mut original_available_versions: Vec<Version> = Vec::new();
 
     let lts_version = Version::parse("1.6.7")?;
-    let beta_version = Version::parse("1.8.0")?;
-    let rc_version = Version::parse("1.8.0")?;
+    let beta_version = Version::parse("1.8.2")?;
+    let rc_version = Version::parse("1.8.2")?;
     let nightly_version = Version::parse("1.9.0-latest")?;
 
     original_available_versions.push(Version::parse("0.7.0")?);
@@ -72,6 +72,8 @@ fn produce_version_db() -> Result<JuliaupVersionDB> {
     original_available_versions.push(Version::parse("1.8.0-rc3")?);
     original_available_versions.push(Version::parse("1.8.0-rc4")?);
     original_available_versions.push(Version::parse("1.8.0")?);
+    original_available_versions.push(Version::parse("1.8.1")?);
+    original_available_versions.push(Version::parse("1.8.2")?);
 
     let mut db = JuliaupVersionDB {
         available_versions: HashMap::new(),
