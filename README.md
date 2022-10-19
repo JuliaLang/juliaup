@@ -59,7 +59,7 @@ Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there 
 
 Here are some of the things you can do with `juliaup`:
 - `juliaup list` lists all the available channels.
-- `juliaup update` installs the latest availabe Julia version for all your channels.
+- `juliaup update` installs the latest available Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
 - `juliaup status` shows you which Julia versions you have installed and which one is configured as the default.
 - `juliaup add 1.5.1` adds Julia 1.5.1 to your system (it can then be launched via the command `julia +1.5.1`).
