@@ -54,11 +54,7 @@ pub fn run_command_selfupdate(paths: &crate::global_paths::GlobalPaths) -> Resul
         let new_juliaup_url = juliaupserver_base.join(&download_url_path)
                 .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
 
-        let my_own_path = std::env::current_exe()
-            .with_context(|| "Could not determine the path of the running exe.")?;
-
-        let my_own_folder = my_own_path.parent()
-            .ok_or_else(|| anyhow!("Could not determine parent."))?;
+        let my_own_folder = paths.juliaupselfhome.join("bin");
 
         eprintln!("Found new version {} on channel {}.", version, juliaup_channel);
 

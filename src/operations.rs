@@ -248,10 +248,9 @@ pub fn install_version(
     // that we don't ship a bundled version for some platforms.
     let platform = get_arch()?;
     let full_version_string_of_bundled_version = format!("{}~{}", get_bundled_julia_full_version(), platform);
-    let my_own_path = std::env::current_exe()?;
-    let path_of_bundled_version = my_own_path
-        .parent()
-        .unwrap() // unwrap OK because we can't get a path that does not have a parent
+
+    let path_of_bundled_version = paths.juliaupselfhome
+        .join("bin")
         .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
