@@ -12,17 +12,17 @@ fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &di
 
     trace!("install_location pre inside the prompt function {:?}", install_choices.install_location);
 
-    let new_install_location = Input::with_theme(theme)
-        .with_prompt("Enter the folder where you want to install Juliaup")        
-        .validate_with(|input: &String| match input.parse::<PathBuf>() {
-                Ok(_) => Ok(()),
-                Err(_) => Err("Not a valid input".to_owned())
-        })
-        .with_initial_text(install_choices.install_location.to_string_lossy().clone())        
-        .interact_text()?;
+    // let new_install_location = Input::with_theme(theme)
+    //     .with_prompt("Enter the folder where you want to install Juliaup")        
+    //     .validate_with(|input: &String| match input.parse::<PathBuf>() {
+    //             Ok(_) => Ok(()),
+    //             Err(_) => Err("Not a valid input".to_owned())
+    //     })
+    //     .with_initial_text(install_choices.install_location.to_string_lossy().clone())        
+    //     .interact_text()?;
 
-    let new_install_location = shellexpand::tilde(&new_install_location)
-        .parse::<PathBuf>().unwrap();
+    // let new_install_location = shellexpand::tilde(&new_install_location)
+    //     .parse::<PathBuf>().unwrap();
 
     let new_modifypath = match Confirm::with_theme(theme)
         .with_prompt("Do you want to add the Julia binaries to your PATH by manipulating various shell startup scripts?")
@@ -64,7 +64,7 @@ fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &di
         .interact_text()?
         .parse::<i64>().unwrap();
 
-    install_choices.install_location = new_install_location;
+    // install_choices.install_location = new_install_location;
     install_choices.modifypath = new_modifypath;
     install_choices.symlinks = new_symlinks;
     install_choices.startupselfupdate = new_startupselfupdate;
@@ -152,10 +152,10 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
     use std::io::Seek;
-    use anyhow::{anyhow, Context};
+    use anyhow::{anyhow, bail, Context};
     use console::{Style, style};
     use dialoguer::{theme::ColorfulTheme, Confirm, Select};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::JuliaupSelfConfig, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -219,10 +219,23 @@ pub fn main() -> Result<()> {
         startupselfupdate: 1440,
         symlinks: false,
         modifypath: true,
-        install_location: dirs::home_dir()
-            .ok_or(anyhow!("Could not determine the path of the user home directory."))?
-            .join(".julia")
-            .join("juliaup"),
+        install_location: match std::env::var("JULIAUP_SELF_HOME") {
+            Ok(val) => {
+                let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
+
+                let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap());
+                if !path.is_absolute() { bail!("The `JULIAUP_SELF_HOME` environment variable contains a value that resolves to an an invalid path `{}`.", path.display()); };
+
+                path
+            }
+            Err(_) => {
+                dirs::home_dir()
+                    .ok_or(anyhow!("Could not determine the path of the user home directory."))?
+                    .join(".julia")
+                    .join("juliaup")
+            }
+        },
+
         modifypath_files: find_shell_scripts_to_be_modified(true)?,
     };
 
