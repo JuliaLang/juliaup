@@ -119,6 +119,10 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     println!("");
     println!("  {}", install_choices.install_location.join("bin").to_string_lossy());
     println!("");
+    println!("This can be modified with the JULIAUP_SELF_HOME environmental variable.");
+    println!("");
+    println!("Julia versions installed through juliaup will be installed in the default julia folder ~/.julia/juliaup,");
+    println!("or, if specified, in $JULIA_DEPOT_PATH/juliaup");
 
     if install_choices.modifypath {
         println!("This path will then be added to your {} environment variable by", style("PATH").bold());
