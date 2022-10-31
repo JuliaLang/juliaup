@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -16,13 +16,32 @@ pub enum JuliaupInvalidChannel {
 }
 
 fn get_juliaup_path() -> Result<PathBuf> {
-    let my_own_path = std::env::current_exe()
-    .with_context(|| "std::env::current_exe() did not find its own path.")?;
+    let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
 
-    let juliaup_path = my_own_path
-        .parent()
-        .unwrap() // unwrap OK here because this can't happen
-        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+    let juliaup_path = match std::env::var("JULIAUP_SELF_HOME") {
+        Ok(val) => {
+            let juliaup_path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()) ;
+
+            if !juliaup_path.is_absolute() {
+                bail!("The `JULIAUP_SELF_HOME` environment variable contains a value that resolves to an an invalid path `{}`.", juliaup_path.display());
+             };
+
+             juliaup_path
+             .join("bin")
+             .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX))
+        }
+        Err(_) => {
+            let my_own_path = std::env::current_exe()
+            .with_context(|| "std::env::current_exe() did not find its own path.")?;
+
+            let juliaup_path = my_own_path
+            .parent()
+            .unwrap() // unwrap OK here because this can't happen
+            .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+
+            juliaup_path
+        }
+    };
 
     Ok(juliaup_path)
 }
