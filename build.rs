@@ -28,9 +28,8 @@ fn main() -> Result<()> {
     let file =
         File::open(Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("versions.json"))?;
     let data: Value = serde_json::from_reader(file)?;
-    let bundled_version: String = data["JuliaAppPackage"]["BundledJuliaVersion"].to_string();
-    let bundled_full_version: String =
-        data["JuliaAppPackage"]["BundledJuliaSemVersion"].to_string();
+    let bundled_version = data["JuliaAppPackage"]["BundledJuliaVersion"].to_string();
+    let bundled_full_version = data["JuliaAppPackage"]["BundledJuliaSemVersion"].to_string();
     let bundled_version_path = Path::new(&out_path).join("bundled_version.rs");
     std::fs::write(
         &bundled_version_path,
