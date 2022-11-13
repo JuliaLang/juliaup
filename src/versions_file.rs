@@ -377,6 +377,15 @@ fn os_version_names(v: &Version, target_os: &str, target_arch: &str) -> Vec<(Str
                 ),
             ),
         ],
+        ("windows", "aarch64") => vec![
+            (
+                format!("{}+0.x64", v),
+                format!(
+                    "bin/winnt/x64/{}.{}/julia-{}-win64.tar.gz",
+                    v.major, v.minor, v
+                ),
+            ),
+        ],
         ("windows", "x86") => vec![(
             format!("{}+0.x86", v),
             format!(
