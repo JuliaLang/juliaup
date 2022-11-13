@@ -20,7 +20,7 @@ pub type JsonVersion = HashMap<String, JsonVersionValue>;
 #[derive(Serialize, Deserialize)]
 pub struct JsonVersionValue {
     #[serde(rename = "files")]
-    files: Vec<JFile>,
+    pub files: Vec<JFile>,
 
     #[serde(rename = "stable")]
     stable: bool,
@@ -29,7 +29,7 @@ pub struct JsonVersionValue {
 #[derive(Serialize, Deserialize)]
 pub struct JFile {
     #[serde(rename = "url")]
-    url: String,
+    pub url: String,
 
     #[serde(rename = "triplet")]
     triplet: Triplet,
