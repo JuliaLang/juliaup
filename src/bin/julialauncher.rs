@@ -1,13 +1,11 @@
 use anyhow::{anyhow, Context, Result};
+use console::Term;
+use ctrlc;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
-use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
-use ctrlc;
-use console::Term;
 
 #[derive(thiserror::Error, Debug)]
 pub enum JuliaupInvalidChannel {
@@ -17,7 +15,7 @@ pub enum JuliaupInvalidChannel {
 
 fn get_juliaup_path() -> Result<PathBuf> {
     let my_own_path = std::env::current_exe()
-    .with_context(|| "std::env::current_exe() did not find its own path.")?;
+        .with_context(|| "std::env::current_exe() did not find its own path.")?;
 
     let juliaup_path = my_own_path
         .parent()
@@ -29,8 +27,7 @@ fn get_juliaup_path() -> Result<PathBuf> {
 
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
-        let juliaup_path = get_juliaup_path()
-            .with_context(|| "Failed to obtain juliaup path.")?;
+        let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
         std::process::Command::new(juliaup_path)
             .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
@@ -49,14 +46,18 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
         let should_run = if let Some(last_selfupdate) = config_file.self_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
 
-            if Utc::now() >= update_time {true} else {false}
+            if Utc::now() >= update_time {
+                true
+            } else {
+                false
+            }
         } else {
             true
         };
 
         if should_run {
-            let juliaup_path = get_juliaup_path()
-                .with_context(|| "Failed to obtain juliaup path.")?;
+            let juliaup_path =
+                get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
             std::process::Command::new(juliaup_path)
                 .args(["self", "update"])
@@ -76,37 +77,7 @@ fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile
     Ok(())
 }
 
-fn check_channel_uptodate(
-    channel: &str,
-    current_version: &str,
-    versions_db: &JuliaupVersionDB,
-) -> Result<()> {
-    let latest_version = &versions_db
-        .available_channels
-        .get(channel)
-        .ok_or_else(|| {
-            anyhow!(
-                "The channel `{}` does not exist in the versions database.",
-                channel
-            )
-        })?
-        .version;
-
-    if latest_version != current_version {
-        eprintln!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
-        eprintln!();
-        eprintln!("  juliaup update");
-        eprintln!();
-        eprintln!(
-            "to install Julia {} and update the `{}` channel to that version.",
-            latest_version, channel
-        );
-    }
-    Ok(())
-}
-
 fn get_julia_path_from_channel(
-    versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
     channel: &str,
     juliaupconfig_path: &Path,
@@ -134,12 +105,6 @@ fn get_julia_path_from_channel(
                 .installed_versions.get(version)
                 .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
 
-            check_channel_uptodate(channel, version, versions_db).with_context(|| {
-                format!(
-                    "The Julia launcher failed while checking whether the channe {} is up-to-date.",
-                    channel
-                )
-            })?;
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
@@ -163,17 +128,13 @@ fn run_app() -> Result<i32> {
     let term = Term::stdout();
     term.set_title("Julia");
 
-    let paths = get_paths()
-        .with_context(|| "Trying to load all global paths.")?;
+    let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
     let config_file = load_config_db(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
-
-    let versiondb_data =
-        load_versions_db().with_context(|| "The Julia launcher failed to load a versions db.")?;
 
     let mut julia_channel_to_use = config_file.data.default.clone();
 
@@ -195,7 +156,6 @@ fn run_app() -> Result<i32> {
     })?;
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
-        &versiondb_data,
         &config_file.data,
         &julia_channel_to_use,
         &paths.juliaupconfig,
@@ -222,18 +182,17 @@ fn run_app() -> Result<i32> {
 
     // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
     // process to handle things.
-    ctrlc::set_handler(|| ())
-        .with_context(|| "Failed to set the Ctrl-C handler.")?;
+    ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
 
     let mut child_process = std::process::Command::new(julia_path)
         .args(&new_args)
         .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-    run_selfupdate(&config_file)
-        .with_context(|| "Failed to run selfupdate.")?;
+    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
-    let status = child_process.wait()
+    let status = child_process
+        .wait()
         .with_context(|| "Failed to wait for Julia process to finish.")?;
 
     let code = match status.code() {
@@ -252,7 +211,9 @@ fn main() -> Result<()> {
         homepage: "https://github.com/JuliaLang/juliaup".into(),
     });
 
-    let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
+    let env = env_logger::Env::new()
+        .filter("JULIAUP_LOG")
+        .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
     let client_status = run_app()?;
