@@ -441,7 +441,7 @@ jobs:
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
-        uses: datakrama/archlinux-package-action@v1
+        uses: datakrama/archlinux-package-action@v2
         with:
           flags: ''
           namcap: false
