@@ -104,3 +104,5 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 ## More information
 
 [This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.
+
+[This JuliaCon 2022 talk](https://www.youtube.com/watch?v=14zfdbzq5BM) provides some background on the design of Juliaup.
