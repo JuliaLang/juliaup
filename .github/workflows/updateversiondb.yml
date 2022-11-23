@@ -15,4 +15,5 @@ jobs:
     - name: Update Version DB
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
+        ls scriptoutputfolder/newversiondbs/versionfile
         ls scriptoutputfolder/newversiondbs/versiondb

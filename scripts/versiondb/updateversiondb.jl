@@ -279,7 +279,9 @@ function main_impl(temp_path)
             end
         end
 
-        open(joinpath(temp_path, "newversiondbs", "DBVERSION"), "w") do f
+        path_for_new_version_file = joinpath(temp_path, "newversiondbs", "versionfile")
+        mkpath(path_for_new_version_file)
+        open(joinpath(path_for_new_version_file, "DBVERSION"), "w") do f
             println(f, new_version)
         end
     end
