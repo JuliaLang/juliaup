@@ -13,6 +13,7 @@ jobs:
       with:
         version: 1.6
     - name: Update Version DB
+      continue-on-error: true
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
         echo "updateVersionDbReturnCode=$(echo $?)" >> $GITHUB_OUTPUT
