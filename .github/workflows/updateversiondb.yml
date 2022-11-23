@@ -27,6 +27,12 @@ jobs:
         name: scriptoutput
         path: scriptoutputfolder
 
+  foo:
+    needs: [update-versiondb]
+    runs-on: ubuntu-latest
+    steps:
+    - run: echo "THE VAL IS ${{ needs.update-versiondb.outputs.updateVersionDbReturnCode }}""
+
   upload_versiondb:
     needs: [update-versiondb]
     environment: dev-channel
