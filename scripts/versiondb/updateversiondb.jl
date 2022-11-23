@@ -268,7 +268,7 @@ function main_impl(temp_path)
         path_for_new_versiondbs = joinpath(temp_path, "newversiondbs", "versiondb")
         mkpath(path_for_new_versiondbs)
 
-        path_for_new_versiondbs_for_build = joinpath(temp_path, "newversiondbs", "versiondbbuild")
+        path_for_new_versiondbs_for_build = joinpath(temp_path, "versiondbbuild")
         mkpath(path_for_new_versiondbs_for_build)
 
         # First add the new version
