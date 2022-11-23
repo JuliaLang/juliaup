@@ -3,6 +3,10 @@ name: Update Version DB
 on:
   workflow_dispatch:
 
+concurrency: 
+  group: versiondbupdate
+  cancel-in-progress: true  
+
 jobs:
 
   update-versiondb:
@@ -17,6 +21,7 @@ jobs:
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
         echo "updateVersionDbReturnCode=$(echo $?)" >> $GITHUB_OUTPUT
+    - run: echo ${{ outputs.updateVersionDbReturnCode }}
     - uses: actions/upload-artifact@v3
       with:
         name: scriptoutput
