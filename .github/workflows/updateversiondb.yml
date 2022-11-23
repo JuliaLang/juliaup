@@ -17,10 +17,8 @@ jobs:
       with:
         version: 1.6
     - name: Update Version DB
-      continue-on-error: true
       run: |
-        julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
-        echo "updateVersionDbReturnCode=$(echo $?)" >> $GITHUB_OUTPUT
+        julia scripts/versiondb/updateversiondb.jl scriptoutputfolder >> $GITHUB_OUTPUT
     - uses: actions/upload-artifact@v3
       with:
         name: scriptoutput
@@ -30,7 +28,7 @@ jobs:
     needs: [update-versiondb]
     runs-on: ubuntu-latest
     steps:
-    - run: echo "THE VAL IS ${{ needs.update-versiondb.outputs.updateVersionDbReturnCode }}""
+    - run: echo "THE VAL IS ${{ needs.update-versiondb.outputs.updateVersionDbReturnCode }}"
 
   upload_versiondb:
     needs: [update-versiondb]

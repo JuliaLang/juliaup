@@ -257,7 +257,7 @@ function main_impl(temp_path)
         update_needed = true
     end
 
-    println("update_needed = $update_needed")
+    println(stderr, "update_needed = $update_needed")
 
     # TODO Remove this once things are stable
     update_needed = true
@@ -305,8 +305,4 @@ end
 
 ret = main(length(ARGS)>0 ? ARGS[1] : nothing)
 
-if ret.update_needed
-    exit(1)
-else
-    exit(0)
-end
+print("updateVersionDbReturnCode=$(ret.update_needed)")
