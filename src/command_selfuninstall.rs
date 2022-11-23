@@ -77,6 +77,12 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
                 Ok(_) => {
                     eprintln!(" Success.");
 
+                    eprint!("Deleting the Juliaup configuration file {:?}.", juliaup_config_path);
+                    match std::fs::remove_file(&juliaup_config_path) {
+                        Ok(_) => eprintln!(" Success."),
+                        Err(_) => eprintln!(" Failed.")
+                    };
+
                     if paths.juliaupselfhome.read_dir()?.next().is_none() {
                         eprint!("Deleting the Juliaup folder {:?}.", paths.juliaupselfhome);
                         match std::fs::remove_dir(&paths.juliaupselfhome) {
