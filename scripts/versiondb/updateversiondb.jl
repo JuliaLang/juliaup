@@ -286,17 +286,27 @@ function main_impl(temp_path)
         end
     end
     
+    return (update_needed=update_needed,)
 end
 
 function main(temp_path=nothing)
+    ret = nothing
     if isnothing(temp_path)
         mktempdir() do temp_path
-            main_impl(temp_path)
+            ret = main_impl(temp_path)
         end
     else
         rm(temp_path, force=true, recursive=true)
-        main_impl(temp_path)
+        ret = main_impl(temp_path)
     end
+
+    return ret
 end
 
-main(length(ARGS)>0 ? ARGS[1] : nothing)
+ret = main(length(ARGS)>0 ? ARGS[1] : nothing)
+
+if ret.update_needed
+    exit(1)
+else
+    exit(0)
+end
