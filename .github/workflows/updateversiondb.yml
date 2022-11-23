@@ -7,7 +7,6 @@ jobs:
 
   update-versiondb:
     runs-on: ubuntu-latest
-    environment: dev-channel
     steps:
     - uses: actions/checkout@v3
     - uses: julia-actions/setup-julia@v1
@@ -16,7 +15,24 @@ jobs:
     - name: Update Version DB
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
-    - name: Upload to S3
+        echo "updateVersionDbReturnCode=$(echo $?)" >> $GITHUB_OUTPUT
+    - uses: actions/upload-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder
+
+  update-versiondb:
+    needs: [update-versiondb]
+    environment: dev-channel
+    runs-on: ubuntu-latest
+    if: needs.update-versiondb.outputs.updateVersionDbReturnCode == 1
+    steps:
+    - name: Download script output
+      uses: actions/download-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder
+    - name: Upload version db
       uses: jakejarvis/s3-sync-action@master
       with:
         args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
@@ -25,7 +41,7 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SOURCE_DIR: 'scriptoutputfolder/newversiondbs'
-    - name: Upload to S3
+    - name: Upload version file
       uses: jakejarvis/s3-sync-action@master
       with:
         args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
