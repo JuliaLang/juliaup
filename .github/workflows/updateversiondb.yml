@@ -31,8 +31,9 @@ jobs:
     needs: [update-versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
-    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'trued'
+    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
     steps:
+    - uses: actions/checkout@v3
     - name: Download script output
       uses: actions/download-artifact@v3
       with:
@@ -56,3 +57,14 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SOURCE_DIR: 'scriptoutputfolder/versionfile'
+    - run: |
+        mv scriptoutputfolder/versiondbbuild/* versiondb
+        rm -rf scriptoutputfolder
+    - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update version db
+          title: '[AUTO] Update version db'
+          body: 'The version database has updated, this PR incorporates these changes.'
+          labels: no changelog

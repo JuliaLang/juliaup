@@ -268,6 +268,9 @@ function main_impl(temp_path)
         path_for_new_versiondbs = joinpath(temp_path, "newversiondbs", "versiondb")
         mkpath(path_for_new_versiondbs)
 
+        path_for_new_versiondbs_for_build = joinpath(temp_path, "newversiondbs", "versiondbbuild")
+        mkpath(path_for_new_versiondbs_for_build)
+
         # First add the new version
         for p in platforms
             new_version_dbs[p]["Version"] = string(new_version)
@@ -277,6 +280,10 @@ function main_impl(temp_path)
             open(joinpath(path_for_new_versiondbs, "versiondb-$new_version-$p.json"), "w") do f
                 JSON.print(f, new_version_dbs[p], 4)
             end
+
+            open(joinpath(path_for_new_versiondbs_for_build, "versiondb-$p.json"), "w") do f
+                JSON.print(f, new_version_dbs[p], 4)
+            end
         end
 
         path_for_new_version_file = joinpath(temp_path, "versionfile")
@@ -284,6 +291,7 @@ function main_impl(temp_path)
         open(joinpath(path_for_new_version_file, "DBVERSION"), "w") do f
             println(f, new_version)
         end
+
     end
     
     return (update_needed=update_needed,)
