@@ -305,4 +305,4 @@ end
 
 ret = main(length(ARGS)>0 ? ARGS[1] : nothing)
 
-print("updateVersionDbReturnCode=$(ret.update_needed)")
+println("updateVersionDbReturnCode=$(ret.update_needed)")
