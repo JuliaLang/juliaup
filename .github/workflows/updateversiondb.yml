@@ -34,7 +34,7 @@ jobs:
     needs: [update-versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
-    if: needs.update-versiondb.outputs.updateVersionDbReturnCode == 1
+    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
     steps:
     - name: Download script output
       uses: actions/download-artifact@v3
