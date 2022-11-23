@@ -27,17 +27,11 @@ jobs:
         name: scriptoutput
         path: scriptoutputfolder    
 
-  foo:
-    needs: [update-versiondb]
-    runs-on: ubuntu-latest
-    steps:
-    - run: echo ${{needs.update-versiondb.outputs.updateVersionDbReturnCode}}
-
   upload_versiondb:
     needs: [update-versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
-    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
+    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'trued'
     steps:
     - name: Download script output
       uses: actions/download-artifact@v3
