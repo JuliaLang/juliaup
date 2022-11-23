@@ -61,10 +61,10 @@ jobs:
         mv scriptoutputfolder/versiondbbuild/* versiondb
         rm -rf scriptoutputfolder
     - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Update version db
-          title: '[AUTO] Update version db'
-          body: 'The version database has updated, this PR incorporates these changes.'
-          labels: no changelog
+      uses: peter-evans/create-pull-request@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: Update version db
+        title: '[AUTO] Update version db'
+        body: 'The version database has updated, this PR incorporates these changes.'
+        labels: no changelog
