@@ -1,0 +1,4 @@
+[deps]
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+Query = "1a8c2f83-1ff3-5112-b086-8aa67b057ba1"

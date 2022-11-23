@@ -1,0 +1,18 @@
+name: Update Version DB
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  update-versiondb:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: julia-actions/setup-julia@v1
+      with:
+        version: 1.6
+    - name: Update Version DB
+      run: |
+        julia scripts/versiondb/updateversiondb.jl scriptoutputfolder
+        ls scriptoutputfolder/newversiondbs/versiondb
