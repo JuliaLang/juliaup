@@ -21,7 +21,7 @@ jobs:
         name: scriptoutput
         path: scriptoutputfolder
 
-  update-versiondb:
+  upload_versiondb:
     needs: [update-versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
