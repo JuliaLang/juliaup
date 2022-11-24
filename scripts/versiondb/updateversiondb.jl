@@ -1,3 +1,7 @@
+# Edit the following two lines to change the LTS Julia version
+const lts_major = 1
+const lts_minor = 6
+
 using Pkg
 Pkg.activate(@__DIR__)
 Pkg.instantiate()
@@ -35,9 +39,6 @@ function triplet2semverbuild(triplet)
 end
 
 function get_available_versions(data, platform)
-    lts_major = 1
-    lts_minor = 6
-
     # Make sure the vector here is sorted by priority!
     platforms_to_include = if platform=="x86_64-w64-mingw32"
         ["x86_64-w64-mingw32", "i686-w64-mingw32"]
