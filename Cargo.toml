@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.7.25-alpha.0"
+version = "1.7.35"
 edition = "2021"
 default-run = "juliaup"
 publish = false
@@ -12,7 +12,7 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "3.0.5", features = ["derive"] }
+clap = { version = "4.0.15", features = ["derive"] }
 dirs = "4"
 serde = {version = "1", features = ["derive"] }
 serde_json = "1"
@@ -41,14 +41,14 @@ shellexpand = "2.1.0"
 env_proxy = "0.4.1"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.39.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
+windows = { version = "0.43.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
 [target.'cfg(macos)'.dependencies]
 ureq = { version = "2", features = ["native-tls"] }
 native-tls = "0.2.10"
 
 [target.'cfg(all(not(macos),not(windows)))'.dependencies]
-ureq = "2"
+ureq = { version = "2", features = ["native-certs"] }
 
 [build-dependencies]
 anyhow = "1"
@@ -74,7 +74,7 @@ dummy = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="false"}, {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}] }
-winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="true"}, {name = "IdentityPublisher", value = "CN=David Anthoff, O=David Anthoff, S=California, C=US"}] }
+winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="true"}, {name = "IdentityPublisher", value = "CN=&quot;JULIA COMPUTING, INC.&quot;, O=&quot;JULIA COMPUTING, INC.&quot;, S=Massachusetts, C=US"}] }
 
 [package.metadata.winappinstaller]
 winappinstaller = "deploy/winappinstaller/Julia.appinstaller"

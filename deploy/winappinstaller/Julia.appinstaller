@@ -6,7 +6,7 @@
 
     <MainBundle
         Name="JuliaComputingInc.Julia"
-        Publisher="CN=David Anthoff, O=David Anthoff, S=California, C=US"
+        Publisher="CN=&quot;JULIA COMPUTING, INC.&quot;, O=&quot;JULIA COMPUTING, INC.&quot;, S=Massachusetts, C=US"
         Version="{{Version}}.0"
         Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
 

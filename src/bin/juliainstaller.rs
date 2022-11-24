@@ -221,8 +221,7 @@ pub fn main() -> Result<()> {
         modifypath: true,
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
-            .join(".julia")
-            .join("juliaup"),
+            .join(".juliaup"),
         modifypath_files: find_shell_scripts_to_be_modified(true)?,
     };
 
@@ -352,7 +351,7 @@ pub fn main() -> Result<()> {
     if install_choices.modifypath {
         println!("");
         println!("Depending on which shell you are using, run one of the following");
-        println!("commands to reload the the {} environment variable:", style("PATH").bold());
+        println!("commands to reload the {} environment variable:", style("PATH").bold());
         println!("");
         for p in &install_choices.modifypath_files {
             println!("  . {}", p.to_string_lossy());

@@ -11,6 +11,7 @@ The Windows version of this installer is considered production ready. The Linux 
 ## Installation
 
 On all platforms it is recommended that you first uninstall any previous Julia versions and undo any modifications you might have made to put `julia` on the `PATH` before you install Julia with the installer in this repository.
+
 ### Windows
 
 On Windows Julia and Juliaup can be installed directly from the Windows store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN). One can also install exactly the same version by executing
@@ -21,6 +22,8 @@ winget install julia -s msstore
 
 on a command line.
 
+If the Windows Store is blocked on a system, we have an alternative [MSIX App Installer](https://learn.microsoft.com/en-us/windows/msix/app-installer/app-installer-file-overview) based setup. Note that this is currently experimental, please report back successes and failures [here](https://github.com/JuliaLang/juliaup/issues/343). To use the App Installer version, download [this](https://install.julialang.org/Julia.appinstaller) file and open it by double clicking on it.
+
 ### Mac and Linux
 
 Juliaup can be installed on Linux or Mac by executing
@@ -30,6 +33,12 @@ curl -fsSL https://install.julialang.org | sh
 ```
 
 in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
+
+If using Juliaup in an automated script, you can skip user prompts by using the unix tool [expect](https://en.wikipedia.org/wiki/Expect):
+
+```bash
+expect -c 'spawn bash -c "curl -fsSL https://install.julialang.org | sh"; expect "Proceed"; send -- "\r"; expect eof'
+```
 
 #### Software Repositories
 
@@ -59,7 +68,7 @@ Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there 
 
 Here are some of the things you can do with `juliaup`:
 - `juliaup list` lists all the available channels.
-- `juliaup update` installs the latest availabe Julia version for all your channels.
+- `juliaup update` installs the latest available Julia version for all your channels.
 - `juliaup update release` updates the `release` channel to the latest version.
 - `juliaup status` shows you which Julia versions you have installed and which one is configured as the default.
 - `juliaup add 1.5.1` adds Julia 1.5.1 to your system (it can then be launched via the command `julia +1.5.1`).
@@ -71,6 +80,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup default 1.6~x86` configures the `julia` command to start the latest 1.6.x 32 bit version of Julia you have installed on your system.
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
 - `juliaup self update` installs the latest version, which is necessary if new releases reach the beta channel, etc.
+- `juliaup self uninstall` uninstalls Juliaup. Note that on some platforms this command is not available, in those situations one should use platform specific methods to uninstall Juliaup.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
@@ -98,3 +108,5 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 ## More information
 
 [This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.
+
+[This JuliaCon 2022 talk](https://www.youtube.com/watch?v=14zfdbzq5BM) provides some background on the design of Juliaup.

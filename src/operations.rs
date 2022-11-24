@@ -597,7 +597,7 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
 
 fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
-        .with_context(|| "Failed to open juliaup config file.")?;
+        .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
     let mut buffer = String::new();
 

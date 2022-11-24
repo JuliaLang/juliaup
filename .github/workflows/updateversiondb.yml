@@ -1,0 +1,70 @@
+name: Update Version DB
+
+on:
+  workflow_dispatch:
+
+concurrency: 
+  group: versiondbupdate
+  cancel-in-progress: true  
+
+jobs:
+
+  update-versiondb:
+    runs-on: ubuntu-latest
+    outputs:
+      versionDbIsUpdated: ${{ steps.runjuliascript.outputs.versionDbIsUpdated }}
+    steps:
+    - uses: actions/checkout@v3
+    - uses: julia-actions/setup-julia@v1
+      with:
+        version: 1.6
+    - id: runjuliascript
+      name: Update Version DB
+      run: |
+        julia scripts/versiondb/updateversiondb.jl scriptoutputfolder >> $GITHUB_OUTPUT
+    - uses: actions/upload-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder    
+
+  upload_versiondb:
+    needs: [update-versiondb]
+    environment: dev-channel
+    runs-on: ubuntu-latest
+    if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
+    steps:
+    - uses: actions/checkout@v3
+    - name: Download script output
+      uses: actions/download-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder
+    - name: Upload version db
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'scriptoutputfolder/newversiondbs'
+    - name: Upload version file
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'scriptoutputfolder/versionfile'
+    - run: |
+        mv scriptoutputfolder/versiondbbuild/* versiondb
+        rm -rf scriptoutputfolder
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: Update version db
+        title: '[AUTO] Update version db'
+        body: 'The version database has updated, this PR incorporates these changes.'
+        labels: no changelog
