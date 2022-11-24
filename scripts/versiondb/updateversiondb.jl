@@ -30,6 +30,10 @@ function triplet2channel(triplet)
     end
 end
 
+function triplet2semverbuild(triplet)
+    return replace(triplet, "_" => "", "-" => ".")
+end
+
 function get_available_versions(data, platform)
     lts_major = 1
     lts_minor = 6
@@ -63,7 +67,7 @@ function get_available_versions(data, platform)
         @mutate(version=VersionNumber(_.version), url_path=remove_prefix(_.url, "https://julialang-s3.julialang.org/")) |>
         @orderby(_.version) |>
         @thenby(_.triplet) |>
-        @map("$(_.version)+0.$(_.triplet)" => OrderedDict("UrlPath" => _.url_path)) |>
+        @map("$(_.version)+0.$(triplet2semverbuild(_.triplet))" => OrderedDict("UrlPath" => _.url_path)) |>
         OrderedDict
 
     available_channels = Dict()
@@ -71,15 +75,15 @@ function get_available_versions(data, platform)
     # Add all full versions
     for v in all_versions
         for p in platforms_to_include
-            if haskey(available_versions, "$(v)+0.$p")
-                available_channels["$v"] = Dict("Version"=>"$(v)+0.$p")
+            if haskey(available_versions, "$(v)+0.$(triplet2semverbuild(p))")
+                available_channels["$v"] = Dict("Version"=>"$(v)+0.$(triplet2semverbuild(p))")
                 break
             end
         end
 
         for p in platforms_to_include
-            if haskey(available_versions, "$(v)+0.$p")
-                available_channels["$v~$(triplet2channel(p))"] = Dict("Version"=>"$(v)+0.$p")
+            if haskey(available_versions, "$(v)+0.$(triplet2semverbuild(p))")
+                available_channels["$v~$(triplet2channel(p))"] = Dict("Version"=>"$(v)+0.$(triplet2semverbuild(p))")
             end
         end
     end
@@ -93,15 +97,15 @@ function get_available_versions(data, platform)
 
     for v in minor_channels
         for p in platforms_to_include
-            if haskey(available_versions, "$(v.version)+0.$p")
-                available_channels["$(v.major).$(v.minor)"] = Dict("Version"=>"$(v.version)+0.$p")
+            if haskey(available_versions, "$(v.version)+0.$(triplet2semverbuild(p))")
+                available_channels["$(v.major).$(v.minor)"] = Dict("Version"=>"$(v.version)+0.$(triplet2semverbuild(p))")
                 break
             end
         end
 
         for p in platforms_to_include
-            if haskey(available_versions, "$(v.version)+0.$p")
-                available_channels["$(v.major).$(v.minor)~$(triplet2channel(p))"] = Dict("Version"=>"$(v.version)+0.$p")
+            if haskey(available_versions, "$(v.version)+0.$(triplet2semverbuild(p))")
+                available_channels["$(v.major).$(v.minor)~$(triplet2channel(p))"] = Dict("Version"=>"$(v.version)+0.$(triplet2semverbuild(p))")
             end
         end
     end
@@ -114,15 +118,15 @@ function get_available_versions(data, platform)
 
     for v in major_channels
         for p in platforms_to_include
-            if haskey(available_versions, "$(v.version)+0.$p")
-                available_channels["$(v.major)"] = Dict("Version"=>"$(v.version)+0.$p")
+            if haskey(available_versions, "$(v.version)+0.$(triplet2semverbuild(p))")
+                available_channels["$(v.major)"] = Dict("Version"=>"$(v.version)+0.$(triplet2semverbuild(p))")
                 break
             end
         end
 
         for p in platforms_to_include
-            if haskey(available_versions, "$(v.version)+0.$p")
-                available_channels["$(v.major)~$(triplet2channel(p))"] = Dict("Version"=>"$(v.version)+0.$p")
+            if haskey(available_versions, "$(v.version)+0.$(triplet2semverbuild(p))")
+                available_channels["$(v.major)~$(triplet2channel(p))"] = Dict("Version"=>"$(v.version)+0.$(triplet2semverbuild(p))")
             end
         end
     end
@@ -132,15 +136,15 @@ function get_available_versions(data, platform)
         maximum
 
     for p in platforms_to_include
-        if haskey(available_versions, "$release_version+0.$p")
-            available_channels["release"] = Dict("Version"=>"$release_version+0.$p")
+        if haskey(available_versions, "$release_version+0.$(triplet2semverbuild(p))")
+            available_channels["release"] = Dict("Version"=>"$release_version+0.$(triplet2semverbuild(p))")
             break
         end
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$release_version+0.$p")
-            available_channels["release~$(triplet2channel(p))"] = Dict("Version"=>"$release_version+0.$p")
+        if haskey(available_versions, "$release_version+0.$(triplet2semverbuild(p))")
+            available_channels["release~$(triplet2channel(p))"] = Dict("Version"=>"$release_version+0.$(triplet2semverbuild(p))")
         end
     end        
 
@@ -149,15 +153,15 @@ function get_available_versions(data, platform)
         maximum
 
     for p in platforms_to_include
-        if haskey(available_versions, "$lts_version+0.$p")
-            available_channels["lts"] = Dict("Version"=>"$lts_version+0.$p")
+        if haskey(available_versions, "$lts_version+0.$(triplet2semverbuild(p))")
+            available_channels["lts"] = Dict("Version"=>"$lts_version+0.$(triplet2semverbuild(p))")
             break
         end
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$lts_version+0.$p")
-            available_channels["lts~$(triplet2channel(p))"] = Dict("Version"=>"$lts_version+0.$p")
+        if haskey(available_versions, "$lts_version+0.$(triplet2semverbuild(p))")
+            available_channels["lts~$(triplet2channel(p))"] = Dict("Version"=>"$lts_version+0.$(triplet2semverbuild(p))")
         end
     end        
     
@@ -170,15 +174,15 @@ function get_available_versions(data, platform)
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$rc_version+0.$p")
-            available_channels["rc"] = Dict("Version"=>"$rc_version+0.$p")
+        if haskey(available_versions, "$rc_version+0.$(triplet2semverbuild(p))")
+            available_channels["rc"] = Dict("Version"=>"$rc_version+0.$(triplet2semverbuild(p))")
             break
         end
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$rc_version+0.$p")
-            available_channels["rc~$(triplet2channel(p))"] = Dict("Version"=>"$rc_version+0.$p")
+        if haskey(available_versions, "$rc_version+0.$(triplet2semverbuild(p))")
+            available_channels["rc~$(triplet2channel(p))"] = Dict("Version"=>"$rc_version+0.$(triplet2semverbuild(p))")
         end
     end        
 
@@ -190,15 +194,15 @@ function get_available_versions(data, platform)
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$beta_version+0.$p")
-            available_channels["beta"] = Dict("Version"=>"$beta_version+0.$p")
+        if haskey(available_versions, "$beta_version+0.$(triplet2semverbuild(p))")
+            available_channels["beta"] = Dict("Version"=>"$beta_version+0.$(triplet2semverbuild(p))")
             break
         end
     end
 
     for p in platforms_to_include
-        if haskey(available_versions, "$beta_version+0.$p")
-            available_channels["beta~$(triplet2channel(p))"] = Dict("Version"=>"$beta_version+0.$p")
+        if haskey(available_versions, "$beta_version+0.$(triplet2semverbuild(p))")
+            available_channels["beta~$(triplet2channel(p))"] = Dict("Version"=>"$beta_version+0.$(triplet2semverbuild(p))")
         end
     end
 
