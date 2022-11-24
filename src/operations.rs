@@ -1,10 +1,9 @@
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
-use crate::get_bundled_julia_full_version;
+use crate::get_bundled_julia_version;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
-use crate::utils::get_arch;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
@@ -246,8 +245,7 @@ pub fn install_version(
 
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
-    let platform = get_arch()?;
-    let full_version_string_of_bundled_version = format!("{}~{}", get_bundled_julia_full_version(), platform);
+    let full_version_string_of_bundled_version = get_bundled_julia_version();
     let my_own_path = std::env::current_exe()?;
     let path_of_bundled_version = my_own_path
         .parent()
@@ -259,6 +257,7 @@ pub fn install_version(
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
     if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
+        eprintln!("Installing vendored Julia version.");
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;

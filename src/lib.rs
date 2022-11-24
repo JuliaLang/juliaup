@@ -26,8 +26,8 @@ include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
 include!(concat!(env!("OUT_DIR"), "/various_constants.rs"));
 include!(concat!(env!("OUT_DIR"), "/built.rs"));
 
-pub fn get_bundled_julia_full_version() -> &'static str {
-    BUNDLED_JULIA_FULL_VERSION
+pub fn get_bundled_julia_version() -> &'static str {
+    BUNDLED_JULIA_VERSION
 }
 
 pub fn get_juliaup_target() -> &'static str {
