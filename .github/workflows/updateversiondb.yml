@@ -93,7 +93,7 @@ jobs:
 
   upload_versiondb_releasepreview_channel:
     needs: [upload_versiondb]
-    environment: releasepreview-channel
+    environment: release-preview-channel
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
