@@ -257,7 +257,6 @@ pub fn install_version(
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
     if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
-        eprintln!("Installing vendored Julia version.");
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
