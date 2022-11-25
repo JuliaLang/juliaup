@@ -11,9 +11,9 @@ struct ChannelRow {
     version: String,
 }
 
-pub fn run_command_list(_paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
-        load_versions_db().with_context(|| "`list` command failed to load versions db.")?;
+        load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
     let rows_in_table: Vec<_> = versiondb_data.available_channels
         .iter()

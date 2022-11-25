@@ -208,7 +208,7 @@ fn run_app() -> Result<i32> {
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data =
-        load_versions_db().with_context(|| "The Julia launcher failed to load a versions db.")?;
+        load_versions_db(&paths).with_context(|| "The Julia launcher failed to load a versions db.")?;
 
     let mut julia_channel_to_use = config_file.data.default.clone();
 

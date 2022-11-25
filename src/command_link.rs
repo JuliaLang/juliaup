@@ -10,7 +10,7 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths:
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`link` command failed to load configuration data.")?;
 
-    let versiondb_data = load_versions_db()
+    let versiondb_data = load_versions_db(paths)
         .with_context(|| "`link` command failed to load versions db.")?;
 
     if config_file.data.installed_channels.contains_key(&channel) {
