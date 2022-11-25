@@ -40,19 +40,19 @@ end
 
 function get_available_versions(data, platform)
     # Make sure the vector here is sorted by priority!
-    platforms_to_include = if platform=="x86_64-w64-mingw32"
+    platforms_to_include = if platform=="x86_64-pc-windows-msvc"
         ["x86_64-w64-mingw32", "i686-w64-mingw32"]
-    elseif platform=="i686-w64-mingw32"
+    elseif platform=="i686-pc-windows-msvc"
         ["i686-w64-mingw32"]
-    elseif platform=="x86_64-apple-darwin14"
+    elseif platform=="x86_64-apple-darwin"
         ["x86_64-apple-darwin14"]
-    elseif platform=="aarch64-apple-darwin14"
+    elseif platform=="aarch64-apple-darwin"
         ["aarch64-apple-darwin14", "x86_64-apple-darwin14"]
-    elseif platform=="x86_64-linux-gnu"
+    elseif platform=="x86_64-unknown-linux-gnu"
         ["x86_64-linux-gnu", "i686-linux-gnu"]
-    elseif platform=="i686-linux-gnu"
+    elseif platform=="i686-unknown-linux-gnu"
         ["i686-linux-gnu"]
-    elseif platform=="aarch64-linux-gnu"
+    elseif platform=="aarch64-unknown-linux-gnu"
         ["aarch64-linux-gnu"]
     else
         error("Unknown platform.")
@@ -237,13 +237,13 @@ function main_impl(temp_path)
     versions_json_data = JSON.parsefile(joinpath(temp_path, "officialversionsjson", "versions.json"))
 
     platforms = [
-        "x86_64-linux-gnu",
-        "i686-linux-gnu",
-        "x86_64-apple-darwin14",
-        "x86_64-w64-mingw32",
-        "i686-w64-mingw32",
-        "aarch64-linux-gnu",
-        "aarch64-apple-darwin14",
+        "x86_64-unknown-linux-gnu",
+        "i686-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+        "i686-pc-windows-msvc",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
     ]
 
     new_version_dbs = platforms |>

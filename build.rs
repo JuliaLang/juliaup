@@ -18,20 +18,9 @@ use serde_json::Value;
 fn main() -> Result<()> {
     let target_platform = std::env::var("TARGET").unwrap();
 
-    let rust_pl_2_julia_pl = HashMap::from([
-        ("x86_64-pc-windows-msvc", "x86_64-w64-mingw32"),
-        ("x86_64-apple-darwin", "x86_64-apple-darwin14"),
-        ("x86_64-unknown-linux-gnu", "x86_64-linux-gnu"),
-        ("i686-pc-windows-msvc", "i686-w64-mingw32"),
-        ("i686-unknown-linux-gnu", "i686-linux-gnu"),
-        ("aarch64-unknown-linux-gnu", "aarch64-linux-gnu"),
-        ("aarch64-apple-darwin", "aarch64-apple-darwin14")
-    ]);
-    let julia_pl = rust_pl_2_julia_pl.get(target_platform.as_str()).unwrap();
-
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    let db_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("versiondb").join(format!("versiondb-{}.json", julia_pl));
+    let db_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("versiondb").join(format!("versiondb-{}.json", target_platform));
 
     let version_db_path = out_path.join("versionsdb.json");
     std::fs::copy(&db_path, &version_db_path).unwrap();
