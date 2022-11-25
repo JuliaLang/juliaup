@@ -26,7 +26,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
         load_config_db(paths).with_context(|| "`status` command failed to load configuration file.")?;
 
     let versiondb_data =
-        load_versions_db().with_context(|| "`status` command failed to load versions db.")?;
+        load_versions_db(paths).with_context(|| "`status` command failed to load versions db.")?;
 
     let rows_in_table: Vec<_> = config_file.data.installed_channels
         .iter()

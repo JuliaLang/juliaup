@@ -50,7 +50,7 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
 
 pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Result<()> {
     let version_db =
-        load_versions_db().with_context(|| "`update` command failed to load versions db.")?;
+        load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;
 
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`update` command failed to load configuration data.")?;

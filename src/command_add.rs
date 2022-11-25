@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, Context, Result};
 
 pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
     let version_db =
-        load_versions_db().with_context(|| "`add` command failed to load versions db.")?;
+        load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
 
     let required_version = &version_db
         .available_channels

@@ -7,7 +7,7 @@ pub fn run_command_default(channel: String, paths: &GlobalPaths) -> Result<()> {
         .with_context(|| "`default` command failed to load configuration data.")?;
 
     if !config_file.data.installed_channels.contains_key(&channel) {
-        let version_db = load_versions_db().with_context(|| "`default` command failed to load versions db.")?;
+        let version_db = load_versions_db(paths).with_context(|| "`default` command failed to load versions db.")?;
         if !version_db.available_channels.contains_key(&channel) {
             bail!("'{}' is not a valid Julia version.", channel);
         } else {
