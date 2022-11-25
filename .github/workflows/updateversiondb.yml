@@ -69,7 +69,7 @@ jobs:
         body: 'The version database has updated, this PR incorporates these changes.'
         labels: no changelog
 
-  upload_versiondb_dev:
+  upload_versiondb_dev_channel:
     needs: [upload_versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
@@ -81,6 +81,50 @@ jobs:
         path: scriptoutputfolder
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/DEVCHANNELDBVERSION
+    - name: Upload version file
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'scriptoutputfolder/versionfile'
+
+  upload_versiondb_releasepreview_channel:
+    needs: [upload_versiondb]
+    environment: releasepreview-channel
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download script output
+      uses: actions/download-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder
+    - run: |
+        mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASEPREVIEWCHANNELDBVERSION
+    - name: Upload version file
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SOURCE_DIR: 'scriptoutputfolder/versionfile'
+
+  upload_versiondb_release_channel:
+    needs: [upload_versiondb]
+    environment: release-channel
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download script output
+      uses: actions/download-artifact@v3
+      with:
+        name: scriptoutput
+        path: scriptoutputfolder
+    - run: |
+        mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASECHANNELDBVERSION
     - name: Upload version file
       uses: jakejarvis/s3-sync-action@master
       with:

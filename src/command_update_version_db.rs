@@ -19,7 +19,7 @@ pub fn run_command_update_version_db(paths: &GlobalPaths) -> Result<()> {
 
     // TODO Figure out how we can learn about the correctn Juliaup channel here
     #[cfg(not(feature = "selfupdate"))]
-    let juliaup_channel = "dev".to_string();
+    let juliaup_channel = "release".to_string();
 
     let juliaupserver_base = get_juliaserver_base_url()
             .with_context(|| "Failed to get Juliaup server base URL.")?;
