@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 pub mod utils;
 pub mod global_paths;
 pub mod jsonstructs_versionsdb;
@@ -17,6 +19,7 @@ pub mod command_config_backgroundselfupdate;
 pub mod command_config_startupselfupdate;
 pub mod command_config_modifypath;
 pub mod command_initial_setup_from_launcher;
+pub mod command_update_version_db;
 pub mod command_api;
 pub mod command_selfupdate;
 pub mod command_selfchannel;
@@ -30,13 +33,19 @@ pub fn get_bundled_julia_version() -> &'static str {
     BUNDLED_JULIA_VERSION
 }
 
+pub fn get_bundled_dbversion() -> anyhow::Result<semver::Version> {
+    let dbversion = semver::Version::parse(BUNDLED_DB_VERSION)
+        .with_context(|| "Failed to parse our own db version.")?;
+    
+    Ok(dbversion)
+}
+
 pub fn get_juliaup_target() -> &'static str {
     JULIAUP_TARGET
 }
 
 pub fn get_own_version() -> anyhow::Result<semver::Version> {
     use semver::Version;
-    use anyhow::Context;
 
     let version = Version::parse(PKG_VERSION)
         .with_context(|| "Failed to parse our own version.")?;

@@ -18,5 +18,7 @@ pub struct JuliaupVersionDB {
     #[serde(rename = "AvailableVersions")]
     pub available_versions: HashMap<String,JuliaupVersionDBVersion>,
     #[serde(rename = "AvailableChannels")]
-    pub available_channels: HashMap<String,JuliaupVersionDBChannel>
+    pub available_channels: HashMap<String,JuliaupVersionDBChannel>,
+    #[serde(rename = "Version")]
+    pub version: String
 }

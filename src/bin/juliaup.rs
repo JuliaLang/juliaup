@@ -12,6 +12,7 @@ use juliaup::command_status::run_command_status;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
+use juliaup::command_update_version_db::run_command_update_version_db;
 use juliaup::command_api::run_command_api;
 #[cfg(feature = "selfupdate")]
 use juliaup::{
@@ -73,6 +74,9 @@ enum Juliaup {
     },
     #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", hide = true)]
     InitialSetupFromLauncher {
+    },
+    #[clap(name = "0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf", hide = true)]
+    UpdateVersionDb {
     },
     #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
     #[clap(subcommand, name = "self")]
@@ -171,6 +175,7 @@ fn main() -> Result<()> {
         },
         Juliaup::Api {command} => run_command_api(command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
+        Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
         #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]

@@ -210,6 +210,28 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     Ok(version)
 }
 
+#[cfg(not(windows))]
+pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
+    let agent = get_ureq_agent(url)
+        .with_context(|| format!("Failed to construct download agent."))?;
+    
+    let response = agent.get(url)
+        .call()?
+        .into_string()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?
+        .trim()
+        .to_string();
+
+    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path)
+        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+
+    file.write_all(response.as_bytes())
+        .with_context(|| "Failed to write content into version db file.")?;
+
+
+    Ok(())
+}
+
 #[cfg(windows)]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let http_client = windows::Web::Http::HttpClient::new()
@@ -230,6 +252,29 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
         .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", trimmed_response))?;
 
     Ok(version)
+}
+
+#[cfg(windows)]
+pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
+    let http_client = windows::Web::Http::HttpClient::new()
+        .with_context(|| "Failed to create HttpClient.")?;
+
+    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+        .with_context(|| "Failed to convert url string to Uri.")?;
+
+    let response = http_client.GetStringAsync(&request_uri)
+        .with_context(|| "Failed to download version db step 1.")?
+        .get()
+        .with_context(|| "Failed to download version db step 2.")?
+        .to_string();
+
+    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path)
+        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+
+    file.write_all(response.as_bytes())
+        .with_context(|| "Failed to write content into version db file.")?;
+
+    Ok(())
 }
 
 pub fn install_version(

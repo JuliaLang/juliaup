@@ -40,6 +40,41 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn run_versiondb_update(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+    use chrono::Utc;
+    use std::process::Stdio;
+
+    // TODO Decide on an update interval
+    let versiondb_update_interval = Some(5);
+    // TODO We could use something like this to configure version db updates
+    // let versiondb_update_interval = config_file.self_data.startup_selfupdate_interval;
+
+    if let Some(val) = versiondb_update_interval {
+        let should_run = if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
+            let update_time = last_versiondb_update + chrono::Duration::minutes(val);
+
+            if Utc::now() >= update_time {true} else {false}
+        } else {
+            true
+        };
+
+        if should_run {
+            let juliaup_path = get_juliaup_path()
+                .with_context(|| "Failed to obtain juliaup path.")?;
+
+            std::process::Command::new(juliaup_path)
+                .args(["0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .stdin(Stdio::null())
+                .spawn()
+                .with_context(|| "Failed to start juliaup for version db update.")?;
+        };
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "selfupdate")]
 fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
@@ -229,6 +264,9 @@ fn run_app() -> Result<i32> {
         .args(&new_args)
         .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+
+    run_versiondb_update(&config_file)
+        .with_context(|| "Failed to run version db update")?;
 
     run_selfupdate(&config_file)
         .with_context(|| "Failed to run selfupdate.")?;
