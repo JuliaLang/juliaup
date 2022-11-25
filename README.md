@@ -105,6 +105,14 @@ To launch a specific Julia version, say in channel `release`, run `julia +releas
 Juliaup by default downloads julia binary tarballs from the official server "https://julialang-s3.julialang.org".
 If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-party mirror server.
 
+## Building juliaup from source
+
+Only recommended for developers of juliaup itself.
+
+1. Install the rust toolchain https://rustup.rs/
+2. `cd` to the source and run `cargo build`
+3. `cd` to `targets/debug` and run `./juliaup` to use the newly built version
+
 ## More information
 
 [This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.
