@@ -16,10 +16,13 @@ jobs:
           x86_64-pc-windows-msvc-windowsappinstaller,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
+          x86_64-unknown-linux-musl,
           i686-pc-windows-msvc-windowsstore,
           i686-pc-windows-msvc-windowsappinstaller,
-          i686-unknown-linux-gnu, 
+          i686-unknown-linux-gnu,
+          i686-unknown-linux-musl,
           aarch64-unknown-linux-gnu,
+          aarch64-unknown-linux-musl,
           aarch64-apple-darwin
           ]
         include:
@@ -27,38 +30,62 @@ jobs:
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsstore
+            rustflags:
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsappinstaller
+            rustflags:
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
             features: selfupdate
+            rustflags:
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags:
+          - label: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
             features: windowsstore
+            rustflags:
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
             features: windowsappinstaller
+            rustflags:
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags:
+          - label: i686-unknown-linux-musl
+            target: i686-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate
+            rustflags:
+          - label: aarch64-unknown-linux-musl
+            target: aarch64-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
             features: selfupdate
+            rustflags:
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
@@ -72,6 +99,10 @@ jobs:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+      env:
+        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - uses: actions/upload-artifact@v3
       with:
         name: juliaup-${{matrix.label}}
@@ -133,11 +164,21 @@ jobs:
       with:
         name: juliaup-x86_64-unknown-linux-gnu
         path: target/x86_64-unknown-linux-gnu
+    - name: Download Linux x64 musl juliaup artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-unknown-linux-musl
+        path: target/x86_64-unknown-linux-musl
     - name: Download Linux x86 juliaup artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-unknown-linux-gnu
         path: target/i686-unknown-linux-gnu
+    - name: Download Linux x86 musl juliaup artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-unknown-linux-musl
+        path: target/i686-unknown-linux-musl
     - name: Download MacOS x64 juliaup artifact
       uses: actions/download-artifact@v3
       with:
@@ -153,6 +194,11 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
+    - name: Download Linux aarch64 musl juliaup artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-aarch64-unknown-linux-musl
+        path: target/aarch64-unknown-linux-musl
     - name: Download installer artifacts for x86_64-apple-darwin
       uses: actions/download-artifact@v3
       with:
@@ -163,16 +209,31 @@ jobs:
       with:
         name: juliainstaller-x86_64-unknown-linux-gnu
         path: target/installer/x86_64-unknown-linux-gnu
+    - name: Download installer artifacts for x86_64-unknown-linux-musl
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-x86_64-unknown-linux-musl
+        path: target/installer/x86_64-unknown-linux-musl
     - name: Download installer artifacts for i686-unknown-linux-gnu
       uses: actions/download-artifact@v3
       with:
         name: juliainstaller-i686-unknown-linux-gnu
         path: target/installer/i686-unknown-linux-gnu
+    - name: Download installer artifacts for i686-unknown-linux-musl
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-i686-unknown-linux-musl
+        path: target/installer/i686-unknown-linux-musl
     - name: Download installer artifacts for aarch64-unknown-linux-gnu
       uses: actions/download-artifact@v3
       with:
         name: juliainstaller-aarch64-unknown-linux-gnu
         path: target/installer/aarch64-unknown-linux-gnu
+    - name: Download installer artifacts for aarch64-unknown-linux-musl
+      uses: actions/download-artifact@v3
+      with:
+        name: juliainstaller-aarch64-unknown-linux-musl
+        path: target/installer/aarch64-unknown-linux-musl
     - name: Download installer artifacts for aarch64-apple-darwin
       uses: actions/download-artifact@v3
       with:
@@ -182,14 +243,20 @@ jobs:
       run: |
         chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
         chmod a+rx target/x86_64-unknown-linux-gnu/julialauncher
+        chmod a+rx target/x86_64-unknown-linux-musl/juliaup
+        chmod a+rx target/x86_64-unknown-linux-musl/julialauncher
         chmod a+rx target/i686-unknown-linux-gnu/juliaup
         chmod a+rx target/i686-unknown-linux-gnu/julialauncher
+        chmod a+rx target/i686-unknown-linux-musl/juliaup
+        chmod a+rx target/i686-unknown-linux-musl/julialauncher
         chmod a+rx target/x86_64-apple-darwin/juliaup
         chmod a+rx target/x86_64-apple-darwin/julialauncher
         chmod a+rx target/aarch64-apple-darwin/juliaup
         chmod a+rx target/aarch64-apple-darwin/julialauncher
         chmod a+rx target/aarch64-unknown-linux-gnu/juliaup
         chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
+        chmod a+rx target/aarch64-unknown-linux-musl/juliaup
+        chmod a+rx target/aarch64-unknown-linux-musl/julialauncher
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -203,9 +270,15 @@ jobs:
 
         cd target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
+
+        cd target/x86_64-unknown-linux-musl
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-musl.tar.gz .
         
         cd ../../target/i686-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu.tar.gz .
+
+        cd ../../target/i686-unknown-linux-musl
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-i686-unknown-linux-musl.tar.gz .
 
         cd ../../target/x86_64-apple-darwin
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-apple-darwin.tar.gz .
@@ -216,13 +289,19 @@ jobs:
         cd ../../target/aarch64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz .
 
+        cd ../../target/aarch64-unknown-linux-musl
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-musl.tar.gz .
+
         cd ../..
     - name: Rename and move juliainstaller
       run: |
         mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
         mv target/installer/x86_64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-gnu
+        mv target/installer/x86_64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-musl
         mv target/installer/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
+        mv target/installer/i686-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-musl
         mv target/installer/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
+        mv target/installer/aarch64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-musl
         mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
     - name: Upload to S3
       uses: jakejarvis/s3-sync-action@master

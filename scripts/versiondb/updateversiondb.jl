@@ -54,6 +54,12 @@ function get_available_versions(data, platform)
         ["i686-linux-gnu"]
     elseif platform=="aarch64-unknown-linux-gnu"
         ["aarch64-linux-gnu"]
+    elseif platform=="x86_64-unknown-linux-musl"
+        ["x86_64-linux-gnu", "i686-linux-gnu"]
+    elseif platform=="i686-unknown-linux-musl"
+        ["i686-linux-gnu"]
+    elseif platform=="aarch64-unknown-linux-musl"
+        ["aarch64-linux-gnu"]
     else
         error("Unknown platform.")
     end
@@ -238,11 +244,14 @@ function main_impl(temp_path)
 
     platforms = [
         "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
         "i686-unknown-linux-gnu",
+        "i686-unknown-linux-musl",
         "x86_64-apple-darwin",
         "x86_64-pc-windows-msvc",
         "i686-pc-windows-msvc",
         "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
         "aarch64-apple-darwin",
     ]
 
