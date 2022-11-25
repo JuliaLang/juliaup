@@ -211,7 +211,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 }
 
 #[cfg(not(windows))]
-pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<Version> {
+pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
     let agent = get_ureq_agent(url)
         .with_context(|| format!("Failed to construct download agent."))?;
     
@@ -229,7 +229,7 @@ pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<Version> {
         .with_context(|| "Failed to write content into version db file.")?;
 
 
-    Ok(version)
+    Ok(())
 }
 
 #[cfg(windows)]
