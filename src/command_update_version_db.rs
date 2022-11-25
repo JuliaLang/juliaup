@@ -34,7 +34,7 @@ pub fn run_command_update_version_db(paths: &GlobalPaths) -> Result<()> {
     let dbversion_url = juliaupserver_base.join(dbversion_url_path)
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, dbversion_url_path))?;
 
-    let onlinedbversion = download_juliaup_version(&dbversion_url.to_string())
+    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
     config_file.data.last_version_db_update = Some(chrono::Utc::now());
@@ -45,33 +45,41 @@ pub fn run_command_update_version_db(paths: &GlobalPaths) -> Result<()> {
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
 
-    if onlinedbversion>bundled_dbversion {
-        let localdbversion = match std::fs::OpenOptions::new().read(true).open(&paths.versiondb) {
-            Ok(file) => {
-                let reader = BufReader::new(&file);
+    let local_dbversion = match std::fs::OpenOptions::new().read(true).open(&paths.versiondb) {
+        Ok(file) => {
+            let reader = BufReader::new(&file);
 
-                if let Ok(versiondb) = serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader) {
-                    if let Ok(version) = semver::Version::parse(&versiondb.version) {
-                        version
-                    } else {
-                        bundled_dbversion
-                    }
+            if let Ok(versiondb) = serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader) {
+                if let Ok(version) = semver::Version::parse(&versiondb.version) {
+                    Some(version)
                 } else {
-                    bundled_dbversion
-                }                
-            }
-            Err(_) => { 
-                bundled_dbversion 
-            }
-        };
+                    None
+                }
+            } else {
+                None
+            }                
+        }
+        Err(_) => { 
+            None 
+        }
+    };
 
-        if onlinedbversion>localdbversion {
-            let onlineversiondburl = juliaupserver_base.join(&format!("juliaup/versiondb/versiondb-{}-{}.json", onlinedbversion, get_juliaup_target()))
+    eprintln!("Bundled version db: {}", bundled_dbversion);
+    eprintln!("Online version db: {}", online_dbversion);
+    eprintln!("Local cached version db: {:?}", local_dbversion);
+
+    if online_dbversion>bundled_dbversion {      
+        if local_dbversion.is_none() || online_dbversion>local_dbversion.unwrap() {
+            let onlineversiondburl = juliaupserver_base.join(&format!("juliaup/versiondb/versiondb-{}-{}.json", online_dbversion, get_juliaup_target()))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
             download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb)
                 .with_context(|| format!("Failed to download new version db from {}.", onlineversiondburl))?;            
         }
+    }
+    else if local_dbversion.is_some() {
+        // If the bundled version is up-to-date we can delete any cached version db json file
+        let _ = std::fs::remove_file(&paths.versiondb);
     }
     
     Ok(())
