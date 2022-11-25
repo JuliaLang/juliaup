@@ -256,12 +256,12 @@ jobs:
       run: Install-Module -Name StoreBroker -Force
     - name: Download and extract bundled Julia versions
       run: |      
-        $x64Versions = Get-Content versiondb\versiondb-x86_64-w64-mingw32.json | ConvertFrom-Json
+        $x64Versions = Get-Content versiondb\versiondb-x86_64-pc-windows-msvc.json | ConvertFrom-Json
         $x64VersionFromChannel = $x64Versions.AvailableChannels.release.Version
         $x64DownloadUrl = $x64Versions.AvailableVersions.$x64VersionFromChannel.UrlPath
         $x64Filename = Split-Path $x64DownloadUrl -leaf
 
-        $x86Versions = Get-Content versiondb\versiondb-i686-w64-mingw32.json | ConvertFrom-Json
+        $x86Versions = Get-Content versiondb\versiondb-i686-pc-windows-msvc.json | ConvertFrom-Json
         $x86VersionFromChannel = $x86Versions.AvailableChannels.release.Version
         $x86DownloadUrl = $x86Versions.AvailableVersions.$x86VersionFromChannel.UrlPath
         $x86Filename = Split-Path $x86DownloadUrl -leaf
