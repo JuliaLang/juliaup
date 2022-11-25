@@ -2,10 +2,12 @@ use std::path::PathBuf;
 use anyhow::{Result,bail,anyhow};
 #[cfg(feature = "selfupdate")]
 use anyhow::Context;
+use crate::get_juliaup_target;
 pub struct GlobalPaths {
     pub juliauphome: PathBuf,
     pub juliaupconfig: PathBuf,
     pub lockfile: PathBuf,
+    pub versiondb: PathBuf,
     #[cfg(feature = "selfupdate")]
     pub juliaupselfhome: PathBuf,
     #[cfg(feature = "selfupdate")]
@@ -62,6 +64,8 @@ pub fn get_paths() -> Result<GlobalPaths> {
         .to_path_buf();
 
     let juliaupconfig = juliauphome.join("juliaup.json");
+
+    let versiondb = juliauphome.join(format!("versiondb-{}.json", get_juliaup_target()));
     
     let lockfile = juliauphome.join(".juliaup-lock");
 
@@ -81,6 +85,7 @@ pub fn get_paths() -> Result<GlobalPaths> {
         juliauphome,
         juliaupconfig,
         lockfile,
+        versiondb,
         #[cfg(feature = "selfupdate")]
         juliaupselfhome,
         #[cfg(feature = "selfupdate")]

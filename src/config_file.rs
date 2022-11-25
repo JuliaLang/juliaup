@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
-#[cfg(feature = "selfupdate")]
 use chrono::{DateTime,Utc};
 
 use crate::global_paths::GlobalPaths;
@@ -58,6 +57,8 @@ pub struct JuliaupConfig {
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
     #[serde(rename = "Settings", default)]
     pub settings: JuliaupConfigSettings,
+    #[serde(rename = "LastVersionDbUpdate", skip_serializing_if = "Option::is_none")]
+    pub last_version_db_update: Option<DateTime<Utc>>
 }
 
 #[cfg(feature = "selfupdate")]
@@ -125,6 +126,7 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                     settings: JuliaupConfigSettings {
                         create_channel_symlinks: false,
                     },
+                    last_version_db_update: None,
                 }
             },
             other_error => {
@@ -191,6 +193,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings{
                     create_channel_symlinks: false,
                 },
+                last_version_db_update: None,
             };
 
             serde_json::to_writer_pretty(&file, &new_config)
