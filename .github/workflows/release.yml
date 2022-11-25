@@ -271,7 +271,7 @@ jobs:
         cd target/x86_64-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-gnu.tar.gz .
 
-        cd target/x86_64-unknown-linux-musl
+        cd ../../target/x86_64-unknown-linux-musl
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-musl.tar.gz .
         
         cd ../../target/i686-unknown-linux-gnu
