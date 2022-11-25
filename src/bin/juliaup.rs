@@ -1,3 +1,4 @@
+use juliaup::command_info::run_command_info;
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
 use juliaup::command_list::run_command_list;
@@ -78,6 +79,8 @@ enum Juliaup {
     #[clap(name = "0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf", hide = true)]
     UpdateVersionDb {
     },
+    #[clap(name = "info", hide = true)]
+    Info { },
     #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
@@ -176,6 +179,7 @@ fn main() -> Result<()> {
         Juliaup::Api {command} => run_command_api(command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
+        Juliaup::Info {} => run_command_info(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
         #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
