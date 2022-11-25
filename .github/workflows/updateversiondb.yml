@@ -66,7 +66,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: Update version db
         title: '[AUTO] Update version db'
-        body: 'The version database has updated, this PR incorporates these changes.'
+        body: 'The version database has updated, this PR incorporates these changes. Please note: CI will not automatically run on this PR. To trigger CI, please close and re-open this PR.'
         labels: no changelog
 
   upload_versiondb_dev_channel:
