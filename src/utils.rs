@@ -100,29 +100,16 @@ mod tests {
     #[test]
     fn test_parse_versionstring() {
         let s = "1.1.1";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
-        let arch = match std::env::consts::ARCH {
-            "x86" => "x86",
-            "x86_64" => "x64",
-            "aarch64" => "aarch64",
-            _ => ""
-        };
-        assert_eq!(p, arch);
-        assert_eq!(v, Version::new(1, 1, 1));
+        assert!(parse_versionstring(&s.to_owned()).is_err());
 
-        let s = "1.1.1~x86";
+        let s = "1.1.1+0.x86.apple.darwin14";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x86");
         assert_eq!(v, Version::new(1, 1, 1));
 
-        let s = "1.1.1~x64";
+        let s = "1.1.1+0.x64.apple.darwin14";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
-
-        let s = "1.1.1+0~x64";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
-        assert_eq!(p, "x64");
-        assert_eq!(v, Version::parse("1.1.1+0").unwrap());
     }
 }
