@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "juliaup"
-version = "1.8.8"
+version = "1.8.9"
 dependencies = [
  "anyhow",
  "assert_cmd",
