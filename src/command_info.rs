@@ -1,7 +1,7 @@
 use std::io::BufReader;
 
 use crate::config_file::load_config_db;
-use crate::get_juliaup_target;
+use crate::{get_juliaup_target, get_own_version};
 use crate::{global_paths::GlobalPaths, get_bundled_dbversion};
 use anyhow::{Result, bail, Context};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -65,10 +65,11 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
         }
     };
 
-    eprintln!("Platform triplet: {}", get_juliaup_target());
-    eprintln!("Bundled version db: {}", bundled_dbversion);
-    eprintln!("Online version db: {}", online_dbversion);
-    eprintln!("Local version db: {:?}", local_dbversion);
+    println!("Juliaup version: {}", get_own_version().unwrap().to_string());
+    println!("Platform triplet: {}", get_juliaup_target());
+    println!("Bundled version db: {}", bundled_dbversion);
+    println!("Online version db: {}", online_dbversion);
+    println!("Local version db: {:?}", local_dbversion);
    
     Ok(())
 }
