@@ -47,6 +47,8 @@ jobs:
             rustflags:
     steps:
     - uses: actions/checkout@v3
+    - if: ${{ contains(matrix.target, '-musl') }}
+      run: sudo apt-get install musl-tools
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
