@@ -21,21 +21,30 @@ jobs:
           x86_64-pc-windows-msvc,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
+          x86_64-unknown-linux-musl,
           i686-pc-windows-msvc,
           ]
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
             features: dummy
+            rustflags:
           - target: x86_64-apple-darwin
             os: macos
             features: dummy
+            rustflags:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: dummy
+            rustflags:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy
+            rustflags:
     steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
@@ -48,3 +57,7 @@ jobs:
       with:
         command: test
         args: --target ${{matrix.target}} --features ${{matrix.features}}
+      env:
+        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
