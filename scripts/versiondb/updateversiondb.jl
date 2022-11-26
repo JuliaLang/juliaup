@@ -35,7 +35,7 @@ function triplet2channel(triplet)
 end
 
 function triplet2semverbuild(triplet)
-    return replace(triplet, "_" => "", "-" => ".")
+    return replace(triplet, "x86_64" => "x64", "i686" => "x86", "-" => ".")
 end
 
 function get_available_versions(data, platform)

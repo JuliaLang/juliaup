@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use semver::Version;
+use semver::{Version, BuildMetadata};
 use std::path::PathBuf;
 use url::Url;
 
@@ -69,26 +69,28 @@ pub fn get_arch() -> Result<String> {
 }
 
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
-    let parts: Vec<&str> = value.split('~').collect();
+    let version = Version::parse(value).unwrap();
 
-    if parts.len() > 2 {
+    let build_parts: Vec<&str> = version.build.split('.').collect();
+
+    if build_parts.len() != 4 {
         bail!(
-            "`{}` is an invalid version specifier: multiple `~` characters are not allowed.",
+            "`{}` is an invalid version specifier: the build part must have four parts.",
             value
         );
     }
 
-    let version = parts[0];
-    let platform = if parts.len() == 2 { parts[1].to_string() } else { get_arch()? };
+    let version_without_build = semver::Version {
+        major: version.major,
+        minor: version.minor,
+        patch: version.patch,
+        pre: version.pre,
+        build: BuildMetadata::EMPTY
+    };
 
-    let version = Version::parse(version).with_context(|| {
-        format!(
-            "'{}' was determined to be the semver part of '{}', but failed to parse as a version.",
-            version, value
-        )
-    })?;
+    let platform = build_parts[1];
 
-    Ok((platform.to_string(), version))
+    Ok((platform.to_string(), version_without_build))
 }
 
 #[cfg(test)]
@@ -98,29 +100,16 @@ mod tests {
     #[test]
     fn test_parse_versionstring() {
         let s = "1.1.1";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
-        let arch = match std::env::consts::ARCH {
-            "x86" => "x86",
-            "x86_64" => "x64",
-            "aarch64" => "aarch64",
-            _ => ""
-        };
-        assert_eq!(p, arch);
-        assert_eq!(v, Version::new(1, 1, 1));
+        assert!(parse_versionstring(&s.to_owned()).is_err());
 
-        let s = "1.1.1~x86";
+        let s = "1.1.1+0.x86.apple.darwin14";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x86");
         assert_eq!(v, Version::new(1, 1, 1));
 
-        let s = "1.1.1~x64";
+        let s = "1.1.1+0.x64.apple.darwin14";
         let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
-
-        let s = "1.1.1+0~x64";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
-        assert_eq!(p, "x64");
-        assert_eq!(v, Version::parse("1.1.1+0").unwrap());
     }
 }
