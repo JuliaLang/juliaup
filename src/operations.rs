@@ -5,7 +5,6 @@ use crate::get_bundled_julia_version;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaserver_base_url;
-use crate::utils::parse_versionstring;
 use crate::utils::get_bin_dir;
 use anyhow::bail;
 use anyhow::{anyhow, Context, Result};
@@ -322,9 +321,7 @@ pub fn install_version(
         let download_url = juliaupserver_base.join(download_url_path)
             .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
         
-        let (platform, version) = parse_versionstring(fullversion).with_context(|| format!(""))?;
-
-        eprintln!("{} Julia {} ({}).", style("Installing").green().bold(), version, platform);
+        eprintln!("{} Julia {}", style("Installing").green().bold(), fullversion);
 
         download_extract_sans_parent(&download_url.to_string(), &target_path, 1)?;
     }
@@ -416,9 +413,7 @@ pub fn create_symlink(
 
             let target_path = paths.juliauphome.join(&child_target_fullname);
 
-            let (platform, version) = parse_versionstring(version).with_context(|| format!(""))?;
-
-            eprintln!("{} {} for Julia {} ({}).", style("Creating symlink").cyan().bold(), symlink_name, version, platform);
+            eprintln!("{} {} for Julia {}.", style("Creating symlink").cyan().bold(), symlink_name, version);
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
                 .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
