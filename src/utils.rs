@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use semver::Version;
+use semver::{Version, BuildMetadata};
 use std::path::PathBuf;
 use url::Url;
 
@@ -69,26 +69,28 @@ pub fn get_arch() -> Result<String> {
 }
 
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
-    let parts: Vec<&str> = value.split('~').collect();
+    let version = Version::parse(value).unwrap();
 
-    if parts.len() > 2 {
+    let build_parts: Vec<&str> = version.build.split('.').collect();
+
+    if build_parts.len() != 4 {
         bail!(
-            "`{}` is an invalid version specifier: multiple `~` characters are not allowed.",
+            "`{}` is an invalid version specifier: the build part must have four parts.",
             value
         );
     }
 
-    let version = parts[0];
-    let platform = if parts.len() == 2 { parts[1].to_string() } else { get_arch()? };
+    let version_without_build = semver::Version {
+        major: version.major,
+        minor: version.minor,
+        patch: version.patch,
+        pre: version.pre,
+        build: BuildMetadata::EMPTY
+    };
 
-    let version = Version::parse(version).with_context(|| {
-        format!(
-            "'{}' was determined to be the semver part of '{}', but failed to parse as a version.",
-            version, value
-        )
-    })?;
+    let platform = build_parts[1];
 
-    Ok((platform.to_string(), version))
+    Ok((platform.to_string(), version_without_build))
 }
 
 #[cfg(test)]
