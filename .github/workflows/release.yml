@@ -141,10 +141,10 @@ jobs:
             os: ubuntu
             features: dummy
             rustflags:
-          # - target: x86_64-unknown-linux-musl
-          #   os: ubuntu
-          #   features: dummy
-          #   rustflags: -C target-feature=+crt-static
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy
