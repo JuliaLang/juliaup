@@ -211,9 +211,8 @@ get_architecture() {
         if [ "$(uname -o)" = Android ]; then
             _ostype=Android
         fi
-        if ldd --version 2>&1 | grep -q 'musl'; then
-            _clibtype="musl"
-        fi
+        
+        _clibtype="musl"
     fi
 
     if [ "$_ostype" = Darwin ] && [ "$_cputype" = i386 ]; then
