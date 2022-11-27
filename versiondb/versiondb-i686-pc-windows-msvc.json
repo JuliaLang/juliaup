@@ -602,6 +602,12 @@
         "1~x86": {
             "Version": "1.8.3+0.x86.w64.mingw32"
         },
+        "alpha": {
+            "Version": "1.9.0-alpha1+0.x86.w64.mingw32"
+        },
+        "alpha~x86": {
+            "Version": "1.9.0-alpha1+0.x86.w64.mingw32"
+        },
         "beta": {
             "Version": "1.8.3+0.x86.w64.mingw32"
         },
@@ -627,5 +633,5 @@
             "Version": "1.8.3+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.10"
+    "Version": "1.0.11"
 }

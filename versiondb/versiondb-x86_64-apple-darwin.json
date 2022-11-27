@@ -575,6 +575,12 @@
         "1~x64": {
             "Version": "1.8.3+0.x64.apple.darwin14"
         },
+        "alpha": {
+            "Version": "1.9.0-alpha1+0.x64.apple.darwin14"
+        },
+        "alpha~x64": {
+            "Version": "1.9.0-alpha1+0.x64.apple.darwin14"
+        },
         "beta": {
             "Version": "1.8.3+0.x64.apple.darwin14"
         },
@@ -600,5 +606,5 @@
             "Version": "1.8.3+0.x64.apple.darwin14"
         }
     },
-    "Version": "1.0.10"
+    "Version": "1.0.11"
 }
