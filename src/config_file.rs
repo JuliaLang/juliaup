@@ -12,6 +12,14 @@ fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
 }
 
+fn default_versionsdb_update_interval() -> i64 {
+    5
+}
+
+fn is_default_versionsdb_update_interval(i: &i64) -> bool {
+    *i == 5
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
@@ -37,12 +45,15 @@ pub enum JuliaupConfigChannel {
 pub struct JuliaupConfigSettings {
     #[serde(rename = "CreateChannelSymlinks", default, skip_serializing_if = "is_default")]
     pub create_channel_symlinks: bool,
+    #[serde(rename = "VersionsDbUpdateInterval", default = "default_versionsdb_update_interval", skip_serializing_if = "is_default_versionsdb_update_interval")]
+    pub versionsdb_update_interval: i64,
 }
 
 impl Default for JuliaupConfigSettings {
     fn default() -> Self { 
         JuliaupConfigSettings {
             create_channel_symlinks: false,
+            versionsdb_update_interval: 5,
         }
      }
 }
@@ -125,6 +136,7 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                     installed_channels: HashMap::new(),
                     settings: JuliaupConfigSettings {
                         create_channel_symlinks: false,
+                        versionsdb_update_interval: 5,
                     },
                     last_version_db_update: None,
                 }
@@ -192,6 +204,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 installed_channels: HashMap::new(),
                 settings: JuliaupConfigSettings{
                     create_channel_symlinks: false,
+                    versionsdb_update_interval: 5,
                 },
                 last_version_db_update: None,
             };

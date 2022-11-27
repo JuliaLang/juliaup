@@ -1,3 +1,4 @@
+use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
 use juliaup::command_info::run_command_info;
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
@@ -138,6 +139,12 @@ enum ConfigSubCmd {
         /// New value
         value: Option<bool>
     },
+    /// The time between automatic updates of the versions database in minutes, use 0 to disable.
+    #[clap(name="versionsdbupdateinterval")]
+    VersionsDbUpdateInterval {
+        /// New value
+        value: Option<i64>
+    },
 }
 
 fn main() -> Result<()> {
@@ -175,6 +182,7 @@ fn main() -> Result<()> {
             ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value, false, &paths),
             #[cfg(feature = "selfupdate")]
             ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false, &paths),
+            ConfigSubCmd::VersionsDbUpdateInterval {value} => run_command_config_versionsdbupdate(value, false, &paths),
         },
         Juliaup::Api {command} => run_command_api(command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
