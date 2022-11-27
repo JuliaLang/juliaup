@@ -1184,6 +1184,12 @@
         "1~x86": {
             "Version": "1.8.3+0.x86.linux.gnu"
         },
+        "alpha": {
+            "Version": "1.9.0-alpha1+0.x86.linux.gnu"
+        },
+        "alpha~x86": {
+            "Version": "1.9.0-alpha1+0.x86.linux.gnu"
+        },
         "beta": {
             "Version": "1.8.3+0.x86.linux.gnu"
         },
@@ -1209,5 +1215,5 @@
             "Version": "1.8.3+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.10"
+    "Version": "1.0.11"
 }
