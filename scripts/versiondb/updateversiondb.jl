@@ -213,6 +213,26 @@ function get_available_versions(data, platform)
         end
     end
 
+    alpha_version = all_versions |>
+        @filter(!isempty(_.prerelease) && startswith(_.prerelease[1], "alpha")) |>
+        maximum
+    if alpha_version < beta_version
+        alpha_version = beta_version
+    end
+
+    for p in platforms_to_include
+        if haskey(available_versions, "$alpha_version+0.$(triplet2semverbuild(p))")
+            available_channels["alpha"] = Dict("Version"=>"$alpha_version+0.$(triplet2semverbuild(p))")
+            break
+        end
+    end
+
+    for p in platforms_to_include
+        if haskey(available_versions, "$alpha_version+0.$(triplet2semverbuild(p))")
+            available_channels["alpha~$(triplet2channel(p))"] = Dict("Version"=>"$alpha_version+0.$(triplet2semverbuild(p))")
+        end
+    end
+
     available_channels = available_channels |>
         pairs |>
         @orderby(_[1]) |>
