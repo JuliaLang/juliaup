@@ -110,6 +110,12 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 For juliaup developers, information on how to build juliaup locally, update julia versions, and release updates
 can be found in the wiki https://github.com/JuliaLang/juliaup/wiki
 
+To use unstable preview versions of juliaup (e.g. to gt a patch before it makes it into the latest release), use
+
+```
+curl -fsSL https://install.julialang.org/releasepreview | sh
+```
+
 ## More information
 
 [This JuliaCon 2021 talk](https://www.youtube.com/watch?v=rFlbjWC6zYA) is a short introduction to Juliaup. Note that the video was recorded before the Linux and Mac versions were finished, but all the information about `juliaup` itself applies equally on Linux and Mac.
