@@ -21,7 +21,7 @@ jobs:
           x86_64-pc-windows-msvc,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
-          # x86_64-unknown-linux-musl,
+          x86_64-unknown-linux-musl,
           i686-pc-windows-msvc,
           ]
         include:
@@ -37,16 +37,18 @@ jobs:
             os: ubuntu
             features: dummy
             rustflags:
-          # - target: x86_64-unknown-linux-musl
-          #   os: ubuntu
-          #   features: dummy
-          #   rustflags: -C target-feature=+crt-static
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy
             rustflags:
     steps:
     - uses: actions/checkout@v3
+    - if: ${{ contains(matrix.target, '-musl') }}
+      run: sudo apt-get install musl-tools
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
