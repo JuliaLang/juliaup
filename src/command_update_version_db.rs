@@ -34,7 +34,7 @@ pub fn run_command_update_version_db(paths: &GlobalPaths) -> Result<()> {
     let dbversion_url = juliaupserver_base.join(dbversion_url_path)
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, dbversion_url_path))?;
 
-    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
+    let online_dbversion = download_juliaup_version(dbversion_url.as_ref())
         .with_context(|| "Failed to download current version db version.")?;
 
     config_file.data.last_version_db_update = Some(chrono::Utc::now());
@@ -73,7 +73,7 @@ pub fn run_command_update_version_db(paths: &GlobalPaths) -> Result<()> {
             let onlineversiondburl = juliaupserver_base.join(&format!("juliaup/versiondb/versiondb-{}-{}.json", online_dbversion, get_juliaup_target()))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb)
+            download_versiondb(onlineversiondburl.as_ref(), &paths.versiondb)
                 .with_context(|| format!("Failed to download new version db from {}.", onlineversiondburl))?;            
         }
     }

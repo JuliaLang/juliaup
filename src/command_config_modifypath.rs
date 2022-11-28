@@ -18,10 +18,10 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool, paths: &c
             }
 
             if value {
-                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin).unwrap();
+                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin);
             }
             else {
-                remove_binfolder_from_path_in_shell_scripts().unwrap();
+                remove_binfolder_from_path_in_shell_scripts();
             }
 
             save_config_db(&mut config_file)

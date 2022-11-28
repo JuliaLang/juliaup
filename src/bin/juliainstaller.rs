@@ -111,39 +111,39 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
     use console::style;
 
     println!("Juliaup will be installed into the Juliaup home directory, located at:");
-    println!("");
+    println!();
     println!("  {}", install_choices.install_location.to_string_lossy());
-    println!("");
+    println!();
     println!("The {}, {} and other commands will be added to", style("julia").bold(), style("juliaup").bold());
     println!("Juliaup's bin directory, located at:");
-    println!("");
+    println!();
     println!("  {}", install_choices.install_location.join("bin").to_string_lossy());
-    println!("");
+    println!();
 
     if install_choices.modifypath {
         println!("This path will then be added to your {} environment variable by", style("PATH").bold());
         println!("modifying the profile files located at:");
-        println!("");
+        println!();
         for p in &install_choices.modifypath_files {
             println!("  {}", p.to_string_lossy());
         }
-        println!("");
+        println!();
     }
 
     if install_choices.backgroundselfupdate>0 {
         println!("The installer will configure a CRON job that checks for updates of");
         println!("Juliaup itself. This CRON job will run every {} seconds.", install_choices.backgroundselfupdate);
-        println!("");
+        println!();
     }
 
     if install_choices.startupselfupdate>0 {
         println!("Julia will look for a new version of Juliaup itself every {} minutes when you start julia.", install_choices.startupselfupdate);
-        println!("");
+        println!();
     }
 
     if install_choices.symlinks {
         println!("Julia will create a symlink for every channel you install that is named julia-<CHANNELNAME>.");
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -186,7 +186,7 @@ pub fn main() -> Result<()> {
     use log::{info, trace, debug};
 
     println!("{}", style("Welcome to Julia!").bold());
-    println!("");
+    println!();
 
     if is_juliaup_installed() {
         println!("It seems that Juliaup is already installed on this system. Please remove the previous installation of Juliaup before you try to install a new version.");
@@ -211,7 +211,7 @@ pub fn main() -> Result<()> {
             return Ok(());
         }
 
-        println!("");
+        println!();
     }
 
     let mut install_choices = InstallChoices {
@@ -222,14 +222,14 @@ pub fn main() -> Result<()> {
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
             .join(".juliaup"),
-        modifypath_files: find_shell_scripts_to_be_modified(true)?,
+        modifypath_files: find_shell_scripts_to_be_modified(true),
     };
 
     print_install_choices(&install_choices)?;
 
     println!("You can uninstall at any time with {} and these", style("juliaup self uninstall").bold());
     println!("changes will be reverted.");
-    println!("");
+    println!();
 
     debug!("Next running the prompt for default choices");
 
@@ -243,7 +243,7 @@ pub fn main() -> Result<()> {
 
     trace!("choice is {:?}", answer_default);
 
-    println!("");
+    println!();
 
     if answer_default == 1 {
         debug!("Next running the individual config wizard");
@@ -349,14 +349,14 @@ pub fn main() -> Result<()> {
     println!("Julia was successfully installed on your system.");
 
     if install_choices.modifypath {
-        println!("");
+        println!();
         println!("Depending on which shell you are using, run one of the following");
         println!("commands to reload the {} environment variable:", style("PATH").bold());
-        println!("");
+        println!();
         for p in &install_choices.modifypath_files {
             println!("  . {}", p.to_string_lossy());
         }
-        println!("");
+        println!();
     }
 
     Ok(())

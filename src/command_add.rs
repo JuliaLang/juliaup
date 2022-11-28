@@ -13,7 +13,7 @@ pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
     let required_version = &version_db
         .available_channels
         .get(&channel)
-        .ok_or(anyhow!(
+        .ok_or_else(|| anyhow!(
             "'{}' is not a valid Julia version or channel name.",
             &channel
         ))?
@@ -26,7 +26,7 @@ pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
         bail!("'{}' is already installed.", &channel);
     }
     
-    install_version(&required_version, &mut config_file.data, &version_db, paths)?;
+    install_version(required_version, &mut config_file.data, &version_db, paths)?;
 
     config_file.data.installed_channels.insert(
         channel.clone(),

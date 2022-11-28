@@ -5,7 +5,7 @@ use url::Url;
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
-        if val.ends_with("/") {val} else {format!("{}/", val)}
+        if val.ends_with('/') {val} else {format!("{}/", val)}
      } else {
         "https://julialang-s3.julialang.org".to_string() 
     };
@@ -21,7 +21,7 @@ pub fn get_bin_dir() -> Result<PathBuf> {
 
     let path = match std::env::var("JULIAUP_BIN_DIR") {
         Ok(val) => {
-            let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
+            let path = PathBuf::from(val.split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
 
             if !path.is_absolute() {
                 bail!("The `JULIAUP_BIN_DIR` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());

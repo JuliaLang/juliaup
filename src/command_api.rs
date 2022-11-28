@@ -99,7 +99,7 @@ pub fn run_command_api(command: String, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.unwrap_or(Vec::new()),
+                            args: args.unwrap_or_default(),
                             version: version.to_string(),
                             arch: "".to_string(),
                         }

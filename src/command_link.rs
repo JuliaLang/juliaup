@@ -39,8 +39,8 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths:
     if create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
-                command: file.clone(),
-                args: Some(args.clone()),
+                command: file,
+                args: Some(args),
             },
             &format!("julia-{}", channel),
             paths,

@@ -6,7 +6,6 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
-use ctrlc;
 use console::Term;
 
 #[derive(thiserror::Error, Debug)]
@@ -52,8 +51,7 @@ fn run_versiondb_update(config_file: &juliaup::config_file::JuliaupReadonlyConfi
     if let Some(val) = versiondb_update_interval {
         let should_run = if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
             let update_time = last_versiondb_update + chrono::Duration::minutes(val);
-
-            if Utc::now() >= update_time {true} else {false}
+            Utc::now() >= update_time
         } else {
             true
         };
@@ -161,7 +159,7 @@ fn get_julia_path_from_channel(
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             return Ok((
                 PathBuf::from(command),
-                args.as_ref().map_or_else(|| Vec::new(), |v| v.clone()),
+                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
             ))
         }
         JuliaupConfigChannel::SystemChannel { version } => {
@@ -219,8 +217,8 @@ fn run_app() -> Result<i32> {
     if args.len() > 1 {
         let first_arg = &args[1];
 
-        if first_arg.starts_with("+") {
-            julia_channel_to_use = Some(first_arg[1..].to_string());
+        if let Some(stripped) = first_arg.strip_prefix('+') {
+            julia_channel_to_use = Some(stripped.to_string());
             julia_version_from_cmd_line = true;
         }
     }
@@ -250,7 +248,7 @@ fn run_app() -> Result<i32> {
     }
 
     for (i, v) in args.iter().skip(1).enumerate() {
-        if i > 1 || !v.starts_with("+") {
+        if i > 1 || !v.starts_with('+') {
             new_args.push(v.clone());
         }
     }

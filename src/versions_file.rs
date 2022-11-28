@@ -10,7 +10,7 @@ use crate::{jsonstructs_versionsdb::JuliaupVersionDB, global_paths::GlobalPaths,
 fn load_vendored_db() -> Result<JuliaupVersionDB> {
     let vendored_db = include_str!(concat!(env!("OUT_DIR"), "/versionsdb.json"));
 
-    let db: JuliaupVersionDB = serde_json::from_str(&vendored_db)
+    let db: JuliaupVersionDB = serde_json::from_str(vendored_db)
         .with_context(|| "Failed to parse vendored version db.")?;
 
     Ok(db)
