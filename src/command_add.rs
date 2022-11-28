@@ -1,5 +1,5 @@
 use crate::global_paths::GlobalPaths;
-use crate::operations::install_version;
+use crate::operations::{install_version, update_version_db};
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
@@ -7,6 +7,9 @@ use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
 
 pub fn run_command_add(channel: String, paths: &GlobalPaths) -> Result<()> {
+    update_version_db(paths)
+        .with_context(|| "Failed to uopdate versions db.")?;
+        
     let version_db =
         load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
 
