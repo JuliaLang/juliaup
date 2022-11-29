@@ -1,4 +1,4 @@
-use crate::config_file::JuliaupConfig;
+        use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_version;
@@ -730,4 +730,112 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 
     Ok(())
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn match_markers_none_without_markers() {
+        let inp: &[u8] = b"Some input\n";
+        let res = match_markers(inp);
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn match_markers_returns_correct_indices() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Ok(Some(..)) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert!(res.is_some());
+        let (sidx, eidx) = res.unwrap();
+
+        // Verify correct positions
+        assert_eq!(sidx, start_bytes.len());
+        let expected_eidx = start_bytes.len() + S_MARKER.len() + middle_bytes.len() + E_MARKER.len();
+        assert_eq!(eidx, expected_eidx);
+    }
+
+
+    #[test]
+    fn match_markers_returns_err_without_start() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_without_end() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_with_multiple_start() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_with_multiple_end() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+        inp.extend_from_slice(E_MARKER);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
 }
