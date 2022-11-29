@@ -744,6 +744,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "atty",
+ "bstr 1.0.1",
  "built",
  "chrono",
  "clap",
