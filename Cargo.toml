@@ -65,6 +65,7 @@ winres = "0.1"
 [dev-dependencies]
 assert_cmd = "2"
 assert_fs = "1"
+indoc = "1.0.7"
 predicates = "2.1"
 
 [features]
