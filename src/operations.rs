@@ -685,7 +685,7 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Vec<PathBuf> {
+pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
     let home_dir = dirs::home_dir().unwrap();
 
     let paths_to_test: Vec<PathBuf> = vec![
@@ -696,27 +696,30 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Vec<PathBuf> {
         home_dir.join(".zshrc"),
     ];
 
-    paths_to_test
+    let result = paths_to_test
         .iter()
         .filter(|p| p.exists() ||
             (add_case && p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
         .cloned()
-        .collect()
+        .collect();
+    Ok(result)
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path) {
-    let paths = find_shell_scripts_to_be_modified(true);
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path) -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified(true)?;
 
     paths.into_iter().for_each(|p| {
         add_path_to_specific_file(bin_path, &p).unwrap();
     });
+    Ok(())
 }
 
-pub fn remove_binfolder_from_path_in_shell_scripts() {
-    let paths = find_shell_scripts_to_be_modified(false);
+pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified(false)?;
 
     paths.into_iter().for_each(|p| {
         remove_path_from_specific_file(p).unwrap();
     });
+    Ok(())
 }

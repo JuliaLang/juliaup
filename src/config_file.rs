@@ -254,7 +254,7 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
         .with_context(|| "Failed to set len to 0 for config file before writing new content.")?;
 
     serde_json::to_writer_pretty(&juliaup_config_file.file, &juliaup_config_file.data)
-        .with_context(|| "Failed to write configuration file.".to_string())?;
+        .with_context(|| "Failed to write configuration file.")?;
 
     juliaup_config_file.file.sync_all()
         .with_context(|| "Failed to write config data to disc.")?;
