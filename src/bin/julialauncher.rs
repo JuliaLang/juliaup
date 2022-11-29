@@ -47,7 +47,7 @@ fn run_versiondb_update(config_file: &juliaup::config_file::JuliaupReadonlyConfi
 
     if versiondb_update_interval > 0 {
         let should_run = if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
-            let update_time = last_versiondb_update + chrono::Duration::minutes(val);
+            let update_time = last_versiondb_update + chrono::Duration::minutes(versiondb_update_interval);
             Utc::now() >= update_time
         } else {
             true
