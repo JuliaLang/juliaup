@@ -1,3 +1,4 @@
+#![rustfmt_skip]
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
@@ -13,6 +14,7 @@ use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::Seek;
 use std::io::Write;
+use std::os::unix::prelude::OsStrExt;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
@@ -569,30 +571,36 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
     Ok(())
 }
 
-const S_MARKER: &str = "# >>> juliaup initialize >>>";
-const E_MARKER: &str = "# <<< juliaup initialize <<<";
+const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
+const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Result<String> {
-    let mut result = String::new();
+fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &Path) -> Vec<u8> {
+    let mut result: Vec<u8> = Vec::new();
 
-    result.push_str(S_MARKER);
-    result.push('\n');
-    result.push('\n');
-    result.push_str("# !! Contents within this block are managed by juliaup !!\n");
-    result.push('\n');
+    result.extend_from_slice(S_MARKER);
+    result.extend_from_slice(b"\n");
+    result.extend_from_slice(b"\n");
+    result.extend_from_slice(b"# !! Contents within this block are managed by juliaup !!\n");
+    result.extend_from_slice(b"\n");
     if path.file_name().unwrap()==".zshrc" {
-        result.push_str(&format!("path=('{}' $path)\n", bin_path.to_string_lossy()));
-        result.push_str("export PATH\n");
+        result.extend_from_slice(b"path=('");
+        result.extend_from_slice(bin_path.as_os_str().as_bytes());
+        result.extend_from_slice(b"' $path)\n");
+        result.extend_from_slice(b"export PATH\n");
     }
     else {
-        result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
-        result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
-        result.push_str("esac\n");    
+        result.extend_from_slice(b"case \":$PATH:\" in *:");
+        result.extend_from_slice(bin_path.as_os_str().as_bytes());
+        result.extend_from_slice(b":*);; *)\n");
+        result.extend_from_slice(b"    export PATH=");
+        result.extend_from_slice(bin_path.as_os_str().as_bytes());
+        result.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
+        result.extend_from_slice(b"esac\n");    
     }
-    result.push('\n');
-    result.push_str(E_MARKER);
+    result.extend_from_slice(b"\n");
+    result.extend_from_slice(E_MARKER);
 
-    Ok(result)
+    result
 }
 
 fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,usize)>> {
