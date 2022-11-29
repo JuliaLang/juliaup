@@ -35,7 +35,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
             ChannelRow {
                 default: match config_file.data.default {
                     Some(ref default_value) => {
-                        if &i.0 == &default_value {
+                        if i.0 == default_value {
                             "*"
                         } else {
                             ""
@@ -49,23 +49,23 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                     JuliaupConfigChannel::LinkedChannel {command, args} => {
                         let mut combined_command = String::new();
 
-                        if command.contains(" ") {
-                            combined_command.push_str("\"");
-                            combined_command.push_str(&command);
-                            combined_command.push_str("\"");
+                        if command.contains(' ') {
+                            combined_command.push('\"');
+                            combined_command.push_str(command);
+                            combined_command.push('\"');
                         } else {
-                            combined_command.push_str(&command);
+                            combined_command.push_str(command);
                         }
 
                         if let Some(args) = args {
                             for i in args {
-                                combined_command.push_str(" ");
-                                if i.contains(" ") {
-                                    combined_command.push_str("\"");
-                                    combined_command.push_str(&i);
-                                    combined_command.push_str("\"");
+                                combined_command.push(' ');
+                                if i.contains(' ') {
+                                    combined_command.push('\"');
+                                    combined_command.push_str(i);
+                                    combined_command.push('\"');
                                 } else {
-                                    combined_command.push_str(&i);
+                                    combined_command.push_str(i);
                                 }
                             }
                         }

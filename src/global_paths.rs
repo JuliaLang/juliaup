@@ -21,7 +21,7 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
 
     let path = match std::env::var("JULIA_DEPOT_PATH") {
         Ok(val) => {
-            let path = PathBuf::from(val.to_string().split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
+            let path = PathBuf::from(val.split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
 
             if !path.is_absolute() {
                 bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
@@ -31,7 +31,7 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
         }
         Err(_) => {
     let path = dirs::home_dir()
-        .ok_or(anyhow!(
+        .ok_or_else(|| anyhow!(
             "Could not determine the path of the user home directory."
         ))?
         .join(".julia")
