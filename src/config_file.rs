@@ -13,7 +13,7 @@ fn is_default<T: Default + PartialEq>(t: &T) -> bool {
 }
 
 fn default_versionsdb_update_interval() -> i64 {
-    60
+    1440
 }
 
 fn is_default_versionsdb_update_interval(i: &i64) -> bool {
