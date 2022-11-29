@@ -61,7 +61,7 @@ fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
     })
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(not(any(windows, macos)))]
 pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     let agent = match get_proxy(url) {
         Some(proxy) => ureq::AgentBuilder::new().proxy(proxy?).build(),
@@ -71,7 +71,7 @@ pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     Ok(agent)
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(macos)]
 pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     use native_tls::TlsConnector;
     use std::sync::Arc;
