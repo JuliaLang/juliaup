@@ -9,6 +9,7 @@ use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_bin_dir;
 use anyhow::bail;
 use anyhow::{anyhow, Context, Result};
+use bstr::ByteSlice;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -605,33 +606,29 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &Path) -> Vec<u8> 
 }
 
 fn match_markers(buffer: &[u8], include_newlines: bool) -> Result<Option<(usize,usize)>> {
-    let mut start_markers: Vec<_> = buffer.match_indices(S_MARKER).collect();
-    let mut end_markers: Vec<_> = buffer.match_indices(E_MARKER).collect();
-    
-    if start_markers.len() != end_markers.len() {
-        bail!("Different amount of markers.");
-    }
-    else if start_markers.len() > 1 {
-        bail!("More than one start marker found.");
-    }
-    else if start_markers.len()==1 {
-        if include_newlines {
-            let start_markers_with_newline: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
-            if start_markers_with_newline.len()==1 {
-                start_markers = start_markers_with_newline;
-            }
+    let start_marker = buffer.find(S_MARKER);
+    let end_marker = buffer.find(E_MARKER);
 
-            let end_markers_with_newline: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
-            if end_markers_with_newline.len()==1 {
-                end_markers = end_markers_with_newline;
+    // This ensures exactly one opening and one closing marker exists
+    let (start_marker, end_marker) = match (start_marker, end_marker) {
+        (Some(sidx), Some(eidx)) => {
+            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
+                bail!("Found multiple startup script sections from juliaup.");
             }
-        }
+            (sidx, eidx) 
+        }, 
+        (None, None) => {
+            return Ok(None);
+        },
+        (_, None) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        },
+        (None, _) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        },
+    };
 
-        Ok(Some((start_markers[0].0, end_markers[0].0 + end_markers[0].1.len())))
-    }
-    else {
-        Ok(None)
-    }
+    Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
 fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
