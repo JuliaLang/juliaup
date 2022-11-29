@@ -56,7 +56,7 @@ fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
     })
 }
 
-#[cfg(not(any(windows, macos)))]
+#[cfg(not(any(windows, target_os = "macos")))]
 pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     let agent = match get_proxy(url) {
         Some(proxy) => ureq::AgentBuilder::new().proxy(proxy?).build(),
@@ -66,7 +66,7 @@ pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     Ok(agent)
 }
 
-#[cfg(macos)]
+#[cfg(target_os = "macos")]
 pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     use native_tls::TlsConnector;
     use std::sync::Arc;
@@ -88,7 +88,7 @@ pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.".to_string())?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()
@@ -194,7 +194,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.".to_string())?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()?
@@ -212,7 +212,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.".to_string())?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()?
@@ -660,8 +660,8 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
+fn remove_path_from_specific_file(path: &Path) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(path)
     .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
     let mut buffer = String::new();
@@ -719,7 +719,7 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     let paths = find_shell_scripts_to_be_modified(false)?;
 
     paths.into_iter().for_each(|p| {
-        remove_path_from_specific_file(p).unwrap();
+        remove_path_from_specific_file(&p).unwrap();
     });
     Ok(())
 }

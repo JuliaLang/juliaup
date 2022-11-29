@@ -158,13 +158,13 @@ fn main() -> Result<()> {
         .with_context(|| "Trying to load all global paths.")?;
 
     match args {
-        Juliaup::Default {channel} => run_command_default(channel, &paths),
-        Juliaup::Add {channel} => run_command_add(channel, &paths),
-        Juliaup::Remove {channel} => run_command_remove(channel, &paths),
+        Juliaup::Default {channel} => run_command_default(&channel, &paths),
+        Juliaup::Add {channel} => run_command_add(&channel, &paths),
+        Juliaup::Remove {channel} => run_command_remove(&channel, &paths),
         Juliaup::Status {} => run_command_status(&paths),
         Juliaup::Update {channel} => run_command_update(channel, &paths),
         Juliaup::Gc {} => run_command_gc(&paths),
-        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
+        Juliaup::Link {channel, file, args} => run_command_link(&channel, &file, &args, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]
@@ -176,7 +176,7 @@ fn main() -> Result<()> {
             #[cfg(feature = "selfupdate")]
             ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false, &paths),
         },
-        Juliaup::Api {command} => run_command_api(command, &paths),
+        Juliaup::Api {command} => run_command_api(&command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         Juliaup::Info {} => run_command_info(&paths),

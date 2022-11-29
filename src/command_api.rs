@@ -29,7 +29,7 @@ pub struct JuliaupApiGetinfoReturn {
     pub other_versions: Vec<JuliaupChannelInfo>,
 }
 
-pub fn run_command_api(command: String, paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     if command != "getconfig1" {
         bail!("Wrong API command.");
     }

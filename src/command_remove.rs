@@ -3,21 +3,21 @@ use crate::{operations::garbage_collect_versions, config_file::{load_mut_config_
 use crate::operations::remove_symlink;
 use anyhow::{bail, Context, Result};
 
-pub fn run_command_remove(channel: String, paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`remove` command failed to load configuration data.")?;
 
-    if !config_file.data.installed_channels.contains_key(&channel) {
+    if !config_file.data.installed_channels.contains_key(channel) {
         bail!("'{}' cannot be removed because it is currently not installed.", channel);
     }
 
     if let Some(ref default_value) = config_file.data.default {
-        if &channel==default_value {
+        if channel==default_value {
             bail!("'{}' cannot be removed because it is currently configured as the default channel.", channel);
         }
     }
 
-    config_file.data.installed_channels.remove(&channel);
+    config_file.data.installed_channels.remove(channel);
 
     #[cfg(not(windows))]
     remove_symlink(&format!("julia-{}", channel))?;

@@ -6,26 +6,26 @@ use crate::config_file::JuliaupConfigChannel;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 
-pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_link(channel: &str, file: &str, args: &[String], paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`link` command failed to load configuration data.")?;
 
     let versiondb_data = load_versions_db(paths)
         .with_context(|| "`link` command failed to load versions db.")?;
 
-    if config_file.data.installed_channels.contains_key(&channel) {
+    if config_file.data.installed_channels.contains_key(channel) {
         bail!("Channel name `{}` is already used.", channel)
     }
 
-    if versiondb_data.available_channels.contains_key(&channel) {
+    if versiondb_data.available_channels.contains_key(channel) {
         eprintln!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
     }
 
     config_file.data.installed_channels.insert(
-        channel.clone(),
+        channel.to_string(),
         JuliaupConfigChannel::LinkedChannel {
-            command: file.clone(),
-            args: Some(args.clone()),
+            command: file.to_string(),
+            args: Some(args.to_vec()),
         },
     );
 
@@ -39,8 +39,8 @@ pub fn run_command_link(channel: String, file: String, args: Vec<String>, paths:
     if create_symlinks {
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
-                command: file,
-                args: Some(args),
+                command: file.to_string(),
+                args: Some(args.to_vec()),
             },
             &format!("julia-{}", channel),
             paths,

@@ -197,7 +197,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
             };
 
             serde_json::to_writer_pretty(&file, &new_config)
-                .with_context(|| "Failed to write configuration file.".to_string())?;
+                .with_context(|| "Failed to write configuration file.")?;
 
             file.sync_all()
                 .with_context(|| "Failed to write configuration data to disc.")?;
