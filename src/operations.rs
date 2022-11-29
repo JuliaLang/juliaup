@@ -670,9 +670,9 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
     .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
-    let mut buffer = String::new();
+    let mut buffer: Vec<u8> = Vec::new();
 
-    file.read_to_string(&mut buffer)?;
+    file.read_to_end(&mut buffer)?;
 
     let existing_code_pos = match_markers(&buffer, true)?;
 
@@ -683,7 +683,7 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
 
         file.set_len(0).unwrap();
 
-        file.write_all(buffer.as_bytes()).unwrap();
+        file.write_all(&buffer).unwrap();
 
         file.sync_all().unwrap();
     }
