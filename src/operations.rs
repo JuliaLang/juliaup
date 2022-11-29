@@ -23,6 +23,7 @@ use tar::Archive;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
+use bstr::ByteVec;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -603,7 +604,7 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &Path) -> Vec<u8> 
     result
 }
 
-fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,usize)>> {
+fn match_markers(buffer: &[u8], include_newlines: bool) -> Result<Option<(usize,usize)>> {
     let mut start_markers: Vec<_> = buffer.match_indices(S_MARKER).collect();
     let mut end_markers: Vec<_> = buffer.match_indices(E_MARKER).collect();
     
@@ -637,22 +638,23 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
-    let mut buffer = String::new();
+    let mut buffer: Vec<u8> = Vec::new();
 
-    file.read_to_string(&mut buffer)?;
+    file.read_to_end(&mut buffer)
+        .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
 
     let existing_code_pos = match_markers(&buffer, false)?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path).unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path, &path);
 
     match existing_code_pos {
         Some(pos) => {
             buffer.replace_range(pos.0..pos.1, &new_content);
         },
         None => {
-            buffer.push('\n');
-            buffer.push_str(&new_content);
-            buffer.push('\n');
+            buffer.extend_from_slice(b"\n");
+            buffer.extend_from_slice(&new_content);
+            buffer.extend_from_slice(b"\n");
         }
     };
 
@@ -660,7 +662,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
 
     file.set_len(0).unwrap();
 
-    file.write_all(buffer.as_bytes()).unwrap();
+    file.write_all(&buffer).unwrap();
 
     file.sync_all().unwrap();
 
@@ -732,4 +734,5 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     });
 
     Ok(())
+
 }
