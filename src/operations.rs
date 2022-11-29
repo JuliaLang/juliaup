@@ -1,4 +1,3 @@
-#![rustfmt_skip]
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
@@ -7,8 +6,7 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_bin_dir;
-use anyhow::bail;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, anyhow, Context, Result};
 use bstr::ByteSlice;
 use console::style;
 use flate2::read::GzDecoder;
