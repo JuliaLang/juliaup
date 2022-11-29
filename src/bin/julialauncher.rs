@@ -43,12 +43,9 @@ fn run_versiondb_update(config_file: &juliaup::config_file::JuliaupReadonlyConfi
     use chrono::Utc;
     use std::process::Stdio;
 
-    // TODO Decide on an update interval
-    let versiondb_update_interval = Some(5);
-    // TODO We could use something like this to configure version db updates
-    // let versiondb_update_interval = config_file.self_data.startup_selfupdate_interval;
+    let versiondb_update_interval = config_file.data.settings.versionsdb_update_interval;
 
-    if let Some(val) = versiondb_update_interval {
+    if versiondb_update_interval > 0 {
         let should_run = if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
             let update_time = last_versiondb_update + chrono::Duration::minutes(val);
             Utc::now() >= update_time

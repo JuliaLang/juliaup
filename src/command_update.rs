@@ -1,6 +1,6 @@
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
-use crate::operations::{install_version};
+use crate::operations::{install_version, update_version_db};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
@@ -49,6 +49,9 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
 }
 
 pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Result<()> {
+    update_version_db(paths)
+        .with_context(|| "Failed to uopdate versions db.")?;
+
     let version_db =
         load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;
 
