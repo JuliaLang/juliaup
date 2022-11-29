@@ -574,7 +574,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &Path) -> Vec<u8> {
+fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::new();
 
     result.extend_from_slice(S_MARKER);
@@ -603,7 +603,7 @@ fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &Path) -> Vec<u8> 
     result
 }
 
-fn match_markers(buffer: &[u8], include_newlines: bool) -> Result<Option<(usize,usize)>> {
+fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
 
@@ -638,7 +638,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     file.read_to_end(&mut buffer)
         .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
 
-    let existing_code_pos = match_markers(&buffer, false)?;
+    let existing_code_pos = match_markers(&buffer)?;
 
     let new_content = get_shell_script_juliaup_content(bin_path, &path);
 
@@ -672,7 +672,7 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_end(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer, true)?;
+    let existing_code_pos = match_markers(&buffer)?;
 
     if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
@@ -693,11 +693,11 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     let home_dir = dirs::home_dir().unwrap();
 
     let paths_to_test: Vec<PathBuf> = vec![
-        home_dir.join(".bashrc").into(),
-        home_dir.join(".profile").into(),
-        home_dir.join(".bash_profile").into(),
-        home_dir.join(".bash_login").into(),
-        home_dir.join(".zshrc").into(),
+        home_dir.join(".bashrc"),
+        home_dir.join(".profile"),
+        home_dir.join(".bash_profile"),
+        home_dir.join(".bash_login"),
+        home_dir.join(".zshrc"),
     ];
 
     let result = paths_to_test
@@ -705,7 +705,7 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
         .filter(|p| p.exists() ||
             (add_case && p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
-        .map(|p|p.clone())
+        .cloned()
         .collect();
 
     Ok(result)
