@@ -29,7 +29,7 @@ pub struct JuliaupApiGetinfoReturn {
     pub other_versions: Vec<JuliaupChannelInfo>,
 }
 
-pub fn run_command_api(command: String, paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     if command != "getconfig1" {
         bail!("Wrong API command.");
     }
@@ -99,7 +99,7 @@ pub fn run_command_api(command: String, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.unwrap_or(Vec::new()),
+                            args: args.unwrap_or_default(),
                             version: version.to_string(),
                             arch: "".to_string(),
                         }

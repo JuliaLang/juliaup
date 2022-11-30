@@ -40,7 +40,7 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
     let dbversion_url = juliaupserver_base.join(dbversion_url_path)
         .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, dbversion_url_path))?;
 
-    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
+    let online_dbversion = download_juliaup_version(dbversion_url.as_ref())
         .with_context(|| "Failed to download current version db version.")?;
 
     let bundled_dbversion = get_bundled_dbversion()
@@ -65,7 +65,7 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
         }
     };
 
-    println!("Juliaup version: {}", get_own_version().unwrap().to_string());
+    println!("Juliaup version: {}", get_own_version().unwrap());
     println!("Platform triplet: {}", get_juliaup_target());
     println!("Bundled version db: {}", bundled_dbversion);
     println!("Online version db: {}", online_dbversion);

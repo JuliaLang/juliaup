@@ -1,7 +1,11 @@
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
+use crate::config_file::load_mut_config_db;
+use crate::config_file::save_config_db;
+use crate::get_bundled_dbversion;
 use crate::get_bundled_julia_version;
+use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaserver_base_url;
@@ -11,6 +15,7 @@ use anyhow::{anyhow, Context, Result};
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
 use std::{
@@ -88,7 +93,7 @@ pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
     let agent = get_ureq_agent(url)
-        .with_context(|| format!("Failed to construct download agent."))?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()
@@ -111,7 +116,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 
     let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
-    unpack_sans_parent(archive, &target_path, levels_to_skip)
+    unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
     Ok(())
 }
@@ -194,7 +199,7 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let agent = get_ureq_agent(url)
-        .with_context(|| format!("Failed to construct download agent."))?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()?
@@ -210,9 +215,9 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 }
 
 #[cfg(not(windows))]
-pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
+pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let agent = get_ureq_agent(url)
-        .with_context(|| format!("Failed to construct download agent."))?;
+        .with_context(|| "Failed to construct download agent.")?;
     
     let response = agent.get(url)
         .call()?
@@ -221,7 +226,7 @@ pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
         .trim()
         .to_string();
 
-    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path)
+    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
 
     file.write_all(response.as_bytes())
@@ -254,7 +259,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 }
 
 #[cfg(windows)]
-pub fn download_versiondb(url: &str, path: &PathBuf) -> Result<()> {
+pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let http_client = windows::Web::Http::HttpClient::new()
         .with_context(|| "Failed to create HttpClient.")?;
 
@@ -300,7 +305,7 @@ pub fn install_version(
     let target_path = paths.juliauphome.join(&child_target_foldername);
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    if fullversion == &full_version_string_of_bundled_version && path_of_bundled_version.exists() {
+    if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
@@ -312,7 +317,7 @@ pub fn install_version(
         let download_url_path = &version_db
             .available_versions
             .get(fullversion)
-            .ok_or(anyhow!(
+            .ok_or_else(|| anyhow!(
                 "Failed to find download url in versions db for '{}'.",
                 fullversion
             ))?
@@ -323,7 +328,7 @@ pub fn install_version(
         
         eprintln!("{} Julia {}", style("Installing").green().bold(), fullversion);
 
-        download_extract_sans_parent(&download_url.to_string(), &target_path, 1)?;
+        download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
     }
 
     let mut rel_path = PathBuf::new();
@@ -353,10 +358,11 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalP
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
 
-            match std::fs::remove_dir_all(&path_to_delete) {
-                Err(_) => eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display),
-                Ok(_) => ()
-            };
+
+
+            if std::fs::remove_dir_all(&path_to_delete).is_err() {
+                eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
+            }
             versions_to_uninstall.push(installed_version.clone());
         }
     }
@@ -374,7 +380,7 @@ fn _remove_symlink(
     std::fs::create_dir_all(symlink_path.parent().unwrap())?;
 
     if symlink_path.exists() {
-        std::fs::remove_file(&symlink_path)?;
+        std::fs::remove_file(symlink_path)?;
     }
 
     Ok(())
@@ -385,7 +391,7 @@ pub fn remove_symlink(
 ) -> Result<()> {
     let symlink_path = get_bin_dir()
         .with_context(|| "Failed to retrieve binary directory while trying to remove a symlink.")?
-        .join(&symlink_name);
+        .join(symlink_name);
 
     eprintln!("{} {}.", style("Deleting symlink").cyan().bold(), symlink_name);
 
@@ -403,7 +409,7 @@ pub fn create_symlink(
 
     let symlink_path = get_bin_dir()
         .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?
-        .join(&symlink_name);
+        .join(symlink_name);
 
     _remove_symlink(&symlink_path)?;
 
@@ -444,7 +450,7 @@ r#"#!/bin/sh
     };
 
     if let Ok(path) = std::env::var("PATH") {
-        if !path.split(":").any(|p| Path::new(p) == symlink_path) {
+        if !path.split(':').any(|p| Path::new(p) == symlink_path) {
             eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
                 &symlink_name, symlink_path.display(),
@@ -572,7 +578,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 const S_MARKER: &str = "# >>> juliaup initialize >>>";
 const E_MARKER: &str = "# <<< juliaup initialize <<<";
 
-fn get_shell_script_juliaup_content(bin_path: &PathBuf, path: &PathBuf) -> Result<String> {
+fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<String> {
     let mut result = String::new();
 
     result.push_str(S_MARKER);
@@ -625,8 +631,8 @@ fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,u
     }
 }
 
-fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(&path)
+fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(path)
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
     let mut buffer = String::new();
@@ -635,7 +641,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
 
     let existing_code_pos = match_markers(&buffer, false)?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path).unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path, path).unwrap();
 
     match existing_code_pos {
         Some(pos) => {
@@ -659,8 +665,8 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&path)
+fn remove_path_from_specific_file(path: &Path) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(path)
     .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
     let mut buffer = String::new();
@@ -688,11 +694,11 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     let home_dir = dirs::home_dir().unwrap();
 
     let paths_to_test: Vec<PathBuf> = vec![
-        home_dir.join(".bashrc").into(),
-        home_dir.join(".profile").into(),
-        home_dir.join(".bash_profile").into(),
-        home_dir.join(".bash_login").into(),
-        home_dir.join(".zshrc").into(),
+        home_dir.join(".bashrc"),
+        home_dir.join(".profile"),
+        home_dir.join(".bash_profile"),
+        home_dir.join(".bash_login"),
+        home_dir.join(".zshrc"),
     ];
 
     let result = paths_to_test
@@ -700,19 +706,17 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
         .filter(|p| p.exists() ||
             (add_case && p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
-        .map(|p|p.clone())
+        .cloned()
         .collect();
-
     Ok(result)
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &PathBuf) -> Result<()> {
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path) -> Result<()> {
     let paths = find_shell_scripts_to_be_modified(true)?;
 
     paths.into_iter().for_each(|p| {
-        add_path_to_specific_file(bin_path, p).unwrap();
+        add_path_to_specific_file(bin_path, &p).unwrap();
     });
-
     Ok(())
 }
 
@@ -720,8 +724,81 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     let paths = find_shell_scripts_to_be_modified(false)?;
 
     paths.into_iter().for_each(|p| {
-        remove_path_from_specific_file(p).unwrap();
+        remove_path_from_specific_file(&p).unwrap();
     });
+    Ok(())
+}
+
+pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
+    let mut config_file = load_mut_config_db(paths)
+        .with_context(|| "`run_command_update_version_db` command failed to load configuration db.")?;
+
+    #[cfg(feature = "selfupdate")]
+    let juliaup_channel = match &config_file.self_data.juliaup_channel {
+        Some(juliaup_channel) => juliaup_channel.to_string(),
+        None => "release".to_string()
+    };
+
+    // TODO Figure out how we can learn about the correctn Juliaup channel here
+    #[cfg(not(feature = "selfupdate"))]
+    let juliaup_channel = "release".to_string();
+
+    let juliaupserver_base = get_juliaserver_base_url()
+            .with_context(|| "Failed to get Juliaup server base URL.")?;
+            
+    let dbversion_url_path = match juliaup_channel.as_str() {
+        "release" => "juliaup/RELEASECHANNELDBVERSION",
+        "releasepreview" => "juliaup/RELEASEPREVIEWCHANNELDBVERSION",
+        "dev" => "juliaup/DEVCHANNELDBVERSION",
+        _ => bail!("Juliaup is configured to a channel named '{}' that does not exist.", &juliaup_channel)
+    };
+
+    let dbversion_url = juliaupserver_base.join(dbversion_url_path)
+        .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, dbversion_url_path))?;
+
+    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
+        .with_context(|| "Failed to download current version db version.")?;
+
+    config_file.data.last_version_db_update = Some(chrono::Utc::now());
+
+    save_config_db(&mut config_file)
+        .with_context(|| "Failed to save configuration file.")?;
+
+    let bundled_dbversion = get_bundled_dbversion()
+        .with_context(|| "Failed to determine the bundled version db version.")?;
+
+    let local_dbversion = match std::fs::OpenOptions::new().read(true).open(&paths.versiondb) {
+        Ok(file) => {
+            let reader = BufReader::new(&file);
+
+            if let Ok(versiondb) = serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader) {
+                if let Ok(version) = semver::Version::parse(&versiondb.version) {
+                    Some(version)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }                
+        }
+        Err(_) => { 
+            None 
+        }
+    };
+
+    if online_dbversion>bundled_dbversion {      
+        if local_dbversion.is_none() || online_dbversion>local_dbversion.unwrap() {
+            let onlineversiondburl = juliaupserver_base.join(&format!("juliaup/versiondb/versiondb-{}-{}.json", online_dbversion, get_juliaup_target()))
+                .with_context(|| "Failed to construct URL for version db download.")?;
+
+            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb)
+                .with_context(|| format!("Failed to download new version db from {}.", onlineversiondburl))?;            
+        }
+    }
+    else if local_dbversion.is_some() {
+        // If the bundled version is up-to-date we can delete any cached version db json file
+        let _ = std::fs::remove_file(&paths.versiondb);
+    }
 
     Ok(())
 }
