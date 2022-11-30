@@ -1,4 +1,4 @@
-        use crate::config_file::JuliaupConfig;
+use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_julia_version;
@@ -573,15 +573,13 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 
 const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
+const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
 fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::new();
 
     result.extend_from_slice(S_MARKER);
-    result.extend_from_slice(b"\n");
-    result.extend_from_slice(b"\n");
-    result.extend_from_slice(b"# !! Contents within this block are managed by juliaup !!\n");
-    result.extend_from_slice(b"\n");
+    result.extend_from_slice(HEADER);
     if path.file_name().unwrap()==".zshrc" {
         result.extend_from_slice(b"path=('");
         result.extend_from_slice(bin_path.as_os_str().as_bytes());
@@ -593,8 +591,7 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Vec<u8> {
         result.extend_from_slice(bin_path.as_os_str().as_bytes());
         result.extend_from_slice(b":*);; *)\n");
         result.extend_from_slice(b"    export PATH=");
-        result.extend_from_slice(bin_path.as_os_str().as_bytes());
-        result.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
+        result.extend_from_slice(bin_path.as_os_str().as_bytes()); result.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
         result.extend_from_slice(b"esac\n");    
     }
     result.extend_from_slice(b"\n");
