@@ -581,23 +581,32 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Vec<u8> {
     result.extend_from_slice(S_MARKER);
     result.extend_from_slice(HEADER);
     if path.file_name().unwrap()==".zshrc" {
-        result.extend_from_slice(b"path=('");
-        result.extend_from_slice(bin_path.as_os_str().as_bytes());
-        result.extend_from_slice(b"' $path)\n");
-        result.extend_from_slice(b"export PATH\n");
+        append_zsh_content(&mut result, bin_path);
     }
     else {
-        result.extend_from_slice(b"case \":$PATH:\" in *:");
-        result.extend_from_slice(bin_path.as_os_str().as_bytes());
-        result.extend_from_slice(b":*);; *)\n");
-        result.extend_from_slice(b"    export PATH=");
-        result.extend_from_slice(bin_path.as_os_str().as_bytes()); result.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
-        result.extend_from_slice(b"esac\n");    
+        append_sh_content(&mut result, bin_path);
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
 
     result
+}
+
+fn append_zsh_content(buf: &mut Vec<u8>, p: &Path) {
+    buf.extend_from_slice(b"path=('");
+    buf.extend_from_slice(p.as_os_str().as_bytes());
+    buf.extend_from_slice(b"' $path)\n");
+    buf.extend_from_slice(b"export PATH\n");
+}
+
+fn append_sh_content(buf: &mut Vec<u8>, p: &Path) {
+    buf.extend_from_slice(b"case \":$PATH:\" in *:");
+    buf.extend_from_slice(p.as_os_str().as_bytes());
+    buf.extend_from_slice(b":*);; *)\n");
+    buf.extend_from_slice(b"    export PATH=");
+    buf.extend_from_slice(p.as_os_str().as_bytes());
+    buf.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
+    buf.extend_from_slice(b"esac\n");    
 }
 
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
