@@ -101,7 +101,7 @@ jobs:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
-    - name: Release build
+    - name: Check build
       uses: actions-rs/cargo@v1
       with:
         command: check
