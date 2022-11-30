@@ -662,9 +662,11 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
     file.read_to_end(&mut buffer)
         .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
 
-    let existing_code_pos = match_markers(&buffer)?;
+    let existing_code_pos = match_markers(&buffer)
+        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path)?;
+    let new_content = get_shell_script_juliaup_content(bin_path, &path)
+        .with_context(|| format!("Error occured while generating juliaup shell startup script section for {}", path.display()))?;
 
     match existing_code_pos {
         Some(pos) => {
@@ -696,7 +698,8 @@ fn remove_path_from_specific_file(path: PathBuf) -> Result<()> {
 
     file.read_to_end(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer)?;
+    let existing_code_pos = match_markers(&buffer)
+        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
 
     if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
