@@ -581,7 +581,7 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
 
     let bin_path_str = match bin_path.to_str() {
         Some(s) => s,
-        None =>  bail!("Could not crate UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
+        None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
     };
 
     result.extend_from_slice(S_MARKER);
