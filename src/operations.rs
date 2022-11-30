@@ -11,6 +11,7 @@ use bstr::ByteSlice;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use indoc::formatdoc;
 use std::io::Seek;
 use std::io::Write;
 use std::os::unix::prelude::OsStrExt;
@@ -575,38 +576,55 @@ const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
-fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Vec<u8> {
+fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
+
+    let bin_path_str = match bin_path.to_str() {
+        Some(s) => s,
+        None =>  bail!("Could not crate UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
+    };
 
     result.extend_from_slice(S_MARKER);
     result.extend_from_slice(HEADER);
     if path.file_name().unwrap()==".zshrc" {
-        append_zsh_content(&mut result, bin_path);
+        append_zsh_content(&mut result, bin_path_str);
     }
     else {
-        append_sh_content(&mut result, bin_path);
+        append_sh_content(&mut result, bin_path_str);
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
 
-    result
+    Ok(result)
 }
 
-fn append_zsh_content(buf: &mut Vec<u8>, p: &Path) {
-    buf.extend_from_slice(b"path=('");
-    buf.extend_from_slice(p.as_os_str().as_bytes());
-    buf.extend_from_slice(b"' $path)\n");
-    buf.extend_from_slice(b"export PATH\n");
+fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
+    // zsh specific syntax for path extension
+    let content = formatdoc!("
+            path=('{}' $path)
+            export PATH
+        ", path_str
+    );
+
+    buf.extend_from_slice(content.as_bytes());
 }
 
-fn append_sh_content(buf: &mut Vec<u8>, p: &Path) {
-    buf.extend_from_slice(b"case \":$PATH:\" in *:");
-    buf.extend_from_slice(p.as_os_str().as_bytes());
-    buf.extend_from_slice(b":*);; *)\n");
-    buf.extend_from_slice(b"    export PATH=");
-    buf.extend_from_slice(p.as_os_str().as_bytes());
-    buf.extend_from_slice(b"${{PATH:+:${{PATH}}}};;\n");
-    buf.extend_from_slice(b"esac\n");    
+fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
+    // If the variable is already contained in $PATH, do nothing
+    // Otherwise prepend it to path
+    // ${PATH:+:${PATH}} => Only append :$PATH if $PATH is set
+    let content = formatdoc!("
+            case \":$PATH:\" in
+                *:{0}:*)
+                    ;;
+
+                *)
+                    export PATH={0}${{PATH:+:${{PATH}}}}
+                    ;;
+            esac
+        ", path_str
+    );
+    buf.extend_from_slice(content.as_bytes());
 }
 
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
@@ -646,7 +664,7 @@ fn add_path_to_specific_file(bin_path: &PathBuf, path: PathBuf) -> Result<()> {
 
     let existing_code_pos = match_markers(&buffer)?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path);
+    let new_content = get_shell_script_juliaup_content(bin_path, &path)?;
 
     match existing_code_pos {
         Some(pos) => {
