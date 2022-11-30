@@ -13,6 +13,105 @@ concurrency:
 
 jobs:
 
+  check-juliaup:
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      matrix:
+        label: [
+          x86_64-pc-windows-msvc-windowsstore,
+          x86_64-pc-windows-msvc-windowsappinstaller,
+          x86_64-apple-darwin,
+          x86_64-unknown-linux-gnu,
+          x86_64-unknown-linux-musl,
+          i686-pc-windows-msvc-windowsstore,
+          i686-pc-windows-msvc-windowsappinstaller,
+          i686-unknown-linux-gnu,
+          i686-unknown-linux-musl,
+          aarch64-unknown-linux-gnu,
+          aarch64-unknown-linux-musl,
+          aarch64-apple-darwin
+          ]
+        include:
+          - label: x86_64-pc-windows-msvc-windowsstore
+            target: x86_64-pc-windows-msvc
+            os: windows
+            features: windowsstore
+            rustflags:
+          - label: x86_64-pc-windows-msvc-windowsappinstaller
+            target: x86_64-pc-windows-msvc
+            os: windows
+            features: windowsappinstaller
+            rustflags:
+          - label: x86_64-apple-darwin
+            target: x86_64-apple-darwin
+            os: macos
+            features: selfupdate
+            rustflags:
+          - label: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+            rustflags:
+          - label: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
+          - label: i686-pc-windows-msvc-windowsstore
+            target: i686-pc-windows-msvc
+            os: windows
+            features: windowsstore
+            rustflags:
+          - label: i686-pc-windows-msvc-windowsappinstaller
+            target: i686-pc-windows-msvc
+            os: windows
+            features: windowsappinstaller
+            rustflags:
+          - label: i686-unknown-linux-gnu
+            target: i686-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+            rustflags:
+          - label: i686-unknown-linux-musl
+            target: i686-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
+          - label: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu
+            features: selfupdate
+            rustflags:
+          - label: aarch64-unknown-linux-musl
+            target: aarch64-unknown-linux-musl
+            os: ubuntu
+            features: selfupdate
+            rustflags: -C target-feature=+crt-static
+          - label: aarch64-apple-darwin
+            target: aarch64-apple-darwin
+            os: macos
+            features: selfupdate
+            rustflags:
+    steps:
+    - uses: actions/checkout@v3
+    - if: ${{ contains(matrix.target, '-musl') }}
+      run: sudo apt-get install musl-tools
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        default: true
+        target: ${{matrix.target}}
+    - name: Release build
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
+        use-cross: ${{ matrix.os == 'ubuntu' }}
+        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+      env:
+        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+
   test-juliaup:
     runs-on: ${{ matrix.os }}-latest
     strategy:
