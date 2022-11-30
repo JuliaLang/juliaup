@@ -73,7 +73,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 }
 
 #[cfg(feature = "windowsstore")]
-pub fn run_command_selfupdate(_paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
     update_version_db(paths)
