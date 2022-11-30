@@ -3,11 +3,10 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::update_version_db;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_selfupdate(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
+pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db};
     use crate::utils::get_juliaserver_base_url;
     use anyhow::{bail, anyhow};
-    use anyhow::Context;
     use crate::operations::{download_juliaup_version,download_extract_sans_parent};
     use crate::{get_juliaup_target, get_own_version};
 
@@ -74,8 +73,7 @@ pub fn run_command_selfupdate(paths: &crate::global_paths::GlobalPaths) -> Resul
 }
 
 #[cfg(feature = "windowsstore")]
-pub fn run_command_selfupdate(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
-    use anyhow::Context;
+pub fn run_command_selfupdate(_paths: &GlobalPaths) -> Result<()> {
     use windows::{core::Interface,Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow}};
 
     update_version_db(paths)
