@@ -1,3 +1,4 @@
+use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
 use juliaup::command_info::run_command_info;
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
@@ -23,7 +24,6 @@ use juliaup::{
     command_config_startupselfupdate::run_command_config_startupselfupdate,
     command_config_modifypath::run_command_config_modifypath,
 };
-#[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
 use juliaup::command_selfupdate::run_command_selfupdate;
 use log::info;
 
@@ -81,7 +81,6 @@ enum Juliaup {
     },
     #[clap(name = "info", hide = true)]
     Info { },
-    #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     // This is used for the cron jobs that we create. By using this UUID for the command
@@ -91,12 +90,14 @@ enum Juliaup {
     SecretSelfUpdate {},
 }
 
-#[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
 #[derive(Parser)]
 /// Manage this juliaup installation
 enum SelfSubCmd {
-    #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
-    /// Update juliaup itself
+    #[cfg(not(feature = "selfupdate"))]
+    /// Update the Julia versions database
+    Update {},
+    #[cfg(feature = "selfupdate")]
+    /// Update the Julia versions database and juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
     /// Configure the channel to use for juliaup updates
@@ -138,6 +139,12 @@ enum ConfigSubCmd {
         /// New value
         value: Option<bool>
     },
+    /// The time between automatic updates of the versions database in minutes, use 0 to disable.
+    #[clap(name="versionsdbupdateinterval")]
+    VersionsDbUpdateInterval {
+        /// New value
+        value: Option<i64>
+    },
 }
 
 fn main() -> Result<()> {
@@ -158,13 +165,13 @@ fn main() -> Result<()> {
         .with_context(|| "Trying to load all global paths.")?;
 
     match args {
-        Juliaup::Default {channel} => run_command_default(channel, &paths),
-        Juliaup::Add {channel} => run_command_add(channel, &paths),
-        Juliaup::Remove {channel} => run_command_remove(channel, &paths),
+        Juliaup::Default {channel} => run_command_default(&channel, &paths),
+        Juliaup::Add {channel} => run_command_add(&channel, &paths),
+        Juliaup::Remove {channel} => run_command_remove(&channel, &paths),
         Juliaup::Status {} => run_command_status(&paths),
         Juliaup::Update {channel} => run_command_update(channel, &paths),
         Juliaup::Gc {} => run_command_gc(&paths),
-        Juliaup::Link {channel, file, args} => run_command_link(channel, file, args, &paths),
+        Juliaup::Link {channel, file, args} => run_command_link(&channel, &file, &args, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]
@@ -175,16 +182,15 @@ fn main() -> Result<()> {
             ConfigSubCmd::StartupSelfupdateInterval {value} => run_command_config_startupselfupdate(value, false, &paths),
             #[cfg(feature = "selfupdate")]
             ConfigSubCmd::ModifyPath {value} => run_command_config_modifypath(value, false, &paths),
+            ConfigSubCmd::VersionsDbUpdateInterval {value} => run_command_config_versionsdbupdate(value, false, &paths),
         },
-        Juliaup::Api {command} => run_command_api(command, &paths),
+        Juliaup::Api {command} => run_command_api(&command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         Juliaup::Info {} => run_command_info(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
-        #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
         Juliaup::SelfSubCmd(subcmd) => match subcmd {
-            #[cfg(any(feature = "selfupdate", feature = "windowsstore", feature = "windowsappinstaller"))]
             SelfSubCmd::Update {} => run_command_selfupdate(&paths),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel {channel}  =>  run_command_selfchannel(channel, &paths),

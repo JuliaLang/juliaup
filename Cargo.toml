@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.8.10"
+version = "1.8.12"
 edition = "2021"
 default-run = "juliaup"
 publish = false
@@ -35,7 +35,7 @@ cluFlock = "1.2.5"
 chrono = {version = "0.4", features = ["serde"]}
 human-panic = "1.0.3"
 log = "0.4.14"
-env_logger = "0.9.0"
+env_logger = "0.10.0"
 dialoguer = "0.10.0"
 shellexpand = "2.1.0"
 env_proxy = "0.4.1"
@@ -45,11 +45,11 @@ indoc = "1.0.7"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.43.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
-[target.'cfg(macos)'.dependencies]
+[target.'cfg(target_os = "macos")'.dependencies]
 ureq = { version = "2", features = ["native-tls"] }
 native-tls = "0.2.10"
 
-[target.'cfg(all(not(macos),not(windows)))'.dependencies]
+[target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
 ureq = { version = "2", features = ["native-certs"] }
 
 [build-dependencies]

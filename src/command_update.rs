@@ -1,6 +1,6 @@
 use crate::config_file::{JuliaupConfigChannel, load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
-use crate::operations::{install_version};
+use crate::operations::{install_version, update_version_db};
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::config_file::JuliaupConfig;
 use crate::operations::garbage_collect_versions;
@@ -11,11 +11,11 @@ use crate::operations::create_symlink;
 
 fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
-        config_db.installed_channels.get(channel).ok_or(anyhow!("asdf"))?;
+        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
 
     match current_version {
         JuliaupConfigChannel::SystemChannel {version} => {
-            let should_version = version_db.available_channels.get(channel).ok_or(anyhow!("asdf"))?;
+            let should_version = version_db.available_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
 
             if &should_version.version != version {
                 install_version(&should_version.version, config_db, version_db, paths)
@@ -42,13 +42,16 @@ fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &
         },
         JuliaupConfigChannel::LinkedChannel {command: _, args: _} => if !ignore_linked_channel {
             bail!("Failed to update '{}' because it is a linked channel.", channel)
-        } else {()}
+        } else {}
     }
 
     Ok(())
 }
 
 pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Result<()> {
+    update_version_db(paths)
+        .with_context(|| "Failed to uopdate versions db.")?;
+
     let version_db =
         load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;
 
