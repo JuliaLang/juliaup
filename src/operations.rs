@@ -10,14 +10,17 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_bin_dir;
-use anyhow::bail;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, anyhow, Context, Result};
+use bstr::ByteSlice;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
+use indoc::formatdoc;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
+#[cfg(not(windows))]
+use std::os::unix::prelude::OsStrExt;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
@@ -26,6 +29,7 @@ use tar::Archive;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
+use bstr::ByteVec;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -575,82 +579,110 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
     Ok(())
 }
 
-const S_MARKER: &str = "# >>> juliaup initialize >>>";
-const E_MARKER: &str = "# <<< juliaup initialize <<<";
+const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
+const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
+const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
-fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<String> {
-    let mut result = String::new();
+fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<u8>> {
+    let mut result: Vec<u8> = Vec::new();
 
-    result.push_str(S_MARKER);
-    result.push('\n');
-    result.push('\n');
-    result.push_str("# !! Contents within this block are managed by juliaup !!\n");
-    result.push('\n');
+    let bin_path_str = match bin_path.to_str() {
+        Some(s) => s,
+        None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
+    };
+
+    result.extend_from_slice(S_MARKER);
+    result.extend_from_slice(HEADER);
     if path.file_name().unwrap()==".zshrc" {
-        result.push_str(&format!("path=('{}' $path)\n", bin_path.to_string_lossy()));
-        result.push_str("export PATH\n");
+        append_zsh_content(&mut result, bin_path_str);
     }
     else {
-        result.push_str(&format!("case \":$PATH:\" in *:{}:*);; *)\n", bin_path.to_string_lossy()));
-        result.push_str(&format!("    export PATH={}${{PATH:+:${{PATH}}}};;\n", bin_path.to_string_lossy()));
-        result.push_str("esac\n");    
+        append_sh_content(&mut result, bin_path_str);
     }
-    result.push('\n');
-    result.push_str(E_MARKER);
+    result.extend_from_slice(b"\n");
+    result.extend_from_slice(E_MARKER);
 
     Ok(result)
 }
 
-fn match_markers(buffer: &str, include_newlines: bool) -> Result<Option<(usize,usize)>> {
-    let mut start_markers: Vec<_> = buffer.match_indices(S_MARKER).collect();
-    let mut end_markers: Vec<_> = buffer.match_indices(E_MARKER).collect();
-    
-    if start_markers.len() != end_markers.len() {
-        bail!("Different amount of markers.");
-    }
-    else if start_markers.len() > 1 {
-        bail!("More than one start marker found.");
-    }
-    else if start_markers.len()==1 {
-        if include_newlines {
-            let start_markers_with_newline: Vec<_> = buffer.match_indices(&("\n".to_owned() + S_MARKER)).collect();
-            if start_markers_with_newline.len()==1 {
-                start_markers = start_markers_with_newline;
-            }
+fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
+    // zsh specific syntax for path extension
+    let content = formatdoc!("
+            path=('{}' $path)
+            export PATH
+        ", path_str
+    );
 
-            let end_markers_with_newline: Vec<_> = buffer.match_indices(&(E_MARKER.to_owned() + "\n")).collect();
-            if end_markers_with_newline.len()==1 {
-                end_markers = end_markers_with_newline;
-            }
-        }
+    buf.extend_from_slice(content.as_bytes());
+}
 
-        Ok(Some((start_markers[0].0, end_markers[0].0 + end_markers[0].1.len())))
-    }
-    else {
-        Ok(None)
-    }
+fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
+    // If the variable is already contained in $PATH, do nothing
+    // Otherwise prepend it to path
+    // ${PATH:+:${PATH}} => Only append :$PATH if $PATH is set
+    let content = formatdoc!("
+            case \":$PATH:\" in
+                *:{0}:*)
+                    ;;
+
+                *)
+                    export PATH={0}${{PATH:+:${{PATH}}}}
+                    ;;
+            esac
+        ", path_str
+    );
+    buf.extend_from_slice(content.as_bytes());
+}
+
+fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
+    let start_marker = buffer.find(S_MARKER);
+    let end_marker = buffer.find(E_MARKER);
+
+    // This ensures exactly one opening and one closing marker exists
+    let (start_marker, end_marker) = match (start_marker, end_marker) {
+        (Some(sidx), Some(eidx)) => {
+            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
+                bail!("Found multiple startup script sections from juliaup.");
+            }
+            (sidx, eidx) 
+        }, 
+        (None, None) => {
+            return Ok(None);
+        },
+        (_, None) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        },
+        (None, _) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        },
+    };
+
+    Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
 fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(path)
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
-    let mut buffer = String::new();
+    let mut buffer: Vec<u8> = Vec::new();
 
-    file.read_to_string(&mut buffer)?;
+    file.read_to_end(&mut buffer)
+        .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
 
-    let existing_code_pos = match_markers(&buffer, false)?;
+    let existing_code_pos = match_markers(&buffer)
+        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, path).unwrap();
+    let new_content = get_shell_script_juliaup_content(bin_path, &path)
+        .with_context(|| format!("Error occured while generating juliaup shell startup script section for {}", path.display()))?;
 
     match existing_code_pos {
         Some(pos) => {
             buffer.replace_range(pos.0..pos.1, &new_content);
         },
         None => {
-            buffer.push('\n');
-            buffer.push_str(&new_content);
-            buffer.push('\n');
+            buffer.extend_from_slice(b"\n");
+            buffer.extend_from_slice(&new_content);
+            buffer.extend_from_slice(b"\n");
         }
     };
 
@@ -658,7 +690,7 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
 
     file.set_len(0).unwrap();
 
-    file.write_all(buffer.as_bytes()).unwrap();
+    file.write_all(&buffer).unwrap();
 
     file.sync_all().unwrap();
 
@@ -669,11 +701,12 @@ fn remove_path_from_specific_file(path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new().read(true).write(true).open(path)
     .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
-    let mut buffer = String::new();
+    let mut buffer: Vec<u8> = Vec::new();
 
-    file.read_to_string(&mut buffer)?;
+    file.read_to_end(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer, true)?;
+    let existing_code_pos = match_markers(&buffer)
+        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
 
     if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
@@ -682,7 +715,7 @@ fn remove_path_from_specific_file(path: &Path) -> Result<()> {
 
         file.set_len(0).unwrap();
 
-        file.write_all(buffer.as_bytes()).unwrap();
+        file.write_all(&buffer).unwrap();
 
         file.sync_all().unwrap();
     }
@@ -727,6 +760,115 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
         remove_path_from_specific_file(&p).unwrap();
     });
     Ok(())
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn match_markers_none_without_markers() {
+        let inp: &[u8] = b"Some input\n";
+        let res = match_markers(inp);
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn match_markers_returns_correct_indices() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Ok(Some(..)) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_ok());
+        let res = res.unwrap();
+        assert!(res.is_some());
+        let (sidx, eidx) = res.unwrap();
+
+        // Verify correct positions
+        assert_eq!(sidx, start_bytes.len());
+        let expected_eidx = start_bytes.len() + S_MARKER.len() + middle_bytes.len() + E_MARKER.len();
+        assert_eq!(eidx, expected_eidx);
+    }
+
+
+    #[test]
+    fn match_markers_returns_err_without_start() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_without_end() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_with_multiple_start() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn match_markers_returns_err_with_multiple_end() {
+        let mut inp: Vec<u8> = Vec::new();
+        let start_bytes = b"Some random bytes.";
+        let middle_bytes = b"More bytes.";
+        let end_bytes = b"Final bytes.";
+        inp.extend_from_slice(start_bytes);
+        inp.extend_from_slice(S_MARKER);
+        inp.extend_from_slice(middle_bytes);
+        inp.extend_from_slice(E_MARKER);
+        inp.extend_from_slice(end_bytes);
+        inp.extend_from_slice(E_MARKER);
+
+        // Verify Err(..) is returned
+        let res = match_markers(&inp);
+        assert!(res.is_err());
+    }
 }
 
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
