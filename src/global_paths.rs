@@ -49,9 +49,6 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
             // If such a file does not exist, we pick the first segment in JULIA_DEPOT_PATH.
             // This is guaranteed to be nonempty due to the properties of str::split.
             let first_path = paths.iter().next().unwrap();
-            if !first_path.is_dir() {
-                bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an invalid directory `{}`.", first_path.display());
-            }
             return Ok(first_path.join("juliaup"));
         }
         Err(_) => return get_default_juliaup_home_path(),
