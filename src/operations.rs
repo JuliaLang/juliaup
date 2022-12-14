@@ -19,8 +19,6 @@ use indoc::formatdoc;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
-#[cfg(not(windows))]
-use std::os::unix::prelude::OsStrExt;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
