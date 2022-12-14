@@ -19,17 +19,44 @@ pub struct GlobalPaths {
 fn get_juliaup_home_path() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
 
-    let path = match std::env::var("JULIA_DEPOT_PATH") {
+    match std::env::var("JULIA_DEPOT_PATH") {
         Ok(val) => {
-            let path = PathBuf::from(val.split(entry_sep).next().unwrap()); // We can unwrap here because even when we split an empty string we should get a first element.
+            // Note: Docs on JULIA_DEPOT_PATH states that if it exists but is empty, it should
+            // be interpreted as an empty array. This code instead interprets it as a 1-element
+            // array of the default path.
+            // We interpret it differently, because while Julia may work without a DEPOT_PATH,
+            // Juliaup does not currently, since it must check for new versions.
+            let mut paths = Vec::<PathBuf>::new();
+            for segment in val.split(entry_sep) {
+                // Empty segments resolve to the default first value of
+                // DEPOT_PATH
+                let segment_path = if segment.is_empty() {
+                    get_default_juliaup_home_path()?
+                } else {
+                    PathBuf::from(segment.to_string())
+                };
+                paths.push(segment_path);
+            }
 
-            if !path.is_absolute() {
-                bail!("The `JULIA_DEPOT_PATH` environment variable contains a value that resolves to an an invalid path `{}`.", path.display());
-            };
-
-            path.join("juliaup")
+            // First, we try to find any directory which already is initialized by
+            // Juliaup.
+            for path in paths.iter() {
+                let subpath = path.join("juliaup").join("juliaup.json");
+                if subpath.is_file() {
+                    return Ok(path.join("juliaup"));
+                }
+            }
+            // If such a file does not exist, we pick the first segment in JULIA_DEPOT_PATH.
+            // This is guaranteed to be nonempty due to the properties of str::split.
+            let first_path = paths.iter().next().unwrap();
+            return Ok(first_path.join("juliaup"));
         }
-        Err(_) => {
+        Err(_) => return get_default_juliaup_home_path(),
+    }
+}
+
+/// Return ~/.julia/juliaup, if such a directory can be found
+fn get_default_juliaup_home_path() -> Result<PathBuf> {
     let path = dirs::home_dir()
         .ok_or_else(|| anyhow!(
             "Could not determine the path of the user home directory."
@@ -37,17 +64,12 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
         .join(".julia")
         .join("juliaup");
 
-            if !path.is_absolute() {
-                bail!(
-                    "The system returned an invalid home directory path `{}`.",
-                    path.display()
-                );
-            };
-
-            path
-        }
+    if !path.is_absolute() {
+        bail!(
+            "The system returned an invalid home directory path `{}`.",
+            path.display()
+        );
     };
-
     Ok(path)
 }
 
