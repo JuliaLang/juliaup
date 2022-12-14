@@ -52,6 +52,9 @@ native-tls = "0.2.10"
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
 ureq = { version = "2", features = ["native-certs"] }
 
+[target.'cfg(not(windows))'.dependencies]
+nix = { version = "0.26" }
+
 [build-dependencies]
 anyhow = "1"
 itertools = "0.10"

@@ -271,7 +271,32 @@ fn run_app() -> Result<i32> {
 
     let code = match status.code() {
         Some(code) => code,
-        None => 1, // TODO #117 Is this the right call here? We get that if the sub process was terminated by a signal...
+        None => {
+            #[cfg(not(windows))]
+            {
+                use std::os::unix::process::ExitStatusExt;
+
+                let signal = status.signal();
+
+                if let Some(signal) = signal {
+                    let signal = nix::sys::signal::Signal::try_from(signal)
+                        .with_context(|| format!("Unknown signal value {}.", signal))?;
+
+                    nix::sys::signal::raise(signal)
+                        .with_context(|| "Failed to raise signal.")?;
+
+                    anyhow::bail!("Maybe we should never reach this?");
+                }
+                else {
+                    anyhow::bail!("We weren't able to extract a signal, this should never happen.");
+                }
+            }
+
+            #[cfg(windows)]
+            {
+                anyhow::bail!("There is no exit code, that should not be possible on Windows.");
+            }            
+        }
     };
 
     Ok(code)
