@@ -285,6 +285,11 @@ fn run_app() -> Result<i32> {
                     nix::sys::signal::raise(signal)
                         .with_context(|| "Failed to raise signal.")?;
 
+                    // We raise the signal twice because for some signals that is needed to work
+                    // https://github.com/JuliaLang/juliaup/pull/525#issuecomment-1353526900
+                    nix::sys::signal::raise(signal)
+                        .with_context(|| "Failed to raise signal.")?;
+
                     anyhow::bail!("Maybe we should never reach this?");
                 }
                 else {
