@@ -282,8 +282,8 @@ fn run_app() -> Result<i32> {
                     let signal = nix::sys::signal::Signal::try_from(signal)
                         .with_context(|| format!("Unknown signal value {}.", signal))?;
 
-                    nix::sys::signal::raise(signal)
-                        .with_context(|| "Failed to raise signal.")?;
+                    nix::sys::signal::kill(nix::unistd::Pid::this(), signal)
+                        .with_context(|| "Failed to kill process and set signal.")?;
 
                     anyhow::bail!("Maybe we should never reach this?");
                 }
