@@ -285,8 +285,9 @@ fn run_app() -> Result<i32> {
                     nix::sys::signal::raise(signal)
                         .with_context(|| "Failed to raise signal.")?;
 
-                    // We raise the signal twice because for some signals that is needed to work
+                    // We raise the signal twice because SIGSEGV and SIGBUS require that
                     // https://github.com/JuliaLang/juliaup/pull/525#issuecomment-1353526900
+                    // https://github.com/rust-lang/rust/blob/984eab57f708e62c09b3d708033fe620130b5f39/library/std/src/sys/unix/stack_overflow.rs#L60-L80
                     nix::sys::signal::raise(signal)
                         .with_context(|| "Failed to raise signal.")?;
 
