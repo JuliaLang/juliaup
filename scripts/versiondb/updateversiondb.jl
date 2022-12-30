@@ -244,7 +244,9 @@ end
 
 function get_current_versions_json(download_folder)
     mkpath(download_folder)
-    Downloads.download("https://julialang-s3.julialang.org/bin/versions.json", joinpath(download_folder, "versions.json"))
+    url = "https://julialang-s3.julialang.org/bin/versions.json"
+    Downloads.request(url; method = "PURGE")
+    Downloads.download(url, joinpath(download_folder, "versions.json"))
 end
 
 function get_current_versiondb_version()
