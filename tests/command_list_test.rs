@@ -12,4 +12,12 @@ fn command_list() {
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));
+
+    Command::cargo_bin("juliaup")
+        .unwrap()        
+        .arg("ls")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));
 }
