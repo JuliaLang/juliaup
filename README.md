@@ -34,11 +34,17 @@ curl -fsSL https://install.julialang.org | sh
 
 in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
-If using Juliaup in an automated script, you can skip user prompts by using the unix tool [expect](https://en.wikipedia.org/wiki/Expect):
+#### Command line arguments
+
+One can pass various command line arguments to the Julia installer. The syntax for installer arguments is
 
 ```bash
-expect -c 'spawn bash -c "curl -fsSL https://install.julialang.org | sh"; expect "Proceed"; send -- "\r"; expect eof'
+curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 ```
+
+Here `<ARGS>` should be replaced with one or more of the following arguments:
+- `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
+- `--channel <CHANNNELNAME>`: Configure the default channel. For example `--channel lts` would install the `lts` channel and configure it as the default.
 
 #### Software Repositories
 
