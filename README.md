@@ -34,12 +34,12 @@ curl -fsSL https://install.julialang.org | sh
 
 in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
-#### Command line arguments
+#### Command line arguments (in preview)
 
 One can pass various command line arguments to the Julia installer. The syntax for installer arguments is
 
 ```bash
-curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
+curl -fsSL https://install.julialang.org/releasepreview | sh -s -- <ARGS>
 ```
 
 Here `<ARGS>` should be replaced with one or more of the following arguments:
