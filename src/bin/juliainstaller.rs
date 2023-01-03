@@ -3,7 +3,7 @@ use clap::Parser;
 
 
 #[cfg(feature = "selfupdate")]
-fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: &dialoguer::theme::ColorfulTheme) -> Result<Option<()>> {
+fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: & dyn dialoguer::theme::Theme) -> Result<Option<()>> {
 
     use std::path::PathBuf;
 
@@ -95,7 +95,7 @@ struct Juliainstaller {
     #[clap(long, default_value = "release")]
     juliaupchannel: String,
     /// Disable confirmation prompt
-    #[clap(alias="y", default_value = false)]
+    #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool
 }
 
@@ -157,7 +157,7 @@ pub fn main() -> Result<()> {
     use std::io::Seek;
     use anyhow::{anyhow, Context};
     use console::{Style, style};
-    use dialoguer::{theme::{ColorfulTheme, SimpleTheme}, Confirm, Select};
+    use dialoguer::{theme::{ColorfulTheme, Theme, SimpleTheme}, Confirm, Select};
     use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
     human_panic::setup_panic!(human_panic::Metadata {
@@ -177,14 +177,14 @@ pub fn main() -> Result<()> {
         return Err(anyhow!("To install Julia in non-interactive mode pass the -y parameter."))
     }
 
-    let theme = if atty::is(atty::Stream::Stdout) {
-        SimpleTheme
-    }
-    else {
-        ColorfulTheme {
+    let theme: Box<dyn Theme> = if atty::is(atty::Stream::Stdout) {
+        Box::new(ColorfulTheme {
             values_style: Style::new().yellow().dim(),
             ..ColorfulTheme::default()
-        }
+        })
+    }
+    else {
+        Box::new(SimpleTheme)
     };
 
     let mut paths = get_paths()
@@ -210,16 +210,24 @@ pub fn main() -> Result<()> {
         println!("While Juliaup does not seem to be installed on this system, there is a");
         println!("Juliaup configuration file present from a previous installation.");
 
-        let continue_with_setup = Confirm::with_theme(&theme)
-            .with_prompt("Do you want to continue with the installation and overwrite the existing Juliaup configuration file?")
-            .default(true)
-            .interact_opt()?;
+        if args.disable_confirmation_prompt {
+            println!();
+            println!("Please remove the existing Juliaup configuration file or use interactive mode.");
 
-        if !continue_with_setup.unwrap_or(false) {
             return Ok(());
         }
+        else {
+            let continue_with_setup = Confirm::with_theme(theme.as_ref())
+                .with_prompt("Do you want to continue with the installation and overwrite the existing Juliaup configuration file?")
+                .default(true)
+                .interact_opt()?;
 
-        println!();
+            if !continue_with_setup.unwrap_or(false) {
+                return Ok(());
+            }
+
+            println!();
+        }
     }
 
     let mut install_choices = InstallChoices {
@@ -240,48 +248,50 @@ pub fn main() -> Result<()> {
     println!("changes will be reverted.");
     println!();
 
-    debug!("Next running the prompt for default choices");
+    if !args.disable_confirmation_prompt {
+        debug!("Next running the prompt for default choices");
 
-    let answer_default = Select::with_theme(&theme)
-            .with_prompt("Do you want to install with these default configuration choices?")
-            .item("Proceed with installation")
-            .item("Customize installation")
-            .item("Cancel installation")
-            .default(0)
-            .interact()?;
-
-    trace!("choice is {:?}", answer_default);
-
-    println!();
-
-    if answer_default == 1 {
-        debug!("Next running the individual config wizard");
-
-        loop {
-            run_individual_config_wizard(&mut install_choices, &theme)?;
-
-            print_install_choices(&install_choices)?;
-    
-            let confirmcustom = Select::with_theme(&theme)
-                .with_prompt("Do you want to install with these custom configuration choices?")
+        let answer_default = Select::with_theme(theme.as_ref())
+                .with_prompt("Do you want to install with these default configuration choices?")
                 .item("Proceed with installation")
                 .item("Customize installation")
                 .item("Cancel installation")
                 .default(0)
                 .interact()?;
 
-            trace!("homedir is {:?}", install_choices.install_location);
-    
-            if confirmcustom == 0 {
-                break;
-            }
-            else if confirmcustom == 2 {
-                return Ok(());
+        trace!("choice is {:?}", answer_default);
+
+        println!();
+
+        if answer_default == 1 {
+            debug!("Next running the individual config wizard");
+
+            loop {
+                run_individual_config_wizard(&mut install_choices, theme.as_ref())?;
+
+                print_install_choices(&install_choices)?;
+        
+                let confirmcustom = Select::with_theme(theme.as_ref())
+                    .with_prompt("Do you want to install with these custom configuration choices?")
+                    .item("Proceed with installation")
+                    .item("Customize installation")
+                    .item("Cancel installation")
+                    .default(0)
+                    .interact()?;
+
+                trace!("homedir is {:?}", install_choices.install_location);
+        
+                if confirmcustom == 0 {
+                    break;
+                }
+                else if confirmcustom == 2 {
+                    return Ok(());
+                }
             }
         }
-    }
-    else if answer_default == 2 {
-        return Ok(());
+        else if answer_default == 2 {
+            return Ok(());
+        }
     }
 
     let juliaupselfbin = install_choices.install_location.join("bin");
