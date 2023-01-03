@@ -94,6 +94,9 @@ struct Juliainstaller {
     /// Juliaup channel
     #[clap(long, default_value = "release")]
     juliaupchannel: String,
+    /// Disable confirmation prompt
+    #[clap(alias="y", default_value = false)]
+    disable_confirmation_prompt: bool
 }
 
 #[cfg(feature = "selfupdate")]
@@ -154,7 +157,7 @@ pub fn main() -> Result<()> {
     use std::io::Seek;
     use anyhow::{anyhow, Context};
     use console::{Style, style};
-    use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+    use dialoguer::{theme::{ColorfulTheme, SimpleTheme}, Confirm, Select};
     use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths};
 
     human_panic::setup_panic!(human_panic::Metadata {
@@ -167,17 +170,22 @@ pub fn main() -> Result<()> {
     let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
-    if atty::isnt(atty::Stream::Stdin) {
-        return Err(anyhow!("Stdin is not a tty, this scenario is not yet supported."))
-    }
-
-    let theme = ColorfulTheme {
-        values_style: Style::new().yellow().dim(),
-        ..ColorfulTheme::default()
-    };
-
     info!("Parsing command line arguments.");
     let args = Juliainstaller::parse();
+
+    if !args.disable_confirmation_prompt && atty::isnt(atty::Stream::Stdin) {
+        return Err(anyhow!("To install Julia in non-interactive mode pass the -y parameter."))
+    }
+
+    let theme = if atty::is(atty::Stream::Stdout) {
+        SimpleTheme
+    }
+    else {
+        ColorfulTheme {
+            values_style: Style::new().yellow().dim(),
+            ..ColorfulTheme::default()
+        }
+    };
 
     let mut paths = get_paths()
         .with_context(|| "Trying to load all global paths.")?;
