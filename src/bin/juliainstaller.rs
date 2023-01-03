@@ -91,12 +91,12 @@ fn is_juliaup_installed() -> bool {
 #[clap(name="Juliainstaller", version)]
 /// The Julia Installer
 struct Juliainstaller {
-    /// Channel
+    /// Default channel
     #[clap(long, default_value = "release")]
-    channel: String,
-    /// Juliaup self channel
+    default_channel: String,
+    /// Juliaup channel
     #[clap(long, default_value = "release")]
-    juliaupchannel: String,
+    juliaup_channel: String,
     /// Disable confirmation prompt
     #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool
@@ -359,12 +359,12 @@ pub fn main() -> Result<()> {
     run_command_config_startupselfupdate(Some(install_choices.startupselfupdate), true, &paths).unwrap();
     run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
     run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
-    run_command_selfchannel(args.juliaupchannel, &paths).unwrap();
+    run_command_selfchannel(args.juliaup_channel, &paths).unwrap();
 
-    run_command_add(&args.channel, &paths)
+    run_command_add(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;
 
-    run_command_default(&args.channel, &paths)
+    run_command_default(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_default`.")?;
 
     let symlink_path = juliaupselfbin.join("julia");
