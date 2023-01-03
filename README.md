@@ -34,10 +34,10 @@ curl -fsSL https://install.julialang.org | sh
 
 in a shell. Note that the Mac and Linux version are considered prerelease, have known bugs and might often break.
 
-If using Juliaup in an automated script, you can skip user prompts by using the unix tool [expect](https://en.wikipedia.org/wiki/Expect):
+If using Juliaup in an automated script, you can skip user prompts by using the `-y/--yes` flag
 
-```bash
-expect -c 'spawn bash -c "curl -fsSL https://install.julialang.org | sh"; expect "Proceed"; send -- "\r"; expect eof'
+```
+curl -fsSL https://install.julialang.org | sh -s -- -y
 ```
 
 #### Software Repositories
