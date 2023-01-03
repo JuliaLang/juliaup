@@ -87,12 +87,12 @@ main() {
     fi
 
     # check if we have to use /dev/tty to prompt the user
-    # local _y=no
+    local _y=no
     local need_tty=yes
     for arg in "$@"; do
         case "$arg" in
             "-h"|"--help")      usage; exit 0       ;;
-            # "-y"|"--yes")       _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
+            "-y"|"--yes")       _y=yes; need_tty=no ;; # skip prompt; no need for /dev/tty
             *)                                      ;;
         esac
     done
@@ -131,9 +131,9 @@ main() {
     _ttyname="/dev/$(ps -p $$ -o tty= | xargs)"
 
     if [ "$need_tty" = "yes" ]; then
-        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW < "$_ttyname"
+        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW "$@" < "$_ttyname"
     else
-        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW
+        ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW "$@"
     fi
     local _retval=$?
 
