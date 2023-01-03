@@ -46,6 +46,7 @@ enum Juliaup {
         args: Vec<String>
     },
     /// List all available channels
+    #[clap(alias="ls")]
     List {
 
     },
