@@ -161,7 +161,7 @@ pub fn main() -> Result<()> {
     use anyhow::{anyhow, Context};
     use console::{Style, style};
     use dialoguer::{theme::{ColorfulTheme, Theme, SimpleTheme}, Confirm, Select};
-    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_initial_setup_from_launcher::run_command_initial_setup_from_launcher, command_selfchannel::run_command_selfchannel, global_paths::get_paths, command_add::run_command_add, command_default::run_command_default};
+    use juliaup::{get_juliaup_target, utils::get_juliaserver_base_url, get_own_version, operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified}, config_file::{JuliaupSelfConfig}, command_selfchannel::run_command_selfchannel, global_paths::get_paths, command_add::run_command_add, command_default::run_command_default};
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
