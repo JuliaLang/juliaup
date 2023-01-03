@@ -587,7 +587,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh publicscript/dev/install.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/dev/install.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaupchannel dev|g' publicscript/dev/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel dev|g' publicscript/dev/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -632,7 +632,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh publicscript/releasepreview/install.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/releasepreview/install.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaupchannel releasepreview|g' publicscript/releasepreview/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel releasepreview|g' publicscript/releasepreview/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -677,7 +677,7 @@ jobs:
         run: |
           cp deploy/shellscript/juliaup-init.sh publicscript/install.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/install.sh
-          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaupchannel release|g' publicscript/install.sh
+          sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel release|g' publicscript/install.sh
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
