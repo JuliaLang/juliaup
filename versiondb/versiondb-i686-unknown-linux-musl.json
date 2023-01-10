@@ -360,6 +360,9 @@
         "1.8.4+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.8/julia-1.8.4-linux-i686.tar.gz"
         },
+        "1.8.5+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.8/julia-1.8.5-linux-i686.tar.gz"
+        },
         "1.9.0-alpha1+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.9/julia-1.9.0-alpha1-linux-i686.tar.gz"
         },
@@ -702,7 +705,7 @@
             "Version": "0.7.0+0.x86.linux.gnu"
         },
         "1": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "1.0": {
             "Version": "1.0.5+0.x86.linux.gnu"
@@ -1107,7 +1110,7 @@
             "Version": "1.7.3+0.x86.linux.gnu"
         },
         "1.8": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "1.8.0": {
             "Version": "1.8.0+0.x86.linux.gnu"
@@ -1181,8 +1184,14 @@
         "1.8.4~x86": {
             "Version": "1.8.4+0.x86.linux.gnu"
         },
+        "1.8.5": {
+            "Version": "1.8.5+0.x86.linux.gnu"
+        },
+        "1.8.5~x86": {
+            "Version": "1.8.5+0.x86.linux.gnu"
+        },
         "1.8~x86": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "1.9": {
             "Version": "1.9.0-beta2+0.x86.linux.gnu"
@@ -1209,7 +1218,7 @@
             "Version": "1.9.0-beta2+0.x86.linux.gnu"
         },
         "1~x86": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "alpha": {
             "Version": "1.9.0-beta2+0.x86.linux.gnu"
@@ -1230,17 +1239,17 @@
             "Version": "1.6.7+0.x86.linux.gnu"
         },
         "rc": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "rc~x86": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "release": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         },
         "release~x86": {
-            "Version": "1.8.4+0.x86.linux.gnu"
+            "Version": "1.8.5+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.14"
+    "Version": "1.0.15"
 }
