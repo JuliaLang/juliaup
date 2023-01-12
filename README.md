@@ -32,7 +32,7 @@ Juliaup can be installed on Linux or Mac by executing
 curl -fsSL https://install.julialang.org | sh
 ```
 
-in a shell. Although `juliaup` offers a reliable and seamless experience on Mac and Linux, these versions are still in development and thus are considered prerelease.
+in a shell.
 
 #### Command line arguments
 
