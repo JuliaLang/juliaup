@@ -6,7 +6,7 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 
 ## Status
 
-The Windows version of this installer is considered production ready. The Linux and Mac versions are prerelease versions that should not be used in production environments.
+This installer is considered production ready. 
 
 ## Installation
 
