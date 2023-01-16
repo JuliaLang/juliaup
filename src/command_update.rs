@@ -9,40 +9,48 @@ use anyhow::{Context, Result,anyhow,bail};
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 
-fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
+fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_non_updatable_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
-        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
+        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?;
 
     match current_version {
         JuliaupConfigChannel::SystemChannel {version} => {
-            let should_version = version_db.available_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
+            let should_version = version_db.available_channels.get(channel);
 
-            if &should_version.version != version {
-                install_version(&should_version.version, config_db, version_db, paths)
-                    .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
-
-                config_db.installed_channels.insert(
-                    channel.clone(),
-                    JuliaupConfigChannel::SystemChannel {
-                        version: should_version.version.clone(),
-                    },
-                );
-
-                #[cfg(not(windows))]
-                if config_db.settings.create_channel_symlinks {
-                    create_symlink(
-                        &JuliaupConfigChannel::SystemChannel {
+            if let Some(should_version) = should_version {
+                if &should_version.version != version {
+                    install_version(&should_version.version, config_db, version_db, paths)
+                        .with_context(|| format!("Failed to install '{}' while updating channel '{}'.", should_version.version, channel))?;
+    
+                    config_db.installed_channels.insert(
+                        channel.clone(),
+                        JuliaupConfigChannel::SystemChannel {
                             version: should_version.version.clone(),
                         },
-                        &format!("julia-{}", channel),
-                        paths,
-                    )?;
+                    );
+    
+                    #[cfg(not(windows))]
+                    if config_db.settings.create_channel_symlinks {
+                        create_symlink(
+                            &JuliaupConfigChannel::SystemChannel {
+                                version: should_version.version.clone(),
+                            },
+                            &format!("julia-{}", channel),
+                            paths,
+                        )?;
+                    }
                 }
             }
+            else if ignore_non_updatable_channel {
+                eprintln!("Skipping update for '{}' channel, it no longer exists in the version database.", channel);
+            }
+            else {
+                bail!("Failed to update '{}' because it no longer exists in the version database.", channel);
+            }            
         },
-        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => if !ignore_linked_channel {
-            bail!("Failed to update '{}' because it is a linked channel.", channel)
-        } else {}
+        JuliaupConfigChannel::LinkedChannel {command: _, args: _} => if !ignore_non_updatable_channel {
+            bail!("Failed to update '{}' because it is a linked channel.", channel);
+        } else { }
     }
 
     Ok(())
