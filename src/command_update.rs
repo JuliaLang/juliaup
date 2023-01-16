@@ -11,11 +11,11 @@ use crate::operations::create_symlink;
 
 fn update_channel(config_db: &mut JuliaupConfig, channel: &String, version_db: &JuliaupVersionDB, ignore_linked_channel: bool, paths: &GlobalPaths) -> Result<()> {    
     let current_version = 
-        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
+        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?;
 
     match current_version {
         JuliaupConfigChannel::SystemChannel {version} => {
-            let should_version = version_db.available_channels.get(channel).ok_or_else(|| anyhow!("asdf"))?;
+            let should_version = version_db.available_channels.get(channel).ok_or_else(|| anyhow!("Trying to get details for a channel that does not exist in the version database."))?;
 
             if &should_version.version != version {
                 install_version(&should_version.version, config_db, version_db, paths)
