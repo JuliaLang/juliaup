@@ -245,7 +245,9 @@ end
 function get_current_versions_json(download_folder)
     mkpath(download_folder)
     url = "https://julialang-s3.julialang.org/bin/versions.json"
+    sleep(30) # sleep for 30 seconds before purging
     Downloads.request(url; method = "PURGE") # purge the Fastly cache
+    sleep(30) # sleep for 30 seconds after purging
     Downloads.download(url, joinpath(download_folder, "versions.json"))
 end
 
