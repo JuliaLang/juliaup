@@ -8,6 +8,12 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(windows)]
+use std::process::Command;
+#[cfg(not(windows))]
+use std::os::unix::process::CommandExt;
+#[cfg(not(windows))]
+use nix::unistd::{fork, ForkResult};
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
@@ -296,53 +302,64 @@ fn run_app() -> Result<i32> {
     // process to handle things.
     ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
 
-    let mut child_process = std::process::Command::new(julia_path)
-        .args(&new_args)
-        .spawn()
-        .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+    // On *nix platforms we replace the current process with the Julia one.
+    // This simplifies use in e.g. debuggers, but requires that we fork off
+    // a subprocess to do the selfupdate and versiondb update.
+    #[cfg(not(windows))]
+    match unsafe{fork()} {
+        Ok(ForkResult::Parent { child: _, .. }) => {
+            // XXX: because we never wait on our child, it'll appear as a zombie
+            // process until the parent exits. it's also not possible to disable
+            // SIGCHLD handling, because that breaks Julia.
 
-    run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+            std::process::Command::new(julia_path)
+                .args(&new_args)
+                .exec();
 
-    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+            // this never executes
+            Ok(0)
+        }
+        Ok(ForkResult::Child) => {
+            // NOTE: It is unsafe to perform async-signal-unsafe operations from
+            // multithreaded programs, so for complex functionality like
+            // selfupdate to work julialauncher needs to remain single-threaded.
+            // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
 
-    let status = child_process
-        .wait()
-        .with_context(|| "Failed to wait for Julia process to finish.")?;
+            run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
-    let code = match status.code() {
-        Some(code) => code,
-        None => {
-            #[cfg(not(windows))]
-            {
-                use std::os::unix::process::ExitStatusExt;
+            run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
-                let signal = status.signal();
+            // this exitcode won't be seen by anybody
+            Ok(0)
+        }
+        Err(_) => panic!("Could not fork!"),
+    }
 
-                if let Some(signal) = signal {
-                    let signal = nix::sys::signal::Signal::try_from(signal)
-                        .with_context(|| format!("Unknown signal value {}.", signal))?;
+    // On other platforms (i.e., Windows) we just spawn a subprocess
+    #[cfg(windows)]
+    {
+        let mut child_process = std::process::Command::new(julia_path)
+            .args(&new_args)
+            .spawn()
+            .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
+        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
-                    // We raise the signal twice because SIGSEGV and SIGBUS require that
-                    // https://github.com/JuliaLang/juliaup/pull/525#issuecomment-1353526900
-                    // https://github.com/rust-lang/rust/blob/984eab57f708e62c09b3d708033fe620130b5f39/library/std/src/sys/unix/stack_overflow.rs#L60-L80
-                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
+        run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
-                    anyhow::bail!("Maybe we should never reach this?");
-                } else {
-                    anyhow::bail!("We weren't able to extract a signal, this should never happen.");
-                }
-            }
+        let status = child_process
+            .wait()
+            .with_context(|| "Failed to wait for Julia process to finish.")?;
 
-            #[cfg(windows)]
-            {
+        let code = match status.code() {
+            Some(code) => code,
+            None => {
                 anyhow::bail!("There is no exit code, that should not be possible on Windows.");
             }
-        }
-    };
+        };
 
-    Ok(code)
+        Ok(code)
+    }
 }
 
 fn main() -> Result<std::process::ExitCode> {
