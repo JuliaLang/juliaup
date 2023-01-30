@@ -40,7 +40,7 @@ dialoguer = "0.10.0"
 shellexpand = "3.0.0"
 env_proxy = "0.4.1"
 bstr = "1.0.1"
-indoc = "1.0.7"
+indoc = "2.0.0"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.44.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
@@ -69,7 +69,7 @@ winres = "0.1"
 [dev-dependencies]
 assert_cmd = "2"
 assert_fs = "1"
-indoc = "1.0.7"
+indoc = "2.0.0"
 predicates = "2.1"
 
 [features]
