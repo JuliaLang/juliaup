@@ -13,7 +13,7 @@ use std::process::Command;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 #[cfg(not(windows))]
-use nix::unistd::{fork, ForkResult};
+use nix::{sys::wait::{waitpid, WaitStatus}, unistd::{fork, ForkResult}};
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
@@ -307,32 +307,59 @@ fn run_app() -> Result<i32> {
     // a subprocess to do the selfupdate and versiondb update.
     #[cfg(not(windows))]
     match unsafe{fork()} {
-        Ok(ForkResult::Parent { child: _, .. }) => {
-            // XXX: because we never wait on our child, it'll appear as a zombie
-            // process until the parent exits. it's also not possible to disable
-            // SIGCHLD handling, because that breaks Julia.
+        // NOTE: It is unsafe to perform async-signal-unsafe operations from
+        // forked multithreaded programs, so for complex functionality like
+        // selfupdate to work julialauncher needs to remain single-threaded.
+        // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
 
+        Ok(ForkResult::Parent { child, .. }) => {
+            // wait for the daemon-spawning child to finish
+            match waitpid(child, None) {
+                Ok(WaitStatus::Exited(_, code)) => {
+                    if code != 0 {
+                        panic!("Could not fork (child process exited with code: {})", code)
+                    }
+                }
+                Ok(_) => {
+                    panic!("Could not fork (child process did not exit normally)");
+                }
+                Err(e) => {
+                    panic!("Could not fork (error waiting for child process, {})", e);
+                }
+            }
+
+            // replace the current process
             std::process::Command::new(julia_path)
                 .args(&new_args)
                 .exec();
 
-            // this never executes
+            // this is never reached
             Ok(0)
         }
         Ok(ForkResult::Child) => {
-            // NOTE: It is unsafe to perform async-signal-unsafe operations from
-            // multithreaded programs, so for complex functionality like
-            // selfupdate to work julialauncher needs to remain single-threaded.
-            // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
+            // double-fork to prevent zombies
+            match unsafe{fork()} {
+                Ok(ForkResult::Parent { child: _, .. }) => {
+                    // we don't do anything here so that this process can be
+                    // reaped immediately
+                }
+                Ok(ForkResult::Child) => {
+                    // this is where we perform the actual work. we don't do
+                    // any typical daemon-y things (like detaching the TTY)
+                    // so that any error output is still visible.
 
-            run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+                    run_versiondb_update(&config_file)
+                        .with_context(|| "Failed to run version db update")?;
 
-            run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+                    run_selfupdate(&config_file)
+                        .with_context(|| "Failed to run selfupdate.")?;
+                }
+                Err(_) => panic!("Could not double-fork"),
+            }
 
-            // this exitcode won't be seen by anybody
             Ok(0)
         }
-        Err(_) => panic!("Could not fork!"),
+        Err(_) => panic!("Could not fork"),
     }
 
     // On other platforms (i.e., Windows) we just spawn a subprocess
@@ -343,7 +370,8 @@ fn run_app() -> Result<i32> {
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+        run_versiondb_update(&config_file)
+            .with_context(|| "Failed to run version db update")?;
 
         run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
