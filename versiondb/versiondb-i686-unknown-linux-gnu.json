@@ -374,6 +374,9 @@
         },
         "1.9.0-beta3+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.9/julia-1.9.0-beta3-linux-i686.tar.gz"
+        },
+        "1.9.0-beta4+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.9/julia-1.9.0-beta4-linux-i686.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1197,7 +1200,7 @@
             "Version": "1.8.5+0.x86.linux.gnu"
         },
         "1.9": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "1.9.0-alpha1": {
             "Version": "1.9.0-alpha1+0.x86.linux.gnu"
@@ -1223,23 +1226,29 @@
         "1.9.0-beta3~x86": {
             "Version": "1.9.0-beta3+0.x86.linux.gnu"
         },
+        "1.9.0-beta4": {
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
+        },
+        "1.9.0-beta4~x86": {
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
+        },
         "1.9~x86": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "1~x86": {
             "Version": "1.8.5+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "beta": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "beta~x86": {
-            "Version": "1.9.0-beta3+0.x86.linux.gnu"
+            "Version": "1.9.0-beta4+0.x86.linux.gnu"
         },
         "lts": {
             "Version": "1.6.7+0.x86.linux.gnu"
@@ -1260,5 +1269,5 @@
             "Version": "1.8.5+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.18"
+    "Version": "1.0.19"
 }
