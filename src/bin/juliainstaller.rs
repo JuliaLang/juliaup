@@ -13,7 +13,7 @@ fn run_individual_config_wizard(install_choices: &mut InstallChoices, theme: & d
     trace!("install_location pre inside the prompt function {:?}", install_choices.install_location);
 
     let new_install_location = Input::with_theme(theme)
-        .with_prompt("Enter the folder where you want to install Juliaup")        
+        .with_prompt("Enter the folder where you want to install Juliaup")
         .validate_with(|input: &String| match input.parse::<PathBuf>() {
                 Ok(_) => Ok(()),
                 Err(_) => Err("Not a valid input".to_owned())
@@ -99,7 +99,19 @@ struct Juliainstaller {
     juliaup_channel: String,
     /// Disable confirmation prompt
     #[clap(short = 'y', long = "yes")]
-    disable_confirmation_prompt: bool
+    disable_confirmation_prompt: bool,
+    /// Specify alternate path for Juliaup
+    #[clap(short = 'p', long = "path", default_value = "")]
+    alternate_path: String,
+    /// Disable adding the Juliaup dir to the PATH
+    #[clap(long = "no-add-to-path")]
+    disable_add_to_path: bool,
+    /// Manually specify the background self-update interval
+    #[clap(long = "background-selfupdate", default_value = "0")]
+    background_selfupdate_interval: String,
+    /// Manually specify the statup self-update interval
+    #[clap(long = "startup-selfupdate", default_value = "1440")]
+    startup_selfupdate_interval: String
 }
 
 #[cfg(feature = "selfupdate")]
@@ -158,6 +170,7 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
     use std::io::Seek;
+    use std::path::PathBuf;
     use anyhow::{anyhow, Context};
     use console::{Style, style};
     use dialoguer::{theme::{ColorfulTheme, Theme, SimpleTheme}, Confirm, Select};
@@ -234,16 +247,22 @@ pub fn main() -> Result<()> {
     }
 
     let mut install_choices = InstallChoices {
-        backgroundselfupdate: 0,
-        startupselfupdate: 1440,
+        backgroundselfupdate: args.background_selfupdate_interval.parse().unwrap(),
+        startupselfupdate: args.startup_selfupdate_interval.parse().unwrap(),
         symlinks: false,
-        modifypath: true,
+        modifypath: ! args.disable_add_to_path,
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
             .join(".juliaup"),
         modifypath_files: find_shell_scripts_to_be_modified(true)
             .with_context(|| "Failed to identify the shell scripts that need to be modified.")?,
     };
+
+    // args.alternate_path is used to overwrite the default install location (if
+    // specified). This is also the location use if disable_confirmation_prompt
+    if ! args.alternate_path.is_empty() {
+        install_choices.install_location = PathBuf::from(args.alternate_path);
+    }
 
     print_install_choices(&install_choices)?;
 
