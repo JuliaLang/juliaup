@@ -103,9 +103,9 @@ struct Juliainstaller {
     /// Specify alternate path for Juliaup
     #[clap(short = 'p', long = "path", default_value = "")]
     alternate_path: String,
-    /// Disable adding the Juliaup dir to the PATH
-    #[clap(long = "no-add-to-path")]
-    disable_add_to_path: bool,
+    /// Control adding the Juliaup dir to the PATH
+    #[clap(long = "add-to-path", default_value = "yes")]
+    add_to_path: String,
     /// Manually specify the background self-update interval
     #[clap(long = "background-selfupdate", default_value = "0")]
     background_selfupdate_interval: String,
@@ -193,6 +193,15 @@ pub fn main() -> Result<()> {
         return Err(anyhow!("To install Julia in non-interactive mode pass the -y parameter."))
     }
 
+    if ! (args.add_to_path.eq("yes") || args.add_to_path.eq("no")) {
+        return Err(
+            anyhow!(
+                "--add-to-path can be either 'yes' or 'no', you entered: '{}'",
+                args.add_to_path
+            )
+        )
+    }
+
     let theme: Box<dyn Theme> = if atty::is(atty::Stream::Stdout) {
         Box::new(ColorfulTheme {
             values_style: Style::new().yellow().dim(),
@@ -250,7 +259,7 @@ pub fn main() -> Result<()> {
         backgroundselfupdate: args.background_selfupdate_interval.parse().unwrap(),
         startupselfupdate: args.startup_selfupdate_interval.parse().unwrap(),
         symlinks: false,
-        modifypath: ! args.disable_add_to_path,
+        modifypath: args.add_to_path.eq("yes"),
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
             .join(".juliaup"),
