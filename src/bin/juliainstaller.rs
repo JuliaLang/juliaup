@@ -199,6 +199,24 @@ pub fn main() -> Result<()> {
     println!("{}", style("Welcome to Julia!").bold());
     println!();
 
+    #[cfg(all(target_os="macos", target_arch="aarch64"))]
+    {
+        match std::process::Command::new("arch")
+                .args(["-x86_64", "/bin/bash", "-c", "arch"])
+                .output() {
+                    Ok(value) => {
+                        if String::from_utf8(value.stdout)? != "i386" {
+                            println!("It seems that you have not yet installed Rosetta, please install it with `softwareupdate --install-rosetta` before you try to install Julia.");
+                            return Ok(())
+                        }
+                    },
+                    Err(_err) => {
+                        println!("It seems that you have not yet installed Rosetta, please install it with `softwareupdate --install-rosetta` before you try to install Julia.");
+                        return Ok(())
+                    }
+            }
+    }
+
     if is_juliaup_installed() {
         println!("It seems that Juliaup is already installed on this system. Please remove the previous installation of Juliaup before you try to install a new version.");
 
