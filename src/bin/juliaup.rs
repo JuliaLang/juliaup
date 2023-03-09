@@ -2,6 +2,7 @@ use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdat
 use juliaup::command_info::run_command_info;
 use juliaup::global_paths::get_paths;
 use juliaup::{command_link::run_command_link};
+use juliaup::{command_relink::run_command_relink};
 use juliaup::command_list::run_command_list;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_update::run_command_update;
@@ -41,6 +42,11 @@ enum Juliaup {
     },
     /// Link an existing Julia binary to a custom channel name
     Link {
+        channel: String,
+        file: String,
+        args: Vec<String>
+    },
+    Relink {
         channel: String,
         file: String,
         args: Vec<String>
@@ -173,6 +179,7 @@ fn main() -> Result<()> {
         Juliaup::Update {channel} => run_command_update(channel, &paths),
         Juliaup::Gc {} => run_command_gc(&paths),
         Juliaup::Link {channel, file, args} => run_command_link(&channel, &file, &args, &paths),
+        Juliaup::Relink {channel, file, args} => run_command_relink(&channel, &file, &args, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]

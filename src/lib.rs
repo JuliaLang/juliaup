@@ -10,6 +10,7 @@ pub mod command_add;
 pub mod command_default;
 pub mod command_gc;
 pub mod command_link;
+pub mod command_relink;
 pub mod command_list;
 pub mod command_status;
 pub mod command_remove;
