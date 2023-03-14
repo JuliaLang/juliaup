@@ -1,33 +1,33 @@
+use crate::config_file::load_mut_config_db;
+use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
-use crate::config_file::load_mut_config_db;
-use crate::config_file::save_config_db;
 use crate::get_bundled_dbversion;
 use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
-use crate::utils::get_juliaserver_base_url;
 use crate::utils::get_bin_dir;
-use anyhow::{bail, anyhow, Context, Result};
+use crate::utils::get_juliaserver_base_url;
+use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
+use bstr::ByteVec;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use semver::Version;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
+#[cfg(not(windows))]
+use std::os::unix::fs::PermissionsExt;
 use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
-use semver::Version;
-#[cfg(not(windows))]
-use std::os::unix::fs::PermissionsExt;
-use bstr::ByteVec;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -91,28 +91,35 @@ pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
     Ok(agent)
 }
 
-
 #[cfg(not(windows))]
-pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.")?;
-    
-    let response = agent.get(url)
+pub fn download_extract_sans_parent(
+    url: &str,
+    target_path: &Path,
+    levels_to_skip: usize,
+) -> Result<()> {
+    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
+
+    let response = agent
+        .get(url)
         .call()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let content_length = response.header("Content-Length").and_then(|v| v.parse::<u64>().ok() );
+    let content_length = response
+        .header("Content-Length")
+        .and_then(|v| v.parse::<u64>().ok());
 
     let pb = match content_length {
         Some(content_length) => ProgressBar::new(content_length),
         None => ProgressBar::new_spinner(),
     };
-    
+
     pb.set_prefix("  Downloading:");
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-        .unwrap()
-        .progress_chars("=> "));
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+            .unwrap()
+            .progress_chars("=> "),
+    );
 
     let foo = pb.wrap_read(response.into_reader());
 
@@ -144,25 +151,33 @@ impl std::io::Read for DataReaderWrap {
 }
 
 #[cfg(windows)]
-pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_skip: usize) -> Result<()> {
-    let http_client = windows::Web::Http::HttpClient::new()
-        .with_context(|| "Failed to create HttpClient.")?;
+pub fn download_extract_sans_parent(
+    url: &str,
+    target_path: &Path,
+    levels_to_skip: usize,
+) -> Result<()> {
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let http_response = http_client.GetAsync(&request_uri)
+    let http_response = http_client
+        .GetAsync(&request_uri)
         .with_context(|| "Failed to initiate download.")?
         .get()
         .with_context(|| "Failed to complete async download operation.")?;
 
-    http_response.EnsureSuccessStatusCode()
+    http_response
+        .EnsureSuccessStatusCode()
         .with_context(|| "HTTP download reported error status code.")?;
 
-    let http_response_content = http_response.Content()
+    let http_response_content = http_response
+        .Content()
         .with_context(|| "Failed to obtain content from http response.")?;
 
-    let response_stream = http_response_content.ReadAsInputStreamAsync()
+    let response_stream = http_response_content
+        .ReadAsInputStreamAsync()
         .with_context(|| "Failed to initiate get input stream from response")?
         .get()
         .with_context(|| "Failed to obtain input stream from http response")?;
@@ -170,21 +185,24 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
         .with_context(|| "Failed to create DataReader.")?;
 
-    reader.SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
+    reader
+        .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
         .with_context(|| "Failed to set input stream options.")?;
 
     let mut content_length: u64 = 0;
-    let pb = if http_response_content.TryComputeLength(&mut content_length)? {        
+    let pb = if http_response_content.TryComputeLength(&mut content_length)? {
         ProgressBar::new(content_length)
     } else {
         ProgressBar::new_spinner()
     };
-   
+
     pb.set_prefix("  Downloading:");
-    pb.set_style(ProgressStyle::default_bar()
-    .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-        .unwrap()
-        .progress_chars("=> "));
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+            .unwrap()
+            .progress_chars("=> "),
+    );
 
     let foo = pb.wrap_read(DataReaderWrap(reader));
 
@@ -200,53 +218,61 @@ pub fn download_extract_sans_parent(url: &str, target_path: &Path, levels_to_ski
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.")?;
-    
-    let response = agent.get(url)
+    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
+
+    let response = agent
+        .get(url)
         .call()?
         .into_string()
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .trim()
         .to_string();
 
-    let version = Version::parse(&response)
-        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", response))?;
+    let version = Version::parse(&response).with_context(|| {
+        format!(
+            "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
+            response
+        )
+    })?;
 
     Ok(version)
 }
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let agent = get_ureq_agent(url)
-        .with_context(|| "Failed to construct download agent.")?;
-    
-    let response = agent.get(url)
+    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
+
+    let response = agent
+        .get(url)
         .call()?
         .into_string()
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .trim()
         .to_string();
 
-    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(path)
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
 
     file.write_all(response.as_bytes())
         .with_context(|| "Failed to write content into version db file.")?;
-
 
     Ok(())
 }
 
 #[cfg(windows)]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let http_client = windows::Web::Http::HttpClient::new()
-        .with_context(|| "Failed to create HttpClient.")?;
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let response = http_client.GetStringAsync(&request_uri)
+    let response = http_client
+        .GetStringAsync(&request_uri)
         .with_context(|| "")?
         .get()
         .with_context(|| "")?
@@ -254,27 +280,36 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let trimmed_response = response.trim();
 
-    let version = Version::parse(trimmed_response)
-        .with_context(|| format!("`download_juliaup_version` failed to parse `{}` as a valid semversion.", trimmed_response))?;
+    let version = Version::parse(trimmed_response).with_context(|| {
+        format!(
+            "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
+            trimmed_response
+        )
+    })?;
 
     Ok(version)
 }
 
 #[cfg(windows)]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let http_client = windows::Web::Http::HttpClient::new()
-        .with_context(|| "Failed to create HttpClient.")?;
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let response = http_client.GetStringAsync(&request_uri)
+    let response = http_client
+        .GetStringAsync(&request_uri)
         .with_context(|| "Failed to download version db step 1.")?
         .get()
         .with_context(|| "Failed to download version db step 2.")?
         .to_string();
 
-    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&path)
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
 
     file.write_all(response.as_bytes())
@@ -311,24 +346,36 @@ pub fn install_version(
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
-        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;        
+        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
     } else {
-        let juliaupserver_base = get_juliaserver_base_url()
-            .with_context(|| "Failed to get Juliaup server base URL.")?;
+        let juliaupserver_base =
+            get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
 
         let download_url_path = &version_db
             .available_versions
             .get(fullversion)
-            .ok_or_else(|| anyhow!(
-                "Failed to find download url in versions db for '{}'.",
-                fullversion
-            ))?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Failed to find download url in versions db for '{}'.",
+                    fullversion
+                )
+            })?
             .url_path;
 
-        let download_url = juliaupserver_base.join(download_url_path)
-            .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, download_url_path))?;
-        
-        eprintln!("{} Julia {}", style("Installing").green().bold(), fullversion);
+        let download_url = juliaupserver_base
+            .join(download_url_path)
+            .with_context(|| {
+                format!(
+                    "Failed to construct a valid url from '{}' and '{}'.",
+                    juliaupserver_base, download_url_path
+                )
+            })?;
+
+        eprintln!(
+            "{} Julia {}",
+            style("Installing").green().bold(),
+            fullversion
+        );
 
         download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
     }
@@ -347,7 +394,10 @@ pub fn install_version(
     Ok(())
 }
 
-pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalPaths) -> Result<()> {
+pub fn garbage_collect_versions(
+    config_data: &mut JuliaupConfig,
+    paths: &GlobalPaths,
+) -> Result<()> {
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
         if config_data.installed_channels.iter().all(|j| match &j.1 {
@@ -359,8 +409,6 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalP
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
-
-
 
             if std::fs::remove_dir_all(&path_to_delete).is_err() {
                 eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
@@ -376,9 +424,7 @@ pub fn garbage_collect_versions(config_data: &mut JuliaupConfig, paths: &GlobalP
     Ok(())
 }
 
-fn _remove_symlink(
-    symlink_path: &Path,
-) -> Result<()> {
+fn _remove_symlink(symlink_path: &Path) -> Result<()> {
     std::fs::create_dir_all(symlink_path.parent().unwrap())?;
 
     if symlink_path.exists() {
@@ -388,14 +434,16 @@ fn _remove_symlink(
     Ok(())
 }
 
-pub fn remove_symlink(
-    symlink_name: &String,
-) -> Result<()> {
+pub fn remove_symlink(symlink_name: &String) -> Result<()> {
     let symlink_path = get_bin_dir()
         .with_context(|| "Failed to retrieve binary directory while trying to remove a symlink.")?
         .join(symlink_name);
 
-    eprintln!("{} {}.", style("Deleting symlink").cyan().bold(), symlink_name);
+    eprintln!(
+        "{} {}.",
+        style("Deleting symlink").cyan().bold(),
+        symlink_name
+    );
 
     _remove_symlink(&symlink_path)?;
 
@@ -408,7 +456,6 @@ pub fn create_symlink(
     symlink_name: &String,
     paths: &GlobalPaths,
 ) -> Result<()> {
-
     let symlink_path = get_bin_dir()
         .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?
         .join(symlink_name);
@@ -421,34 +468,59 @@ pub fn create_symlink(
 
             let target_path = paths.juliauphome.join(&child_target_fullname);
 
-            eprintln!("{} {} for Julia {}.", style("Creating symlink").cyan().bold(), symlink_name, version);
+            eprintln!(
+                "{} {} for Julia {}.",
+                style("Creating symlink").cyan().bold(),
+                symlink_name,
+                version
+            );
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
-                .with_context(|| format!("failed to create symlink `{}`.", symlink_path.to_string_lossy()))?;
-        },
+                .with_context(|| {
+                    format!(
+                        "failed to create symlink `{}`.",
+                        symlink_path.to_string_lossy()
+                    )
+                })?;
+        }
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             let formatted_command = match args {
                 Some(x) => format!("{} {}", command, x.join(" ")),
-                None    => command.clone(),
+                None => command.clone(),
             };
 
-            eprintln!("{} {} for `{}`", style("Creating shim").cyan().bold(), symlink_name, formatted_command);
+            eprintln!(
+                "{} {} for `{}`",
+                style("Creating shim").cyan().bold(),
+                symlink_name,
+                formatted_command
+            );
 
             std::fs::write(
                 &symlink_path,
                 format!(
-r#"#!/bin/sh
+                    r#"#!/bin/sh
 {} "$@"
 "#,
                     formatted_command,
                 ),
-            ).with_context(|| format!("failed to create shim `{}`.", symlink_path.to_string_lossy()))?;
+            )
+            .with_context(|| {
+                format!(
+                    "failed to create shim `{}`.",
+                    symlink_path.to_string_lossy()
+                )
+            })?;
 
             // set as executable
             let perms = std::fs::Permissions::from_mode(0o755);
-            std::fs::set_permissions(&symlink_path, perms)
-                .with_context(|| format!("failed to change permissions for shim `{}`.", symlink_path.to_string_lossy()))?;
-        },
+            std::fs::set_permissions(&symlink_path, perms).with_context(|| {
+                format!(
+                    "failed to change permissions for shim `{}`.",
+                    symlink_path.to_string_lossy()
+                )
+            })?;
+        }
     };
 
     if let Ok(path) = std::env::var("PATH") {
@@ -464,7 +536,9 @@ r#"#!/bin/sh
 }
 
 #[cfg(windows)]
-pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> { Ok(()) }
+pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> {
+    Ok(())
+}
 
 #[cfg(feature = "selfupdate")]
 pub fn install_background_selfupdate(interval: i64) -> Result<()> {
@@ -491,11 +565,11 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
                     "/f",
                     "/it",
                     "/tr",
-                    &format!("wsl --distribution {} {} self update", val, my_own_path)
+                    &format!("wsl --distribution {} {} self update", val, my_own_path),
                 ])
                 .output()
                 .with_context(|| "Failed to create new Windows task for juliaup.")?;
-        },
+        }
         Err(_e) => {
             let output = std::process::Command::new("crontab")
                 .args(["-l"])
@@ -505,7 +579,13 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
             let new_crontab_content = String::from_utf8(output.stdout)?
                 .lines()
                 .filter(|x| !x.contains("4c79c12db1d34bbbab1f6c6f838f423f"))
-                .chain([&format!("*/{} * * * * {} 4c79c12db1d34bbbab1f6c6f838f423f", interval, my_own_path), ""])
+                .chain([
+                    &format!(
+                        "*/{} * * * * {} 4c79c12db1d34bbbab1f6c6f838f423f",
+                        interval, my_own_path
+                    ),
+                    "",
+                ])
                 .join("\n");
 
             let mut child = std::process::Command::new("crontab")
@@ -519,9 +599,9 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
 
             // Close stdin to finish and avoid indefinite blocking
             drop(child_stdin);
-                
+
             child.wait_with_output()?;
-        },
+        }
     };
 
     Ok(())
@@ -529,12 +609,12 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
 
 #[cfg(feature = "selfupdate")]
 pub fn uninstall_background_selfupdate() -> Result<()> {
-    use std::process::Stdio;
     use itertools::Itertools;
+    use std::process::Stdio;
 
     match std::env::var("WSL_DISTRO_NAME") {
         // This is the WSL case, where we schedule a Windows task to do the update
-        Ok(val) => {            
+        Ok(val) => {
             std::process::Command::new("schtasks.exe")
                 .args([
                     "/delete",
@@ -544,8 +624,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
                 ])
                 .output()
                 .with_context(|| "Failed to remove Windows task for juliaup.")?;
-
-        },
+        }
         Err(_e) => {
             let output = std::process::Command::new("crontab")
                 .args(["-l"])
@@ -569,9 +648,9 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
 
             // Close stdin to finish and avoid indefinite blocking
             drop(child_stdin);
-                
+
             child.wait_with_output()?;
-        },
+        }
     };
 
     Ok(())
@@ -591,10 +670,9 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
 
     result.extend_from_slice(S_MARKER);
     result.extend_from_slice(HEADER);
-    if path.file_name().unwrap()==".zshrc" {
+    if path.file_name().unwrap() == ".zshrc" {
         append_zsh_content(&mut result, bin_path_str);
-    }
-    else {
+    } else {
         append_sh_content(&mut result, bin_path_str);
     }
     result.extend_from_slice(b"\n");
@@ -605,10 +683,12 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
 
 fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
     // zsh specific syntax for path extension
-    let content = formatdoc!("
+    let content = formatdoc!(
+        "
             path=('{}' $path)
             export PATH
-        ", path_str
+        ",
+        path_str
     );
 
     buf.extend_from_slice(content.as_bytes());
@@ -618,7 +698,8 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     // If the variable is already contained in $PATH, do nothing
     // Otherwise prepend it to path
     // ${PATH:+:${PATH}} => Only append :$PATH if $PATH is set
-    let content = formatdoc!("
+    let content = formatdoc!(
+        "
             case \":$PATH:\" in
                 *:{0}:*)
                     ;;
@@ -627,12 +708,13 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
                     export PATH={0}${{PATH:+:${{PATH}}}}
                     ;;
             esac
-        ", path_str
+        ",
+        path_str
     );
     buf.extend_from_slice(content.as_bytes());
 }
 
-fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
+fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
 
@@ -642,24 +724,28 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize,usize)>> {
             if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
                 bail!("Found multiple startup script sections from juliaup.");
             }
-            (sidx, eidx) 
-        }, 
+            (sidx, eidx)
+        }
         (None, None) => {
             return Ok(None);
-        },
+        }
         (_, None) => {
             bail!("Found an opening marker but no end marker of juliaup section.");
-        },
+        }
         (None, _) => {
             bail!("Found an opening marker but no end marker of juliaup section.");
-        },
+        }
     };
 
     Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
 fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).create(true).open(path)
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(path)
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
     let mut buffer: Vec<u8> = Vec::new();
@@ -667,16 +753,24 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
     file.read_to_end(&mut buffer)
         .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
 
-    let existing_code_pos = match_markers(&buffer)
-        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
+    let existing_code_pos = match_markers(&buffer).with_context(|| {
+        format!(
+            "Error occured while searching juliaup shell startup script section in {}",
+            path.display()
+        )
+    })?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path)
-        .with_context(|| format!("Error occured while generating juliaup shell startup script section for {}", path.display()))?;
+    let new_content = get_shell_script_juliaup_content(bin_path, &path).with_context(|| {
+        format!(
+            "Error occured while generating juliaup shell startup script section for {}",
+            path.display()
+        )
+    })?;
 
     match existing_code_pos {
         Some(pos) => {
             buffer.replace_range(pos.0..pos.1, &new_content);
-        },
+        }
         None => {
             buffer.extend_from_slice(b"\n");
             buffer.extend_from_slice(&new_content);
@@ -696,15 +790,22 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
 }
 
 fn remove_path_from_specific_file(path: &Path) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(path)
-    .with_context(|| format!("Failed to open file: {}", path.display()))?;
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
     let mut buffer: Vec<u8> = Vec::new();
 
     file.read_to_end(&mut buffer)?;
 
-    let existing_code_pos = match_markers(&buffer)
-        .with_context(|| format!("Error occured while searching juliaup shell startup script section in {}", path.display()))?;
+    let existing_code_pos = match_markers(&buffer).with_context(|| {
+        format!(
+            "Error occured while searching juliaup shell startup script section in {}",
+            path.display()
+        )
+    })?;
 
     if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
@@ -734,8 +835,13 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
 
     let result = paths_to_test
         .iter()
-        .filter(|p| p.exists() ||
-            (add_case && p.file_name().unwrap()==".zshrc" && std::env::consts::OS == "macos") // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
+        .filter(
+            |p| {
+                p.exists()
+                    || (add_case
+                        && p.file_name().unwrap() == ".zshrc"
+                        && std::env::consts::OS == "macos")
+            }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
         .cloned()
         .collect();
@@ -758,7 +864,6 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
         remove_path_from_specific_file(&p).unwrap();
     });
     Ok(())
-
 }
 
 #[cfg(test)]
@@ -795,10 +900,10 @@ mod tests {
 
         // Verify correct positions
         assert_eq!(sidx, start_bytes.len());
-        let expected_eidx = start_bytes.len() + S_MARKER.len() + middle_bytes.len() + E_MARKER.len();
+        let expected_eidx =
+            start_bytes.len() + S_MARKER.len() + middle_bytes.len() + E_MARKER.len();
         assert_eq!(eidx, expected_eidx);
     }
-
 
     #[test]
     fn match_markers_returns_err_without_start() {
@@ -870,48 +975,62 @@ mod tests {
 }
 
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
-    let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`run_command_update_version_db` command failed to load configuration db.")?;
+    let mut config_file = load_mut_config_db(paths).with_context(|| {
+        "`run_command_update_version_db` command failed to load configuration db."
+    })?;
 
     #[cfg(feature = "selfupdate")]
     let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
-        None => "release".to_string()
+        None => "release".to_string(),
     };
 
     // TODO Figure out how we can learn about the correctn Juliaup channel here
     #[cfg(not(feature = "selfupdate"))]
     let juliaup_channel = "release".to_string();
 
-    let juliaupserver_base = get_juliaserver_base_url()
-            .with_context(|| "Failed to get Juliaup server base URL.")?;
-            
+    let juliaupserver_base =
+        get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
+
     let dbversion_url_path = match juliaup_channel.as_str() {
         "release" => "juliaup/RELEASECHANNELDBVERSION",
         "releasepreview" => "juliaup/RELEASEPREVIEWCHANNELDBVERSION",
         "dev" => "juliaup/DEVCHANNELDBVERSION",
-        _ => bail!("Juliaup is configured to a channel named '{}' that does not exist.", &juliaup_channel)
+        _ => bail!(
+            "Juliaup is configured to a channel named '{}' that does not exist.",
+            &juliaup_channel
+        ),
     };
 
-    let dbversion_url = juliaupserver_base.join(dbversion_url_path)
-        .with_context(|| format!("Failed to construct a valid url from '{}' and '{}'.", juliaupserver_base, dbversion_url_path))?;
+    let dbversion_url = juliaupserver_base
+        .join(dbversion_url_path)
+        .with_context(|| {
+            format!(
+                "Failed to construct a valid url from '{}' and '{}'.",
+                juliaupserver_base, dbversion_url_path
+            )
+        })?;
 
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
     config_file.data.last_version_db_update = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_file)
-        .with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
 
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
 
-    let local_dbversion = match std::fs::OpenOptions::new().read(true).open(&paths.versiondb) {
+    let local_dbversion = match std::fs::OpenOptions::new()
+        .read(true)
+        .open(&paths.versiondb)
+    {
         Ok(file) => {
             let reader = BufReader::new(&file);
 
-            if let Ok(versiondb) = serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader) {
+            if let Ok(versiondb) =
+                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
+            {
                 if let Ok(version) = semver::Version::parse(&versiondb.version) {
                     Some(version)
                 } else {
@@ -919,23 +1038,31 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 }
             } else {
                 None
-            }                
+            }
         }
-        Err(_) => { 
-            None 
-        }
+        Err(_) => None,
     };
 
-    if online_dbversion>bundled_dbversion {      
-        if local_dbversion.is_none() || online_dbversion>local_dbversion.unwrap() {
-            let onlineversiondburl = juliaupserver_base.join(&format!("juliaup/versiondb/versiondb-{}-{}.json", online_dbversion, get_juliaup_target()))
+    if online_dbversion > bundled_dbversion {
+        if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
+            let onlineversiondburl = juliaupserver_base
+                .join(&format!(
+                    "juliaup/versiondb/versiondb-{}-{}.json",
+                    online_dbversion,
+                    get_juliaup_target()
+                ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb)
-                .with_context(|| format!("Failed to download new version db from {}.", onlineversiondburl))?;            
+            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb).with_context(
+                || {
+                    format!(
+                        "Failed to download new version db from {}.",
+                        onlineversiondburl
+                    )
+                },
+            )?;
         }
-    }
-    else if local_dbversion.is_some() {
+    } else if local_dbversion.is_some() {
         // If the bundled version is up-to-date we can delete any cached version db json file
         let _ = std::fs::remove_file(&paths.versiondb);
     }

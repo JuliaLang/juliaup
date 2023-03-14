@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use anyhow::{Result,bail,anyhow};
+use crate::get_juliaup_target;
 #[cfg(feature = "selfupdate")]
 use anyhow::Context;
-use crate::get_juliaup_target;
+use anyhow::{anyhow, bail, Result};
+use std::path::PathBuf;
 pub struct GlobalPaths {
     pub juliauphome: PathBuf,
     pub juliaupconfig: PathBuf,
@@ -17,7 +17,11 @@ pub struct GlobalPaths {
 }
 
 fn get_juliaup_home_path() -> Result<PathBuf> {
-    let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
+    let entry_sep = if std::env::consts::OS == "windows" {
+        ';'
+    } else {
+        ':'
+    };
 
     match std::env::var("JULIA_DEPOT_PATH") {
         Ok(val) => {
@@ -58,9 +62,7 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
 /// Return ~/.julia/juliaup, if such a directory can be found
 fn get_default_juliaup_home_path() -> Result<PathBuf> {
     let path = dirs::home_dir()
-        .ok_or_else(|| anyhow!(
-            "Could not determine the path of the user home directory."
-        ))?
+        .ok_or_else(|| anyhow!("Could not determine the path of the user home directory."))?
         .join(".julia")
         .join("juliaup");
 
@@ -81,14 +83,15 @@ pub fn get_paths() -> Result<GlobalPaths> {
         .with_context(|| "Could not determine the path of the running exe.")?;
 
     #[cfg(feature = "selfupdate")]
-    let juliaupselfbin = my_own_path.parent()
+    let juliaupselfbin = my_own_path
+        .parent()
         .ok_or_else(|| anyhow!("Could not determine parent."))?
         .to_path_buf();
 
     let juliaupconfig = juliauphome.join("juliaup.json");
 
     let versiondb = juliauphome.join(format!("versiondb-{}.json", get_juliaup_target()));
-    
+
     let lockfile = juliauphome.join(".juliaup-lock");
 
     #[cfg(feature = "selfupdate")]
@@ -100,8 +103,7 @@ pub fn get_paths() -> Result<GlobalPaths> {
         .to_path_buf();
 
     #[cfg(feature = "selfupdate")]
-    let juliaupselfconfig = juliaupselfhome
-        .join("juliaupself.json");
+    let juliaupselfconfig = juliaupselfhome.join("juliaupself.json");
 
     Ok(GlobalPaths {
         juliauphome,
