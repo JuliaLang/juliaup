@@ -339,7 +339,7 @@ pub fn install_version(
         .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
-    let target_path = paths.juliauphome.join(&child_target_foldername);
+    let target_path = paths.juliainstalls.join(&child_target_foldername);
     std::fs::create_dir_all(target_path.parent().unwrap())?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
@@ -407,7 +407,7 @@ pub fn garbage_collect_versions(
                 args: _,
             } => true,
         }) {
-            let path_to_delete = paths.juliauphome.join(&detail.path);
+            let path_to_delete = paths.juliainstalls.join(&detail.path);
             let display = path_to_delete.display();
 
             if std::fs::remove_dir_all(&path_to_delete).is_err() {
@@ -466,7 +466,7 @@ pub fn create_symlink(
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_fullname = format!("julia-{}", version);
 
-            let target_path = paths.juliauphome.join(&child_target_fullname);
+            let target_path = paths.juliainstalls.join(&child_target_fullname);
 
             eprintln!(
                 "{} {} for Julia {}.",

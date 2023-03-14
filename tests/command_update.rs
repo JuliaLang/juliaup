@@ -10,7 +10,7 @@ fn command_update() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("update")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -18,7 +18,7 @@ fn command_update() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("up")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path())
         .assert()
         .success()
         .stdout("");

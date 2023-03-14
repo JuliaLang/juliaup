@@ -6,7 +6,7 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 
 ## Status
 
-This installer is considered production ready. 
+This installer is considered production ready.
 
 ## Installation
 
@@ -105,6 +105,11 @@ All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suff
 To launch the default Julia version simply run `julia` in your terminal.
 
 To launch a specific Julia version, say in channel `release`, run `julia +release`.
+
+## Path used by Juliaup
+
+Juliaup will by default use `~/.juliaup` to store Julia versions and log files. This can be changed by setting
+the `JULIAUP_HOME` environment variable.
 
 ## Juliaup server
 

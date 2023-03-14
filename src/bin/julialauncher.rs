@@ -147,6 +147,7 @@ fn get_julia_path_from_channel(
     config_data: &JuliaupConfig,
     channel: &str,
     juliaupconfig_path: &Path,
+    juliainstalls_path: &Path,
     julia_version_from_cmd_line: bool,
 ) -> Result<(PathBuf, Vec<String>)> {
     let channel_info = if julia_version_from_cmd_line {
@@ -177,9 +178,7 @@ fn get_julia_path_from_channel(
                     channel
                 )
             })?;
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap() // unwrap OK because there should always be a parent
+            let absolute_path = juliainstalls_path
                 .join(path)
                 .join("bin")
                 .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
@@ -235,6 +234,7 @@ fn run_app() -> Result<i32> {
         &config_file.data,
         &julia_channel_to_use,
         &paths.juliaupconfig,
+        &paths.juliainstalls,
         julia_version_from_cmd_line,
     )
     .with_context(|| {
