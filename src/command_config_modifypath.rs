@@ -1,14 +1,20 @@
 #[cfg(feature = "selfupdate")]
-pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool, paths: &crate::global_paths::GlobalPaths) -> anyhow::Result<()> {
-    use crate::operations::{add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts};
-    use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
+pub fn run_command_config_modifypath(
+    value: Option<bool>,
+    quiet: bool,
+    paths: &crate::global_paths::GlobalPaths,
+) -> anyhow::Result<()> {
+    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+    use crate::operations::{
+        add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts,
+    };
     use anyhow::Context;
 
     match value {
         Some(value) => {
             let mut config_file = load_mut_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
-    
+
             let mut value_changed = false;
 
             if value != config_file.self_data.modify_path {
@@ -19,8 +25,7 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool, paths: &c
 
             if value {
                 add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin)?;
-            }
-            else {
+            } else {
                 remove_binfolder_from_path_in_shell_scripts()?;
             }
 
@@ -30,18 +35,20 @@ pub fn run_command_config_modifypath(value: Option<bool>, quiet: bool, paths: &c
             if !quiet {
                 if value_changed {
                     eprintln!("Property 'modifypath' set to '{}'", value);
-                }
-                else {
+                } else {
                     eprintln!("Property 'modifypath' is already set to '{}'", value);
                 }
             }
-        },
+        }
         None => {
             let config_file = load_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!("Property 'modifypath' set to '{}'", config_file.self_data.modify_path);
+                eprintln!(
+                    "Property 'modifypath' set to '{}'",
+                    config_file.self_data.modify_path
+                );
             }
         }
     };

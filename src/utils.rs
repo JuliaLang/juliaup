@@ -1,23 +1,35 @@
 use anyhow::{anyhow, bail, Context, Result};
-use semver::{Version, BuildMetadata};
+use semver::{BuildMetadata, Version};
 use std::path::PathBuf;
 use url::Url;
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") { 
-        if val.ends_with('/') {val} else {format!("{}/", val)}
-     } else {
-        "https://julialang-s3.julialang.org".to_string() 
+    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
+        if val.ends_with('/') {
+            val
+        } else {
+            format!("{}/", val)
+        }
+    } else {
+        "https://julialang-s3.julialang.org".to_string()
     };
 
-    let parsed_url = Url::parse(&base_url)
-        .with_context(|| format!("Failed to parse the value of JULIAUP_SERVER '{}' as a uri.", base_url))?;
+    let parsed_url = Url::parse(&base_url).with_context(|| {
+        format!(
+            "Failed to parse the value of JULIAUP_SERVER '{}' as a uri.",
+            base_url
+        )
+    })?;
 
     Ok(parsed_url)
 }
 
 pub fn get_bin_dir() -> Result<PathBuf> {
-    let entry_sep = if std::env::consts::OS == "windows" {';'} else {':'};
+    let entry_sep = if std::env::consts::OS == "windows" {
+        ';'
+    } else {
+        ':'
+    };
 
     let path = match std::env::var("JULIAUP_BIN_DIR") {
         Ok(val) => {
@@ -50,7 +62,7 @@ pub fn get_bin_dir() -> Result<PathBuf> {
             }
 
             path
-        },
+        }
     };
 
     Ok(path)
@@ -85,7 +97,7 @@ pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
         minor: version.minor,
         patch: version.patch,
         pre: version.pre,
-        build: BuildMetadata::EMPTY
+        build: BuildMetadata::EMPTY,
     };
 
     let platform = build_parts[1];
@@ -103,12 +115,12 @@ mod tests {
         assert!(parse_versionstring(&s.to_owned()).is_err());
 
         let s = "1.1.1+0.x86.apple.darwin14";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
+        let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x86");
         assert_eq!(v, Version::new(1, 1, 1));
 
         let s = "1.1.1+0.x64.apple.darwin14";
-        let (p,v) = parse_versionstring(&s.to_owned()).unwrap();
+        let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
     }

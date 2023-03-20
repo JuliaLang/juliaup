@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use console::Term;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -6,7 +7,6 @@ use juliaup::versions_file::load_versions_db;
 use normpath::PathExt;
 use std::path::Path;
 use std::path::PathBuf;
-use console::Term;
 
 #[derive(thiserror::Error, Debug)]
 pub enum JuliaupInvalidChannel {
@@ -16,7 +16,7 @@ pub enum JuliaupInvalidChannel {
 
 fn get_juliaup_path() -> Result<PathBuf> {
     let my_own_path = std::env::current_exe()
-    .with_context(|| "std::env::current_exe() did not find its own path.")?;
+        .with_context(|| "std::env::current_exe() did not find its own path.")?;
 
     let juliaup_path = my_own_path
         .parent()
@@ -28,8 +28,7 @@ fn get_juliaup_path() -> Result<PathBuf> {
 
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
-        let juliaup_path = get_juliaup_path()
-            .with_context(|| "Failed to obtain juliaup path.")?;
+        let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
         std::process::Command::new(juliaup_path)
             .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
@@ -39,23 +38,27 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_versiondb_update(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+fn run_versiondb_update(
+    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
     let versiondb_update_interval = config_file.data.settings.versionsdb_update_interval;
 
     if versiondb_update_interval > 0 {
-        let should_run = if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
-            let update_time = last_versiondb_update + chrono::Duration::minutes(versiondb_update_interval);
-            Utc::now() >= update_time
-        } else {
-            true
-        };
+        let should_run =
+            if let Some(last_versiondb_update) = config_file.data.last_version_db_update {
+                let update_time =
+                    last_versiondb_update + chrono::Duration::minutes(versiondb_update_interval);
+                Utc::now() >= update_time
+            } else {
+                true
+            };
 
         if should_run {
-            let juliaup_path = get_juliaup_path()
-                .with_context(|| "Failed to obtain juliaup path.")?;
+            let juliaup_path =
+                get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
             std::process::Command::new(juliaup_path)
                 .args(["0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf"])
@@ -79,14 +82,18 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
         let should_run = if let Some(last_selfupdate) = config_file.self_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
 
-            if Utc::now() >= update_time {true} else {false}
+            if Utc::now() >= update_time {
+                true
+            } else {
+                false
+            }
         } else {
             true
         };
 
         if should_run {
-            let juliaup_path = get_juliaup_path()
-                .with_context(|| "Failed to obtain juliaup path.")?;
+            let juliaup_path =
+                get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
             std::process::Command::new(juliaup_path)
                 .args(["self", "update"])
@@ -193,8 +200,7 @@ fn run_app() -> Result<i32> {
     let term = Term::stdout();
     term.set_title("Julia");
 
-    let paths = get_paths()
-        .with_context(|| "Trying to load all global paths.")?;
+    let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
@@ -202,8 +208,8 @@ fn run_app() -> Result<i32> {
     let config_file = load_config_db(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
-    let versiondb_data =
-        load_versions_db(&paths).with_context(|| "The Julia launcher failed to load a versions db.")?;
+    let versiondb_data = load_versions_db(&paths)
+        .with_context(|| "The Julia launcher failed to load a versions db.")?;
 
     let mut julia_channel_to_use = config_file.data.default.clone();
 
@@ -252,21 +258,19 @@ fn run_app() -> Result<i32> {
 
     // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
     // process to handle things.
-    ctrlc::set_handler(|| ())
-        .with_context(|| "Failed to set the Ctrl-C handler.")?;
+    ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
 
     let mut child_process = std::process::Command::new(julia_path)
         .args(&new_args)
         .spawn()
         .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-    run_versiondb_update(&config_file)
-        .with_context(|| "Failed to run version db update")?;
+    run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
-    run_selfupdate(&config_file)
-        .with_context(|| "Failed to run selfupdate.")?;
+    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
-    let status = child_process.wait()
+    let status = child_process
+        .wait()
         .with_context(|| "Failed to wait for Julia process to finish.")?;
 
     let code = match status.code() {
@@ -282,18 +286,15 @@ fn run_app() -> Result<i32> {
                     let signal = nix::sys::signal::Signal::try_from(signal)
                         .with_context(|| format!("Unknown signal value {}.", signal))?;
 
-                    nix::sys::signal::raise(signal)
-                        .with_context(|| "Failed to raise signal.")?;
+                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
 
                     // We raise the signal twice because SIGSEGV and SIGBUS require that
                     // https://github.com/JuliaLang/juliaup/pull/525#issuecomment-1353526900
                     // https://github.com/rust-lang/rust/blob/984eab57f708e62c09b3d708033fe620130b5f39/library/std/src/sys/unix/stack_overflow.rs#L60-L80
-                    nix::sys::signal::raise(signal)
-                        .with_context(|| "Failed to raise signal.")?;
+                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
 
                     anyhow::bail!("Maybe we should never reach this?");
-                }
-                else {
+                } else {
                     anyhow::bail!("We weren't able to extract a signal, this should never happen.");
                 }
             }
@@ -301,7 +302,7 @@ fn run_app() -> Result<i32> {
             #[cfg(windows)]
             {
                 anyhow::bail!("There is no exit code, that should not be possible on Windows.");
-            }            
+            }
         }
     };
 
@@ -316,7 +317,9 @@ fn main() -> Result<()> {
         homepage: "https://github.com/JuliaLang/juliaup".into(),
     });
 
-    let env = env_logger::Env::new().filter("JULIAUP_LOG").write_style("JULIAUP_LOG_STYLE");
+    let env = env_logger::Env::new()
+        .filter("JULIAUP_LOG")
+        .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
     let client_status = run_app()?;

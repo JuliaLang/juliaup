@@ -1,13 +1,15 @@
 use assert_cmd::Command;
-use std::path::Path;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
+use std::path::Path;
 
 #[test]
 fn command_initial_setup() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
-    depot_dir.child(Path::new("juliaup")).assert(predicate::path::missing());
+    depot_dir
+        .child(Path::new("juliaup"))
+        .assert(predicate::path::missing());
 
     Command::cargo_bin("juliaup")
         .unwrap()
@@ -17,5 +19,7 @@ fn command_initial_setup() {
         .success()
         .stdout("");
 
-    depot_dir.child(Path::new("juliaup").join("juliaup.json")).assert(predicate::path::exists());
+    depot_dir
+        .child(Path::new("juliaup").join("juliaup.json"))
+        .assert(predicate::path::exists());
 }

@@ -1,7 +1,11 @@
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
 use anyhow::{bail, Context, Result};
-use crate::config_file::{load_mut_config_db, save_config_db, load_config_db};
 
-pub fn run_command_config_versionsdbupdate(value: Option<i64>, quiet: bool, paths: &crate::global_paths::GlobalPaths) -> Result<()> {
+pub fn run_command_config_versionsdbupdate(
+    value: Option<i64>,
+    quiet: bool,
+    paths: &crate::global_paths::GlobalPaths,
+) -> Result<()> {
     match value {
         Some(value) => {
             if value < 0 {
@@ -10,7 +14,7 @@ pub fn run_command_config_versionsdbupdate(value: Option<i64>, quiet: bool, path
 
             let mut config_file = load_mut_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
-    
+
             let mut value_changed = false;
 
             if value != config_file.data.settings.versionsdb_update_interval {
@@ -25,19 +29,23 @@ pub fn run_command_config_versionsdbupdate(value: Option<i64>, quiet: bool, path
             if !quiet {
                 if value_changed {
                     eprintln!("Property 'versionsdbupdateinterval' set to '{}'", value);
-                }
-                else {
-                    eprintln!("Property 'versionsdbupdateinterval' is already set to '{}'", value);
+                } else {
+                    eprintln!(
+                        "Property 'versionsdbupdateinterval' is already set to '{}'",
+                        value
+                    );
                 }
             }
-        },
+        }
         None => {
             let config_file = load_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
                 eprintln!(
-                    "Property 'versionsdbupdateinterval' set to '{}'", config_file.data.settings.versionsdb_update_interval);
+                    "Property 'versionsdbupdateinterval' set to '{}'",
+                    config_file.data.settings.versionsdb_update_interval
+                );
             }
         }
     };

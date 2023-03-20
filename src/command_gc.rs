@@ -1,6 +1,6 @@
+use crate::config_file::{load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
 use crate::operations::garbage_collect_versions;
-use crate::config_file::{save_config_db, load_mut_config_db};
 use anyhow::{Context, Result};
 
 pub fn run_command_gc(paths: &GlobalPaths) -> Result<()> {
