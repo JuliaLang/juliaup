@@ -24,6 +24,8 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
     pub path: String,
+    #[serde(rename = "LastUpdate")]
+    pub last_update: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -38,6 +40,10 @@ pub enum JuliaupConfigChannel {
         command: String,
         #[serde(rename = "Args")]
         args: Option<Vec<String>>,
+    },
+    NightlyChannel {
+        #[serde(rename = "Name")]
+        name: String,
     },
 }
 

@@ -4,10 +4,11 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
-use crate::operations::garbage_collect_versions;
+use crate::operations::{garbage_collect_versions, install_nightly};
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use chrono::Utc;
 
 fn update_channel(
     config_db: &mut JuliaupConfig,
@@ -70,6 +71,31 @@ fn update_channel(
                     channel
                 );
             } else {
+            }
+        }
+        JuliaupConfigChannel::NightlyChannel { name } => {
+            let last_update = config_db.installed_versions.get(name).unwrap().last_update;
+            let now = Utc::now();
+            let duration = now.signed_duration_since(last_update);
+            let days_old = duration.num_days();
+            if days_old >= 1 {
+                let name = name.clone();
+                install_nightly(&name, config_db, paths).with_context(|| {
+                    format!("Failed to install '{name}' while updating channel '{channel}'.")
+                })?;
+
+                let config_channel = JuliaupConfigChannel::NightlyChannel { name: name.clone() };
+
+                config_db
+                    .installed_channels
+                    .insert(channel.clone(), config_channel.clone());
+
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(&config_channel, &channel, paths)?;
+                }
+            } else {
+                log::debug!("Skipping update for '{}' channel, it is not old enough to update ({} days old).", channel, days_old);
             }
         }
     }
