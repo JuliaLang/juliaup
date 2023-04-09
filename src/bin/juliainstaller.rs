@@ -230,13 +230,13 @@ pub fn main() -> Result<()> {
     info!("Parsing command line arguments.");
     let args = Juliainstaller::parse();
 
-    if !args.disable_confirmation_prompt && atty::isnt(atty::Stream::Stdin) {
+    if !args.disable_confirmation_prompt && !is_terminal::is_terminal(&std::io::stdin()) {
         return Err(anyhow!(
             "To install Julia in non-interactive mode pass the -y parameter."
         ));
     }
 
-    let theme: Box<dyn Theme> = if atty::is(atty::Stream::Stdout) {
+    let theme: Box<dyn Theme> = if is_terminal::is_terminal(&std::io::stdout()) {
         Box::new(ColorfulTheme {
             values_style: Style::new().yellow().dim(),
             ..ColorfulTheme::default()
