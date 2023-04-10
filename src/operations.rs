@@ -17,6 +17,7 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use reqwest::blocking;
 use semver::Version;
 use std::io::BufReader;
 use std::io::Seek;
@@ -48,7 +49,7 @@ where
 }
 
 #[cfg(not(windows))]
-fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
+fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
     trace!("identifying proxy for url: {url}");
     use log::trace;
     let proxy_url = env_proxy::for_url_str(url).to_string();
@@ -58,18 +59,23 @@ fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
     //      1. No proxy URL is specified => None
     //      2. An invalid proxy URL is specified => Err(...)
     proxy_url.map(|url| {
-        ureq::Proxy::new(&url)
+        reqwest::Proxy::https(&url).
             .with_context(|| format!("Could not create proxy from proxy url: {url}"))
     })
 }
 
 #[cfg(not(any(windows, target_os = "macos")))]
-pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
+pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
     let agent = match get_proxy(url) {
-        Some(proxy) => ureq::AgentBuilder::new().proxy(proxy?).build(),
-        None => ureq::AgentBuilder::new().build(),
+        Some(proxy) => blocking::ClientBuilder::new()
+            .use_native_tls()
+            .proxy(proxy?)
+            .user_agent(reqwest::header::USER_AGENT)
+            .build()?,
+        None => blocking::ClientBuilder::new()
+            .user_agent(reqwest::header::USER_AGENT)
+            .build()?,
     };
-
     Ok(agent)
 }
 
@@ -101,12 +107,10 @@ pub fn download_extract_sans_parent(
 
     let response = agent
         .get(url)
-        .call()
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let content_length = response
-        .header("Content-Length")
-        .and_then(|v| v.parse::<u64>().ok());
+    let content_length = response.content_length();
 
     let pb = match content_length {
         Some(content_length) => ProgressBar::new(content_length),
@@ -121,7 +125,7 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
-    let foo = pb.wrap_read(response.into_reader());
+    let foo = pb.wrap_read(response);
 
     let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
@@ -222,16 +226,14 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let response = agent
         .get(url)
-        .call()?
-        .into_string()
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .trim()
-        .to_string();
+        .text()?;
 
-    let version = Version::parse(&response).with_context(|| {
+    let version = Version::parse(&response.trim()).with_context(|| {
         format!(
             "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
-            response
+            response.trim()
         )
     })?;
 
@@ -242,13 +244,10 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
 
-    let response = agent
+    let mut response = agent
         .get(url)
-        .call()?
-        .into_string()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .trim()
-        .to_string();
+        .send()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -256,8 +255,9 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .truncate(true)
         .open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
-
-    file.write_all(response.as_bytes())
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf)?;
+    file.write_all(buf.as_slice())
         .with_context(|| "Failed to write content into version db file.")?;
 
     Ok(())
