@@ -17,7 +17,6 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
-use reqwest::blocking;
 use semver::Version;
 use std::io::BufReader;
 use std::io::Seek;
@@ -66,6 +65,7 @@ fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
 
 #[cfg(not(windows))]
 pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
+    use reqwest::blocking;
     let agent = match get_proxy(url) {
         Some(proxy) => blocking::ClientBuilder::new()
             .use_rustls_tls()
