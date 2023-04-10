@@ -68,12 +68,12 @@ fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
 pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
     let agent = match get_proxy(url) {
         Some(proxy) => blocking::ClientBuilder::new()
-            .use_native_tls()
+            .use_rustls_tls()
             .proxy(proxy?)
             .user_agent(reqwest::header::USER_AGENT)
             .build()?,
         None => blocking::ClientBuilder::new()
-            .use_native_tls()
+            .use_rustls_tls()
             .user_agent(reqwest::header::USER_AGENT)
             .build()?,
     };
