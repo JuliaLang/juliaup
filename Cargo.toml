@@ -45,8 +45,13 @@ indoc = "1.0.7"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.44.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
-[target.'cfg(not(windows))'.dependencies]
+[target.'cfg(not(any(target_os = "windows", target_env = "musl")))'.dependencies]
 reqwest = { version = "0.11.16",  default-features = false, features = ["blocking", "native-tls"] }
+
+[target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+reqwest = { version = "0.11.16",  default-features = false, features = ["blocking", "native-tls-vendored"] }
+
+[target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.26" }
 
 [build-dependencies]
