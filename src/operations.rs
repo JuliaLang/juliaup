@@ -64,7 +64,7 @@ fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
     })
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(not(windows))]
 pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
     let agent = match get_proxy(url) {
         Some(proxy) => blocking::ClientBuilder::new()
@@ -73,29 +73,30 @@ pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
             .user_agent(reqwest::header::USER_AGENT)
             .build()?,
         None => blocking::ClientBuilder::new()
+            .use_native_tls()
             .user_agent(reqwest::header::USER_AGENT)
             .build()?,
     };
     Ok(agent)
 }
 
-#[cfg(target_os = "macos")]
-pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
-    use native_tls::TlsConnector;
-    use std::sync::Arc;
+// #[cfg(target_os = "macos")]
+// pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
+//     use native_tls::TlsConnector;
+//     use std::sync::Arc;
 
-    let agent = match get_proxy(url) {
-        Some(proxy) => ureq::AgentBuilder::new()
-            .tls_connector(Arc::new(TlsConnector::new()?))
-            .proxy(proxy?)
-            .build(),
-        None => ureq::AgentBuilder::new()
-            .tls_connector(Arc::new(TlsConnector::new()?))
-            .build(),
-    };
+//     let agent = match get_proxy(url) {
+//         Some(proxy) => ureq::AgentBuilder::new()
+//             .tls_connector(Arc::new(TlsConnector::new()?))
+//             .proxy(proxy?)
+//             .build(),
+//         None => ureq::AgentBuilder::new()
+//             .tls_connector(Arc::new(TlsConnector::new()?))
+//             .build(),
+//     };
 
-    Ok(agent)
-}
+//     Ok(agent)
+// }
 
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(
