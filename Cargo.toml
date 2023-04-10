@@ -41,16 +41,13 @@ shellexpand = "3.0.0"
 env_proxy = "0.4.1"
 bstr = "1.0.1"
 indoc = "1.0.7"
+reqwest = { version = "0.11.16", features = ["blocking", "native-tls"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.44.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-ureq = { version = "2", features = ["native-tls"] }
 native-tls = "0.2.10"
-
-[target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
-ureq = { version = "2", features = ["native-certs"] }
 
 [target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.26" }
