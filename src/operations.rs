@@ -59,7 +59,7 @@ fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
     //      1. No proxy URL is specified => None
     //      2. An invalid proxy URL is specified => Err(...)
     proxy_url.map(|url| {
-        reqwest::Proxy::https(&url).
+        reqwest::Proxy::https(&url)
             .with_context(|| format!("Could not create proxy from proxy url: {url}"))
     })
 }
