@@ -126,8 +126,8 @@ struct Juliainstaller {
     #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool,
     /// Specify alternate path for Juliaup
-    #[clap(short = 'p', long = "path", default_value = "")]
-    alternate_path: String,
+    #[clap(short = 'p', long = "path")]
+    alternate_path: Option<String>,
     /// Control adding the Juliaup dir to the PATH
     /// Use Option<bool> and default_value="yes" to force --add_to_path=[yes|no|0|1] instead of flag
     #[clap(long = "add-to-path", value_parser = BoolishValueParser::new(), default_value = "yes")]
@@ -313,20 +313,17 @@ pub fn main() -> Result<()> {
         startupselfupdate: args.startup_selfupdate_interval,
         symlinks: false,
         modifypath: args.add_to_path.unwrap_or(false),
-        install_location: dirs::home_dir()
-            .ok_or(anyhow!(
-                "Could not determine the path of the user home directory."
-            ))?
-            .join(".juliaup"),
+        install_location: match args.alternate_path {
+            Some(alternate_path) => PathBuf::from(alternate_path),
+            None => dirs::home_dir()
+                .ok_or(anyhow!(
+                    "Could not determine the path of the user home directory."
+                ))?
+                .join(".juliaup"),
+        },
         modifypath_files: find_shell_scripts_to_be_modified(true)
             .with_context(|| "Failed to identify the shell scripts that need to be modified.")?,
     };
-
-    // args.alternate_path is used to overwrite the default install location (if
-    // specified). This is also the location use if disable_confirmation_prompt
-    if ! args.alternate_path.is_empty() {
-        install_choices.install_location = PathBuf::from(args.alternate_path);
-    }
 
     print_install_choices(&install_choices)?;
 
