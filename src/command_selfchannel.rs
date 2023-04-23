@@ -2,8 +2,11 @@
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_selfchannel(channel: String, paths: &crate::global_paths::GlobalPaths) -> Result<()> {
-    use crate::{config_file::{load_mut_config_db, save_config_db}};
+pub fn run_command_selfchannel(
+    channel: String,
+    paths: &crate::global_paths::GlobalPaths,
+) -> Result<()> {
+    use crate::config_file::{load_mut_config_db, save_config_db};
     use anyhow::{bail, Context};
 
     let mut config_file = load_mut_config_db(paths)

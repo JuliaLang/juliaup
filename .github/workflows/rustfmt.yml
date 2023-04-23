@@ -1,0 +1,19 @@
+name: rustfmt
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  rustfmt:
+    name: Rustfmt Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Rustfmt check
+        run: cargo fmt -- --check -v

@@ -3,10 +3,13 @@ use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
-use cli_table::ColorChoice;
 use cli_table::format::HorizontalLine;
 use cli_table::format::Separator;
-use cli_table::{Table, format::{Justify, Border}, print_stdout,WithTitle};
+use cli_table::ColorChoice;
+use cli_table::{
+    format::{Border, Justify},
+    print_stdout, Table, WithTitle,
+};
 use itertools::Itertools;
 
 #[derive(Table)]
@@ -22,13 +25,15 @@ struct ChannelRow {
 }
 
 pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
-    let config_file =
-        load_config_db(paths).with_context(|| "`status` command failed to load configuration file.")?;
+    let config_file = load_config_db(paths)
+        .with_context(|| "`status` command failed to load configuration file.")?;
 
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`status` command failed to load versions db.")?;
 
-    let rows_in_table: Vec<_> = config_file.data.installed_channels
+    let rows_in_table: Vec<_> = config_file
+        .data
+        .installed_channels
         .iter()
         .sorted_by_key(|i| i.0.to_string())
         .map(|i| -> ChannelRow {
@@ -40,13 +45,13 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         } else {
                             ""
                         }
-                    },
-                    None => ""
+                    }
+                    None => "",
                 },
                 name: i.0.to_string(),
                 version: match i.1 {
-                    JuliaupConfigChannel::SystemChannel {version} => version.clone(),
-                    JuliaupConfigChannel::LinkedChannel {command, args} => {
+                    JuliaupConfigChannel::SystemChannel { version } => version.clone(),
+                    JuliaupConfigChannel::LinkedChannel { command, args } => {
                         let mut combined_command = String::new();
 
                         if command.contains(' ') {
@@ -70,10 +75,10 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             }
                         }
                         format!("Linked to `{}`", combined_command)
-                    } 
+                    }
                 },
                 update: match i.1 {
-                    JuliaupConfigChannel::SystemChannel {version} => {
+                    JuliaupConfigChannel::SystemChannel { version } => {
                         match versiondb_data.available_channels.get(i.0) {
                             Some(channel) => {
                                 if &channel.version != version {
@@ -81,26 +86,29 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                                 } else {
                                     "".to_string()
                                 }
-                            },
-                            None => "".to_string()
+                            }
+                            None => "".to_string(),
                         }
-                    },
-                    JuliaupConfigChannel::LinkedChannel {command: _, args: _} => "".to_string()
-                }
-        }
-    }).collect();
+                    }
+                    JuliaupConfigChannel::LinkedChannel {
+                        command: _,
+                        args: _,
+                    } => "".to_string(),
+                },
+            }
+        })
+        .collect();
 
     print_stdout(
         rows_in_table
-        .with_title()
-        .color_choice(ColorChoice::Never)
-        .border(Border::builder().build())
-        .separator(
-            Separator::builder()
-            .title(Some(HorizontalLine::new('1', '2', '3', '-')))
-            .build()
-        )
-        
+            .with_title()
+            .color_choice(ColorChoice::Never)
+            .border(Border::builder().build())
+            .separator(
+                Separator::builder()
+                    .title(Some(HorizontalLine::new('1', '2', '3', '-')))
+                    .build(),
+            ),
     )?;
 
     Ok(())

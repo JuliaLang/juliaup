@@ -4,8 +4,8 @@ use crate::global_paths::GlobalPaths;
 use crate::utils::parse_versionstring;
 use anyhow::{bail, Context, Result};
 use normpath::PathExt;
-use serde::{Deserialize, Serialize};
 use semver::Version;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupChannelInfo {
@@ -39,9 +39,9 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         other_versions: Vec::new(),
     };
 
-    let config_file =
-        load_config_db(paths)
-        .with_context(|| "Failed to load configuration file while running the getconfig1 API command.")?;
+    let config_file = load_config_db(paths).with_context(|| {
+        "Failed to load configuration file while running the getconfig1 API command."
+    })?;
 
     for (key, value) in config_file.data.installed_channels {
         let curr = match value {
@@ -72,8 +72,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     None => bail!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key)
                 }
             }
-            JuliaupConfigChannel::LinkedChannel { command, args } => 
-            {
+            JuliaupConfigChannel::LinkedChannel { command, args } => {
                 let mut new_args: Vec<String> = Vec::new();
 
                 for i in args.as_ref().unwrap() {
@@ -82,7 +81,9 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
 
                 new_args.push("--version".to_string());
 
-                let res = std::process::Command::new(&command).args(&new_args).output();
+                let res = std::process::Command::new(&command)
+                    .args(&new_args)
+                    .output();
 
                 match res {
                     Ok(output) => {
@@ -91,10 +92,11 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         let trimmed_string = std::str::from_utf8(&output.stdout).unwrap().trim();
 
                         if !trimmed_string.starts_with(expected_version_prefix) {
-                            continue
+                            continue;
                         }
 
-                        let version = Version::parse(&trimmed_string[expected_version_prefix.len()..])?;
+                        let version =
+                            Version::parse(&trimmed_string[expected_version_prefix.len()..])?;
 
                         JuliaupChannelInfo {
                             name: key.clone(),
@@ -103,10 +105,10 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                             version: version.to_string(),
                             arch: "".to_string(),
                         }
-                    },
-                    Err(_) => continue
+                    }
+                    Err(_) => continue,
                 }
-            },
+            }
         };
 
         match config_file.data.default {
