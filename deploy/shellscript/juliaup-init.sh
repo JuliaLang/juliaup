@@ -40,7 +40,7 @@ FLAGS:
         --add-to-path           Add to user PATH environment variable
     -h, --help                  Prints help information
         --background-selfupdate Background self-update interval
-        --startup-selfupdate    Statup self-update interval
+        --startup-selfupdate    Startup self-update interval
 
 
 OPTIONS:
