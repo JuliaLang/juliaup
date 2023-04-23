@@ -38,10 +38,9 @@ USAGE:
 FLAGS:
     -y, --yes                   Disable confirmation prompt.
         --add-to-path           Add to user PATH environment variable
-    -h, --help                  Prints help information
         --background-selfupdate Background self-update interval
         --startup-selfupdate    Startup self-update interval
-
+    -h, --help                  Prints help information
 
 OPTIONS:
     -p, --path              Custom install path
