@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use clap::builder::BoolishValueParser;
 
 
 #[cfg(feature = "selfupdate")]
@@ -104,14 +105,15 @@ struct Juliainstaller {
     #[clap(short = 'p', long = "path", default_value = "")]
     alternate_path: String,
     /// Control adding the Juliaup dir to the PATH
-    #[clap(long = "add-to-path", default_value = "yes")]
-    add_to_path: String,
+    /// Use Option<bool> and default_value="yes" to force --add_to_path=[yes|no|0|1] instead of flag
+    #[clap(long = "add-to-path", value_parser = BoolishValueParser::new(), default_value = "yes")]
+    add_to_path: Option<bool>,
     /// Manually specify the background self-update interval
-    #[clap(long = "background-selfupdate", default_value = "0")]
-    background_selfupdate_interval: String,
+    #[clap(long = "background-selfupdate", default_value_t = 0)]
+    background_selfupdate_interval: i64,
     /// Manually specify the statup self-update interval
-    #[clap(long = "startup-selfupdate", default_value = "1440")]
-    startup_selfupdate_interval: String
+    #[clap(long = "startup-selfupdate", default_value_t = 1440)]
+    startup_selfupdate_interval: i64
 }
 
 #[cfg(feature = "selfupdate")]
@@ -193,15 +195,6 @@ pub fn main() -> Result<()> {
         return Err(anyhow!("To install Julia in non-interactive mode pass the -y parameter."))
     }
 
-    if ! (args.add_to_path.eq("yes") || args.add_to_path.eq("no")) {
-        return Err(
-            anyhow!(
-                "--add-to-path can be either 'yes' or 'no', you entered: '{}'",
-                args.add_to_path
-            )
-        )
-    }
-
     let theme: Box<dyn Theme> = if atty::is(atty::Stream::Stdout) {
         Box::new(ColorfulTheme {
             values_style: Style::new().yellow().dim(),
@@ -256,10 +249,10 @@ pub fn main() -> Result<()> {
     }
 
     let mut install_choices = InstallChoices {
-        backgroundselfupdate: args.background_selfupdate_interval.parse().unwrap(),
-        startupselfupdate: args.startup_selfupdate_interval.parse().unwrap(),
+        backgroundselfupdate: args.background_selfupdate_interval,
+        startupselfupdate: args.startup_selfupdate_interval,
         symlinks: false,
-        modifypath: args.add_to_path.eq("yes"),
+        modifypath: args.add_to_path.unwrap_or(false),
         install_location: dirs::home_dir()
             .ok_or(anyhow!("Could not determine the path of the user home directory."))?
             .join(".juliaup"),
