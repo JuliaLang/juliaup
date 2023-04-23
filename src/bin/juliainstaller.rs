@@ -1,6 +1,6 @@
 use anyhow::Result;
-use clap::Parser;
 use clap::builder::BoolishValueParser;
+use clap::Parser;
 
 #[cfg(feature = "selfupdate")]
 fn run_individual_config_wizard(
@@ -137,7 +137,7 @@ struct Juliainstaller {
     background_selfupdate_interval: i64,
     /// Manually specify the statup self-update interval
     #[clap(long = "startup-selfupdate", default_value_t = 1440)]
-    startup_selfupdate_interval: i64
+    startup_selfupdate_interval: i64,
 }
 
 #[cfg(feature = "selfupdate")]
@@ -211,7 +211,6 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
 
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
-    use std::path::PathBuf;
     use anyhow::{anyhow, Context};
     use console::{style, Style};
     use dialoguer::{
@@ -229,6 +228,7 @@ pub fn main() -> Result<()> {
         utils::get_juliaserver_base_url,
     };
     use std::io::Seek;
+    use std::path::PathBuf;
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
