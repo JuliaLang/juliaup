@@ -1,4 +1,5 @@
 use anyhow::Result;
+use clap::builder::BoolishValueParser;
 use clap::Parser;
 
 #[cfg(feature = "selfupdate")]
@@ -124,6 +125,19 @@ struct Juliainstaller {
     /// Disable confirmation prompt
     #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool,
+    /// Specify alternate path for Juliaup
+    #[clap(short = 'p', long = "path")]
+    alternate_path: Option<String>,
+    /// Control adding the Juliaup dir to the PATH
+    /// Use Option<bool> and default_value="yes" to force --add_to_path=[yes|no|0|1] instead of flag
+    #[clap(long = "add-to-path", value_parser = BoolishValueParser::new(), default_value = "yes")]
+    add_to_path: Option<bool>,
+    /// Manually specify the background self-update interval
+    #[clap(long = "background-selfupdate", default_value_t = 0)]
+    background_selfupdate_interval: i64,
+    /// Manually specify the statup self-update interval
+    #[clap(long = "startup-selfupdate", default_value_t = 1440)]
+    startup_selfupdate_interval: i64,
 }
 
 #[cfg(feature = "selfupdate")]
@@ -214,6 +228,7 @@ pub fn main() -> Result<()> {
         utils::get_juliaserver_base_url,
     };
     use std::io::Seek;
+    use std::path::PathBuf;
 
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliainstaller".into(),
@@ -294,15 +309,18 @@ pub fn main() -> Result<()> {
     }
 
     let mut install_choices = InstallChoices {
-        backgroundselfupdate: 0,
-        startupselfupdate: 1440,
+        backgroundselfupdate: args.background_selfupdate_interval,
+        startupselfupdate: args.startup_selfupdate_interval,
         symlinks: false,
-        modifypath: true,
-        install_location: dirs::home_dir()
-            .ok_or(anyhow!(
-                "Could not determine the path of the user home directory."
-            ))?
-            .join(".juliaup"),
+        modifypath: args.add_to_path.unwrap_or(false),
+        install_location: match args.alternate_path {
+            Some(alternate_path) => PathBuf::from(alternate_path),
+            None => dirs::home_dir()
+                .ok_or(anyhow!(
+                    "Could not determine the path of the user home directory."
+                ))?
+                .join(".juliaup"),
+        },
         modifypath_files: find_shell_scripts_to_be_modified(true)
             .with_context(|| "Failed to identify the shell scripts that need to be modified.")?,
     };
