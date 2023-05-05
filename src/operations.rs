@@ -53,7 +53,7 @@ pub fn download_extract_sans_parent(
     target_path: &Path,
     levels_to_skip: usize,
 ) -> Result<()> {
-    let response = reqwest::blocking::get(url)    
+    let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let content_length = response.content_length();
