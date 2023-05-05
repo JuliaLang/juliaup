@@ -217,6 +217,7 @@ pub fn main() -> Result<()> {
         theme::{ColorfulTheme, SimpleTheme, Theme},
         Confirm, Select,
     };
+    use is_terminal::IsTerminal;
     use juliaup::{
         command_add::run_command_add,
         command_default::run_command_default,
@@ -245,13 +246,13 @@ pub fn main() -> Result<()> {
     info!("Parsing command line arguments.");
     let args = Juliainstaller::parse();
 
-    if !args.disable_confirmation_prompt && !is_terminal::is_terminal(&std::io::stdin()) {
+    if !args.disable_confirmation_prompt && !std::io::stdin().is_terminal() {
         return Err(anyhow!(
             "To install Julia in non-interactive mode pass the -y parameter."
         ));
     }
 
-    let theme: Box<dyn Theme> = if is_terminal::is_terminal(&std::io::stdout()) {
+    let theme: Box<dyn Theme> = if std::io::stdout().is_terminal() {
         Box::new(ColorfulTheme {
             values_style: Style::new().yellow().dim(),
             ..ColorfulTheme::default()
