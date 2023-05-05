@@ -48,65 +48,15 @@ where
 }
 
 #[cfg(not(windows))]
-fn get_proxy(url: &str) -> Option<Result<ureq::Proxy>> {
-    trace!("identifying proxy for url: {url}");
-    use log::trace;
-    let proxy_url = env_proxy::for_url_str(url).to_string();
-    trace!("identified proxy: {:?}", proxy_url);
-
-    // Option<Result<...>> is returned to handle both cases:
-    //      1. No proxy URL is specified => None
-    //      2. An invalid proxy URL is specified => Err(...)
-    proxy_url.map(|url| {
-        ureq::Proxy::new(&url)
-            .with_context(|| format!("Could not create proxy from proxy url: {url}"))
-    })
-}
-
-#[cfg(not(any(windows, target_os = "macos")))]
-pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
-    let agent = match get_proxy(url) {
-        Some(proxy) => ureq::AgentBuilder::new().proxy(proxy?).build(),
-        None => ureq::AgentBuilder::new().build(),
-    };
-
-    Ok(agent)
-}
-
-#[cfg(target_os = "macos")]
-pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
-    use native_tls::TlsConnector;
-    use std::sync::Arc;
-
-    let agent = match get_proxy(url) {
-        Some(proxy) => ureq::AgentBuilder::new()
-            .tls_connector(Arc::new(TlsConnector::new()?))
-            .proxy(proxy?)
-            .build(),
-        None => ureq::AgentBuilder::new()
-            .tls_connector(Arc::new(TlsConnector::new()?))
-            .build(),
-    };
-
-    Ok(agent)
-}
-
-#[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
 ) -> Result<()> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let response = agent
-        .get(url)
-        .call()
+    let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let content_length = response
-        .header("Content-Length")
-        .and_then(|v| v.parse::<u64>().ok());
+    let content_length = response.content_length();
 
     let pb = match content_length {
         Some(content_length) => ProgressBar::new(content_length),
@@ -121,7 +71,7 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
-    let foo = pb.wrap_read(response.into_reader());
+    let foo = pb.wrap_read(response);
 
     let tar = GzDecoder::new(foo);
     let archive = Archive::new(tar);
@@ -218,20 +168,14 @@ pub fn download_extract_sans_parent(
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let response = agent
-        .get(url)
-        .call()?
-        .into_string()
+    let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .trim()
-        .to_string();
+        .text()?;
 
-    let version = Version::parse(&response).with_context(|| {
+    let version = Version::parse(&response.trim()).with_context(|| {
         format!(
             "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
-            response
+            response.trim()
         )
     })?;
 
@@ -240,15 +184,8 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let response = agent
-        .get(url)
-        .call()?
-        .into_string()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .trim()
-        .to_string();
+    let mut response = reqwest::blocking::get(url)
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -256,8 +193,9 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .truncate(true)
         .open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
-
-    file.write_all(response.as_bytes())
+    let mut buf: Vec<u8> = vec![];
+    response.copy_to(&mut buf)?;
+    file.write_all(buf.as_slice())
         .with_context(|| "Failed to write content into version db file.")?;
 
     Ok(())
