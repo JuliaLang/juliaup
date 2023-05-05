@@ -48,67 +48,12 @@ where
 }
 
 #[cfg(not(windows))]
-fn get_proxy(url: &str) -> Option<Result<reqwest::Proxy>> {
-    trace!("identifying proxy for url: {url}");
-    use log::trace;
-    let proxy_url = env_proxy::for_url_str(url).to_string();
-    trace!("identified proxy: {:?}", proxy_url);
-
-    // Option<Result<...>> is returned to handle both cases:
-    //      1. No proxy URL is specified => None
-    //      2. An invalid proxy URL is specified => Err(...)
-    proxy_url.map(|url| {
-        reqwest::Proxy::https(&url)
-            .with_context(|| format!("Could not create proxy from proxy url: {url}"))
-    })
-}
-
-#[cfg(not(windows))]
-pub fn get_ureq_agent(url: &str) -> Result<reqwest::blocking::Client> {
-    use reqwest::blocking;
-    let agent = match get_proxy(url) {
-        Some(proxy) => blocking::ClientBuilder::new()
-            .use_native_tls()
-            .proxy(proxy?)
-            .user_agent(reqwest::header::USER_AGENT)
-            .build()?,
-        None => blocking::ClientBuilder::new()
-            .use_native_tls()
-            .user_agent(reqwest::header::USER_AGENT)
-            .build()?,
-    };
-    Ok(agent)
-}
-
-// #[cfg(target_os = "macos")]
-// pub fn get_ureq_agent(url: &str) -> Result<ureq::Agent> {
-//     use native_tls::TlsConnector;
-//     use std::sync::Arc;
-
-//     let agent = match get_proxy(url) {
-//         Some(proxy) => ureq::AgentBuilder::new()
-//             .tls_connector(Arc::new(TlsConnector::new()?))
-//             .proxy(proxy?)
-//             .build(),
-//         None => ureq::AgentBuilder::new()
-//             .tls_connector(Arc::new(TlsConnector::new()?))
-//             .build(),
-//     };
-
-//     Ok(agent)
-// }
-
-#[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
 ) -> Result<()> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let response = agent
-        .get(url)
-        .send()
+    let response = reqwest::blocking::get(url)    
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let content_length = response.content_length();
@@ -223,11 +168,7 @@ pub fn download_extract_sans_parent(
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let response = agent
-        .get(url)
-        .send()
+    let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .text()?;
 
@@ -243,11 +184,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let agent = get_ureq_agent(url).with_context(|| "Failed to construct download agent.")?;
-
-    let mut response = agent
-        .get(url)
-        .send()
+    let mut response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let mut file = std::fs::OpenOptions::new()
