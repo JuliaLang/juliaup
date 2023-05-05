@@ -55,7 +55,7 @@ jobs:
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate native-tls-vendored
+            features: selfupdate
             rustflags: -C target-feature=+crt-static
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
@@ -75,7 +75,7 @@ jobs:
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
             os: ubuntu
-            features: selfupdate native-tls-vendored
+            features: selfupdate
             rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
@@ -85,7 +85,7 @@ jobs:
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate native-tls-vendored
+            features: selfupdate
             rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
@@ -96,8 +96,6 @@ jobs:
     - uses: actions/checkout@v3
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - if: ${{ matrix.os == 'ubuntu' }}
-      run: sudo apt-get install libssl-dev pkg-config
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -150,8 +148,6 @@ jobs:
     - uses: actions/checkout@v3
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - if: ${{ matrix.os == 'ubuntu' }}
-      run: sudo apt-get install libssl-dev pkg-config
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
