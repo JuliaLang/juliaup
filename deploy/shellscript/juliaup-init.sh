@@ -36,9 +36,11 @@ USAGE:
     juliaup-init [FLAGS] [OPTIONS]
 
 FLAGS:
-    -y, --yes               Disable confirmation prompt.
-        --no-add-to-path    Don't add to user PATH environment variable
-    -h, --help              Prints help information
+    -y, --yes                   Disable confirmation prompt.
+        --add-to-path           Add to user PATH environment variable
+        --background-selfupdate Background self-update interval
+        --startup-selfupdate    Startup self-update interval
+    -h, --help                  Prints help information
 
 OPTIONS:
     -p, --path              Custom install path
