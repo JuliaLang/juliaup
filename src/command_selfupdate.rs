@@ -93,7 +93,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 #[cfg(feature = "windowsstore")]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use windows::{
-        core::Interface,
+        core::ComInterface,
         Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow},
     };
 
