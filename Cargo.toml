@@ -46,10 +46,10 @@ is-terminal = "0.4.7"
 windows = { version = "0.48.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls"] }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls", "socks"] }
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls-native-roots"] }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.26" }
