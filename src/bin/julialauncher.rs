@@ -11,7 +11,7 @@ use std::path::PathBuf;
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
 pub struct UserError {
-    msg: String    
+    msg: String,
 }
 
 fn get_juliaup_path() -> Result<PathBuf> {
@@ -145,7 +145,7 @@ fn check_channel_uptodate(
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
-    Default
+    Default,
 }
 
 fn get_julia_path_from_channel(
@@ -234,11 +234,10 @@ fn run_app() -> Result<i32> {
     if channel_from_cmd_line.is_some() {
         julia_channel_to_use = channel_from_cmd_line;
         juliaup_channel_source = JuliaupChannelSource::CmdLine;
-    }
-    else {
+    } else {
         // Second check the JULIAUP_CHANNEL env var
         match std::env::var("JULIAUP_CHANNEL") {
-            Ok(val) => { 
+            Ok(val) => {
                 julia_channel_to_use = Some(val);
                 juliaup_channel_source = JuliaupChannelSource::EnvVar;
             }
@@ -352,7 +351,7 @@ fn main() -> Result<std::process::ExitCode> {
         if let Some(e) = err.downcast_ref::<UserError>() {
             eprintln!("{}", e.msg);
 
-            return Ok(std::process::ExitCode::FAILURE)
+            return Ok(std::process::ExitCode::FAILURE);
         }
     }
 
