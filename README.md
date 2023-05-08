@@ -100,11 +100,21 @@ The available system provided channels are:
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
 
-## Using installed julia versions
+## Using installed Julia versions
 
 To launch the default Julia version simply run `julia` in your terminal.
 
 To launch a specific Julia version, say in channel `release`, run `julia +release`.
+
+## Overrides
+
+The Julia launcher `julia` automatically determines which specific version of Julia to launch. There are several ways to control and override which Juliaup channel should be used:
+
+1. A command line Julia version specifier, such as `julia +release`.
+2. The `JULIAUP_CHANNEL` environment variable.
+3. The default Juliaup channel.
+
+The channel is used in the order listed above, using the first available option.
 
 ## Juliaup server
 
