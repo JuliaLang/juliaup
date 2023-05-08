@@ -322,6 +322,12 @@ fn main() -> Result<()> {
         .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    let x = std::env::current_dir()?;
+
+    let x = x.canonicalize()?;
+
+    println!("{:?}", x);
+
     let client_status = run_app()?;
 
     std::process::exit(client_status);
