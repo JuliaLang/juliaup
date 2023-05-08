@@ -157,56 +157,45 @@ fn get_julia_path_from_channel(
 ) -> Result<(PathBuf, Vec<String>)> {
     let channel_info = config_data
             .installed_channels
-            .get(channel);
+            .get(channel)
+            .ok_or_else(|| match juliaup_channel_source {
+                JuliaupChannelSource::CmdLine => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into(),
+                JuliaupChannelSource::EnvVar => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into(),
+                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
+            })?;
 
-    if let Some(channel_info) = channel_info {
-        match channel_info {
-            JuliaupConfigChannel::LinkedChannel { command, args } => {
-                return Ok((
-                    PathBuf::from(command),
-                    args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-                ))
-            }
-            JuliaupConfigChannel::SystemChannel { version } => {
-                let path = &config_data
-                    .installed_versions.get(version)
-                    .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
-    
-                check_channel_uptodate(channel, version, versions_db).with_context(|| {
+    match channel_info {
+        JuliaupConfigChannel::LinkedChannel { command, args } => {
+            return Ok((
+                PathBuf::from(command),
+                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
+            ))
+        }
+        JuliaupConfigChannel::SystemChannel { version } => {
+            let path = &config_data
+                .installed_versions.get(version)
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
+
+            check_channel_uptodate(channel, version, versions_db).with_context(|| {
+                format!(
+                    "The Julia launcher failed while checking whether the channe {} is up-to-date.",
+                    channel
+                )
+            })?;
+            let absolute_path = juliaupconfig_path
+                .parent()
+                .unwrap() // unwrap OK because there should always be a parent
+                .join(path)
+                .join("bin")
+                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                .normalize()
+                .with_context(|| {
                     format!(
-                        "The Julia launcher failed while checking whether the channe {} is up-to-date.",
-                        channel
+                        "Failed to normalize path for Julia binary, starting from `{}`.",
+                        juliaupconfig_path.display()
                     )
                 })?;
-                let absolute_path = juliaupconfig_path
-                    .parent()
-                    .unwrap() // unwrap OK because there should always be a parent
-                    .join(path)
-                    .join("bin")
-                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                    .normalize()
-                    .with_context(|| {
-                        format!(
-                            "Failed to normalize path for Julia binary, starting from `{}`.",
-                            juliaupconfig_path.display()
-                        )
-                    })?;
-                return Ok((absolute_path.into_path_buf(), Vec::new()));
-            }
-        }
-    }
-    else {
-        if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
-            return Err(UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into());
-        }
-        else if let JuliaupChannelSource::EnvVar = juliaup_channel_source {
-            return Err(UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into())
-        }
-        else if let JuliaupChannelSource::Default = juliaup_channel_source {
-            return Err(anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel));
-        }
-        else {
-            panic!("");
+            return Ok((absolute_path.into_path_buf(), Vec::new()));
         }
     }
 }
