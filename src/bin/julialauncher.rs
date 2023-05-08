@@ -9,9 +9,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
-pub enum JuliaupInvalidChannel {
-    #[error("Invalid channel specified")]
-    FromCmdLine(),
+#[error("{msg}")]
+pub struct UserError {
+    msg: String,
 }
 
 fn get_juliaup_path() -> Result<PathBuf> {
@@ -142,22 +142,27 @@ fn check_channel_uptodate(
     Ok(())
 }
 
+enum JuliaupChannelSource {
+    CmdLine,
+    EnvVar,
+    Default,
+}
+
 fn get_julia_path_from_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
     channel: &str,
     juliaupconfig_path: &Path,
-    julia_version_from_cmd_line: bool,
+    juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let channel_info = if julia_version_from_cmd_line {
-        config_data
+    let channel_info = config_data
             .installed_channels
             .get(channel)
-            .ok_or_else(|| JuliaupInvalidChannel::FromCmdLine {})? // TODO #115 Handle this better in the main function
-    } else {
-        config_data.installed_channels.get(channel)
-            .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel))?
-    };
+            .ok_or_else(|| match juliaup_channel_source {
+                JuliaupChannelSource::CmdLine => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into(),
+                JuliaupChannelSource::EnvVar => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into(),
+                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
+            })?;
 
     match channel_info {
         JuliaupConfigChannel::LinkedChannel { command, args } => {
@@ -211,18 +216,36 @@ fn run_app() -> Result<i32> {
     let versiondb_data = load_versions_db(&paths)
         .with_context(|| "The Julia launcher failed to load a versions db.")?;
 
-    let mut julia_channel_to_use = config_file.data.default.clone();
-
+    // Parse command line
+    let mut channel_from_cmd_line: Option<String> = None;
     let args: Vec<String> = std::env::args().collect();
-
-    let mut julia_version_from_cmd_line = false;
-
     if args.len() > 1 {
         let first_arg = &args[1];
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
-            julia_channel_to_use = Some(stripped.to_string());
-            julia_version_from_cmd_line = true;
+            channel_from_cmd_line = Some(stripped.to_string());
+        }
+    }
+
+    let julia_channel_to_use: Option<String>;
+    let juliaup_channel_source: JuliaupChannelSource;
+
+    // First check whether a channel is specified at the command line
+    if channel_from_cmd_line.is_some() {
+        julia_channel_to_use = channel_from_cmd_line;
+        juliaup_channel_source = JuliaupChannelSource::CmdLine;
+    } else {
+        // Second check the JULIAUP_CHANNEL env var
+        match std::env::var("JULIAUP_CHANNEL") {
+            Ok(val) => {
+                julia_channel_to_use = Some(val);
+                juliaup_channel_source = JuliaupChannelSource::EnvVar;
+            }
+            Err(_) => {
+                // Third use the default channel from the config file
+                julia_channel_to_use = config_file.data.default.clone();
+                juliaup_channel_source = JuliaupChannelSource::Default;
+            }
         }
     }
 
@@ -235,7 +258,7 @@ fn run_app() -> Result<i32> {
         &config_file.data,
         &julia_channel_to_use,
         &paths.juliaupconfig,
-        julia_version_from_cmd_line,
+        juliaup_channel_source,
     )
     .with_context(|| {
         format!(
@@ -309,7 +332,7 @@ fn run_app() -> Result<i32> {
     Ok(code)
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<std::process::ExitCode> {
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliaup launcher".into(),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -322,13 +345,17 @@ fn main() -> Result<()> {
         .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
-    let x = std::env::current_dir()?;
+    let client_status = run_app();
 
-    let x = x.canonicalize()?;
+    if let Err(err) = &client_status {
+        if let Some(e) = err.downcast_ref::<UserError>() {
+            eprintln!("{}", e.msg);
 
-    println!("{:?}", x);
+            return Ok(std::process::ExitCode::FAILURE);
+        }
+    }
 
-    let client_status = run_app()?;
+    let client_status: u8 = client_status?.try_into().unwrap();
 
-    std::process::exit(client_status);
+    Ok(std::process::ExitCode::from(client_status))
 }
