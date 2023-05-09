@@ -82,11 +82,14 @@ enum Juliaup {
 enum OverrideSubCmd {
     List {},
     Set { 
-        channel: String,  
+        channel: String,
+        #[clap(long, short)]
         path: Option<String>
     },
     Unset {
+        #[clap(long, short)]
         nonexistent: bool,
+        #[clap(long, short)]
         path: Option<String>,
     }
 }
@@ -202,9 +205,9 @@ fn main() -> Result<()> {
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         Juliaup::OverrideSubCmd(subcmd) => match subcmd {
-            OverrideSubCmd::List {  } => run_command_override_list(),
-            OverrideSubCmd::Set { channel, path } => run_command_override_set(channel, path),
-            OverrideSubCmd::Unset { nonexistent, path } => run_command_override_unset(nonexistent, path),
+            OverrideSubCmd::List {  } => run_command_override_list(&paths),
+            OverrideSubCmd::Set { channel, path } => run_command_override_set(&paths, channel, path),
+            OverrideSubCmd::Unset { nonexistent, path } => run_command_override_unset(&paths, nonexistent, path),
         }
         Juliaup::Info {} => run_command_info(&paths),
         #[cfg(feature = "selfupdate")]
