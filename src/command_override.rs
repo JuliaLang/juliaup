@@ -25,7 +25,7 @@ pub fn run_command_override_list(paths: &GlobalPaths) -> Result<()> {
         .sorted_by_key(|i| i.path.to_string())
         .map(|i| -> OverrideRow {
             OverrideRow {
-                path: i.path.to_string(),
+                path: dunce::simplified(&PathBuf::from(&i.path)).to_string_lossy().to_string(),
                 channel: i.channel.to_string(),
             }
         })
