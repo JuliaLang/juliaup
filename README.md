@@ -87,6 +87,12 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
 - `juliaup self update` installs the latest version, which is necessary if new releases reach the beta channel, etc.
 - `juliaup self uninstall` uninstalls Juliaup. Note that on some platforms this command is not available, in those situations one should use platform specific methods to uninstall Juliaup.
+- `juliaup override status` shows all configured directory overrides.
+- `juliaup override set lts` sets a directory override for the current working directory to the `lts` channel.
+- `juliaup override unset` removes a directory override for the current working directory.
+- `juliaup override set --path foo/bar lts` sets a directory override for the path `foo/bar` to the `lts` channel.
+- `juliaup override unset --path foo/bar` removes a directory override for the path `foo/bar`.
+- `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
@@ -112,6 +118,7 @@ The Julia launcher `julia` automatically determines which specific version of Ju
 
 1. A command line Julia version specifier, such as `julia +release`.
 2. The `JULIAUP_CHANNEL` environment variable.
+3. A directory override, set with the `juliaup override set` command.
 3. The default Juliaup channel.
 
 The channel is used in the order listed above, using the first available option.

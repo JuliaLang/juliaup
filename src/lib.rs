@@ -13,6 +13,7 @@ pub mod command_info;
 pub mod command_initial_setup_from_launcher;
 pub mod command_link;
 pub mod command_list;
+pub mod command_override;
 pub mod command_remove;
 pub mod command_selfchannel;
 pub mod command_selfuninstall;

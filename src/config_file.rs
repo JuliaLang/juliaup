@@ -67,6 +67,14 @@ impl Default for JuliaupConfigSettings {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct JuliaupOverride {
+    #[serde(rename = "Path")]
+    pub path: String,
+    #[serde(rename = "Channel")]
+    pub channel: String
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfig {
     #[serde(rename = "Default")]
     pub default: Option<String>,
@@ -76,6 +84,8 @@ pub struct JuliaupConfig {
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
     #[serde(rename = "Settings", default)]
     pub settings: JuliaupConfigSettings,
+    #[serde(rename = "Overrides", default)]
+    pub overrides: Vec<JuliaupOverride>,
     #[serde(
         rename = "LastVersionDbUpdate",
         skip_serializing_if = "Option::is_none"
@@ -164,6 +174,7 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
+                overrides: Vec::new(),
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
@@ -259,6 +270,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
+                overrides: Vec::new(),
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),

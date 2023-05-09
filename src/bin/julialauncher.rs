@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use console::Term;
+use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -145,6 +146,7 @@ fn check_channel_uptodate(
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
+    Override,
     Default,
 }
 
@@ -161,6 +163,7 @@ fn get_julia_path_from_channel(
             .ok_or_else(|| match juliaup_channel_source {
                 JuliaupChannelSource::CmdLine => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into(),
                 JuliaupChannelSource::EnvVar => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into(),
+                JuliaupChannelSource::Override => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override.", channel).to_string() }.into(),
                 JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
             })?;
 
@@ -200,6 +203,21 @@ fn get_julia_path_from_channel(
     }
 }
 
+fn get_override_channel(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<Option<String>> {
+    let curr_dir = std::env::current_dir()?.canonicalize()?;
+
+    let juliaup_override = config_file.data.overrides
+        .iter()
+        .filter(|i| curr_dir.starts_with(&i.path))
+        .sorted_by_key(|i| i.path.len())
+        .last();
+
+    match juliaup_override {
+        Some(val) => Ok(Some(val.channel.clone())),
+        None => Ok(None)
+    }
+}
+
 fn run_app() -> Result<i32> {
     // Set console title
     let term = Term::stdout();
@@ -227,31 +245,21 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let julia_channel_to_use: Option<String>;
-    let juliaup_channel_source: JuliaupChannelSource;
-
-    // First check whether a channel is specified at the command line
-    if channel_from_cmd_line.is_some() {
-        julia_channel_to_use = channel_from_cmd_line;
-        juliaup_channel_source = JuliaupChannelSource::CmdLine;
-    } else {
-        // Second check the JULIAUP_CHANNEL env var
-        match std::env::var("JULIAUP_CHANNEL") {
-            Ok(val) => {
-                julia_channel_to_use = Some(val);
-                juliaup_channel_source = JuliaupChannelSource::EnvVar;
-            }
-            Err(_) => {
-                // Third use the default channel from the config file
-                julia_channel_to_use = config_file.data.default.clone();
-                juliaup_channel_source = JuliaupChannelSource::Default;
-            }
-        }
+    let (julia_channel_to_use, juliaup_channel_source) = if let Some(channel) = channel_from_cmd_line {
+        (channel, JuliaupChannelSource::CmdLine)
     }
-
-    let julia_channel_to_use = julia_channel_to_use.ok_or_else(|| {
-        anyhow!("The Julia launcher failed to figure out which juliaup channel to use.")
-    })?;
+    else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+        (channel, JuliaupChannelSource::EnvVar)
+    }
+    else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+        (channel, JuliaupChannelSource::Override)
+    }
+    else if let Some(channel) = config_file.data.default.clone() {
+        (channel, JuliaupChannelSource::Default)
+    }
+    else {
+        return Err(anyhow!("The Julia launcher failed to figure out which juliaup channel to use."));
+    };    
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,

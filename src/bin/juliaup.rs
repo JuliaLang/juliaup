@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use juliaup::command_add::run_command_add;
+use juliaup::{command_add::run_command_add, command_override::run_command_override_set};
 use juliaup::command_api::run_command_api;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
@@ -11,6 +11,7 @@ use juliaup::command_info::run_command_info;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_link::run_command_link;
 use juliaup::command_list::run_command_list;
+use juliaup::command_override::{run_command_override_status, run_command_override_unset};
 use juliaup::command_remove::run_command_remove;
 use juliaup::command_selfupdate::run_command_selfupdate;
 use juliaup::command_status::run_command_status;
@@ -43,6 +44,8 @@ enum Juliaup {
     /// List all available channels
     #[clap(alias = "ls")]
     List {},
+    #[clap(subcommand, name = "override")]
+    OverrideSubCmd(OverrideSubCmd),
     #[clap(alias = "up")]
     /// Update all or a specific channel to the latest Julia version
     Update { channel: Option<String> },
@@ -72,6 +75,23 @@ enum Juliaup {
     #[cfg(feature = "selfupdate")]
     #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", hide = true)]
     SecretSelfUpdate {},
+}
+
+#[derive(Parser)]
+/// Manage directory overrides
+enum OverrideSubCmd {
+    Status {},
+    Set { 
+        channel: String,
+        #[clap(long, short)]
+        path: Option<String>
+    },
+    Unset {
+        #[clap(long, short)]
+        nonexistent: bool,
+        #[clap(long, short)]
+        path: Option<String>,
+    }
 }
 
 #[derive(Parser)]
@@ -184,6 +204,11 @@ fn main() -> Result<()> {
         Juliaup::Api { command } => run_command_api(&command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
+        Juliaup::OverrideSubCmd(subcmd) => match subcmd {
+            OverrideSubCmd::Status {  } => run_command_override_status(&paths),
+            OverrideSubCmd::Set { channel, path } => run_command_override_set(&paths, channel, path),
+            OverrideSubCmd::Unset { nonexistent, path } => run_command_override_unset(&paths, nonexistent, path),
+        }
         Juliaup::Info {} => run_command_info(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
