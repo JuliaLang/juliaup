@@ -11,7 +11,7 @@ use juliaup::command_info::run_command_info;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_link::run_command_link;
 use juliaup::command_list::run_command_list;
-use juliaup::command_override::{run_command_override_list, run_command_override_unset};
+use juliaup::command_override::{run_command_override_status, run_command_override_unset};
 use juliaup::command_remove::run_command_remove;
 use juliaup::command_selfupdate::run_command_selfupdate;
 use juliaup::command_status::run_command_status;
@@ -80,7 +80,7 @@ enum Juliaup {
 #[derive(Parser)]
 /// Manage directory overrides
 enum OverrideSubCmd {
-    List {},
+    Status {},
     Set { 
         channel: String,
         #[clap(long, short)]
@@ -205,7 +205,7 @@ fn main() -> Result<()> {
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         Juliaup::OverrideSubCmd(subcmd) => match subcmd {
-            OverrideSubCmd::List {  } => run_command_override_list(&paths),
+            OverrideSubCmd::Status {  } => run_command_override_status(&paths),
             OverrideSubCmd::Set { channel, path } => run_command_override_set(&paths, channel, path),
             OverrideSubCmd::Unset { nonexistent, path } => run_command_override_unset(&paths, nonexistent, path),
         }

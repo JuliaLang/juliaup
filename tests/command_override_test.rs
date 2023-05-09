@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
 
 #[test]
-fn command_override_list_test() {
+fn command_override_status_test() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
     Command::cargo_bin("juliaup")
@@ -26,7 +26,7 @@ fn command_override_list_test() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("override")
-        .arg("list")
+        .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
@@ -350,7 +350,7 @@ fn command_override_delete_empty_test() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("override")
-        .arg("list")
+        .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
@@ -372,7 +372,7 @@ fn command_override_delete_empty_test() {
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("override")
-        .arg("list")
+        .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
