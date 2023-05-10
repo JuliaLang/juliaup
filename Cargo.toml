@@ -85,3 +85,7 @@ winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{
 
 [package.metadata.winappinstaller]
 winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
+
+[[bin]]
+name = "julia"
+path = "src/bin/julialauncher.rs"
