@@ -15,6 +15,7 @@ fn command_initial_setup() {
         .unwrap()
         .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout("");

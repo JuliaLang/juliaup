@@ -12,6 +12,7 @@ fn command_list() {
         .unwrap()
         .arg("list")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));
@@ -20,6 +21,7 @@ fn command_list() {
         .unwrap()
         .arg("ls")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));

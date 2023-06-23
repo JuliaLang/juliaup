@@ -17,43 +17,23 @@ pub struct GlobalPaths {
 }
 
 fn get_juliaup_home_path() -> Result<PathBuf> {
-    let entry_sep = if std::env::consts::OS == "windows" {
-        ';'
-    } else {
-        ':'
-    };
-
-    match std::env::var("JULIA_DEPOT_PATH") {
+    match std::env::var("JULIAUP_HOME") {
         Ok(val) => {
-            // Note: Docs on JULIA_DEPOT_PATH states that if it exists but is empty, it should
-            // be interpreted as an empty array. This code instead interprets it as a 1-element
-            // array of the default path.
-            // We interpret it differently, because while Julia may work without a DEPOT_PATH,
-            // Juliaup does not currently, since it must check for new versions.
-            let mut paths = Vec::<PathBuf>::new();
-            for segment in val.split(entry_sep) {
-                // Empty segments resolve to the default first value of
-                // DEPOT_PATH
-                let segment_path = if segment.is_empty() {
-                    get_default_juliaup_home_path()?
-                } else {
-                    PathBuf::from(segment.to_string())
-                };
-                paths.push(segment_path);
-            }
+            let val = val.trim();
 
-            // First, we try to find any directory which already is initialized by
-            // Juliaup.
-            for path in paths.iter() {
-                let subpath = path.join("juliaup").join("juliaup.json");
-                if subpath.is_file() {
-                    return Ok(path.join("juliaup"));
+            if val.is_empty() {
+                return get_default_juliaup_home_path()
+            }
+            else {
+                let path = PathBuf::from(val);
+
+                if !path.is_absolute() {
+                    return Err(anyhow!("The current value of '{}' for the environment variable JULIAUP_HOME is not an absolute path.", val));
+                }
+                else {
+                    return Ok(PathBuf::from(val));
                 }
             }
-            // If such a file does not exist, we pick the first segment in JULIA_DEPOT_PATH.
-            // This is guaranteed to be nonempty due to the properties of str::split.
-            let first_path = paths.iter().next().unwrap();
-            return Ok(first_path.join("juliaup"));
         }
         Err(_) => return get_default_juliaup_home_path(),
     }

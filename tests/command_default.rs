@@ -9,6 +9,7 @@ fn command_default() {
         .arg("add")
         .arg("1.6.0")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout("");
@@ -18,6 +19,7 @@ fn command_default() {
         .arg("default")
         .arg("1.6.0")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout("");
@@ -27,6 +29,7 @@ fn command_default() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout("1.6.0");

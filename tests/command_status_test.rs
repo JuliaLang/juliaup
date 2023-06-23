@@ -11,6 +11,7 @@ fn command_status() {
         .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");
@@ -19,6 +20,7 @@ fn command_status() {
         .unwrap()
         .arg("st")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_HOME", depot_dir.path().join("juliaup"))
         .assert()
         .success()
         .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");
