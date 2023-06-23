@@ -123,6 +123,11 @@ The Julia launcher `julia` automatically determines which specific version of Ju
 
 The channel is used in the order listed above, using the first available option.
 
+## Path used by Juliaup
+
+Juliaup will by default use `~/.julia/juliaup` to store Julia versions and configuration files. This can be changed by setting
+the `JULIAUP_HOME` environment variable.
+
 ## Juliaup server
 
 Juliaup by default downloads julia binary tarballs from the official server "https://julialang-s3.julialang.org".
