@@ -211,9 +211,9 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let response = http_client
         .GetStringAsync(&request_uri)
-        .with_context(|| "")?
+        .with_context(|| "Failed on http_client.GetStringAsync")?
         .get()
-        .with_context(|| "")?
+        .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
 
     let trimmed_response = response.trim();
