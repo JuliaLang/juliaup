@@ -4,6 +4,15 @@ version = "1.10.0"
 edition = "2021"
 default-run = "juliaup"
 publish = false
+exclude = [
+    ".github/*",
+    ".vscode/*",
+    ".wix/*",
+    "deploy/*",
+    "devdocs/*",
+    "scripts/*",
+    "download_bundled_julia.ps1",
+]
 
 [profile.release]
 lto = true
