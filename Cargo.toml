@@ -1,9 +1,24 @@
 [package]
 name = "juliaup"
 version = "1.10.0"
+description = "Julia installer and version multiplexer"
+repository = "https://github.com/julialang/juliaup"
+license = "MIT"
+keywords = ["julia"]
+categories = ["command-line-utilities"]
 edition = "2021"
 default-run = "juliaup"
 publish = false
+authors = ["David Anthoff <anthoff@berkeley.edu>"]
+exclude = [
+    ".github/**",
+    ".vscode/**",
+    ".wix/**",
+    "deploy/**",
+    "devdocs/**",
+    "scripts/**",
+    "download_bundled_julia.ps1",
+]
 
 [profile.release]
 lto = true
@@ -85,3 +100,15 @@ winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{
 
 [package.metadata.winappinstaller]
 winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
+
+[[bin]]
+name = "julia"
+path = "src/bin/julialauncher.rs"
+
+[[bin]]
+name = "julialauncher"
+path = "src/bin/julialauncher.rs"
+
+[[bin]]
+name = "juliaup"
+path = "src/bin/juliaup.rs"
