@@ -153,6 +153,15 @@ jobs:
         toolchain: stable
         default: true
         target: ${{matrix.target}}
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --bins --target ${{matrix.target}} --features ${{matrix.features}}
+      env:
+        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: Test
       uses: actions-rs/cargo@v1
       with:
