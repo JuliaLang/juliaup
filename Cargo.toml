@@ -104,3 +104,11 @@ winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
 [[bin]]
 name = "julia"
 path = "src/bin/julialauncher.rs"
+
+[[bin]]
+name = "julialauncher"
+path = "src/bin/julialauncher.rs"
+
+[[bin]]
+name = "juliaup"
+path = "src/bin/juliaup.rs"
