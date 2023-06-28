@@ -92,6 +92,8 @@ selfupdate = []
 windowsstore = []
 windowsappinstaller = []
 dummy = []
+binjuliainstaller = []
+binjulialauncher = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="false"}, {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}] }
@@ -107,7 +109,13 @@ path = "src/bin/julialauncher.rs"
 [[bin]]
 name = "julialauncher"
 path = "src/bin/julialauncher.rs"
+required-features = ["binjulialauncher"]
 
 [[bin]]
 name = "juliaup"
 path = "src/bin/juliaup.rs"
+
+[[bin]]
+name = "juliainstaller"
+path = "src/bin/juliainstaller.rs"
+required-features = ["binjuliainstaller"]
