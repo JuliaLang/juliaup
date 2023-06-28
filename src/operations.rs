@@ -211,9 +211,9 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let response = http_client
         .GetStringAsync(&request_uri)
-        .with_context(|| "")?
+        .with_context(|| "Failed on http_client.GetStringAsync")?
         .get()
-        .with_context(|| "")?
+        .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
 
     let trimmed_response = response.trim();
@@ -394,9 +394,10 @@ pub fn create_symlink(
     symlink_name: &String,
     paths: &GlobalPaths,
 ) -> Result<()> {
-    let symlink_path = get_bin_dir()
-        .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?
-        .join(symlink_name);
+    let symlink_folder = get_bin_dir()
+        .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?;
+
+    let symlink_path = symlink_folder.join(symlink_name);
 
     _remove_symlink(&symlink_path)?;
 
@@ -462,10 +463,10 @@ pub fn create_symlink(
     };
 
     if let Ok(path) = std::env::var("PATH") {
-        if !path.split(':').any(|p| Path::new(p) == symlink_path) {
+        if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
             eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
-                &symlink_name, symlink_path.display(),
+                &symlink_name, symlink_folder.display(),
             );
         }
     }

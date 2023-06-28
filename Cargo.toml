@@ -1,9 +1,23 @@
 [package]
 name = "juliaup"
-version = "1.10.0"
+version = "1.11.3"
+description = "Julia installer and version multiplexer"
+repository = "https://github.com/julialang/juliaup"
+license = "MIT"
+keywords = ["julia"]
+categories = ["command-line-utilities"]
 edition = "2021"
 default-run = "juliaup"
-publish = false
+authors = ["David Anthoff <anthoff@berkeley.edu>"]
+exclude = [
+    ".github/**",
+    ".vscode/**",
+    ".wix/**",
+    "deploy/**",
+    "devdocs/**",
+    "scripts/**",
+    "download_bundled_julia.ps1",
+]
 
 [profile.release]
 lto = true
@@ -30,7 +44,7 @@ console = "0.15"
 ctrlc = "3.2.1"
 url = "2"
 cli-table = "0.4"
-itertools = "0.10"
+itertools = "0.11.0"
 cluFlock = "1.2.5"
 chrono = {version = "0.4", features = ["serde"]}
 human-panic = "1.0.3"
@@ -58,7 +72,7 @@ nix = { version = "0.26" }
 
 [build-dependencies]
 anyhow = "1"
-itertools = "0.10"
+itertools = "0.11.0"
 serde = {version = "1", features = ["derive"] }
 serde_json = "1"
 semver = "1"
@@ -78,6 +92,8 @@ selfupdate = []
 windowsstore = []
 windowsappinstaller = []
 dummy = []
+binjuliainstaller = []
+binjulialauncher = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="false"}, {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}] }
@@ -85,3 +101,21 @@ winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{
 
 [package.metadata.winappinstaller]
 winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
+
+[[bin]]
+name = "julia"
+path = "src/bin/julialauncher.rs"
+
+[[bin]]
+name = "julialauncher"
+path = "src/bin/julialauncher.rs"
+required-features = ["binjulialauncher"]
+
+[[bin]]
+name = "juliaup"
+path = "src/bin/juliaup.rs"
+
+[[bin]]
+name = "juliainstaller"
+path = "src/bin/juliainstaller.rs"
+required-features = ["binjuliainstaller"]

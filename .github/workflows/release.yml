@@ -29,62 +29,62 @@ jobs:
           - label: x86_64-pc-windows-msvc-windowsstore
             target: x86_64-pc-windows-msvc
             os: windows
-            features: windowsstore
+            features: windowsstore, binjuliainstaller, binjulialauncher
             rustflags:
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
             os: windows
-            features: windowsappinstaller
+            features: windowsappinstaller, binjuliainstaller, binjulialauncher
             rustflags:
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags:
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags:
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
-            features: windowsstore
+            features: windowsstore, binjuliainstaller, binjulialauncher
             rustflags:
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
-            features: windowsappinstaller
+            features: windowsappinstaller, binjuliainstaller, binjulialauncher
             rustflags:
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags:
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags:
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
-            features: selfupdate
+            features: selfupdate, binjuliainstaller, binjulialauncher
             rustflags:
     steps:
     - uses: actions/checkout@v3
@@ -100,7 +100,7 @@ jobs:
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
+        args: --release --bin juliaup --bin julialauncher --bin juliainstaller --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
@@ -133,23 +133,23 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
-            features: dummy
+            features: dummy, binjulialauncher
             rustflags:
           - target: x86_64-apple-darwin
             os: macos
-            features: dummy
+            features: dummy, binjulialauncher
             rustflags:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
-            features: dummy
+            features: dummy, binjulialauncher
             rustflags:
           - target: x86_64-unknown-linux-musl
             os: ubuntu
-            features: dummy
+            features: dummy, binjulialauncher
             rustflags: -C target-feature=+crt-static
           - target: i686-pc-windows-msvc
             os: windows
-            features: dummy
+            features: dummy, binjulialauncher
             rustflags:
     steps:
     - uses: actions/checkout@v3
@@ -544,7 +544,7 @@ jobs:
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
-        uses: datakrama/archlinux-package-action@v1
+        uses: datakrama/archlinux-package-action@v2
         with:
           flags: ''
           namcap: false
@@ -559,7 +559,7 @@ jobs:
           git push origin master
         env:
           GH_REF: ${{ github.ref }}
-
+  
   deploy-dev-channel-s3:
     needs: [package-mac-linux,package-windows]
     environment: dev-channel
@@ -711,3 +711,20 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
         allowUpdates: true
+
+  deploy-release-channel-crates:
+    needs: [package-mac-linux,package-windows]
+    environment: release-channel
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Publish to creates.io
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
