@@ -100,7 +100,7 @@ jobs:
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bin juliaup --bin julialauncher --target ${{matrix.target}} --features ${{matrix.features}}
+        args: --release --bin juliaup --bin julialauncher --bin juliainstaller --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
