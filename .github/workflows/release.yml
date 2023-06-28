@@ -559,7 +559,7 @@ jobs:
           git push origin master
         env:
           GH_REF: ${{ github.ref }}
-
+  
   deploy-dev-channel-s3:
     needs: [package-mac-linux,package-windows]
     environment: dev-channel
@@ -711,3 +711,17 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
         allowUpdates: true
+
+  deploy-release-channel-crates:
+    needs: [package-mac-linux,package-windows]
+    environment: dev-channel
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Publish to creates.io
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --token {{CRATES_TOKEN}}
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES2 }}
