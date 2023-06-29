@@ -20,6 +20,7 @@ jobs:
           x86_64-unknown-linux-musl,
           i686-pc-windows-msvc-windowsstore,
           i686-pc-windows-msvc-windowsappinstaller,
+          i686-pc-windows-gnu-msi,
           i686-unknown-linux-gnu,
           i686-unknown-linux-musl,
           aarch64-unknown-linux-gnu,
@@ -39,6 +40,11 @@ jobs:
             rustflags:
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
+            os: windows
+            features: windowsappinstaller, binjuliainstaller, binjulialauncher
+            rustflags:
+          - label: i686-pc-windows-gnu-msi
+            target: i686-pc-windows-gnu
             os: windows
             features: windowsappinstaller, binjuliainstaller, binjulialauncher
             rustflags:
