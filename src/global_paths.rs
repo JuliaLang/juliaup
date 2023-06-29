@@ -17,7 +17,7 @@ pub struct GlobalPaths {
 }
 
 fn get_juliaup_home_path() -> Result<PathBuf> {
-    match std::env::var("JULIAUP_HOME") {
+    match std::env::var("JULIAUP_DEPOT_PATH") {
         Ok(val) => {
             let val = val.trim();
 
@@ -28,10 +28,10 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
                 let path = PathBuf::from(val);
 
                 if !path.is_absolute() {
-                    return Err(anyhow!("The current value of '{}' for the environment variable JULIAUP_HOME is not an absolute path.", val));
+                    return Err(anyhow!("The current value of '{}' for the environment variable JULIAUP_DEPOT_PATH is not an absolute path.", val));
                 }
                 else {
-                    return Ok(PathBuf::from(val));
+                    return Ok(PathBuf::from(val).join("juliaup"));
                 }
             }
         }
