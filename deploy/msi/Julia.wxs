@@ -6,6 +6,13 @@
 
         <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
+        <WixVariable Id="WixUIBannerBmp" Value="Bitmaps\bannrbmp.bmp" />
+        <WixVariable Id="WixUIDialogBmp" Value="Bitmaps\dlgbmp.bmp" />
+        <WixVariable Id="WixUIExclamationIco" Value="Bitmaps\exclamic.ico" />
+        <WixVariable Id="WixUIInfoIco" Value="Bitmaps\info.ico" />
+        <WixVariable Id="WixUINewIco" Value="Bitmaps\New.ico" />
+        <WixVariable Id="WixUIUpIco" Value="Bitmaps\Up.ico" />
+
         <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
 
         <Media Id="1" Cabinet="Sample.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />

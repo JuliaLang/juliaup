@@ -504,10 +504,12 @@ jobs:
       with:
         name: juliaup-x86_64-pc-windows-gnu-msi
         path: target\msi\x86_64-pc-windows-gnu\release
-    - name: Copy license file
+    - name: Copy artifacts file
       run: |
         Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-gnu\release
         Copy-Item ./deploy/msi/License.rtf target\msi\i686-pc-windows-gnu\release
+        Copy-Item ./deploy/msi/Bitmaps target\msi\x86_64-pc-windows-gnu\release
+        Copy-Item ./deploy/msi/Bitmaps target\msi\i686-pc-windows-gnu\release
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
