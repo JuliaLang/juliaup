@@ -502,6 +502,8 @@ jobs:
       with:
         name: juliaup-x86_64-pc-windows-gnu-msi
         path: target\msi\x86_64-pc-windows-msvc\release
+    - Name: Copy license file
+      run: Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-msvc\release
     - name: Build MSI
       run: wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-msvc\release\ -arch x86 -o target\msi\Julia.msi
     - uses: actions/upload-artifact@v3

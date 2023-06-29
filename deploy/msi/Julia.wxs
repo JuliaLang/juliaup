@@ -5,7 +5,7 @@
 
         <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
-        <WixVariable Id="WixUILicenseRtf" Value="../../deploy/msi/License.rtf" />
+        <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
 
         <Media Id="1" Cabinet="Sample.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
         <Property Id="DiskPrompt" Value="Julia Installation [1]" />
