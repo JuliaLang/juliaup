@@ -15,101 +15,171 @@ jobs:
           x86_64-pc-windows-msvc-windowsstore,
           x86_64-pc-windows-msvc-windowsappinstaller,
           x86_64-pc-windows-gnu-msi,
+          x86_64-pc-windows-gnu-portable,
           x86_64-apple-darwin,
+          x86_64-apple-darwin-portable,
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
+          x86_64-unknown-linux-musl-portable,
           i686-pc-windows-msvc-windowsstore,
           i686-pc-windows-msvc-windowsappinstaller,
           i686-pc-windows-gnu-msi,
+          i686-pc-windows-gnu-portable,
           i686-unknown-linux-gnu,
           i686-unknown-linux-musl,
+          i686-unknown-linux-musl-portable,
           aarch64-unknown-linux-gnu,
           aarch64-unknown-linux-musl,
-          aarch64-apple-darwin
+          aarch64-unknown-linux-musl-portable,
+          aarch64-apple-darwin,
+          aarch64-apple-darwin-portable
           ]
         include:
           - label: x86_64-pc-windows-msvc-windowsstore
             target: x86_64-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher
+            features: windowsstore,binjulialauncher
             rustflags:
             toolchain: stable
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
+            features: windowsappinstaller,binjulialauncher
             rustflags:
             toolchain: stable
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
+            features: binjulialauncher
+            rustflags:
+            toolchain: stable-gnu
+          - label: x86_64-pc-windows-gnu-portable
+            target: x86_64-pc-windows-gnu
+            bins: --bin juliaup --bin julia
+            os: windows
+            features: dummy
             rustflags:
             toolchain: stable-gnu
           - label: i686-pc-windows-gnu-msi
             target: i686-pc-windows-gnu
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
+            features: binjulialauncher
+            rustflags:
+            toolchain: stable-i686-gnu
+          - label: i686-pc-windows-gnu-portable
+            target: i686-pc-windows-gnu
+            bins: --bin juliaup --bin julia
+            os: windows
+            features: dummy
             rustflags:
             toolchain: stable-i686-gnu
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: macos
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
+          - label: x86_64-apple-darwin-portable
+            target: x86_64-apple-darwin
+            bins: --bin juliaup --bin julia
+            os: macos
+            features: dummy
+            rustflags:
+            toolchain: stable
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - label: x86_64-unknown-linux-musl-portable
+            target: x86_64-unknown-linux-musl
+            bins: --bin juliaup --bin julia
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher
+            features: windowsstore,binjulialauncher
             rustflags:
             toolchain: stable
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
+            features: windowsappinstaller,binjulialauncher
             rustflags:
             toolchain: stable
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - label: i686-unknown-linux-musl-portable
+            target: i686-unknown-linux-musl
+            bins: --bin juliaup --bin julia
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - label: aarch64-unknown-linux-musl-portable
+            target: aarch64-unknown-linux-musl
+            bins: --bin juliaup --bin julia
+            os: ubuntu
+            features: dummy
+            rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: macos
             features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags:
+            toolchain: stable
+          - label: aarch64-apple-darwin-portable
+            target: aarch64-apple-darwin
+            bins: --bin juliaup --bin julia
+            os: macos
+            features: dummy
             rustflags:
             toolchain: stable
     steps:
@@ -130,7 +200,7 @@ jobs:
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
-        args: --release --bin juliaup --bin julialauncher --bin juliainstaller --target ${{matrix.target}} --features ${{matrix.features}}
+        args: --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
@@ -139,15 +209,18 @@ jobs:
       with:
         name: juliaup-${{matrix.label}}
         path: |
-          target/${{matrix.target}}/release/juliaup*
-          target/${{matrix.target}}/release/julialauncher*
-          !target/${{matrix.target}}/release/*.d
+          target/${{matrix.target}}/release/juliaup
+          target/${{matrix.target}}/release/julialauncher
+          target/${{matrix.target}}/release/julia
+          target/${{matrix.target}}/release/juliaup.exe
+          target/${{matrix.target}}/release/julialauncher.exe
+          target/${{matrix.target}}/release/julia.exe
     - uses: actions/upload-artifact@v3
       with:
         name: juliainstaller-${{matrix.label}}
         path: |
-          target/${{matrix.target}}/release/juliainstaller*
-          !target/${{matrix.target}}/release/*.d
+          target/${{matrix.target}}/release/juliainstaller
+          target/${{matrix.target}}/release/juliainstaller.exe
 
   test-juliaup:
     runs-on: ${{ matrix.os }}-latest
