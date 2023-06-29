@@ -141,31 +141,31 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
           - target: x86_64-pc-windows-gnu
             os: windows
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
           - target: x86_64-apple-darwin
             os: macos
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
           - target: x86_64-unknown-linux-musl
             os: ubuntu
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
           - target: i686-pc-windows-msvc
             os: windows
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
           - target: i686-pc-windows-gnu
             os: windows
-            features: dummy
+            features: dummy,binjulialauncher
             rustflags:
     steps:
     - uses: actions/checkout@v3
