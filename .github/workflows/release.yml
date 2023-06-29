@@ -328,7 +328,6 @@ jobs:
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-      shell: bash
       env:
           GH_REF: ${{ github.ref }}
     - name: Create archives
@@ -511,6 +510,7 @@ jobs:
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
       env:
           GH_REF: ${{ github.ref }}
     - name: Build MSI
