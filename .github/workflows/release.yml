@@ -51,7 +51,7 @@ jobs:
             os: windows
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
-            toolchain: stable-gnu
+            toolchain: stable-i686-gnu
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
@@ -191,7 +191,7 @@ jobs:
             os: windows
             features: dummy,binjulialauncher
             rustflags:
-            toolchain: stable-gnu
+            toolchain: stable-i686-gnu
     steps:
     - uses: actions/checkout@v3
     - if: ${{ contains(matrix.target, '-musl') }}
