@@ -14,6 +14,7 @@ jobs:
         label: [
           x86_64-pc-windows-msvc-windowsstore,
           x86_64-pc-windows-msvc-windowsappinstaller,
+          x86_64-pc-windows-gnu-msi,
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
@@ -33,6 +34,11 @@ jobs:
             rustflags:
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
+            os: windows
+            features: windowsappinstaller, binjuliainstaller, binjulialauncher
+            rustflags:
+          - label: x86_64-pc-windows-gnu-msi
+            target: x86_64-pc-windows-gnu
             os: windows
             features: windowsappinstaller, binjuliainstaller, binjulialauncher
             rustflags:

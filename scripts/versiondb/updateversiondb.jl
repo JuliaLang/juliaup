@@ -44,6 +44,10 @@ function get_available_versions(data, platform)
         ["x86_64-w64-mingw32", "i686-w64-mingw32"]
     elseif platform=="i686-pc-windows-msvc"
         ["i686-w64-mingw32"]
+    elseif platform=="x86_64-pc-windows-gnu"
+        ["x86_64-w64-mingw32", "i686-w64-mingw32"]
+    elseif platform=="i686-pc-windows-gnu"
+        ["i686-w64-mingw32"]
     elseif platform=="x86_64-apple-darwin"
         ["x86_64-apple-darwin14"]
     elseif platform=="aarch64-apple-darwin"
@@ -274,6 +278,8 @@ function main_impl(temp_path)
         "x86_64-apple-darwin",
         "x86_64-pc-windows-msvc",
         "i686-pc-windows-msvc",
+        "x86_64-pc-windows-gnu",
+        "i686-pc-windows-gnu",
         "aarch64-unknown-linux-gnu",
         "aarch64-unknown-linux-musl",
         "aarch64-apple-darwin",
