@@ -46,9 +46,9 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
 
-#### Software Repositories
+### Software Repositories
 
-**Important note:** As of now, we strongly recommend to install Juliaup via the `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future).
+**Important note:** As of now, we strongly recommend to install Juliaup via the Windows Store or `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future).
 
 ##### [Homebrew](https://brew.sh)
 
@@ -66,6 +66,14 @@ On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileg
 
 ```sh
 zypper install juliaup
+```
+
+##### [cargo](https://crates.io/crates/juliaup/)
+
+To install via Rust's cargo, run:
+
+```sh
+cargo install juliaup
 ```
 
 ## Using Juliaup
