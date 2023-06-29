@@ -328,6 +328,7 @@ jobs:
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
       env:
           GH_REF: ${{ github.ref }}
     - name: Create archives
@@ -527,7 +528,16 @@ jobs:
       with:
         name: msiinstallers
         path: target\msi\Julia*.msi
-    
+    - name: Rename and move MSI installer
+      run: |
+        md public/winmsi
+        Move-Item target/msi/Julia*.msi public/winmsi
+    - name: Upload to S3
+      run: |
+        aws s3 sync public s3://${{ secrets.AWS_S3_BUCKET }}/ --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE --region us-east-1 --no-progress
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-github-release-binaries:
     needs: [test-juliaup]
@@ -797,7 +807,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows]
+    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
