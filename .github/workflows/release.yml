@@ -33,78 +33,92 @@ jobs:
             os: windows
             features: windowsstore,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
             os: windows
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
             os: windows
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable-gnu
           - label: i686-pc-windows-gnu-msi
             target: i686-pc-windows-gnu
             os: windows
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable-gnu
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
             features: windowsstore,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
+            toolchain: stable
     steps:
     - uses: actions/checkout@v3
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: ${{matrix.toolchain}}
         default: true
         target: ${{matrix.target}}
     - name: Release build
@@ -147,29 +161,44 @@ jobs:
             os: windows
             features: dummy,binjulialauncher
             rustflags:
+            toolchain: stable
+          - target: x86_64-pc-windows-gnu
+            os: windows
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable-gnu
           - target: x86_64-apple-darwin
             os: macos
             features: dummy,binjulialauncher
             rustflags:
+            toolchain: stable
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
             features: dummy,binjulialauncher
             rustflags:
+            toolchain: stable
           - target: x86_64-unknown-linux-musl
             os: ubuntu
             features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
+            toolchain: stable
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy,binjulialauncher
             rustflags:
+            toolchain: stable
+          - target: i686-pc-windows-gnu
+            os: windows
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable-gnu
     steps:
     - uses: actions/checkout@v3
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: ${{matrix.toolchain}}
         default: true
         target: ${{matrix.target}}
     - name: Test
