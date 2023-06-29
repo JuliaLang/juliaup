@@ -480,6 +480,35 @@ jobs:
       with:
         name: winappinstaller
         path: target\msix\winappinstaller\Julia.appinstaller
+  
+  package-windows-msi:
+    needs: [build-juliaup,test-juliaup]
+    runs-on: windows-latest
+    environment: package
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Wix
+      run: dotnet tool install --global wix
+    - name: Install Wix UI extensions
+      run: wix extension add -g WixToolset.UI.wixext
+    - name: Download x86 Juliaup Windows MSI artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-pc-windows-gnu-msi
+        path: target\msi\i686-pc-windows-msvc\release
+    - name: Download x64 Juliaup Windows MSI artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-pc-windows-gnu-msi
+        path: target\msi\x86_64-pc-windows-msvc\release
+    - name: Build MSI
+      run: wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-msvc\release\ -arch x86 -o target\msi\Julia.msi
+    - uses: actions/upload-artifact@v3
+      with:
+        name: msiinstaller
+        path: target\msi\Julia.msi
+    
 
   deploy-github-release-binaries:
     needs: [test-juliaup]
