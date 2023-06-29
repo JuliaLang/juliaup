@@ -21,7 +21,7 @@
 
         <Icon Id="Julia.exe" SourceFile="julialauncher.exe" />
 
-        <StandardDirectory Id="ProgramFilesFolder">
+        <StandardDirectory Id="ProgramFiles6432Folder">
             <Directory Id="INSTALLFOLDER" Name="Julia">
 
                 <Component Id="JulialauncherExecutable" Guid="6b1218f5-39c5-4a48-aa4c-6eb5eeffbe09">
