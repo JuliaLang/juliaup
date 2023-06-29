@@ -24,6 +24,12 @@ on a command line.
 
 If the Windows Store is blocked on a system, we have an alternative [MSIX App Installer](https://learn.microsoft.com/en-us/windows/msix/app-installer/app-installer-file-overview) based setup. Note that this is currently experimental, please report back successes and failures [here](https://github.com/JuliaLang/juliaup/issues/343). To use the App Installer version, download [this](https://install.julialang.org/Julia.appinstaller) file and open it by double clicking on it.
 
+If you _also_ don't have access to App Installer, we have an (even more experimental) MSI installer as a backup. Note that this installer is lacking some important functionality, for example the auto-update functionalty of all other deployment methods. You can download the MSI installer from TODO. By default the install will be a per-user install that does not require elevation. You can also do a system install by running the following command from a shell:
+
+```
+msiexec /i <PATH_TO_JULIA_MSI> ALLUSERS=1
+```
+
 ### Mac and Linux
 
 Juliaup can be installed on Linux or Mac by executing
