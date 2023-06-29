@@ -1,8 +1,8 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
     <?define ProductVersion = "1.0.0"?>
-    <Package Name="Julia" Manufacturer="Julia Computing" UpgradeCode="1894d99f-8e5d-44e3-acf8-9900013d4b3f" Language="1033" Codepage="1252" Version="$(var.ProductVersion)" InstallerVersion="500" ProductCode="33b218ff-20bd-47ed-b4a7-330a8c6c59b4" Scope="perUserOrMachine">
-        <SummaryInformation Keywords="Installer" Description="Julia Installer" Manufacturer="Julia Computing" />
+    <Package Name="Julia" Manufacturer="JuliaHub, Inc." UpgradeCode="1894d99f-8e5d-44e3-acf8-9900013d4b3f" Language="1033" Codepage="1252" Version="$(var.ProductVersion)" InstallerVersion="500" ProductCode="33b218ff-20bd-47ed-b4a7-330a8c6c59b4" Scope="perUserOrMachine">
+        <SummaryInformation Keywords="Installer" Description="Julia Installer" Manufacturer="JuliaHub, Inc." />
 
         <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
 
