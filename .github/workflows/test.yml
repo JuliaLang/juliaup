@@ -73,7 +73,8 @@ jobs:
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
-            features: indowsstorebinjuliainstaller,binjulialauncher,            rustflags:
+            features: windowsstore,binjuliainstaller,binjulialauncher
+            rustflags:
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
