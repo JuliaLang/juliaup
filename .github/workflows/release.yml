@@ -504,8 +504,21 @@ jobs:
         path: target\msi\x86_64-pc-windows-msvc\release
     - name: Copy license file
       run: Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-msvc\release
+    - name: Export version
+      run: |
+        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+      env:
+          GH_REF: ${{ github.ref }}
     - name: Build MSI
-      run: wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-msvc\release\ -arch x86 -o target\msi\Julia.msi
+      run: wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-msvc\release\ -arch x86 -o target\msi\Julia.msi -d ${{ env.VERSION }}
+    - name: Sign MSI files
+      run: |
+        Get-ChildItem target\msi\*.msi | ForEach-Object {
+          $msiPath = $_.FullName
+          & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msiPath
+        }
+      shell: pwsh
     - uses: actions/upload-artifact@v3
       with:
         name: msiinstaller
