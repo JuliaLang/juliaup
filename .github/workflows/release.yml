@@ -496,14 +496,16 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: juliaup-i686-pc-windows-gnu-msi
-        path: target\msi\i686-pc-windows-msvc\release
+        path: target\msi\i686-pc-windows-gnu\release
     - name: Download x64 Juliaup Windows MSI artifact
       uses: actions/download-artifact@v3
       with:
         name: juliaup-x86_64-pc-windows-gnu-msi
-        path: target\msi\x86_64-pc-windows-msvc\release
+        path: target\msi\x86_64-pc-windows-gnu\release
     - name: Copy license file
-      run: Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-msvc\release
+      run: |
+        Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-gnu\release
+        Copy-Item ./deploy/msi/License.rtf target\msi\i686-pc-windows-gnu\release
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -511,7 +513,9 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: Build MSI
-      run: wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-msvc\release\ -arch x86 -o target\msi\Julia.msi -d ${{ env.VERSION }}
+      run: |
+        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
+        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
       run: |
         Get-ChildItem target\msi\*.msi | ForEach-Object {
@@ -521,8 +525,8 @@ jobs:
       shell: pwsh
     - uses: actions/upload-artifact@v3
       with:
-        name: msiinstaller
-        path: target\msi\Julia.msi
+        name: msiinstallers
+        path: target\msi\Julia*.msi
     
 
   deploy-github-release-binaries:
