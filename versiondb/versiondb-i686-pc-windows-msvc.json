@@ -209,6 +209,9 @@
         },
         "1.9.2+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.9/julia-1.9.2-win32.tar.gz"
+        },
+        "1.10.0-alpha1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-alpha1-win32.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -289,6 +292,18 @@
         },
         "1.1.1~x86": {
             "Version": "1.1.1+0.x86.w64.mingw32"
+        },
+        "1.10": {
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.10.0-alpha1": {
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.10.0-alpha1~x86": {
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.10~x86": {
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.w64.mingw32"
@@ -711,10 +726,10 @@
             "Version": "1.9.2+0.x86.w64.mingw32"
         },
         "alpha": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
         },
         "alpha~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
         },
         "beta": {
             "Version": "1.9.2+0.x86.w64.mingw32"
@@ -741,5 +756,5 @@
             "Version": "1.9.2+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.25"
+    "Version": "1.0.27"
 }
