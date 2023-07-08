@@ -579,8 +579,6 @@ jobs:
         path: target\msi\x86_64-pc-windows-gnu\release
     - name: Copy artifacts file
       run: |
-        Copy-Item ./deploy/msi/License.rtf target\msi\x86_64-pc-windows-gnu\release
-        Copy-Item ./deploy/msi/License.rtf target\msi\i686-pc-windows-gnu\release
         Copy-Item ./deploy/msi/Bitmaps target\msi\x86_64-pc-windows-gnu\release\ -Recurse
         Copy-Item ./deploy/msi/Bitmaps target\msi\i686-pc-windows-gnu\release\ -Recurse
     - name: Export version
