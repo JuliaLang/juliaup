@@ -1,10 +1,11 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+    <?include WixUI_InstallDir_NoLicense.wxs ?>    
     <?define ProductVersion = "1.0.0"?>
     <Package Name="Julia" Manufacturer="JuliaHub, Inc." UpgradeCode="1894d99f-8e5d-44e3-acf8-9900013d4b3f" Language="1033" Codepage="1252" Version="$(var.ProductVersion)" InstallerVersion="500" ProductCode="33b218ff-20bd-47ed-b4a7-330a8c6c59b4" Scope="perUserOrMachine">
         <SummaryInformation Keywords="Installer" Description="Julia Installer" Manufacturer="JuliaHub, Inc." />
 
-        <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+        <ui:WixUI Id="WixUI_InstallDir_NoLicense" InstallDirectory="INSTALLFOLDER" />
 
         <WixVariable Id="WixUIBannerBmp" Value="Bitmaps\bannrbmp.bmp" />
         <WixVariable Id="WixUIDialogBmp" Value="Bitmaps\dlgbmp.bmp" />
@@ -12,8 +13,6 @@
         <WixVariable Id="WixUIInfoIco" Value="Bitmaps\info.ico" />
         <WixVariable Id="WixUINewIco" Value="Bitmaps\New.ico" />
         <WixVariable Id="WixUIUpIco" Value="Bitmaps\Up.ico" />
-
-        <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
 
         <Media Id="1" Cabinet="Julia.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
         <Property Id="DiskPrompt" Value="Julia Installation [1]" />
