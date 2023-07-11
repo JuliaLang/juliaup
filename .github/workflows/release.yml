@@ -778,8 +778,8 @@ jobs:
           VERSION: ${{ env.VERSION }}
       - name: Rename MSI installers
         run: |
-          mv Julia-v${{ env.VERSION }}-x64.msi Julia-x64.msi
-          mv Julia-v${{ env.VERSION }}-x86.msi Julia-x86.msi
+          mv publicscript/Julia-v${{ env.VERSION }}-x64.msi publicscript/Julia-x64.msi
+          mv publicscript/Julia-v${{ env.VERSION }}-x86.msi publicscript/Julia-x86.msi
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
@@ -878,8 +878,8 @@ jobs:
           VERSION: ${{ env.VERSION }}
       - name: Rename MSI installers
         run: |
-          mv Julia-v${{ env.VERSION }}-x64.msi Julia-x64.msi
-          mv Julia-v${{ env.VERSION }}-x86.msi Julia-x86.msi
+          mv publicscript/Julia-v${{ env.VERSION }}-x64.msi publicscript/Julia-x64.msi
+          mv publicscript/Julia-v${{ env.VERSION }}-x86.msi publicscript/Julia-x86.msi
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
