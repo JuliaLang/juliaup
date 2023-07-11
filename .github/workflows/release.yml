@@ -754,10 +754,6 @@ jobs:
           mkdir public
           mkdir publicscript
           mkdir publicscript/dev
-      - uses: actions/download-artifact@v3
-        with:
-          name: msiinstallers
-          path: publicscript
       - name: Export version
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -774,12 +770,6 @@ jobs:
           cp deploy/shellscript/juliaup-init.sh publicscript/dev/install.sh
           sed -i -e "s/THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW/$VERSION/g" publicscript/dev/install.sh
           sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel dev|g' publicscript/dev/install.sh
-        env:
-          VERSION: ${{ env.VERSION }}
-      - name: Rename MSI installers
-        run: |
-          mv publicscript/Julia-v${{ env.VERSION }}-x64.msi publicscript/Julia-x64.msi
-          mv publicscript/Julia-v${{ env.VERSION }}-x86.msi publicscript/Julia-x86.msi
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
