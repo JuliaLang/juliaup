@@ -203,10 +203,14 @@ fn get_julia_path_from_channel(
     }
 }
 
-fn get_override_channel(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<Option<String>> {
+fn get_override_channel(
+    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+) -> Result<Option<String>> {
     let curr_dir = std::env::current_dir()?.canonicalize()?;
 
-    let juliaup_override = config_file.data.overrides
+    let juliaup_override = config_file
+        .data
+        .overrides
         .iter()
         .filter(|i| curr_dir.starts_with(&i.path))
         .sorted_by_key(|i| i.path.len())
@@ -214,7 +218,7 @@ fn get_override_channel(config_file: &juliaup::config_file::JuliaupReadonlyConfi
 
     match juliaup_override {
         Some(val) => Ok(Some(val.channel.clone())),
-        None => Ok(None)
+        None => Ok(None),
     }
 }
 
@@ -245,21 +249,20 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let (julia_channel_to_use, juliaup_channel_source) = if let Some(channel) = channel_from_cmd_line {
-        (channel, JuliaupChannelSource::CmdLine)
-    }
-    else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
-        (channel, JuliaupChannelSource::EnvVar)
-    }
-    else if let Ok(Some(channel)) = get_override_channel(&config_file) {
-        (channel, JuliaupChannelSource::Override)
-    }
-    else if let Some(channel) = config_file.data.default.clone() {
-        (channel, JuliaupChannelSource::Default)
-    }
-    else {
-        return Err(anyhow!("The Julia launcher failed to figure out which juliaup channel to use."));
-    };    
+    let (julia_channel_to_use, juliaup_channel_source) =
+        if let Some(channel) = channel_from_cmd_line {
+            (channel, JuliaupChannelSource::CmdLine)
+        } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+            (channel, JuliaupChannelSource::EnvVar)
+        } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+            (channel, JuliaupChannelSource::Override)
+        } else if let Some(channel) = config_file.data.default.clone() {
+            (channel, JuliaupChannelSource::Default)
+        } else {
+            return Err(anyhow!(
+                "The Julia launcher failed to figure out which juliaup channel to use."
+            ));
+        };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
