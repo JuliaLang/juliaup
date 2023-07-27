@@ -4,8 +4,8 @@ use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
-use itertools::Itertools;
 use human_sort::compare;
+use itertools::Itertools;
 
 #[derive(Table)]
 struct ChannelRow {
