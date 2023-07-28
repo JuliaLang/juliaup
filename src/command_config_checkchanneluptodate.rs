@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-pub fn run_command_config_checkchannelupdate(
+pub fn run_command_config_checkchanneluptodate(
     value: Option<bool>,
     quiet: bool,
     paths: &crate::global_paths::GlobalPaths,
@@ -15,8 +15,8 @@ pub fn run_command_config_checkchannelupdate(
 
             let mut value_changed = false;
 
-            if value != config_file.data.settings.should_check_channel_update {
-                config_file.data.settings.should_check_channel_update = value;
+            if value != config_file.data.settings.should_check_channel_uptodate {
+                config_file.data.settings.should_check_channel_uptodate = value;
                 value_changed = true;
             }
 
@@ -38,7 +38,7 @@ pub fn run_command_config_checkchannelupdate(
             if !quiet {
                 eprintln!(
                     "Property 'checkchannelupdate' set to '{}'",
-                    config_file.data.settings.should_check_channel_update
+                    config_file.data.settings.should_check_channel_uptodate
                 );
             }
         }

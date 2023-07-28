@@ -179,7 +179,7 @@ fn get_julia_path_from_channel(
                 .installed_versions.get(version)
                 .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
 
-            if config_data.settings.should_check_channel_update {
+            if config_data.settings.should_check_channel_uptodate {
                 check_channel_uptodate(channel, version, versions_db).with_context(|| {
                     format!(
                         "The Julia launcher failed while checking whether the channe {} is up-to-date.",

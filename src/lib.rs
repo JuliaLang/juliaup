@@ -7,7 +7,7 @@ pub mod command_config_modifypath;
 pub mod command_config_startupselfupdate;
 pub mod command_config_symlinks;
 pub mod command_config_versionsdbupdate;
-pub mod command_config_checkchannelupdate;
+pub mod command_config_checkchanneluptodate;
 pub mod command_default;
 pub mod command_gc;
 pub mod command_info;
