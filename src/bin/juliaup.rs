@@ -148,9 +148,9 @@ enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
-    #[clap(name = "checkchannelupdate")]
+    #[clap(name = "checkchanneluptodate")]
     /// Check for updates to the default channel on startup
-    ShouldCheckChannelUpdate {
+    ShouldCheckChannelUptodate {
         /// New Value
         value: Option<bool>,
     },
@@ -207,7 +207,7 @@ fn main() -> Result<()> {
             ConfigSubCmd::VersionsDbUpdateInterval { value } => {
                 run_command_config_versionsdbupdate(value, false, &paths)
             }
-            ConfigSubCmd::ShouldCheckChannelUpdate { value } => {
+            ConfigSubCmd::ShouldCheckChannelUptodate { value } => {
                 run_command_config_checkchanneluptodate(value, false, &paths)
             }
         },

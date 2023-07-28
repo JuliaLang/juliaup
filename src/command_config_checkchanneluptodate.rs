@@ -25,9 +25,9 @@ pub fn run_command_config_checkchanneluptodate(
 
             if !quiet {
                 if value_changed {
-                    eprintln!("Property 'checkchannelupdate' set to '{}'", value);
+                    eprintln!("Property 'checkchanneluptodate' set to '{}'", value);
                 } else {
-                    eprintln!("Property 'checkchannelupdate' is already set to '{}'", value);
+                    eprintln!("Property 'checkchanneluptodate' is already set to '{}'", value);
                 }
             }
         }
@@ -37,7 +37,7 @@ pub fn run_command_config_checkchanneluptodate(
 
             if !quiet {
                 eprintln!(
-                    "Property 'checkchannelupdate' set to '{}'",
+                    "Property 'checkchanneluptodate' set to '{}'",
                     config_file.data.settings.should_check_channel_uptodate
                 );
             }
