@@ -242,6 +242,9 @@
         },
         "1.10.0-alpha1+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.10/julia-1.10.0-alpha1-linux-aarch64.tar.gz"
+        },
+        "1.10.0-beta1+0.aarch64.linux.gnu": {
+            "UrlPath": "bin/linux/aarch64/1.10/julia-1.10.0-beta1-linux-aarch64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -306,7 +309,7 @@
             "Version": "1.1.1+0.aarch64.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "1.10.0-alpha1": {
             "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
@@ -314,8 +317,14 @@
         "1.10.0-alpha1~aarch64": {
             "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
         },
+        "1.10.0-beta1": {
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
+        },
+        "1.10.0-beta1~aarch64": {
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
+        },
         "1.10~aarch64": {
-            "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "1.1~aarch64": {
             "Version": "1.1.1+0.aarch64.linux.gnu"
@@ -804,16 +813,16 @@
             "Version": "1.9.2+0.aarch64.linux.gnu"
         },
         "alpha": {
-            "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "alpha~aarch64": {
-            "Version": "1.10.0-alpha1+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "beta": {
-            "Version": "1.9.2+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "beta~aarch64": {
-            "Version": "1.9.2+0.aarch64.linux.gnu"
+            "Version": "1.10.0-beta1+0.aarch64.linux.gnu"
         },
         "lts": {
             "Version": "1.6.7+0.aarch64.linux.gnu"
@@ -834,5 +843,5 @@
             "Version": "1.9.2+0.aarch64.linux.gnu"
         }
     },
-    "Version": "1.0.27"
+    "Version": "1.0.28"
 }
