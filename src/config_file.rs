@@ -20,6 +20,10 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
     *i == default_versionsdb_update_interval()
 }
 
+fn default_should_check_channel_update() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
@@ -57,7 +61,7 @@ pub struct JuliaupConfigSettings {
     pub versionsdb_update_interval: i64,
     #[serde(
         rename = "ShouldCheckChannelUpdate",
-        default,
+        default = "default_should_check_channel_update",
         skip_serializing_if = "is_default",
     )]
     pub should_check_channel_update: bool,
