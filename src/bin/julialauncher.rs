@@ -182,7 +182,7 @@ fn get_julia_path_from_channel(
             if config_data.settings.should_check_channel_uptodate {
                 check_channel_uptodate(channel, version, versions_db).with_context(|| {
                     format!(
-                        "The Julia launcher failed while checking whether the channe {} is up-to-date.",
+                        "The Julia launcher failed while checking whether the channel {} is up-to-date.",
                         channel
                     )
                 })?;
