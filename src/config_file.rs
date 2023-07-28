@@ -62,7 +62,7 @@ pub struct JuliaupConfigSettings {
     #[serde(
         rename = "ShouldCheckChannelUptodate",
         default = "default_should_check_channel_uptodate",
-        skip_serializing_if = "is_default",
+        skip_serializing_if = "is_default"
     )]
     pub should_check_channel_uptodate: bool,
 }

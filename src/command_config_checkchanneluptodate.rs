@@ -27,7 +27,10 @@ pub fn run_command_config_checkchanneluptodate(
                 if value_changed {
                     eprintln!("Property 'checkchanneluptodate' set to '{}'", value);
                 } else {
-                    eprintln!("Property 'checkchanneluptodate' is already set to '{}'", value);
+                    eprintln!(
+                        "Property 'checkchanneluptodate' is already set to '{}'",
+                        value
+                    );
                 }
             }
         }
