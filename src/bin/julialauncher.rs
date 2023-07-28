@@ -179,12 +179,14 @@ fn get_julia_path_from_channel(
                 .installed_versions.get(version)
                 .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
 
-            check_channel_uptodate(channel, version, versions_db).with_context(|| {
-                format!(
-                    "The Julia launcher failed while checking whether the channe {} is up-to-date.",
-                    channel
-                )
-            })?;
+            if config_data.settings.should_check_channel_update {
+                check_channel_uptodate(channel, version, versions_db).with_context(|| {
+                    format!(
+                        "The Julia launcher failed while checking whether the channe {} is up-to-date.",
+                        channel
+                    )
+                })?;
+            }
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
