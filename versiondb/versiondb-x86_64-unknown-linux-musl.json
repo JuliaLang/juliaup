@@ -789,6 +789,12 @@
         "1.9.2+0.x64.linux.gnu": {
             "UrlPath": "bin/linux/x64/1.9/julia-1.9.2-linux-x86_64.tar.gz"
         },
+        "1.9.3+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.9/julia-1.9.3-linux-i686.tar.gz"
+        },
+        "1.9.3+0.x64.linux.gnu": {
+            "UrlPath": "bin/linux/x64/1.9/julia-1.9.3-linux-x86_64.tar.gz"
+        },
         "1.10.0-alpha1+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.10/julia-1.10.0-alpha1-linux-i686.tar.gz"
         },
@@ -1305,7 +1311,7 @@
             "Version": "0.7.0+0.x86.linux.gnu"
         },
         "1": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "1.0": {
             "Version": "1.0.5+0.x64.linux.gnu"
@@ -2070,7 +2076,7 @@
             "Version": "1.8.5+0.x86.linux.gnu"
         },
         "1.9": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "1.9.0": {
             "Version": "1.9.0+0.x64.linux.gnu"
@@ -2171,17 +2177,26 @@
         "1.9.2~x86": {
             "Version": "1.9.2+0.x86.linux.gnu"
         },
+        "1.9.3": {
+            "Version": "1.9.3+0.x64.linux.gnu"
+        },
+        "1.9.3~x64": {
+            "Version": "1.9.3+0.x64.linux.gnu"
+        },
+        "1.9.3~x86": {
+            "Version": "1.9.3+0.x86.linux.gnu"
+        },
         "1.9~x64": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "1.9~x86": {
-            "Version": "1.9.2+0.x86.linux.gnu"
+            "Version": "1.9.3+0.x86.linux.gnu"
         },
         "1~x64": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "1~x86": {
-            "Version": "1.9.2+0.x86.linux.gnu"
+            "Version": "1.9.3+0.x86.linux.gnu"
         },
         "alpha": {
             "Version": "1.10.0-beta2+0.x64.linux.gnu"
@@ -2211,23 +2226,23 @@
             "Version": "1.6.7+0.x86.linux.gnu"
         },
         "rc": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "rc~x64": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "rc~x86": {
-            "Version": "1.9.2+0.x86.linux.gnu"
+            "Version": "1.9.3+0.x86.linux.gnu"
         },
         "release": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "release~x64": {
-            "Version": "1.9.2+0.x64.linux.gnu"
+            "Version": "1.9.3+0.x64.linux.gnu"
         },
         "release~x86": {
-            "Version": "1.9.2+0.x86.linux.gnu"
+            "Version": "1.9.3+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.29"
+    "Version": "1.0.30"
 }
