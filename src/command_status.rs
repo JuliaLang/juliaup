@@ -10,6 +10,7 @@ use cli_table::{
     format::{Border, Justify},
     print_stdout, Table, WithTitle,
 };
+use human_sort::compare;
 use itertools::Itertools;
 
 #[derive(Table)]
@@ -35,7 +36,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
         .data
         .installed_channels
         .iter()
-        .sorted_by_key(|i| i.0.to_string())
+        .sorted_by(|a, b| compare(&a.0.to_string(), &b.0.to_string()))
         .map(|i| -> ChannelRow {
             ChannelRow {
                 default: match config_file.data.default {
