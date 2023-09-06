@@ -183,7 +183,7 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@v2
@@ -270,7 +270,7 @@ jobs:
             rustflags:
             toolchain: stable-i686-gnu
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@v2
@@ -459,7 +459,7 @@ jobs:
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
     - uses: actions-rs/toolchain@v1
@@ -560,7 +560,7 @@ jobs:
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Wix
       run: dotnet tool install --global wix
     - name: Install Wix UI extensions
@@ -748,7 +748,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create output dirs
         run: |
           mkdir public
@@ -797,7 +797,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create output dirs
         run: |
           mkdir public
@@ -842,7 +842,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Create output dirs
         run: |
           mkdir public
@@ -910,7 +910,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
