@@ -812,6 +812,12 @@
         },
         "1.10.0-beta2+0.x64.linux.gnu": {
             "UrlPath": "bin/linux/x64/1.10/julia-1.10.0-beta2-linux-x86_64.tar.gz"
+        },
+        "1.10.0-beta3+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.10/julia-1.10.0-beta3-linux-i686.tar.gz"
+        },
+        "1.10.0-beta3+0.x64.linux.gnu": {
+            "UrlPath": "bin/linux/x64/1.10/julia-1.10.0-beta3-linux-x86_64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1425,7 +1431,7 @@
             "Version": "1.1.1+0.x86.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "1.10.0-alpha1": {
             "Version": "1.10.0-alpha1+0.x64.linux.gnu"
@@ -1454,11 +1460,20 @@
         "1.10.0-beta2~x86": {
             "Version": "1.10.0-beta2+0.x86.linux.gnu"
         },
+        "1.10.0-beta3": {
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
+        },
+        "1.10.0-beta3~x64": {
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
+        },
+        "1.10.0-beta3~x86": {
+            "Version": "1.10.0-beta3+0.x86.linux.gnu"
+        },
         "1.10~x64": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "1.10~x86": {
-            "Version": "1.10.0-beta2+0.x86.linux.gnu"
+            "Version": "1.10.0-beta3+0.x86.linux.gnu"
         },
         "1.1~x64": {
             "Version": "1.1.1+0.x64.linux.gnu"
@@ -2199,22 +2214,22 @@
             "Version": "1.9.3+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "alpha~x64": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.10.0-beta2+0.x86.linux.gnu"
+            "Version": "1.10.0-beta3+0.x86.linux.gnu"
         },
         "beta": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "beta~x64": {
-            "Version": "1.10.0-beta2+0.x64.linux.gnu"
+            "Version": "1.10.0-beta3+0.x64.linux.gnu"
         },
         "beta~x86": {
-            "Version": "1.10.0-beta2+0.x86.linux.gnu"
+            "Version": "1.10.0-beta3+0.x86.linux.gnu"
         },
         "lts": {
             "Version": "1.6.7+0.x64.linux.gnu"
@@ -2244,5 +2259,5 @@
             "Version": "1.9.3+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.30"
+    "Version": "1.0.31"
 }
