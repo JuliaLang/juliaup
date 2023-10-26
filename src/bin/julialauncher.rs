@@ -366,7 +366,9 @@ fn main() -> Result<std::process::ExitCode> {
         }
     }
 
-    let client_status: u8 = client_status?.try_into().unwrap();
+    // We truncate to the lower 8 bits, even though a Windows exit code is i32.
+    // this matches Julia's own behaviour on Unix
+    let client_status: u8 = client_status? as u8;
 
     Ok(std::process::ExitCode::from(client_status))
 }
