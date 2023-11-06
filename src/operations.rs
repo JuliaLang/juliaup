@@ -2,7 +2,6 @@ use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::JuliaupConfigChannel;
-use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_dbversion;
 use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
@@ -256,17 +255,11 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn install_version(
+pub fn download_version_to_temp_folder(
     fullversion: &String,
-    config_data: &mut JuliaupConfig,
     version_db: &JuliaupVersionDB,
     paths: &GlobalPaths,
-) -> Result<()> {
-    // Return immediately if the version is already installed.
-    if config_data.installed_versions.contains_key(fullversion) {
-        return Ok(());
-    }
-
+) -> Result<tempfile::TempDir> {
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
     let full_version_string_of_bundled_version = get_bundled_julia_version();
@@ -276,15 +269,16 @@ pub fn install_version(
         .unwrap() // unwrap OK because we can't get a path that does not have a parent
         .join("BundledJulia");
 
-    let child_target_foldername = format!("julia-{}", fullversion);
-    let target_path = paths.juliauphome.join(&child_target_foldername);
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
+    let target_path = tempfile::Builder::new()
+        .prefix("tmp-")
+        .rand_bytes(6)
+        .tempdir_in(&paths.juliauphome)?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
-        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
+        fs_extra::dir::copy(path_of_bundled_version, &target_path.path(), &options)?;
     } else {
         let juliaupserver_base =
             get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
@@ -315,21 +309,10 @@ pub fn install_version(
             fullversion
         );
 
-        download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
-    }
+        download_extract_sans_parent(download_url.as_ref(), &target_path.path(), 1)?;
+    }  
 
-    let mut rel_path = PathBuf::new();
-    rel_path.push(".");
-    rel_path.push(&child_target_foldername);
-
-    config_data.installed_versions.insert(
-        fullversion.clone(),
-        JuliaupConfigVersion {
-            path: rel_path.to_string_lossy().into_owned(),
-        },
-    );
-
-    Ok(())
+    Ok(target_path)
 }
 
 pub fn garbage_collect_versions(
