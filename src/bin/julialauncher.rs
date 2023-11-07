@@ -17,7 +17,9 @@ pub struct UserError {
 
 fn get_juliaup_path() -> Result<PathBuf> {
     let my_own_path = std::env::current_exe()
-        .with_context(|| "std::env::current_exe() did not find its own path.")?;
+        .with_context(|| "std::env::current_exe() did not find its own path.")?
+        .canonicalize()
+        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
 
     let juliaup_path = my_own_path
         .parent()
