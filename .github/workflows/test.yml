@@ -182,6 +182,7 @@ jobs:
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
+        version: 12.2.0
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{matrix.toolchain}}

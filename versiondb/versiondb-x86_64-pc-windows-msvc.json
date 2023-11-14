@@ -423,6 +423,12 @@
         "1.9.3+0.x64.w64.mingw32": {
             "UrlPath": "bin/winnt/x64/1.9/julia-1.9.3-win64.tar.gz"
         },
+        "1.9.4+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.9/julia-1.9.4-win32.tar.gz"
+        },
+        "1.9.4+0.x64.w64.mingw32": {
+            "UrlPath": "bin/winnt/x64/1.9/julia-1.9.4-win64.tar.gz"
+        },
         "1.10.0-alpha1+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-alpha1-win32.tar.gz"
         },
@@ -483,7 +489,7 @@
             "Version": "0.7.0+0.x86.w64.mingw32"
         },
         "1": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "1.0": {
             "Version": "1.0.5+0.x64.w64.mingw32"
@@ -1143,7 +1149,7 @@
             "Version": "1.8.5+0.x86.w64.mingw32"
         },
         "1.9": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "1.9.0": {
             "Version": "1.9.0+0.x64.w64.mingw32"
@@ -1250,17 +1256,26 @@
         "1.9.3~x86": {
             "Version": "1.9.3+0.x86.w64.mingw32"
         },
+        "1.9.4": {
+            "Version": "1.9.4+0.x64.w64.mingw32"
+        },
+        "1.9.4~x64": {
+            "Version": "1.9.4+0.x64.w64.mingw32"
+        },
+        "1.9.4~x86": {
+            "Version": "1.9.4+0.x86.w64.mingw32"
+        },
         "1.9~x64": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "1.9~x86": {
-            "Version": "1.9.3+0.x86.w64.mingw32"
+            "Version": "1.9.4+0.x86.w64.mingw32"
         },
         "1~x64": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "1~x86": {
-            "Version": "1.9.3+0.x86.w64.mingw32"
+            "Version": "1.9.4+0.x86.w64.mingw32"
         },
         "alpha": {
             "Version": "1.10.0-rc1+0.x64.w64.mingw32"
@@ -1299,14 +1314,14 @@
             "Version": "1.10.0-rc1+0.x86.w64.mingw32"
         },
         "release": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "release~x64": {
-            "Version": "1.9.3+0.x64.w64.mingw32"
+            "Version": "1.9.4+0.x64.w64.mingw32"
         },
         "release~x86": {
-            "Version": "1.9.3+0.x86.w64.mingw32"
+            "Version": "1.9.4+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.32"
+    "Version": "1.0.33"
 }
