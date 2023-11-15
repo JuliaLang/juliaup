@@ -366,6 +366,9 @@ fn main() -> Result<std::process::ExitCode> {
 
             return Ok(std::process::ExitCode::FAILURE);
         }
+        else {
+            return Err(client_status.unwrap_err());
+        }
     }
 
     let client_status: u8 = client_status?.try_into().unwrap();
