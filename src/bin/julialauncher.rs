@@ -365,8 +365,7 @@ fn main() -> Result<std::process::ExitCode> {
             eprintln!("{}", e.msg);
 
             return Ok(std::process::ExitCode::FAILURE);
-        }
-        else {
+        } else {
             return Err(client_status.unwrap_err());
         }
     }
