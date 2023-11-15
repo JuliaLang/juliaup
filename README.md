@@ -68,6 +68,14 @@ On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileg
 zypper install juliaup
 ```
 
+##### [Solus](https://getsol.us)
+
+On Solus, Juliaup is available. To install, run with root privileges:
+
+```sh
+eopkg install juliaup
+```
+
 ##### [cargo](https://crates.io/crates/juliaup/)
 
 To install via Rust's cargo, run:

@@ -1,10 +1,11 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+    <?include WixUI_InstallDir_NoLicense.wxs ?>    
     <?define ProductVersion = "1.0.0"?>
     <Package Name="Julia" Manufacturer="JuliaHub, Inc." UpgradeCode="1894d99f-8e5d-44e3-acf8-9900013d4b3f" Language="1033" Codepage="1252" Version="$(var.ProductVersion)" InstallerVersion="500" ProductCode="33b218ff-20bd-47ed-b4a7-330a8c6c59b4" Scope="perUserOrMachine">
         <SummaryInformation Keywords="Installer" Description="Julia Installer" Manufacturer="JuliaHub, Inc." />
 
-        <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+        <ui:WixUI Id="WixUI_InstallDir_NoLicense" InstallDirectory="INSTALLFOLDER" />
 
         <WixVariable Id="WixUIBannerBmp" Value="Bitmaps\bannrbmp.bmp" />
         <WixVariable Id="WixUIDialogBmp" Value="Bitmaps\dlgbmp.bmp" />
@@ -13,16 +14,15 @@
         <WixVariable Id="WixUINewIco" Value="Bitmaps\New.ico" />
         <WixVariable Id="WixUIUpIco" Value="Bitmaps\Up.ico" />
 
-        <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
-
-        <Media Id="1" Cabinet="Sample.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+        <Media Id="1" Cabinet="Julia.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
         <Property Id="DiskPrompt" Value="Julia Installation [1]" />
 
         <MajorUpgrade AllowDowngrades="yes"/>
 
         <Feature Id="Complete" Level="1">
             <ComponentRef Id="JulialauncherExecutable" />
-            <ComponentRef Id="JuliaupExecutable" />
+            <ComponentRef Id="JuliaupExecutableSystem" />
+            <ComponentRef Id="JuliaupExecutableUser" />
             <ComponentRef Id="ProgramMenuDir" />
         </Feature>
 
@@ -38,13 +38,23 @@
                         <Shortcut Id="startmenuJulia" Directory="ProgramMenuDir" Name="Julia" WorkingDirectory="INSTALLFOLDER" Icon="Julia.exe" IconIndex="0" Advertise="yes" />
                     </File>
 
-                    <Environment Id='UpdatePath' Name='PATH' Action='set' Permanent='no' System='yes' Part='last' Value='[INSTALLFOLDER]' />
+                    
                 </Component>
 
-                <Component Id="JuliaupExecutable" Guid="2a881338-e0f2-4df7-8c02-71373891961c">
+                <Component Id="JuliaupExecutableSystem" Guid="2a881338-e0f2-4df7-8c02-71373891961c" Condition="NOT (ALLUSERS=2 OR MSIINSTALLPERUSER=1)">
 
-                    <File Id="JuliaupEXE" Name="juliaup.exe" DiskId="1" Source="juliaup.exe" KeyPath="yes">
+                    <File Id="JuliaupEXESystem" Name="juliaup.exe" DiskId="1" Source="juliaup.exe" KeyPath="yes">
                     </File>
+
+                    <Environment Id='UpdatePathSystem' Name='PATH' Action='set' Permanent='no' System='yes' Part='last' Value='[INSTALLFOLDER]' />
+                </Component>
+
+                <Component Id="JuliaupExecutableUser" Guid="587bc90d-fcc9-4163-8e90-342a0f4178cb" Condition="ALLUSERS=2 OR MSIINSTALLPERUSER=1">
+
+                    <File Id="JuliaupEXEUser" Name="juliaup.exe" DiskId="1" Source="juliaup.exe" KeyPath="yes">
+                    </File>
+
+                    <Environment Id='UpdatePathUser' Name='PATH' Action='set' Permanent='no' System='no' Part='last' Value='[INSTALLFOLDER]' />
                 </Component>
 
             </Directory>

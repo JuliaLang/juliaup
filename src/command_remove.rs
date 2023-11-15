@@ -27,7 +27,12 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         }
     }
 
-    if config_file.data.overrides.iter().any(|i| i.channel == channel) {
+    if config_file
+        .data
+        .overrides
+        .iter()
+        .any(|i| i.channel == channel)
+    {
         bail!(
             "'{}' cannot be removed because it is currently used in a directory override.",
             channel

@@ -225,7 +225,7 @@ fn command_override_overlap_test() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
     let or_dir_parent = assert_fs::TempDir::new().unwrap();
-    let or_dir_child= or_dir_parent.join("child");
+    let or_dir_child = or_dir_parent.join("child");
     std::fs::create_dir_all(&or_dir_child).unwrap();
 
     Command::cargo_bin("juliaup")
@@ -332,7 +332,7 @@ fn command_override_delete_empty_test() {
         .assert()
         .success()
         .stdout("");
-    
+
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("override")

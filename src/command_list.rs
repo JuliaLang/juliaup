@@ -4,6 +4,7 @@ use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
+use human_sort::compare;
 use itertools::Itertools;
 
 #[derive(Table)]
@@ -27,7 +28,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
                 version: i.1.version.clone(),
             }
         })
-        .sorted_by_key(|i| i.name.clone())
+        .sorted_by(|a, b| compare(&a.name, &b.name))
         .collect();
 
     print_stdout(

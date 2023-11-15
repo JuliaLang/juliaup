@@ -71,7 +71,7 @@ pub struct JuliaupOverride {
     #[serde(rename = "Path")]
     pub path: String,
     #[serde(rename = "Channel")]
-    pub channel: String
+    pub channel: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
