@@ -4,7 +4,7 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::create_symlink;
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     update_version_db(paths).with_context(|| "Failed to update versions db.")?;
@@ -26,7 +26,8 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         .with_context(|| "`add` command failed to load configuration data.")?;
 
     if config_file.data.installed_channels.contains_key(channel) {
-        bail!("'{}' is already installed.", &channel);
+        eprintln!("'{}' is already installed.", &channel);
+        return Ok(());
     }
 
     install_version(required_version, &mut config_file.data, &version_db, paths)?;
