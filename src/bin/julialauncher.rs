@@ -346,29 +346,32 @@ fn run_app() -> Result<i32> {
 }
 
 fn main() -> Result<std::process::ExitCode> {
-    human_panic::setup_panic!(human_panic::Metadata {
-        name: "Juliaup launcher".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: "".into(),
-        homepage: "https://github.com/JuliaLang/juliaup".into(),
-    });
+    let client_status: std::prelude::v1::Result<i32, anyhow::Error>;
 
-    let env = env_logger::Env::new()
-        .filter("JULIAUP_LOG")
-        .write_style("JULIAUP_LOG_STYLE");
-    env_logger::init_from_env(env);
+    {
+        human_panic::setup_panic!(human_panic::Metadata {
+            name: "Juliaup launcher".into(),
+            version: env!("CARGO_PKG_VERSION").into(),
+            authors: "".into(),
+            homepage: "https://github.com/JuliaLang/juliaup".into(),
+        });
 
-    let client_status = run_app();
+        let env = env_logger::Env::new()
+            .filter("JULIAUP_LOG")
+            .write_style("JULIAUP_LOG_STYLE");
+        env_logger::init_from_env(env);
 
-    if let Err(err) = &client_status {
-        if let Some(e) = err.downcast_ref::<UserError>() {
-            eprintln!("{}", e.msg);
+        client_status = run_app();
 
-            return Ok(std::process::ExitCode::FAILURE);
+        if let Err(err) = &client_status {
+            if let Some(e) = err.downcast_ref::<UserError>() {
+                eprintln!("{}", e.msg);
+
+                return Ok(std::process::ExitCode::FAILURE);
+            }
         }
     }
 
-    let client_status: u8 = client_status?.try_into().unwrap();
-
-    Ok(std::process::ExitCode::from(client_status))
+    // TODO https://github.com/rust-lang/rust/issues/111688 is finalized, we should use that instead of calling exit
+    std::process::exit(client_status?);
 }
