@@ -11,6 +11,7 @@ fn command_update() {
         .unwrap()
         .arg("update")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -19,6 +20,7 @@ fn command_update() {
         .unwrap()
         .arg("up")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");

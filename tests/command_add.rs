@@ -9,6 +9,7 @@ fn command_add() {
         .arg("add")
         .arg("1.6.4")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -19,6 +20,7 @@ fn command_add() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.6.4");

@@ -9,6 +9,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -18,6 +19,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.7.3")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -27,6 +29,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -36,6 +39,7 @@ fn channel_selection() {
         .arg("default")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -45,6 +49,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.6.7");
@@ -55,6 +60,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.8.5");
@@ -64,6 +70,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
         .success()
@@ -75,6 +82,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
         .success()
@@ -88,6 +96,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
         .stderr("ERROR: Invalid Juliaup channel `1.8.6` at command line.\n");
@@ -97,6 +106,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
@@ -110,6 +120,7 @@ fn channel_selection() {
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()

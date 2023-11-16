@@ -12,6 +12,7 @@ fn command_remove() {
         .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").not());
@@ -21,6 +22,7 @@ fn command_remove() {
         .arg("add")
         .arg("1.6.4")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -29,6 +31,7 @@ fn command_remove() {
         .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4"));
@@ -38,6 +41,7 @@ fn command_remove() {
         .arg("add")
         .arg("release")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -46,6 +50,7 @@ fn command_remove() {
         .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release")));
@@ -55,6 +60,7 @@ fn command_remove() {
         .arg("remove")
         .arg("release")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -63,6 +69,7 @@ fn command_remove() {
         .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release").not()));
