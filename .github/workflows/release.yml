@@ -455,6 +455,96 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SOURCE_DIR: 'public'
 
+  package-portable:
+    needs: [build-juliaup,test-juliaup]
+    environment: package
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Download x86_64-pc-windows-gnu-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-pc-windows-gnu-portable
+        path: target/x86_64-pc-windows-gnu-portable
+    - name: Download i686-pc-windows-gnu-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-pc-windows-gnu-portable
+        path: target/i686-pc-windows-gnu-portable
+    - name: Download x86_64-apple-darwin-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-apple-darwin-portable
+        path: target/x86_64-apple-darwin-portable
+    - name: Download x86_64-unknown-linux-musl-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-x86_64-unknown-linux-musl-portable
+        path: target/x86_64-unknown-linux-musl-portable
+    - name: Download i686-unknown-linux-musl-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-i686-unknown-linux-musl-portable
+        path: target/i686-unknown-linux-musl-portable
+    - name: Download aarch64-unknown-linux-musl-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-aarch64-unknown-linux-musl-portable
+        path: target/aarch64-unknown-linux-musl-portable
+    - name: Download aarch64-apple-darwin-portable artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: juliaup-aarch64-apple-darwin-portable
+        path: target/aarch64-apple-darwin-portable
+    - name: Set permissions
+      run: |
+        chmod a+rx target/x86_64-apple-darwin-portable/juliaup
+        chmod a+rx target/x86_64-apple-darwin-portable/julia
+        chmod a+rx target/x86_64-unknown-linux-musl-portable/juliaup
+        chmod a+rx target/x86_64-unknown-linux-musl-portable/julia
+        chmod a+rx target/i686-unknown-linux-musl-portable/juliaup
+        chmod a+rx target/i686-unknown-linux-musl-portable/julia
+        chmod a+rx target/aarch64-unknown-linux-musl-portable/juliaup
+        chmod a+rx target/aarch64-unknown-linux-musl-portable/julia
+        chmod a+rx target/aarch64-apple-darwin-portable/juliaup
+        chmod a+rx target/aarch64-apple-darwin-portable/julia
+    - name: Export version
+      run: |
+        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+      env:
+          GH_REF: ${{ github.ref }}
+    - name: Create archives
+      run: |
+        mkdir public
+
+        cd target/x86_64-apple-darwin-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-x86_64-apple-darwin-portable.tar.gz .
+
+        cd ../../target/x86_64-unknown-linux-musl-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-musl-portable.tar.gz .
+        
+        cd ../../target/i686-unknown-linux-musl-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-unknown-linux-musl-portable.tar.gz .
+
+        cd ../../target/aarch64-unknown-linux-musl-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-musl-portable.tar.gz .
+
+        cd ../../target/aarch64-apple-darwin-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-apple-darwin-portable.tar.gz .
+
+        cd ../../target/x86_64-pc-windows-gnu-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-x86_64-pc-windows-gnu-portable.tar.gz .
+
+        cd ../../target/i686-pc-windows-gnu-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
+
+        cd ../..
+    - uses: actions/upload-artifact@v3
+      with:
+        name: portable
+        path: public\*.tar.gz
+
   package-windows:
     needs: [build-juliaup,test-juliaup]
     runs-on: windows-latest
@@ -617,15 +707,19 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-github-release-binaries:
-    needs: [test-juliaup]
+    needs: [test-juliaup,package-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: portable
     - name: Release
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
+        artifacts: "public/*.tar.gz"
 
   deploy-dev-channel-winstore:
     needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
