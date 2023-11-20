@@ -540,6 +540,9 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
 
         cd ../..
+
+        cd public
+        ls
     - uses: actions/upload-artifact@v3
       with:
         name: portable
@@ -705,9 +708,20 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  
+  create-github-release:
+    needs: [test-juliaup]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Release
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        prerelease: true
 
   deploy-github-release-binaries:
-    needs: [test-juliaup,package-portable]
+    needs: [package-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -722,7 +736,7 @@ jobs:
         artifacts: "public/*.tar.gz"
 
   deploy-dev-channel-winstore:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -744,7 +758,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -766,7 +780,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -788,7 +802,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -801,7 +815,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -839,7 +853,7 @@ jobs:
           GH_REF: ${{ github.ref }}
   
   deploy-dev-channel-s3:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -888,7 +902,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-releasepreview-channel-s3:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -933,7 +947,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-s3:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -988,7 +1002,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1001,7 +1015,7 @@ jobs:
         allowUpdates: true
 
   deploy-release-channel-crates:
-    needs: [deploy-github-release-binaries,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
