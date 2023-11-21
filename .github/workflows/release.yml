@@ -540,13 +540,10 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
 
         cd ../..
-
-        cd public
-        ls
     - uses: actions/upload-artifact@v3
       with:
         name: portable
-        path: public\*.tar.gz
+        path: public\*.*
 
   package-windows:
     needs: [build-juliaup,test-juliaup]
@@ -732,8 +729,8 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        prerelease: true
-        artifacts: "public/*.tar.gz"
+        artifacts: "public/*.*"
+        allowUpdates: true
 
   deploy-dev-channel-winstore:
     needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
