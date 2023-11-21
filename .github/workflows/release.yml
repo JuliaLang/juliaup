@@ -543,7 +543,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: portable
-        path: public\*.*
+        path: public/*.*
 
   package-windows:
     needs: [build-juliaup,test-juliaup]
