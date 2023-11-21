@@ -725,12 +725,14 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: portable
+        path: public
     - name: Release
       uses: ncipollo/release-action@v1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: "public/*.*"
         allowUpdates: true
+        prerelease: true
 
   deploy-dev-channel-winstore:
     needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
