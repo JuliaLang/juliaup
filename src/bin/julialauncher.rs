@@ -159,13 +159,53 @@ fn get_julia_path_from_channel(
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
+    use juliaup::global_paths::get_paths;
+    use juliaup::versions_file::load_versions_db;
+
+    let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
+    let versiondb_data =
+        load_versions_db(&paths).with_context(|| "command failed to load versions db.")?;
+    // TODO Use versiondb data instead of config_data.
+    // RATIONALE:
+    // Using versiondb.available_channels is more useful
+    // because we can just check if the channel provided by the user
+    // is also a valid channel of the versiondb.available_channels.
+    // Because having to error because it's not installed yet
+    // running `julialauncher` by itself will download and run
+    // latest release of julia is inconsistent behavior.
+    // So we should check for available_channels instead of installed
+    // channels.
     let channel_info = config_data
             .installed_channels
             .get(channel)
             .ok_or_else(|| match juliaup_channel_source {
-                JuliaupChannelSource::CmdLine => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into(),
-                JuliaupChannelSource::EnvVar => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into(),
-                JuliaupChannelSource::Override => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override.", channel).to_string() }.into(),
+                JuliaupChannelSource::CmdLine => {
+                    if versiondb_data.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else if versiondb_data.available_versions.contains_key(channel) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` is not installed. Please run `juliaup list` to check a valid channel or version",  channel) }
+                    }
+                }.into(),
+                JuliaupChannelSource::EnvVar=> {
+                    if versiondb_data.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else if versiondb_data.available_versions.contains_key(channel) {
+                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to check a valid channel or version",  channel) }
+                    }
+                }.into(),
+                JuliaupChannelSource::Override=> {
+                    if versiondb_data.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else if versiondb_data.available_versions.contains_key(channel) {
+                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to check a valid channel or version",  channel) }
+                    }
+                }.into(),
                 JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
             })?;
 
