@@ -172,7 +172,7 @@ fn get_julia_path_from_channel(
                     } else if versiondb_data.available_versions.contains_key(channel) {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` is not installed. Please run `juliaup list` to check a valid channel or version",  channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to check a valid channel or version",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
