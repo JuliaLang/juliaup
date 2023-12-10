@@ -165,16 +165,6 @@ fn get_julia_path_from_channel(
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
     let versiondb_data =
         load_versions_db(&paths).with_context(|| "command failed to load versions db.")?;
-    // TODO Use versiondb data instead of config_data.
-    // RATIONALE:
-    // Using versiondb.available_channels is more useful
-    // because we can just check if the channel provided by the user
-    // is also a valid channel of the versiondb.available_channels.
-    // Because having to error because it's not installed yet
-    // running `julialauncher` by itself will download and run
-    // latest release of julia is inconsistent behavior.
-    // So we should check for available_channels instead of installed
-    // channels.
     let channel_info = config_data
             .installed_channels
             .get(channel)
