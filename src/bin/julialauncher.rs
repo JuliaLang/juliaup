@@ -159,7 +159,6 @@ fn get_julia_path_from_channel(
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
-
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
     let versiondb_data =
         load_versions_db(&paths).with_context(|| "command failed to load versions db.")?;
