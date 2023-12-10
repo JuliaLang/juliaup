@@ -99,7 +99,7 @@ fn channel_selection() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr("ERROR: Invalid Juliaup channel `1.8.6` at command line.\n");
+        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to check a valid channel or version\n");
 
     Command::cargo_bin("julialauncher")
         .unwrap()
