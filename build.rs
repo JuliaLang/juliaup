@@ -62,4 +62,3 @@ fn main() -> Result<()> {
 
 #[cfg(all(feature = "selfupdate", feature = "distro-default"))]
 compile_error!("Compilation is not allowed. You can't compile with feature `selfupdate` and `distro-default` enabled together.");
-
