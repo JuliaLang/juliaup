@@ -12,6 +12,9 @@ use juliaup::command_link::run_command_link;
 use juliaup::command_list::run_command_list;
 use juliaup::command_override::{run_command_override_status, run_command_override_unset};
 use juliaup::command_remove::run_command_remove;
+// This can either be selfupdate or distro-default
+#[cfg(any(feature = "distro-default", feature = "selfupdate"))]
+use juliaup::command_selfuninstall::run_command_selfuninstall;
 use juliaup::command_selfupdate::run_command_selfupdate;
 use juliaup::command_status::run_command_status;
 use juliaup::command_update::run_command_update;
@@ -23,7 +26,7 @@ use juliaup::{
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_modifypath::run_command_config_modifypath,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
-    command_selfchannel::run_command_selfchannel, command_selfuninstall::run_command_selfuninstall,
+    command_selfchannel::run_command_selfchannel,
 };
 use log::info;
 
@@ -106,7 +109,7 @@ enum SelfSubCmd {
     #[cfg(feature = "selfupdate")]
     /// Configure the channel to use for juliaup updates
     Channel { channel: String },
-    #[cfg(feature = "selfupdate")]
+    #[cfg(any(feature = "selfupdate", feature = "distro-default"))]
     /// Uninstall this version of juliaup from the system
     Uninstall {},
 }
@@ -220,7 +223,7 @@ fn main() -> Result<()> {
             SelfSubCmd::Update {} => run_command_selfupdate(&paths),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Channel { channel } => run_command_selfchannel(channel, &paths),
-            #[cfg(feature = "selfupdate")]
+            #[cfg(any(feature = "selfupdate", feature = "distro-default"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(&paths),
         },
     }

@@ -90,6 +90,7 @@ predicates = "3.0.3"
 
 [features]
 selfupdate = []
+distro-default = []
 windowsstore = []
 windowsappinstaller = []
 dummy = []

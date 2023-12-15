@@ -1,5 +1,11 @@
-#[cfg(feature = "selfupdate")]
+#[cfg(any(feature = "distro-default", feature = "selfupdate"))]
 use anyhow::Result;
+
+#[cfg(feature = "distro-default")]
+pub fn run_command_selfuninstall(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
+    eprintln!("Self uninstall command is unavailable in this variant of Juliaup. This software was build with the intention of distributing it through a package manager other than cargo or provided by upstream.");
+    Ok(())
+}
 
 #[cfg(feature = "selfupdate")]
 pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
