@@ -3,7 +3,11 @@ use anyhow::Result;
 
 #[cfg(feature = "distro-default")]
 pub fn run_command_selfuninstall(_paths: &crate::global_paths::GlobalPaths) -> Result<()> {
-    eprintln!("Self uninstall command is unavailable in this variant of Juliaup. This software was build with the intention of distributing it through a package manager other than cargo or provided by upstream.");
+    eprintln!(
+        "Self uninstall command is unavailable in this variant of Juliaup.
+This software was built with the intention of distributing it
+through a package manager other than cargo or provided by upstream."
+    );
     Ok(())
 }
 
