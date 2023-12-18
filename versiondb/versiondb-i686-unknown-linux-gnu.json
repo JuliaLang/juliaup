@@ -419,6 +419,9 @@
         },
         "1.10.0-rc2+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.10/julia-1.10.0-rc2-linux-i686.tar.gz"
+        },
+        "1.10.0-rc3+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.10/julia-1.10.0-rc3-linux-i686.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -831,7 +834,7 @@
             "Version": "1.1.1+0.x86.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "1.10.0-alpha1": {
             "Version": "1.10.0-alpha1+0.x86.linux.gnu"
@@ -869,8 +872,14 @@
         "1.10.0-rc2~x86": {
             "Version": "1.10.0-rc2+0.x86.linux.gnu"
         },
+        "1.10.0-rc3": {
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
+        },
+        "1.10.0-rc3~x86": {
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
+        },
         "1.10~x86": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.linux.gnu"
@@ -1371,16 +1380,16 @@
             "Version": "1.9.4+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "beta": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "beta~x86": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "lts": {
             "Version": "1.6.7+0.x86.linux.gnu"
@@ -1389,10 +1398,10 @@
             "Version": "1.6.7+0.x86.linux.gnu"
         },
         "rc": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "rc~x86": {
-            "Version": "1.10.0-rc2+0.x86.linux.gnu"
+            "Version": "1.10.0-rc3+0.x86.linux.gnu"
         },
         "release": {
             "Version": "1.9.4+0.x86.linux.gnu"
@@ -1401,5 +1410,5 @@
             "Version": "1.9.4+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.34"
+    "Version": "1.0.35"
 }
