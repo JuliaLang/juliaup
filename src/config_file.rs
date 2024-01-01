@@ -20,6 +20,10 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
     *i == default_versionsdb_update_interval()
 }
 
+fn default_should_check_channel_uptodate() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
@@ -55,6 +59,12 @@ pub struct JuliaupConfigSettings {
         skip_serializing_if = "is_default_versionsdb_update_interval"
     )]
     pub versionsdb_update_interval: i64,
+    #[serde(
+        rename = "ShouldCheckChannelUptodate",
+        default = "default_should_check_channel_uptodate",
+        skip_serializing_if = "is_default"
+    )]
+    pub should_check_channel_uptodate: bool,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -62,6 +72,7 @@ impl Default for JuliaupConfigSettings {
         JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
+            should_check_channel_uptodate: true,
         }
     }
 }
@@ -178,6 +189,7 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
+                    should_check_channel_uptodate: true,
                 },
                 last_version_db_update: None,
             },
@@ -274,6 +286,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
+                    should_check_channel_uptodate: true,
                 },
                 last_version_db_update: None,
             };

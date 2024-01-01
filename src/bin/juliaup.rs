@@ -4,6 +4,7 @@ use juliaup::command_api::run_command_api;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
+use juliaup::command_config_checkchanneluptodate::run_command_config_checkchanneluptodate;
 use juliaup::command_default::run_command_default;
 use juliaup::command_gc::run_command_gc;
 use juliaup::command_info::run_command_info;
@@ -147,6 +148,12 @@ enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
+    #[clap(name = "checkchanneluptodate")]
+    /// Check for updates to the default channel on startup
+    ShouldCheckChannelUptodate {
+        /// New Value
+        value: Option<bool>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -199,6 +206,9 @@ fn main() -> Result<()> {
             }
             ConfigSubCmd::VersionsDbUpdateInterval { value } => {
                 run_command_config_versionsdbupdate(value, false, &paths)
+            }
+            ConfigSubCmd::ShouldCheckChannelUptodate { value } => {
+                run_command_config_checkchanneluptodate(value, false, &paths)
             }
         },
         Juliaup::Api { command } => run_command_api(&command, &paths),
