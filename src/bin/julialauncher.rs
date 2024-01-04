@@ -15,8 +15,6 @@ use normpath::PathExt;
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::path::PathBuf;
-#[cfg(windows)]
-use std::process::Command;
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
