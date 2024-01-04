@@ -5,15 +5,18 @@ use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::versions_file::load_versions_db;
+#[cfg(not(windows))]
+use nix::{
+    sys::wait::{waitpid, WaitStatus},
+    unistd::{fork, ForkResult},
+};
 use normpath::PathExt;
+#[cfg(not(windows))]
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::path::PathBuf;
 #[cfg(windows)]
 use std::process::Command;
-#[cfg(not(windows))]
-use std::os::unix::process::CommandExt;
-#[cfg(not(windows))]
-use nix::{sys::wait::{waitpid, WaitStatus}, unistd::{fork, ForkResult}};
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
@@ -306,12 +309,11 @@ fn run_app() -> Result<i32> {
     // This simplifies use in e.g. debuggers, but requires that we fork off
     // a subprocess to do the selfupdate and versiondb update.
     #[cfg(not(windows))]
-    match unsafe{fork()} {
+    match unsafe { fork() } {
         // NOTE: It is unsafe to perform async-signal-unsafe operations from
         // forked multithreaded programs, so for complex functionality like
         // selfupdate to work julialauncher needs to remain single-threaded.
         // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
-
         Ok(ForkResult::Parent { child, .. }) => {
             // wait for the daemon-spawning child to finish
             match waitpid(child, None) {
@@ -338,7 +340,7 @@ fn run_app() -> Result<i32> {
         }
         Ok(ForkResult::Child) => {
             // double-fork to prevent zombies
-            match unsafe{fork()} {
+            match unsafe { fork() } {
                 Ok(ForkResult::Parent { child: _, .. }) => {
                     // we don't do anything here so that this process can be
                     // reaped immediately
@@ -351,8 +353,7 @@ fn run_app() -> Result<i32> {
                     run_versiondb_update(&config_file)
                         .with_context(|| "Failed to run version db update")?;
 
-                    run_selfupdate(&config_file)
-                        .with_context(|| "Failed to run selfupdate.")?;
+                    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
                 }
                 Err(_) => panic!("Could not double-fork"),
             }
@@ -370,8 +371,7 @@ fn run_app() -> Result<i32> {
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-        run_versiondb_update(&config_file)
-            .with_context(|| "Failed to run version db update")?;
+        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
         run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
 
