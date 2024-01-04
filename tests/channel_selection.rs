@@ -99,7 +99,7 @@ fn channel_selection() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to check a valid channel or version\n");
+        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions\n");
 
     Command::cargo_bin("julialauncher")
         .unwrap()
@@ -111,7 +111,7 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr(
-            "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to check a valid channel or version\n",
+            "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions\n",
         );
 
     Command::cargo_bin("julialauncher")
@@ -124,5 +124,5 @@ fn channel_selection() {
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to check a valid channel or version\n");
+        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions\n");
 }
