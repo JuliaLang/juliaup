@@ -301,10 +301,6 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
-    // process to handle things.
-    ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
-
     // On *nix platforms we replace the current process with the Julia one.
     // This simplifies use in e.g. debuggers, but requires that we fork off
     // a subprocess to do the selfupdate and versiondb update.
@@ -350,6 +346,11 @@ fn run_app() -> Result<i32> {
                     // any typical daemon-y things (like detaching the TTY)
                     // so that any error output is still visible.
 
+                    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+                    // process to handle things.
+                    ctrlc::set_handler(|| ())
+                        .with_context(|| "Failed to set the Ctrl-C handler.")?;
+
                     run_versiondb_update(&config_file)
                         .with_context(|| "Failed to run version db update")?;
 
@@ -366,6 +367,10 @@ fn run_app() -> Result<i32> {
     // On other platforms (i.e., Windows) we just spawn a subprocess
     #[cfg(windows)]
     {
+        // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+        // process to handle things.
+        ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
+
         let mut child_process = std::process::Command::new(julia_path)
             .args(&new_args)
             .spawn()
