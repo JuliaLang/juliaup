@@ -130,9 +130,8 @@ main() {
         exit 1
     fi
 
-    _ttyname="/dev/$(ps -p $$ -o tty= | xargs)"
-
     if [ "$need_tty" = "yes" ]; then
+        _ttyname="/dev/$(ps -p $$ -o tty= | xargs)"
         ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW "$@" < "$_ttyname"
     else
         ignore "$_file" THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW "$@"
