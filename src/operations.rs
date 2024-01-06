@@ -532,7 +532,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
                 .stdout(Stdio::piped())
                 .spawn()?;
 
-            let child_stdin = child.stdin.as_mut().unwrap();
+            let mut child_stdin = child.stdin.take().unwrap();
 
             child_stdin.write_all(new_crontab_content.as_bytes())?;
 
@@ -581,7 +581,7 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
                 .stdout(Stdio::piped())
                 .spawn()?;
 
-            let child_stdin = child.stdin.as_mut().unwrap();
+            let mut child_stdin = child.stdin.take().unwrap();
 
             child_stdin.write_all(new_crontab_content.as_bytes())?;
 
