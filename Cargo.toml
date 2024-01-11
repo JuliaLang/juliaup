@@ -69,7 +69,7 @@ reqwest = { version = "0.11.18", default-features = false, features = ["blocking
 reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
-nix = "0.27.1"
+nix = { version = "0.27.1", features = ["process"] }
 
 [build-dependencies]
 anyhow = "1.0.72"
