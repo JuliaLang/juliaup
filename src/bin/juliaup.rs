@@ -29,6 +29,10 @@ use log::info;
 
 #[derive(Parser)]
 #[clap(name = "Juliaup", version)]
+#[command(
+    after_help = "To launch a specific Julia version, use `julia +{channel}` e.g. `julia +1.6`.
+Entering just `julia` uses the default channel set via `juliaup default`."
+)]
 /// The Julia Version Manager
 enum Juliaup {
     /// Set the default Julia version
