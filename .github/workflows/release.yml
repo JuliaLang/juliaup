@@ -206,7 +206,7 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: juliaup-${{matrix.label}}
         path: |
@@ -216,7 +216,7 @@ jobs:
           target/${{matrix.target}}/release/juliaup.exe
           target/${{matrix.target}}/release/julialauncher.exe
           target/${{matrix.target}}/release/julia.exe
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: juliainstaller-${{matrix.label}}
         path: |
@@ -540,7 +540,7 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
 
         cd ../..
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: portable
         path: public/*.*
@@ -637,11 +637,11 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: storepackage
         path: storepackage\*.*
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: winappinstaller
         path: target\msix\winappinstaller\Julia.appinstaller
@@ -691,7 +691,7 @@ jobs:
           & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msiPath
         }
       shell: pwsh
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: msiinstallers
         path: target\msi\Julia*.msi
