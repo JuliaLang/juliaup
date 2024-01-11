@@ -44,7 +44,7 @@ console = "0.15.7"
 ctrlc = "3.4.0"
 url = "2.4.0"
 cli-table = "0.4.7"
-itertools = "0.11.0"
+itertools = "0.12.0"
 cluFlock = "1.2.7"
 chrono = { version = "0.4.26", features = ["serde"] }
 human-panic = "1.1.5"
@@ -60,7 +60,7 @@ path-absolutize = "3.1.0"
 human-sort = "0.2.2"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.51.1", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
+windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "native-tls", "socks"] }
@@ -73,7 +73,7 @@ nix = { version = "0.27.1", features = ["process"] }
 
 [build-dependencies]
 anyhow = "1.0.72"
-itertools = "0.11.0"
+itertools = "0.12.0"
 serde = { version = "1.0.175", features = ["derive"] }
 serde_json = "1.0.103"
 semver = "1.0.18"
