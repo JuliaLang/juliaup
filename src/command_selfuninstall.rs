@@ -123,9 +123,10 @@ use anyhow::Result;
 
 #[cfg(not(feature = "selfupdate"))]
 pub fn run_command_selfuninstall_unavailable() -> Result<()> {
-    eprintln!("Self uninstall command is unavailable in this variant of Juliaup.
+    eprintln!(
+        "Self uninstall command is unavailable in this variant of Juliaup.
 This software was built with the intention of distributing it
-through a package manager other than cargo or upstream.");
+through a package manager other than cargo or upstream."
+    );
     Ok(())
 }
-
