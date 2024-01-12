@@ -117,3 +117,15 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
 
     Ok(())
 }
+
+#[cfg(not(feature = "selfupdate"))]
+use anyhow::Result;
+
+#[cfg(not(feature = "selfupdate"))]
+pub fn run_command_selfuninstall_unavailable() -> Result<()> {
+    eprintln!("Self uninstall command is unavailable in this variant of Juliaup.
+This software was built with the intention of distributing it
+through a package manager other than cargo or upstream.");
+    Ok(())
+}
+
