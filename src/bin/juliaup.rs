@@ -35,8 +35,6 @@ use juliaup::command_selfuninstall::run_command_selfuninstall_unavailable;
 
 use log::info;
 
-
-
 fn main() -> Result<()> {
     human_panic::setup_panic!(human_panic::Metadata {
         name: "Juliaup".into(),
