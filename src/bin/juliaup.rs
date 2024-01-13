@@ -117,9 +117,7 @@ enum SelfSubCmd {
     /// Uninstall this version of juliaup from the system
     Uninstall {},
     #[cfg(not(feature = "selfupdate"))]
-    /// If `selfupdate` feature is not enabled, this
-    /// configures the Uninstall to just print an error message
-    /// that it is **unavailable**.
+    /// Uninstall this version of juliaup from the system (UNAVAILABLE)
     Uninstall {},
 }
 
