@@ -191,13 +191,12 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rs/toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{matrix.toolchain}}
-        default: true
         target: ${{matrix.target}}
     - name: Release build
-      uses: actions-rs/cargo@v1
+      uses: clechasseur/rs-cargo@v2
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
@@ -279,13 +278,12 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rs/toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{matrix.toolchain}}
-        default: true
         target: ${{matrix.target}}
     - name: Test
-      uses: actions-rs/cargo@v1
+      uses: clechasseur/rs-cargo@v2
       with:
         command: test
         use-cross: ${{ matrix.os == 'ubuntu' }}
@@ -554,15 +552,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        default: true
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Install cargo-msix
-      uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: cargo-msix
+      run: cargo install cargo-msix
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
     - name: Download and extract bundled Julia versions
@@ -607,15 +599,9 @@ jobs:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: Build MSIX Windows Store
-      uses: actions-rs/cargo@v1
-      with:
-        command: msix
-        args: --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
+      run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
     - name: Build MSIX App Installer
-      uses: actions-rs/cargo@v1
-      with:
-        command: msix
-        args: --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
+      run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
       run: |
         Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
@@ -1020,12 +1006,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Publish to creates.io
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
+        run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
