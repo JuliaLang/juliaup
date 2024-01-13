@@ -23,8 +23,15 @@ use juliaup::{
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_modifypath::run_command_config_modifypath,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
-    command_selfchannel::run_command_selfchannel, command_selfuninstall::run_command_selfuninstall,
+    command_selfchannel::run_command_selfchannel,
 };
+
+#[cfg(feature = "selfupdate")]
+use juliaup::command_selfuninstall::run_command_selfuninstall;
+
+#[cfg(not(feature = "selfupdate"))]
+use juliaup::command_selfuninstall::run_command_selfuninstall_unavailable;
+
 use log::info;
 
 #[derive(Parser)]
@@ -112,6 +119,9 @@ enum SelfSubCmd {
     Channel { channel: String },
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
+    Uninstall {},
+    #[cfg(not(feature = "selfupdate"))]
+    /// Uninstall this version of juliaup from the system (UNAVAILABLE)
     Uninstall {},
 }
 
@@ -226,6 +236,8 @@ fn main() -> Result<()> {
             SelfSubCmd::Channel { channel } => run_command_selfchannel(channel, &paths),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(&paths),
+            #[cfg(not(feature = "selfupdate"))]
+            SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
     }
 }
