@@ -3,6 +3,7 @@ use anyhow::Context;
 pub mod cli;
 pub mod command_add;
 pub mod command_api;
+pub mod command_completions;
 pub mod command_config_backgroundselfupdate;
 pub mod command_config_modifypath;
 pub mod command_config_startupselfupdate;
