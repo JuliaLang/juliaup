@@ -172,7 +172,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .text()?;
 
-    let version = Version::parse(&response.trim()).with_context(|| {
+    let version = Version::parse(response.trim()).with_context(|| {
         format!(
             "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
             response.trim()
@@ -405,7 +405,7 @@ pub fn create_symlink(
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_fullname = format!("julia-{}", version);
 
-            let target_path = paths.juliauphome.join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(child_target_fullname);
 
             eprintln!(
                 "{} {} for Julia {}.",
@@ -699,7 +699,7 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         )
     })?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path).with_context(|| {
+    let new_content = get_shell_script_juliaup_content(bin_path, path).with_context(|| {
         format!(
             "Error occured while generating juliaup shell startup script section for {}",
             path.display()
@@ -950,7 +950,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
             )
         })?;
 
-    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
+    let online_dbversion = download_juliaup_version(dbversion_url.as_ref())
         .with_context(|| "Failed to download current version db version.")?;
 
     config_file.data.last_version_db_update = Some(chrono::Utc::now());
@@ -992,7 +992,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb).with_context(
+            download_versiondb(onlineversiondburl.as_ref(), &paths.versiondb).with_context(
                 || {
                     format!(
                         "Failed to download new version db from {}.",

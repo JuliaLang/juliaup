@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         .join(format!("versiondb-{}.json", target_platform));
 
     let version_db_path = out_path.join("versionsdb.json");
-    std::fs::copy(&db_path, &version_db_path).unwrap();
+    std::fs::copy(&db_path, version_db_path).unwrap();
 
     let file = File::open(&db_path)?;
     let data: Value = serde_json::from_reader(file)?;
@@ -33,7 +33,7 @@ fn main() -> Result<()> {
     let bundled_dbversion_as_string: String = data["Version"].to_string();
     let bundled_version_path = Path::new(&out_path).join("bundled_version.rs");
     std::fs::write(
-        &bundled_version_path,
+        bundled_version_path,
         format!(
             "pub const BUNDLED_JULIA_VERSION: &str = {}; pub const BUNDLED_DB_VERSION: &str = {};",
             bundled_version_as_string, bundled_dbversion_as_string
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
 
     let various_constants_path = Path::new(&out_path).join("various_constants.rs");
     std::fs::write(
-        &various_constants_path,
+        various_constants_path,
         format!("pub const JULIAUP_TARGET: &str = \"{}\";", &target_platform),
     )
     .unwrap();

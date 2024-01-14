@@ -285,7 +285,7 @@ fn command_override_overlap_test() {
         .arg("override")
         .arg("set")
         .arg("--path")
-        .arg(&or_dir_child.as_os_str())
+        .arg(or_dir_child.as_os_str())
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())

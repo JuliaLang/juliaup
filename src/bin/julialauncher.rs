@@ -225,7 +225,7 @@ fn get_julia_path_from_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            return Ok((absolute_path.into_path_buf(), Vec::new()));
+            Ok((absolute_path.into_path_buf(), Vec::new()))
         }
     }
 }
