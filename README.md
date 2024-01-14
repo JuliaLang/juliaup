@@ -109,6 +109,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup override set --path foo/bar lts` sets a directory override for the path `foo/bar` to the `lts` channel.
 - `juliaup override unset --path foo/bar` removes a directory override for the path `foo/bar`.
 - `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
+- `juliaup completions bash > ~/.local/share/bash-completion/completions/juliaup` generates Bash completions for `juliaup` and saves them to a file. To use them, simply source this file in your `~/.bashrc`. Other supported shells are `zsh`, `fish`, `elvish` and `powershell`.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
