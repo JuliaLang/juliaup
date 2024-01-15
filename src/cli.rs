@@ -129,4 +129,10 @@ pub enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
+    /// The time between automatic updates of the nightly Julia version in minutes, use 0 to disable.
+    #[clap(name = "nightlyupdateinterval")]
+    NightlyUpdateInterval {
+        /// New value
+        value: Option<i64>,
+    },
 }
