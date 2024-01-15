@@ -227,10 +227,10 @@ fn get_julia_path_from_channel(
                 })?;
             return Ok((absolute_path.into_path_buf(), Vec::new()));
         }
-        JuliaupConfigChannel::NightlyChannel { name } => {
+        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
             let path = &config_data
-                .installed_versions.get(name)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia {}, which is not installed.", channel, name))?.path;
+                .installed_versions.get(nightly_version)
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia {}, which is not installed.", channel, nightly_version))?.path;
 
             let absolute_path = juliaupconfig_path
                 .parent()

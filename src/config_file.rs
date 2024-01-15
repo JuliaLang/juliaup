@@ -42,8 +42,8 @@ pub enum JuliaupConfigChannel {
         args: Option<Vec<String>>,
     },
     NightlyChannel {
-        #[serde(rename = "Name")]
-        name: String,
+        #[serde(rename = "NightlyVersion")]
+        nightly_version: String,
     },
 }
 

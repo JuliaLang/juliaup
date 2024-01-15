@@ -81,14 +81,11 @@ fn add_nightly(channel: &str, paths: &GlobalPaths) -> Result<()> {
     }
 
     let name = identify_nightly(&channel.to_string())?;
+    let version = install_nightly(&name, &mut config_file.data, paths)?;
 
-    if !config_file.data.installed_versions.contains_key(&name) {
-        install_nightly(&name, &mut config_file.data, paths).with_context(|| {
-            format!("Failed to install nightly version for channel '{channel}'.")
-        })?;
-    }
-
-    let config_channel = JuliaupConfigChannel::NightlyChannel { name: name };
+    let config_channel = JuliaupConfigChannel::NightlyChannel {
+        nightly_version: version,
+    };
 
     config_file
         .data

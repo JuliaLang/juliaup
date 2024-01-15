@@ -30,6 +30,7 @@ use std::{
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
+use tempfile::Builder;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -372,6 +373,7 @@ pub fn compatible_nightly_archs() -> Result<Vec<String>> {
     }
 }
 
+// Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
 pub fn identify_nightly(channel: &String) -> Result<String> {
     let arch = if channel == "nightly" {
         default_nightly_arch()?
@@ -421,9 +423,9 @@ pub fn install_nightly(
     name: &String,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
-) -> Result<()> {
+) -> Result<String> {
+    // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
-
     let download_url_path = match name.as_str() {
         "latest-macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz"),
         "latest-macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz"),
@@ -434,7 +436,6 @@ pub fn install_nightly(
         "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
         _ => Err(anyhow!("Unknown nightly.")),
     }?;
-
     let download_url = download_url_base.join(download_url_path).with_context(|| {
         format!(
             "Failed to construct a valid url from '{}' and '{}'.",
@@ -444,30 +445,71 @@ pub fn install_nightly(
 
     eprintln!("{} Julia {}", style("Installing").green().bold(), name);
 
-    let child_target_foldername = format!("julia-{}", name);
-    let target_path = paths.juliauphome.join(&child_target_foldername);
-
-    // nightlies can get installed in the same folder, so remove before extracting
-    if target_path.exists() {
-        log::debug!("Removing old nightly installation at {:?}", target_path);
-        std::fs::remove_dir_all(&target_path)?;
+    // Download and extract into a temporary directory
+    let temp_dir = Builder::new()
+        .prefix("julia-temp-")
+        .tempdir_in(&paths.juliauphome)
+        .expect("Failed to create temporary directory");
+    let download_result = download_extract_sans_parent(download_url.as_ref(), &temp_dir.path(), 1);
+    match download_result {
+        Ok(_) => {}
+        Err(e) => {
+            std::fs::remove_dir_all(temp_dir.into_path())?;
+            bail!("Failed to download and extract nightly: {}", e);
+        }
     }
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
 
-    download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+    // Query the actual version
+    let julia_path = temp_dir
+        .path()
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+    let julia_process = std::process::Command::new(julia_path.clone())
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .output()
+        .with_context(|| {
+            format!(
+                "Failed to execute Julia binary at `{}`.",
+                julia_path.display()
+            )
+        })?;
+    let julia_version = String::from_utf8(julia_process.stdout)?;
+    log::debug!("Julia nightly version identified as {}", julia_version);
+    let version = name.replace("latest", &julia_version);
 
+    // Avoid re-installing the same version
+    if config_data.installed_versions.contains_key(&version) {
+        std::fs::remove_dir_all(temp_dir.into_path())?;
+        log::debug!("Already installed, skipping");
+        config_data
+            .installed_versions
+            .get_mut(&version)
+            .unwrap()
+            .last_update = Utc::now();
+        return Ok(version);
+    }
+
+    // Move into the final location
+    let child_target_foldername = format!("julia-{}", version);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
+    assert!(!target_path.exists());
+    std::fs::rename(temp_dir.into_path(), target_path)?;
+
+    // Update the configuration
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
-
     config_data.installed_versions.insert(
-        name.to_string(),
+        version.to_string(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
             last_update: Utc::now(),
         },
     );
-    Ok(())
+
+    Ok(version)
 }
 
 pub fn garbage_collect_versions(
@@ -482,7 +524,9 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::NightlyChannel { name } => name != installed_version,
+            JuliaupConfigChannel::NightlyChannel { nightly_version } => {
+                nightly_version != installed_version
+            }
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
@@ -542,9 +586,9 @@ pub fn create_symlink(
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
-            let child_target_fullname = format!("julia-{}", version);
+            let child_target_foldername = format!("julia-{}", version);
 
-            let target_path = paths.juliauphome.join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(&child_target_foldername);
 
             eprintln!(
                 "{} {} for Julia {}.",
@@ -561,16 +605,16 @@ pub fn create_symlink(
                     )
                 })?;
         }
-        JuliaupConfigChannel::NightlyChannel { name } => {
-            let child_target_fullname = format!("julia-{}", name);
+        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
+            let child_target_foldername = format!("julia-{}", nightly_version);
 
-            let target_path = paths.juliauphome.join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(&child_target_foldername);
 
             eprintln!(
                 "{} {} for Julia {}.",
                 style("Creating symlink").cyan().bold(),
                 symlink_name,
-                name
+                nightly_version
             );
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)

@@ -4,7 +4,7 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
-use crate::operations::{garbage_collect_versions, install_nightly};
+use crate::operations::{garbage_collect_versions, identify_nightly, install_nightly};
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
@@ -73,18 +73,24 @@ fn update_channel(
             } else {
             }
         }
-        JuliaupConfigChannel::NightlyChannel { name } => {
-            let last_update = config_db.installed_versions.get(name).unwrap().last_update;
+        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
+            let last_update = config_db
+                .installed_versions
+                .get(nightly_version)
+                .unwrap()
+                .last_update;
             let now = Utc::now();
             let duration = now.signed_duration_since(last_update);
             let days_old = duration.num_days();
             if days_old >= 1 {
-                let name = name.clone();
-                install_nightly(&name, config_db, paths).with_context(|| {
+                let name = identify_nightly(channel)?;
+                let version = install_nightly(&name, config_db, paths).with_context(|| {
                     format!("Failed to install '{name}' while updating channel '{channel}'.")
                 })?;
 
-                let config_channel = JuliaupConfigChannel::NightlyChannel { name: name.clone() };
+                let config_channel = JuliaupConfigChannel::NightlyChannel {
+                    nightly_version: version,
+                };
 
                 config_db
                     .installed_channels
