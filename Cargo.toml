@@ -84,7 +84,7 @@ built = "0.7.1"
 winres = "0.1.12"
 
 [dev-dependencies]
-assert_cmd = "2.0.12"
+assert_cmd = "2.0.13"
 assert_fs = "1.0.13"
 indoc = "2.0.3"
 predicates = "3.0.3"
