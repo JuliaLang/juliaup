@@ -9,10 +9,12 @@ use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_bin_dir;
+use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
+use chrono::Utc;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -28,6 +30,7 @@ use std::{
     path::{Component::Normal, Path, PathBuf},
 };
 use tar::Archive;
+use tempfile::Builder;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -53,6 +56,7 @@ pub fn download_extract_sans_parent(
     target_path: &Path,
     levels_to_skip: usize,
 ) -> Result<()> {
+    log::debug!("Downloading from url `{}`.", url);
     let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
@@ -326,10 +330,186 @@ pub fn install_version(
         fullversion.clone(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
+            last_update: Utc::now(),
         },
     );
 
     Ok(())
+}
+
+// which nightly arch to default to when simply using the `nightly` channel
+pub fn default_nightly_arch() -> Result<String> {
+    if cfg!(target_arch = "aarch64") {
+        Ok("aarch64".to_string())
+    } else if cfg!(target_arch = "x86_64") {
+        Ok("x64".to_string())
+    } else if cfg!(target_arch = "x86") {
+        Ok("x86".to_string())
+    } else {
+        bail!("Unsupported architecture for nightly channel.")
+    }
+}
+
+// which nightly archs are compatible with the current system, for `juliaup list` purposes
+pub fn compatible_nightly_archs() -> Result<Vec<String>> {
+    if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "x86_64") {
+            Ok(vec!["x64".to_string()])
+        } else if cfg!(target_arch = "aarch64") {
+            // Rosetta 2 can execute x86_64 binaries
+            Ok(vec!["aarch64".to_string(), "x64".to_string()])
+        } else {
+            bail!("Unsupported architecture for nightly channel on macOS.")
+        }
+    } else if cfg!(target_arch = "x86") {
+        Ok(vec!["x86".to_string()])
+    } else if cfg!(target_arch = "x86_64") {
+        // x86_64 can execute x86 binaries
+        Ok(vec!["x86".to_string(), "x64".to_string()])
+    } else if cfg!(target_arch = "aarch64") {
+        Ok(vec!["aarch64".to_string()])
+    } else {
+        bail!("Unsupported architecture for nightly channel.")
+    }
+}
+
+// Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
+pub fn identify_nightly(channel: &String) -> Result<String> {
+    let arch = if channel == "nightly" {
+        default_nightly_arch()?
+    } else {
+        let parts: Vec<&str> = channel.splitn(2, '~').collect();
+        if parts.len() != 2 {
+            bail!("Invalid nightly channel name '{}'.", channel)
+        }
+        parts[1].to_string()
+    };
+
+    let name = {
+        #[cfg(target_os = "macos")]
+        if arch == "x64" {
+            "latest-macos-x86_64"
+        } else if arch == "aarch64" {
+            "latest-macos-aarch64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on macOS.")
+        }
+
+        #[cfg(target_os = "windows")]
+        if arch == "x64" {
+            "latest-win64"
+        } else if arch == "x86" {
+            "latest-win32"
+        } else {
+            bail!("Unsupported architecture for nightly channel on Windows.")
+        }
+
+        #[cfg(target_os = "linux")]
+        if arch == "x64" {
+            "latest-linux-x86_64"
+        } else if arch == "x86" {
+            "latest-linux-i686"
+        } else if arch == "aarch64" {
+            "latest-linux-aarch64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on Linux.")
+        }
+    };
+
+    Ok(name.to_string())
+}
+
+pub fn install_nightly(
+    name: &String,
+    config_data: &mut JuliaupConfig,
+    paths: &GlobalPaths,
+) -> Result<String> {
+    // Determine the download URL
+    let download_url_base = get_julianightlies_base_url()?;
+    let download_url_path = match name.as_str() {
+        "latest-macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz"),
+        "latest-macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz"),
+        "latest-win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz"),
+        "latest-win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz"),
+        "latest-linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"),
+        "latest-linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz"),
+        "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
+        _ => Err(anyhow!("Unknown nightly.")),
+    }?;
+    let download_url = download_url_base.join(download_url_path).with_context(|| {
+        format!(
+            "Failed to construct a valid url from '{}' and '{}'.",
+            download_url_base, download_url_path
+        )
+    })?;
+
+    eprintln!("{} Julia {}", style("Installing").green().bold(), name);
+
+    // Download and extract into a temporary directory
+    let temp_dir = Builder::new()
+        .prefix("julia-temp-")
+        .tempdir_in(&paths.juliauphome)
+        .expect("Failed to create temporary directory");
+    let download_result = download_extract_sans_parent(download_url.as_ref(), &temp_dir.path(), 1);
+    match download_result {
+        Ok(_) => {}
+        Err(e) => {
+            std::fs::remove_dir_all(temp_dir.into_path())?;
+            bail!("Failed to download and extract nightly: {}", e);
+        }
+    }
+
+    // Query the actual version
+    let julia_path = temp_dir
+        .path()
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+    let julia_process = std::process::Command::new(julia_path.clone())
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .output()
+        .with_context(|| {
+            format!(
+                "Failed to execute Julia binary at `{}`.",
+                julia_path.display()
+            )
+        })?;
+    let julia_version = String::from_utf8(julia_process.stdout)?;
+    log::debug!("Julia nightly version identified as {}", julia_version);
+    let version = name.replace("latest", &julia_version);
+
+    // Avoid re-installing the same version
+    if config_data.installed_versions.contains_key(&version) {
+        std::fs::remove_dir_all(temp_dir.into_path())?;
+        log::debug!("Already installed, skipping");
+        config_data
+            .installed_versions
+            .get_mut(&version)
+            .unwrap()
+            .last_update = Utc::now();
+        return Ok(version);
+    }
+
+    // Move into the final location
+    let child_target_foldername = format!("julia-{}", version);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
+    assert!(!target_path.exists());
+    std::fs::rename(temp_dir.into_path(), target_path)?;
+
+    // Update the configuration
+    let mut rel_path = PathBuf::new();
+    rel_path.push(".");
+    rel_path.push(&child_target_foldername);
+    config_data.installed_versions.insert(
+        version.to_string(),
+        JuliaupConfigVersion {
+            path: rel_path.to_string_lossy().into_owned(),
+            last_update: Utc::now(),
+        },
+    );
+
+    Ok(version)
 }
 
 pub fn garbage_collect_versions(
@@ -344,6 +524,9 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
+            JuliaupConfigChannel::NightlyChannel { nightly_version } => {
+                nightly_version != installed_version
+            }
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
@@ -403,15 +586,35 @@ pub fn create_symlink(
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
-            let child_target_fullname = format!("julia-{}", version);
+            let child_target_foldername = format!("julia-{}", version);
 
-            let target_path = paths.juliauphome.join(&child_target_fullname);
+            let target_path = paths.juliauphome.join(&child_target_foldername);
 
             eprintln!(
                 "{} {} for Julia {}.",
                 style("Creating symlink").cyan().bold(),
                 symlink_name,
                 version
+            );
+
+            std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
+                .with_context(|| {
+                    format!(
+                        "failed to create symlink `{}`.",
+                        symlink_path.to_string_lossy()
+                    )
+                })?;
+        }
+        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
+            let child_target_foldername = format!("julia-{}", nightly_version);
+
+            let target_path = paths.juliauphome.join(&child_target_foldername);
+
+            eprintln!(
+                "{} {} for Julia {}.",
+                style("Creating symlink").cyan().bold(),
+                symlink_name,
+                nightly_version
             );
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
