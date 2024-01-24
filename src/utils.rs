@@ -24,27 +24,6 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
     Ok(parsed_url)
 }
 
-pub fn get_julianightlies_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
-        if val.ends_with('/') {
-            val
-        } else {
-            format!("{}/", val)
-        }
-    } else {
-        "https://julialangnightlies-s3.julialang.org".to_string()
-    };
-
-    let parsed_url = Url::parse(&base_url).with_context(|| {
-        format!(
-            "Failed to parse the value of JULIAUP_NIGHTLY_SERVER '{}' as a uri.",
-            base_url
-        )
-    })?;
-
-    Ok(parsed_url)
-}
-
 pub fn get_bin_dir() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {
         ';'
