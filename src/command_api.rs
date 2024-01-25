@@ -109,7 +109,6 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Err(_) => continue,
                 }
             }
-            _ => continue, // skip nightly
         };
 
         match config_file.data.default {

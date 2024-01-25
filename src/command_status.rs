@@ -3,7 +3,6 @@ use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
-use chrono::Utc;
 use cli_table::format::HorizontalLine;
 use cli_table::format::Separator;
 use cli_table::ColorChoice;
@@ -53,18 +52,6 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                 name: i.0.to_string(),
                 version: match i.1 {
                     JuliaupConfigChannel::SystemChannel { version } => version.clone(),
-                    JuliaupConfigChannel::NightlyChannel { nightly_version } => {
-                        let last_update = config_file
-                            .data
-                            .installed_versions
-                            .get(nightly_version)
-                            .unwrap()
-                            .last_update;
-                        let now = Utc::now();
-                        let duration = now.signed_duration_since(last_update);
-                        let days_old = duration.num_days();
-                        format!("{} ({} days old)", nightly_version, days_old)
-                    }
                     JuliaupConfigChannel::LinkedChannel { command, args } => {
                         let mut combined_command = String::new();
 
@@ -108,7 +95,6 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         command: _,
                         args: _,
                     } => "".to_string(),
-                    JuliaupConfigChannel::NightlyChannel { nightly_version: _ } => "".to_string(),
                 },
             }
         })

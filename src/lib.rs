@@ -6,7 +6,6 @@ pub mod command_api;
 pub mod command_completions;
 pub mod command_config_backgroundselfupdate;
 pub mod command_config_modifypath;
-pub mod command_config_nightlyupdate;
 pub mod command_config_startupselfupdate;
 pub mod command_config_symlinks;
 pub mod command_config_versionsdbupdate;
