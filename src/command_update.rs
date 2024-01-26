@@ -72,36 +72,37 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
-            let nightly_update_interval = config_db.settings.nightly_update_interval;
-            let last_update = config_db
-                .installed_versions
-                .get(nightly_version)
-                .unwrap()
-                .last_update;
-            let now = Utc::now();
-            let duration = now.signed_duration_since(last_update);
-            if duration.num_minutes() >= nightly_update_interval {
-                let name = identify_nightly(channel)?;
-                let version = install_nightly(&name, config_db, paths).with_context(|| {
-                    format!("Failed to install '{name}' while updating channel '{channel}'.")
-                })?;
+        JuliaupConfigChannel::DirectDownloadChannel { path, url, last_update, version } => {
+            // TODO Implement
+            // let nightly_update_interval = config_db.settings.nightly_update_interval;
+            // let last_update = config_db
+            //     .installed_versions
+            //     .get(nightly_version)
+            //     .unwrap()
+            //     .last_update;
+            // let now = Utc::now();
+            // let duration = now.signed_duration_since(last_update);
+            // if duration.num_minutes() >= nightly_update_interval {
+            //     let name = identify_nightly(channel)?;
+            //     let version = install_nightly(&name, config_db, paths).with_context(|| {
+            //         format!("Failed to install '{name}' while updating channel '{channel}'.")
+            //     })?;
 
-                let config_channel = JuliaupConfigChannel::NightlyChannel {
-                    nightly_version: version,
-                };
+            //     let config_channel = JuliaupConfigChannel::NightlyChannel {
+            //         nightly_version: version,
+            //     };
 
-                config_db
-                    .installed_channels
-                    .insert(channel.clone(), config_channel.clone());
+            //     config_db
+            //         .installed_channels
+            //         .insert(channel.clone(), config_channel.clone());
 
-                #[cfg(not(windows))]
-                if config_db.settings.create_channel_symlinks {
-                    create_symlink(&config_channel, &channel, paths)?;
-                }
-            } else {
-                log::debug!("Skipping update for '{}' channel, it is not old enough to update ({} days old).", channel, duration.num_days());
-            }
+            //     #[cfg(not(windows))]
+            //     if config_db.settings.create_channel_symlinks {
+            //         create_symlink(&config_channel, &channel, paths)?;
+            //     }
+            // } else {
+            //     log::debug!("Skipping update for '{}' channel, it is not old enough to update ({} days old).", channel, duration.num_days());
+            // }
         }
     }
 

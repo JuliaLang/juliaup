@@ -20,25 +20,25 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
     *i == default_versionsdb_update_interval()
 }
 
-fn default_nightly_update_interval() -> i64 {
-    1440
-}
-
-fn is_default_nightly_update_interval(i: &i64) -> bool {
-    *i == default_nightly_update_interval()
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
     pub path: String,
-    #[serde(rename = "LastUpdate")]
-    pub last_update: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum JuliaupConfigChannel {
+    DirectDownloadChannel {
+        #[serde(rename = "Path")]
+        path: String,
+        #[serde(rename = "Url")]
+        url: String,
+        #[serde(rename = "LastUpdate")]
+        last_update: String,
+        #[serde(rename = "Version")]
+        version: String,
+    },
     SystemChannel {
         #[serde(rename = "Version")]
         version: String,
@@ -48,10 +48,6 @@ pub enum JuliaupConfigChannel {
         command: String,
         #[serde(rename = "Args")]
         args: Option<Vec<String>>,
-    },
-    NightlyChannel {
-        #[serde(rename = "NightlyVersion")]
-        nightly_version: String,
     },
 }
 
@@ -69,12 +65,6 @@ pub struct JuliaupConfigSettings {
         skip_serializing_if = "is_default_versionsdb_update_interval"
     )]
     pub versionsdb_update_interval: i64,
-    #[serde(
-        rename = "NightlyUpdateInterval",
-        default = "default_nightly_update_interval",
-        skip_serializing_if = "is_default_nightly_update_interval"
-    )]
-    pub nightly_update_interval: i64,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -82,7 +72,6 @@ impl Default for JuliaupConfigSettings {
         JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
-            nightly_update_interval: default_nightly_update_interval(),
         }
     }
 }
@@ -199,7 +188,6 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
-                    nightly_update_interval: default_nightly_update_interval(),
                 },
                 last_version_db_update: None,
             },
@@ -296,7 +284,6 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
-                    nightly_update_interval: default_nightly_update_interval(),
                 },
                 last_version_db_update: None,
             };

@@ -110,7 +110,9 @@ pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
-) -> Result<()> {
+) -> Result<String> {
+    use windows::core::HSTRING;
+
     let http_client =
         windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
@@ -126,6 +128,14 @@ pub fn download_extract_sans_parent(
     http_response
         .EnsureSuccessStatusCode()
         .with_context(|| "HTTP download reported error status code.")?;
+
+    let a = http_response.Headers().unwrap();
+
+    for i in &a {
+        eprintln!("{:?}: {:?}", i.Key(), i.Value())
+    }
+
+    let last_modified = a.Lookup(&HSTRING::from("etag")).unwrap().to_string();
 
     let http_response_content = http_response
         .Content()
@@ -166,7 +176,7 @@ pub fn download_extract_sans_parent(
     unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
-    Ok(())
+    Ok(last_modified)
 }
 
 #[cfg(not(windows))]
@@ -331,7 +341,6 @@ pub fn install_version(
         fullversion.clone(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
-            last_update: Utc::now(),
         },
     );
 
@@ -421,10 +430,11 @@ pub fn identify_nightly(channel: &String) -> Result<String> {
 }
 
 pub fn install_nightly(
+    channel: &str,
     name: &String,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
-) -> Result<String> {
+) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
     let download_url_path = match name.as_str() {
@@ -451,14 +461,16 @@ pub fn install_nightly(
         .prefix("julia-temp-")
         .tempdir_in(&paths.juliauphome)
         .expect("Failed to create temporary directory");
+
     let download_result = download_extract_sans_parent(download_url.as_ref(), &temp_dir.path(), 1);
-    match download_result {
-        Ok(_) => {}
+
+    let last_updated = match download_result {
+        Ok(last_updated) => {last_updated}
         Err(e) => {
             std::fs::remove_dir_all(temp_dir.into_path())?;
             bail!("Failed to download and extract nightly: {}", e);
         }
-    }
+    };
 
     // Query the actual version
     let julia_path = temp_dir
@@ -480,37 +492,24 @@ pub fn install_nightly(
     log::debug!("Julia nightly version identified as {}", julia_version);
     let version = name.replace("latest", &julia_version);
 
-    // Avoid re-installing the same version
-    if config_data.installed_versions.contains_key(&version) {
-        std::fs::remove_dir_all(temp_dir.into_path())?;
-        log::debug!("Already installed, skipping");
-        config_data
-            .installed_versions
-            .get_mut(&version)
-            .unwrap()
-            .last_update = Utc::now();
-        return Ok(version);
-    }
-
     // Move into the final location
-    let child_target_foldername = format!("julia-{}", version);
+    let child_target_foldername = format!("julia-{}", channel);
     let target_path = paths.juliauphome.join(&child_target_foldername);
-    assert!(!target_path.exists());
-    std::fs::rename(temp_dir.into_path(), target_path)?;
+    if target_path.exists() {
+        std::fs::remove_dir_all(&target_path)?;
+    }
+    std::fs::rename(temp_dir.into_path(), &target_path)?;
 
-    // Update the configuration
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
-    config_data.installed_versions.insert(
-        version.to_string(),
-        JuliaupConfigVersion {
-            path: rel_path.to_string_lossy().into_owned(),
-            last_update: Utc::now(),
-        },
-    );
 
-    Ok(version)
+    Ok(JuliaupConfigChannel::DirectDownloadChannel { 
+        path: rel_path.to_string_lossy().into_owned(),
+        url: download_url.to_string().to_owned(), // TODO Use proper URL
+        last_update: last_updated, // TODO Use time stamp of HTTPS response
+        version: version.to_string()
+    })
 }
 
 pub fn garbage_collect_versions(
@@ -525,9 +524,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::NightlyChannel { nightly_version } => {
-                nightly_version != installed_version
-            }
+            JuliaupConfigChannel::DirectDownloadChannel { path, url, last_update, version } => true
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
