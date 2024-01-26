@@ -464,7 +464,7 @@ pub fn install_nightly(
 
     let download_result = download_extract_sans_parent(download_url.as_ref(), &temp_dir.path(), 1);
 
-    let last_updated = match download_result {
+    let server_etag = match download_result {
         Ok(last_updated) => {last_updated}
         Err(e) => {
             std::fs::remove_dir_all(temp_dir.into_path())?;
@@ -507,7 +507,8 @@ pub fn install_nightly(
     Ok(JuliaupConfigChannel::DirectDownloadChannel { 
         path: rel_path.to_string_lossy().into_owned(),
         url: download_url.to_string().to_owned(), // TODO Use proper URL
-        last_update: last_updated, // TODO Use time stamp of HTTPS response
+        local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
+        server_etag: server_etag,
         version: version.to_string()
     })
 }
@@ -524,7 +525,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::DirectDownloadChannel { path, url, last_update, version } => true
+            JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version } => true
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();

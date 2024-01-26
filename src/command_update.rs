@@ -72,7 +72,7 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::DirectDownloadChannel { path, url, last_update, version } => {
+        JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version } => {
             // TODO Implement
             // let nightly_update_interval = config_db.settings.nightly_update_interval;
             // let last_update = config_db

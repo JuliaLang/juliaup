@@ -227,7 +227,7 @@ fn get_julia_path_from_channel(
                 })?;
             return Ok((absolute_path.into_path_buf(), Vec::new()));
         }
-        JuliaupConfigChannel::DirectDownloadChannel { path, url, last_update, version } => {
+        JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version } => {
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap()

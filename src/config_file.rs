@@ -34,8 +34,10 @@ pub enum JuliaupConfigChannel {
         path: String,
         #[serde(rename = "Url")]
         url: String,
-        #[serde(rename = "LastUpdate")]
-        last_update: String,
+        #[serde(rename = "LocalETag")]
+        local_etag: String,
+        #[serde(rename = "ServerETag")]
+        server_etag: String,
         #[serde(rename = "Version")]
         version: String,
     },
