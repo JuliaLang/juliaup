@@ -75,12 +75,13 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
-    let foo = pb.wrap_read(response);
+    let response_with_pb = pb.wrap_read(response);
 
-    let tar = GzDecoder::new(foo);
+    let tar = GzDecoder::new(response_with_pb);
     let archive = Archive::new(tar);
     unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
     Ok(())
 }
 
@@ -158,13 +159,11 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
-    let foo = pb.wrap_read(DataReaderWrap(reader));
+    let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
-    let tar = GzDecoder::new(foo);
-
+    let tar = GzDecoder::new(response_with_pb);
     let archive = Archive::new(tar);
-
-    unpack_sans_parent(archive, &target_path, levels_to_skip)
+    unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
     Ok(())
@@ -176,10 +175,12 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .text()?;
 
-    let version = Version::parse(&response.trim()).with_context(|| {
+    let trimmed_response = response.trim();
+
+    let version = Version::parse(trimmed_response).with_context(|| {
         format!(
             "`download_juliaup_version` failed to parse `{}` as a valid semversion.",
-            response.trim()
+            trimmed_response
         )
     })?;
 

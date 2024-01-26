@@ -119,11 +119,9 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 } else {
                     ret_value.other_versions.push(curr);
                 }
-                ()
             }
             None => {
                 ret_value.other_versions.push(curr);
-                ()
             }
         }
     }

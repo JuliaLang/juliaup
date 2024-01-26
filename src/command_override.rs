@@ -79,7 +79,7 @@ pub fn run_command_override_set(
         .data
         .overrides
         .iter()
-        .any(|i| i.path == path.to_string_lossy().to_string())
+        .any(|i| i.path == path.to_string_lossy())
     {
         bail!("'{}' path already has an override configured.", &channel);
     }

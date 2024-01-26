@@ -332,7 +332,7 @@ fn run_app() -> Result<i32> {
     }
 
     for (i, v) in args.iter().skip(1).enumerate() {
-        if i > 1 || !v.starts_with('+') {
+        if i > 0 || !v.starts_with('+') {
             new_args.push(v.clone());
         }
     }
