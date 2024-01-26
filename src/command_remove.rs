@@ -41,7 +41,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     let x = config_file.data.installed_channels.get(channel).unwrap();
 
-    if let JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version } = x {
+    if let JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version: _ } = x {
         let path_to_delete = paths.juliauphome.join(&path);
 
         let display = path_to_delete.display();

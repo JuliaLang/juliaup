@@ -81,7 +81,7 @@ fn add_nightly(channel: &str, paths: &GlobalPaths) -> Result<()> {
     }
 
     let name = identify_nightly(&channel.to_string())?;
-    let config_channel = install_nightly(channel, &name, &mut config_file.data, paths)?;
+    let config_channel = install_nightly(channel, &name, paths)?;
 
     config_file
         .data

@@ -14,12 +14,14 @@ use crate::utils::get_juliaserver_base_url;
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
-use chrono::Utc;
 use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
 use semver::Version;
+use url::Url;
+use windows::Web::Http::HttpMethod;
+use windows::Web::Http::HttpRequestMessage;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
@@ -129,13 +131,7 @@ pub fn download_extract_sans_parent(
         .EnsureSuccessStatusCode()
         .with_context(|| "HTTP download reported error status code.")?;
 
-    let a = http_response.Headers().unwrap();
-
-    for i in &a {
-        eprintln!("{:?}: {:?}", i.Key(), i.Value())
-    }
-
-    let last_modified = a.Lookup(&HSTRING::from("etag")).unwrap().to_string();
+    let last_modified = http_response.Headers().unwrap().Lookup(&HSTRING::from("etag")).unwrap().to_string();
 
     let http_response_content = http_response
         .Content()
@@ -429,40 +425,18 @@ pub fn identify_nightly(channel: &String) -> Result<String> {
     Ok(name.to_string())
 }
 
-pub fn install_nightly(
-    channel: &str,
-    name: &String,
-    config_data: &mut JuliaupConfig,
+pub fn install_from_url(    
+    url: &Url,
+    path: &PathBuf,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
-    // Determine the download URL
-    let download_url_base = get_julianightlies_base_url()?;
-    let download_url_path = match name.as_str() {
-        "latest-macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz"),
-        "latest-macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz"),
-        "latest-win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz"),
-        "latest-win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz"),
-        "latest-linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"),
-        "latest-linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz"),
-        "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
-        _ => Err(anyhow!("Unknown nightly.")),
-    }?;
-    let download_url = download_url_base.join(download_url_path).with_context(|| {
-        format!(
-            "Failed to construct a valid url from '{}' and '{}'.",
-            download_url_base, download_url_path
-        )
-    })?;
-
-    eprintln!("{} Julia {}", style("Installing").green().bold(), name);
-
     // Download and extract into a temporary directory
     let temp_dir = Builder::new()
         .prefix("julia-temp-")
         .tempdir_in(&paths.juliauphome)
         .expect("Failed to create temporary directory");
 
-    let download_result = download_extract_sans_parent(download_url.as_ref(), &temp_dir.path(), 1);
+    let download_result = download_extract_sans_parent(url.as_ref(), &temp_dir.path(), 1);
 
     let server_etag = match download_result {
         Ok(last_updated) => {last_updated}
@@ -489,28 +463,58 @@ pub fn install_nightly(
             )
         })?;
     let julia_version = String::from_utf8(julia_process.stdout)?;
-    log::debug!("Julia nightly version identified as {}", julia_version);
-    let version = name.replace("latest", &julia_version);
 
     // Move into the final location
-    let child_target_foldername = format!("julia-{}", channel);
-    let target_path = paths.juliauphome.join(&child_target_foldername);
+    let target_path = paths.juliauphome.join(&path);
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
     std::fs::rename(temp_dir.into_path(), &target_path)?;
 
+    Ok(JuliaupConfigChannel::DirectDownloadChannel { 
+        path: path.to_string_lossy().into_owned(),
+        url: url.to_string().to_owned(), // TODO Use proper URL
+        local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
+        server_etag: server_etag,
+        version: julia_version
+    })
+}
+
+pub fn install_nightly(
+    channel: &str,
+    name: &String,
+    paths: &GlobalPaths,
+) -> Result<crate::config_file::JuliaupConfigChannel> {
+    // Determine the download URL
+    let download_url_base = get_julianightlies_base_url()?;
+    let download_url_path = match name.as_str() {
+        "latest-macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz"),
+        "latest-macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz"),
+        "latest-win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz"),
+        "latest-win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz"),
+        "latest-linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"),
+        "latest-linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz"),
+        "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
+        _ => Err(anyhow!("Unknown nightly.")),
+    }?;
+    let download_url = download_url_base.join(download_url_path).with_context(|| {
+        format!(
+            "Failed to construct a valid url from '{}' and '{}'.",
+            download_url_base, download_url_path
+        )
+    })?;
+
+    let child_target_foldername = format!("julia-{}", channel);
+
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
 
-    Ok(JuliaupConfigChannel::DirectDownloadChannel { 
-        path: rel_path.to_string_lossy().into_owned(),
-        url: download_url.to_string().to_owned(), // TODO Use proper URL
-        local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
-        server_etag: server_etag,
-        version: version.to_string()
-    })
+    eprintln!("{} Julia {}", style("Installing").green().bold(), name);
+
+    let res = install_from_url(&download_url, &rel_path, paths)?;
+
+    Ok(res)
 }
 
 pub fn garbage_collect_versions(
@@ -525,7 +529,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version } => true
+            JuliaupConfigChannel::DirectDownloadChannel { path: _, url: _, local_etag: _, server_etag: _, version: _ } => true
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
@@ -1155,6 +1159,22 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
+    let direct_download_etags = download_direct_download_etags(&mut config_file.data)?;
+
+    for (channel, etag) in direct_download_etags {
+        let channel_data = config_file.data.installed_channels.get(&channel).unwrap();
+
+        match channel_data {
+            JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag: _, version } => {
+                config_file.data.installed_channels.insert(
+                    channel,
+                    JuliaupConfigChannel::DirectDownloadChannel { path: path.clone(), url: url.clone(), local_etag: local_etag.clone(), server_etag: etag, version: version.clone() }
+                );
+            },
+            _ => {}
+        }
+    }
+
     config_file.data.last_version_db_update = Some(chrono::Utc::now());
 
     save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
@@ -1209,4 +1229,40 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn download_direct_download_etags(config_data: &mut JuliaupConfig) -> Result<Vec<(String,String)>> {
+    use windows::core::HSTRING;
+
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+
+    let requests: Vec<_> = config_data
+        .installed_channels
+        .iter()
+        .filter_map(|(channel_name, channel)| {
+            if let JuliaupConfigChannel::DirectDownloadChannel { path: _, url, local_etag: _, server_etag: _, version: _ } = channel { 
+                let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+                    .with_context(|| "Failed to convert url string to Uri.").unwrap();
+
+                let request = HttpRequestMessage::Create(&HttpMethod::Head().unwrap(), &request_uri).unwrap();
+
+                let request = http_client
+                    .SendRequestAsync(&request)
+                    .unwrap();
+   
+                Some((channel_name, request))
+            } else { 
+                None
+            }
+        })
+        .collect();
+        
+
+    let requests: Vec<_> = requests
+        .into_iter()
+        .map(|(channel_name, request)| (channel_name.clone(), request.get().unwrap().Headers().unwrap().Lookup(&HSTRING::from("etag")).unwrap().to_string()))
+        .collect();
+
+    Ok(requests)
 }
