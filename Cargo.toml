@@ -48,7 +48,7 @@ cli-table = "0.4.7"
 itertools = "0.12.0"
 cluFlock = "1.2.7"
 chrono = { version = "0.4.26", features = ["serde"] }
-human-panic = "1.1.5"
+human-panic = "1.2.3"
 log = "0.4.19"
 env_logger = "0.11.0"
 dialoguer = "0.11.0"
