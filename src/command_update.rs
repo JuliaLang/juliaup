@@ -69,7 +69,6 @@ fn update_channel(
                     "Failed to update '{}' because it is a linked channel.",
                     channel
                 );
-            } else {
             }
         }
     }
