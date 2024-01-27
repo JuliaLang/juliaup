@@ -111,8 +111,12 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         server_etag,
                         version: _,
                     } => {
-                        if local_etag!=server_etag { "Update available".to_string() } else { "".to_string() }
-                    },
+                        if local_etag != server_etag {
+                            "Update available".to_string()
+                        } else {
+                            "".to_string()
+                        }
+                    }
                 },
             }
         })
