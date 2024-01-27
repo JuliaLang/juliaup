@@ -230,10 +230,21 @@ fn get_julia_path_from_channel(
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
             url: _,
-            local_etag: _,
-            server_etag: _,
+            local_etag,
+            server_etag,
             version: _,
         } => {
+            if local_etag != server_etag {
+                eprintln!(
+                    "A new version of Julia for the `{}` channel is available. Run:",
+                    channel
+                );
+                eprintln!();
+                eprintln!("  juliaup update");
+                eprintln!();
+                eprintln!("to install the latest Julia for the `{}` channel.", channel);
+            }
+
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap()
