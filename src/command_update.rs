@@ -77,7 +77,7 @@ fn update_channel(
             url,
             local_etag,
             server_etag,
-            version,
+            version: _,
         } => {
             if local_etag != server_etag {
                 let channel_data =
