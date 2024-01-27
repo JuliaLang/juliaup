@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel};
 use crate::global_paths::GlobalPaths;
@@ -9,6 +8,7 @@ use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use std::path::PathBuf;
 
 fn update_channel(
     config_db: &mut JuliaupConfig,
@@ -72,9 +72,16 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag, version: _ } => {
-            if local_etag!=server_etag {
-                let channel_data = install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url,
+            local_etag,
+            server_etag,
+            version: _,
+        } => {
+            if local_etag != server_etag {
+                let channel_data =
+                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
 
                 config_db
                     .installed_channels

@@ -52,7 +52,13 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                 name: i.0.to_string(),
                 version: match i.1 {
                     JuliaupConfigChannel::SystemChannel { version } => version.clone(),
-                    JuliaupConfigChannel::DirectDownloadChannel { path: _, url: _, local_etag: _, server_etag: _, version: _ } => {
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: _,
+                        url: _,
+                        local_etag: _,
+                        server_etag: _,
+                        version: _,
+                    } => {
                         // let last_update = config_file
                         //     .data
                         //     .installed_versions
@@ -108,7 +114,13 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         command: _,
                         args: _,
                     } => "".to_string(),
-                    JuliaupConfigChannel::DirectDownloadChannel { path: _, url: _, local_etag: _, server_etag: _, version: _ } => "".to_string(),
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: _,
+                        url: _,
+                        local_etag: _,
+                        server_etag: _,
+                        version: _,
+                    } => "".to_string(),
                 },
             }
         })

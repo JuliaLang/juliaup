@@ -19,9 +19,6 @@ use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
 use semver::Version;
-use url::Url;
-use windows::Web::Http::HttpMethod;
-use windows::Web::Http::HttpRequestMessage;
 use std::io::BufReader;
 use std::io::Seek;
 use std::io::Write;
@@ -33,6 +30,9 @@ use std::{
 };
 use tar::Archive;
 use tempfile::Builder;
+use url::Url;
+use windows::Web::Http::HttpMethod;
+use windows::Web::Http::HttpRequestMessage;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -131,7 +131,12 @@ pub fn download_extract_sans_parent(
         .EnsureSuccessStatusCode()
         .with_context(|| "HTTP download reported error status code.")?;
 
-    let last_modified = http_response.Headers().unwrap().Lookup(&HSTRING::from("etag")).unwrap().to_string();
+    let last_modified = http_response
+        .Headers()
+        .unwrap()
+        .Lookup(&HSTRING::from("etag"))
+        .unwrap()
+        .to_string();
 
     let http_response_content = http_response
         .Content()
@@ -425,7 +430,7 @@ pub fn identify_nightly(channel: &String) -> Result<String> {
     Ok(name.to_string())
 }
 
-pub fn install_from_url(    
+pub fn install_from_url(
     url: &Url,
     path: &PathBuf,
     paths: &GlobalPaths,
@@ -439,7 +444,7 @@ pub fn install_from_url(
     let download_result = download_extract_sans_parent(url.as_ref(), &temp_dir.path(), 1);
 
     let server_etag = match download_result {
-        Ok(last_updated) => {last_updated}
+        Ok(last_updated) => last_updated,
         Err(e) => {
             std::fs::remove_dir_all(temp_dir.into_path())?;
             bail!("Failed to download and extract nightly: {}", e);
@@ -471,12 +476,12 @@ pub fn install_from_url(
     }
     std::fs::rename(temp_dir.into_path(), &target_path)?;
 
-    Ok(JuliaupConfigChannel::DirectDownloadChannel { 
+    Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
         url: url.to_string().to_owned(), // TODO Use proper URL
         local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
         server_etag: server_etag,
-        version: julia_version
+        version: julia_version,
     })
 }
 
@@ -529,7 +534,13 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::DirectDownloadChannel { path: _, url: _, local_etag: _, server_etag: _, version: _ } => true
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path: _,
+                url: _,
+                local_etag: _,
+                server_etag: _,
+                version: _,
+            } => true,
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
@@ -1165,12 +1176,24 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         let channel_data = config_file.data.installed_channels.get(&channel).unwrap();
 
         match channel_data {
-            JuliaupConfigChannel::DirectDownloadChannel { path, url, local_etag, server_etag: _, version } => {
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path,
+                url,
+                local_etag,
+                server_etag: _,
+                version,
+            } => {
                 config_file.data.installed_channels.insert(
                     channel,
-                    JuliaupConfigChannel::DirectDownloadChannel { path: path.clone(), url: url.clone(), local_etag: local_etag.clone(), server_etag: etag, version: version.clone() }
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: path.clone(),
+                        url: url.clone(),
+                        local_etag: local_etag.clone(),
+                        server_etag: etag,
+                        version: version.clone(),
+                    },
                 );
-            },
+            }
             _ => {}
         }
     }
@@ -1231,7 +1254,9 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
-fn download_direct_download_etags(config_data: &mut JuliaupConfig) -> Result<Vec<(String,String)>> {
+fn download_direct_download_etags(
+    config_data: &mut JuliaupConfig,
+) -> Result<Vec<(String, String)>> {
     use windows::core::HSTRING;
 
     let http_client =
@@ -1241,27 +1266,46 @@ fn download_direct_download_etags(config_data: &mut JuliaupConfig) -> Result<Vec
         .installed_channels
         .iter()
         .filter_map(|(channel_name, channel)| {
-            if let JuliaupConfigChannel::DirectDownloadChannel { path: _, url, local_etag: _, server_etag: _, version: _ } = channel { 
-                let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
-                    .with_context(|| "Failed to convert url string to Uri.").unwrap();
+            if let JuliaupConfigChannel::DirectDownloadChannel {
+                path: _,
+                url,
+                local_etag: _,
+                server_etag: _,
+                version: _,
+            } = channel
+            {
+                let request_uri =
+                    windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+                        .with_context(|| "Failed to convert url string to Uri.")
+                        .unwrap();
 
-                let request = HttpRequestMessage::Create(&HttpMethod::Head().unwrap(), &request_uri).unwrap();
+                let request =
+                    HttpRequestMessage::Create(&HttpMethod::Head().unwrap(), &request_uri).unwrap();
 
-                let request = http_client
-                    .SendRequestAsync(&request)
-                    .unwrap();
-   
+                let request = http_client.SendRequestAsync(&request).unwrap();
+
                 Some((channel_name, request))
-            } else { 
+            } else {
                 None
             }
         })
         .collect();
-        
 
     let requests: Vec<_> = requests
         .into_iter()
-        .map(|(channel_name, request)| (channel_name.clone(), request.get().unwrap().Headers().unwrap().Lookup(&HSTRING::from("etag")).unwrap().to_string()))
+        .map(|(channel_name, request)| {
+            (
+                channel_name.clone(),
+                request
+                    .get()
+                    .unwrap()
+                    .Headers()
+                    .unwrap()
+                    .Lookup(&HSTRING::from("etag"))
+                    .unwrap()
+                    .to_string(),
+            )
+        })
         .collect();
 
     Ok(requests)
