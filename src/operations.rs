@@ -31,8 +31,6 @@ use std::{
 use tar::Archive;
 use tempfile::Builder;
 use url::Url;
-use windows::Web::Http::HttpMethod;
-use windows::Web::Http::HttpRequestMessage;
 
 fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -57,7 +55,7 @@ pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
-) -> Result<()> {
+) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
     let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -77,6 +75,14 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
+    let last_modified = response
+        .headers()
+        .get("etag")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+
     let response_with_pb = pb.wrap_read(response);
 
     let tar = GzDecoder::new(response_with_pb);
@@ -84,7 +90,7 @@ pub fn download_extract_sans_parent(
     unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
-    Ok(())
+    Ok(last_modified)
 }
 
 #[cfg(windows)]
@@ -619,16 +625,20 @@ pub fn create_symlink(
                     )
                 })?;
         }
-        JuliaupConfigChannel::NightlyChannel { nightly_version } => {
-            let child_target_foldername = format!("julia-{}", nightly_version);
-
-            let target_path = paths.juliauphome.join(&child_target_foldername);
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url: _,
+            local_etag: _,
+            server_etag: _,
+            version,
+        } => {
+            let target_path = paths.juliauphome.join(path);
 
             eprintln!(
                 "{} {} for Julia {}.",
                 style("Creating symlink").cyan().bold(),
                 symlink_name,
-                nightly_version
+                version
             );
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
@@ -1254,10 +1264,13 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
+#[cfg(windows)]
 fn download_direct_download_etags(
     config_data: &mut JuliaupConfig,
 ) -> Result<Vec<(String, String)>> {
     use windows::core::HSTRING;
+    use windows::Web::Http::HttpMethod;
+    use windows::Web::Http::HttpRequestMessage;
 
     let http_client =
         windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
@@ -1305,6 +1318,45 @@ fn download_direct_download_etags(
                     .unwrap()
                     .to_string(),
             )
+        })
+        .collect();
+
+    Ok(requests)
+}
+
+#[cfg(not(windows))]
+fn download_direct_download_etags(
+    config_data: &mut JuliaupConfig,
+) -> Result<Vec<(String, String)>> {
+    let client = reqwest::blocking::Client::new();
+
+    let requests: Vec<_> = config_data
+        .installed_channels
+        .iter()
+        .filter_map(|(channel_name, channel)| {
+            if let JuliaupConfigChannel::DirectDownloadChannel {
+                path: _,
+                url,
+                local_etag: _,
+                server_etag: _,
+                version: _,
+            } = channel
+            {
+                let etag = client
+                    .head(url)
+                    .send()
+                    .unwrap()
+                    .headers()
+                    .get("etag")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+
+                Some((channel_name.clone(), etag))
+            } else {
+                None
+            }
         })
         .collect();
 

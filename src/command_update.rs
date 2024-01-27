@@ -18,7 +18,7 @@ fn update_channel(
     paths: &GlobalPaths,
 ) -> Result<()> {
     let current_version =
-        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?;
+        &config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?.clone();
 
     match current_version {
         JuliaupConfigChannel::SystemChannel { version } => {
@@ -77,7 +77,7 @@ fn update_channel(
             url,
             local_etag,
             server_etag,
-            version: _,
+            version,
         } => {
             if local_etag != server_etag {
                 let channel_data =
@@ -87,11 +87,20 @@ fn update_channel(
                     .installed_channels
                     .insert(channel.clone(), channel_data);
 
-                    #[cfg(not(windows))]
-                    if config_db.settings.create_channel_symlinks {
-                        create_symlink(&config_channel, &channel, paths)?;
-                    }            
-        
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(
+                        &JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: server_etag.clone(),
+                            version: version.clone(),
+                        },
+                        &channel,
+                        paths,
+                    )?;
+                }
             }
         }
     }
