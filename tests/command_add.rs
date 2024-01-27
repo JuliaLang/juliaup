@@ -14,7 +14,7 @@ fn command_add() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.6.4")
         .arg("-e")
