@@ -77,8 +77,11 @@ fn update_channel(
             url,
             local_etag,
             server_etag,
-            version: _,
+            version,
         } => {
+            // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+            assert!(!version.is_empty());
+
             if local_etag != server_etag {
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
