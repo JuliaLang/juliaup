@@ -57,19 +57,9 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         url: _,
                         local_etag: _,
                         server_etag: _,
-                        version: _,
+                        version,
                     } => {
-                        // let last_update = config_file
-                        //     .data
-                        //     .installed_versions
-                        //     .get(nightly_version)
-                        //     .unwrap()
-                        //     .last_update;
-                        // let now = Utc::now();
-                        // let duration = now.signed_duration_since(last_update);
-                        // let days_old = duration.num_days();
-                        // format!("{} ({} days old)", nightly_version, days_old)
-                        format!("FOOO") // TODO FIX
+                        format!("Development version {}", version)
                     }
                     JuliaupConfigChannel::LinkedChannel { command, args } => {
                         let mut combined_command = String::new();
@@ -117,10 +107,12 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: _,
                         url: _,
-                        local_etag: _,
-                        server_etag: _,
+                        local_etag,
+                        server_etag,
                         version: _,
-                    } => "".to_string(),
+                    } => {
+                        if local_etag!=server_etag { "Update available".to_string() } else { "".to_string() }
+                    },
                 },
             }
         })
