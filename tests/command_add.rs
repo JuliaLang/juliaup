@@ -45,5 +45,10 @@ fn command_add() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::is_match("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)-DEV\\.(0|[1-9]\\d*)").unwrap());
+        .stdout(
+            predicate::str::is_match(
+                "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)-DEV\\.(0|[1-9]\\d*)",
+            )
+            .unwrap(),
+        );
 }
