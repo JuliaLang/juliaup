@@ -703,6 +703,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
+        generateReleaseNotes: true
 
   deploy-github-release-binaries:
     needs: [package-portable]
