@@ -117,6 +117,7 @@ The available system provided channels are:
 - `lts`: always points to the latest long term supported version.
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
+- `nightly`: always points to the latest build from the `master` branch in the Julia repository.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.
