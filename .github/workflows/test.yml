@@ -125,9 +125,8 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
 
   test-juliaup:
-    runs-on: ${{ matrix.os }}-latest    
+    runs-on: ${{ matrix.os }}-latest
     strategy:
-      fail-fast: false
       matrix:
         target: [
           x86_64-pc-windows-msvc,
