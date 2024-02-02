@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.14.1] - 2/2/2024
+
+### Fixed
+- Use StoreBroker directly from GitHub until new version is released
+
 ## [1.14.0] - 2/2/2024
 
 ### Added
