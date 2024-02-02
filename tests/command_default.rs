@@ -24,7 +24,7 @@ fn command_default() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")

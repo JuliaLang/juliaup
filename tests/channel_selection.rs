@@ -44,7 +44,7 @@ fn channel_selection() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -54,7 +54,7 @@ fn channel_selection() {
         .success()
         .stdout("1.6.7");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.5")
         .arg("-e")
@@ -65,7 +65,7 @@ fn channel_selection() {
         .success()
         .stdout("1.8.5");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -76,7 +76,7 @@ fn channel_selection() {
         .success()
         .stdout("1.7.3");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.5")
         .arg("-e")
@@ -90,7 +90,7 @@ fn channel_selection() {
 
     // Now testing incorrect channels
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.6")
         .arg("-e")
@@ -101,7 +101,7 @@ fn channel_selection() {
         .failure()
         .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -114,7 +114,7 @@ fn channel_selection() {
             "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.\n",
         );
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.6")
         .arg("-e")

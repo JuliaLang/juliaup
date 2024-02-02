@@ -208,13 +208,46 @@ fn get_julia_path_from_channel(
 
             check_channel_uptodate(channel, version, versions_db).with_context(|| {
                 format!(
-                    "The Julia launcher failed while checking whether the channe {} is up-to-date.",
+                    "The Julia launcher failed while checking whether the channel {} is up-to-date.",
                     channel
                 )
             })?;
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
+                .join(path)
+                .join("bin")
+                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                .normalize()
+                .with_context(|| {
+                    format!(
+                        "Failed to normalize path for Julia binary, starting from `{}`.",
+                        juliaupconfig_path.display()
+                    )
+                })?;
+            return Ok((absolute_path.into_path_buf(), Vec::new()));
+        }
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url: _,
+            local_etag,
+            server_etag,
+            version: _,
+        } => {
+            if local_etag != server_etag {
+                eprintln!(
+                    "A new version of Julia for the `{}` channel is available. Run:",
+                    channel
+                );
+                eprintln!();
+                eprintln!("  juliaup update");
+                eprintln!();
+                eprintln!("to install the latest Julia for the `{}` channel.", channel);
+            }
+
+            let absolute_path = juliaupconfig_path
+                .parent()
+                .unwrap()
                 .join(path)
                 .join("bin")
                 .join(format!("julia{}", std::env::consts::EXE_SUFFIX))

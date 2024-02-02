@@ -72,7 +72,7 @@ fn command_override_cur_dir_test() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -94,7 +94,7 @@ fn command_override_cur_dir_test() {
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -115,7 +115,7 @@ fn command_override_cur_dir_test() {
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -163,7 +163,7 @@ fn command_override_arg_test() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -186,7 +186,7 @@ fn command_override_arg_test() {
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -208,7 +208,7 @@ fn command_override_arg_test() {
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -292,7 +292,7 @@ fn command_override_overlap_test() {
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
@@ -303,7 +303,7 @@ fn command_override_overlap_test() {
         .success()
         .stdout("1.7.3");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")

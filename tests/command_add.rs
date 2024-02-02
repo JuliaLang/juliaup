@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use predicates::prelude::predicate;
 
 #[test]
 fn command_add() {
@@ -14,7 +15,17 @@ fn command_add() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("add")
+        .arg("nightly")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.6.4")
         .arg("-e")
@@ -24,4 +35,20 @@ fn command_add() {
         .assert()
         .success()
         .stdout("1.6.4");
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+nightly")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::is_match(
+                "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)-DEV\\.(0|[1-9]\\d*)",
+            )
+            .unwrap(),
+        );
 }
