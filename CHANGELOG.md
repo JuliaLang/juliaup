@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.14.4] - 2/2/2024
+
+### Fixed
+- Fix how we force old PowerShell version    ([`f94ee4b`](https://github.com/JuliaLang/juliaup/commit/f94ee4b)) (davidanthoff)
+
+## [1.14.3] - 2/2/2024
+
+### Fixed
+- Force old PowerShell version on workflow to fix StoreBroker ([`40c954d`](https://github.com/JuliaLang/juliaup/commit/40c954d)) (davidanthoff)
+
+## [1.14.2] - 2/2/2024
+
+### Fixed
+- Fix use of direct download StoreBroker ([`40a0d94`](https://github.com/JuliaLang/juliaup/commit/40a0d94)) (davidanthoff)
+
 ## [1.14.1] - 2/2/2024
 
 ### Fixed
@@ -12,3 +27,6 @@
 
 [1.14.0]: https://github.com/JuliaLang/juliaup/releases/tag/v1.14.0
 [1.14.1]: https://github.com/JuliaLang/juliaup/releases/tag/v1.14.1
+[1.14.2]: https://github.com/JuliaLang/juliaup/releases/tag/v1.14.1
+[1.14.3]: https://github.com/JuliaLang/juliaup/releases/tag/v1.14.1
+[1.14.4]: https://github.com/JuliaLang/juliaup/releases/tag/v1.14.1
