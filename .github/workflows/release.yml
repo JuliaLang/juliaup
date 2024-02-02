@@ -557,7 +557,11 @@ jobs:
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
-      run: Install-Module -Name StoreBroker -Force
+      run: |
+        # TODO Revert back to installing from the PowerShell Gallery once they have uploaded a fixed version there
+        # Install-Module -Name StoreBroker -Force
+        git clone https://github.com/microsoft/StoreBroker.git
+        Import-Module .\StoreBroker\StoreBroker\StoreBroker.psd1 -Verbose
     - name: Download and extract bundled Julia versions
       run: |      
         $x64Versions = Get-Content versiondb\versiondb-x86_64-pc-windows-msvc.json | ConvertFrom-Json
