@@ -560,8 +560,7 @@ jobs:
       run: |
         # TODO Revert back to installing from the PowerShell Gallery once they have uploaded a fixed version there
         # Install-Module -Name StoreBroker -Force
-        git clone https://github.com/microsoft/StoreBroker.git
-        Import-Module .\StoreBroker\StoreBroker\StoreBroker.psd1 -Verbose
+        git clone https://github.com/microsoft/StoreBroker.git        
     - name: Download and extract bundled Julia versions
       run: |      
         $x64Versions = Get-Content versiondb\versiondb-x86_64-pc-windows-msvc.json | ConvertFrom-Json
@@ -617,6 +616,7 @@ jobs:
     - name: Package Windows Store payload
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
+        Import-Module .\StoreBroker\StoreBroker\StoreBroker.psd1 -Verbose
         New-SubmissionPackage -ConfigPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "SBConfig.json") -PDPRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "pdps") -ImagesRootPath (Join-Path $env:GITHUB_WORKSPACE "deploy" "winstoresubmission" "images") -AppxPath target\msix\winstoremsix\*.appxbundle -OutPath (Join-Path $env:GITHUB_WORKSPACE "storepackage") -OutName Upload
     - name: Rename and move juliainstaller
       run: |
