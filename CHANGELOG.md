@@ -1,9 +1,14 @@
 # Changelog
 
+## [1.14.5] - 2/2/2024
+
+### Fixed
+- Fix more StoreBroker bugs ([`4fef76f`](https://github.com/JuliaLang/juliaup/commit/4fef76f)) (davidanthoff)
+
 ## [1.14.4] - 2/2/2024
 
 ### Fixed
-- Fix how we force old PowerShell version    ([`f94ee4b`](https://github.com/JuliaLang/juliaup/commit/f94ee4b)) (davidanthoff)
+- Fix how we force old PowerShell version ([`f94ee4b`](https://github.com/JuliaLang/juliaup/commit/f94ee4b)) (davidanthoff)
 
 ## [1.14.3] - 2/2/2024
 
