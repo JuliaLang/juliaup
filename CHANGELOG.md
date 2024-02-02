@@ -3,7 +3,7 @@
 ## [1.14.1] - 2/2/2024
 
 ### Fixed
-- Use StoreBroker directly from GitHub until new version is released ([`00a39e9`](hhttps://github.com/JuliaLang/juliaup/commit/00a39e9)) (davidanthoff)
+- Use StoreBroker directly from GitHub until new version is released ([`00a39e9`](https://github.com/JuliaLang/juliaup/commit/00a39e9)) (davidanthoff)
 
 ## [1.14.0] - 2/2/2024
 
