@@ -9,6 +9,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -18,6 +19,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.7.3")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -27,6 +29,7 @@ fn channel_selection() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -36,45 +39,50 @@ fn channel_selection() {
         .arg("default")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.6.7");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.5")
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.8.5");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
         .success()
         .stdout("1.7.3");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.5")
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
         .success()
@@ -82,36 +90,39 @@ fn channel_selection() {
 
     // Now testing incorrect channels
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.6")
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr("ERROR: Invalid Juliaup channel `1.8.6` at command line.\n");
+        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
         .stderr(
-            "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL.\n",
+            "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.\n",
         );
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8.6")
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr("ERROR: Invalid Juliaup channel `1.8.6` at command line.\n");
+        .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
 }

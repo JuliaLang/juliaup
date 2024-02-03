@@ -109,6 +109,23 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Err(_) => continue,
                 }
             }
+            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
+                JuliaupChannelInfo {
+                    name: key.clone(),
+                    file: paths.juliauphome
+                        .join(path)
+                        .join("bin")
+                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                        .normalize()
+                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
+                        .into_path_buf()
+                        .to_string_lossy()
+                        .to_string(),
+                    args: Vec::new(),
+                    version: version.clone(),
+                    arch: "".to_string(),
+                }
+            }
         };
 
         match config_file.data.default {
@@ -118,11 +135,9 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 } else {
                     ret_value.other_versions.push(curr);
                 }
-                ()
             }
             None => {
                 ret_value.other_versions.push(curr);
-                ()
             }
         }
     }

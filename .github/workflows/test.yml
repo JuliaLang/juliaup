@@ -106,16 +106,15 @@ jobs:
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: actions-rs/toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-        default: true
         target: ${{matrix.target}}
     - name: Check build
-      uses: actions-rs/cargo@v1
+      uses: clechasseur/rs-cargo@v2
       with:
         command: check
         use-cross: ${{ matrix.os == 'ubuntu' }}
@@ -175,23 +174,20 @@ jobs:
             rustflags:
             toolchain: stable-i686-gnu
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@v2
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
-    - uses: actions-rs/toolchain@v1
+        version: 12.2.0
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{matrix.toolchain}}
-        default: true
         target: ${{matrix.target}}
     - name: Test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --target ${{matrix.target}} --features ${{matrix.features}}
+      run: cargo test --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}

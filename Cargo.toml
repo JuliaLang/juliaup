@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.11.11"
+version = "1.14.5"
 description = "Julia installer and version multiplexer"
 repository = "https://github.com/julialang/juliaup"
 license = "MIT"
@@ -26,65 +26,67 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.0.15", features = ["derive"] }
+clap = { version = "4.3.19", features = ["derive"] }
+clap_complete = "4.3.19"
 dirs = "5.0.1"
-dunce = "1"
-serde = {version = "1", features = ["derive"] }
-serde_json = "1"
-semver = "1"
-anyhow = "1"
-tempfile = "3"
-flate2 = "1"
-tar = "0.4"
-normpath = "1.0.0"
-fs_extra = "1.2"
-thiserror = "1"
-indicatif = "0.17.0"
-console = "0.15"
-ctrlc = "3.2.1"
-url = "2"
-cli-table = "0.4"
-itertools = "0.11.0"
-cluFlock = "1.2.5"
-chrono = {version = "0.4", features = ["serde"]}
-human-panic = "1.0.3"
-log = "0.4.14"
-env_logger = "0.10.0"
-dialoguer = "0.10.0"
-shellexpand = "3.0.0"
+dunce = "1.0.4"
+serde = { version = "1.0.175", features = ["derive"] }
+serde_json = "1.0.103"
+semver = "1.0.18"
+anyhow = "1.0.72"
+tempfile = "3.7.0"
+flate2 = "1.0.26"
+tar = "0.4.39"
+normpath = "1.1.1"
+fs_extra = "1.3.0"
+thiserror = "1.0.44"
+indicatif = "0.17.5"
+console = "0.15.7"
+ctrlc = "3.4.0"
+url = "2.4.0"
+cli-table = "0.4.7"
+itertools = "0.12.0"
+cluFlock = "1.2.7"
+chrono = { version = "0.4.26", features = ["serde"] }
+human-panic = "1.1.5"
+log = "0.4.19"
+env_logger = "0.11.0"
+dialoguer = "0.11.0"
+shellexpand = "3.1.0"
 env_proxy = "0.4.1"
-bstr = "1.0.1"
-indoc = "2.0.1"
-is-terminal = "0.4.7"
-path-absolutize = "3"
+bstr = "1.6.0"
+indoc = "2.0.3"
+is-terminal = "0.4.9"
+path-absolutize = "3.1.0"
+human-sort = "0.2.2"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.48.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Storage_Streams",] }
+windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams",] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "native-tls", "socks"] }
+reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "native-tls", "socks"] }
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
+reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
-nix = { version = "0.26" }
+nix = { version = "0.27.1", features = ["process"] }
 
 [build-dependencies]
-anyhow = "1"
-itertools = "0.11.0"
-serde = {version = "1", features = ["derive"] }
-serde_json = "1"
-semver = "1"
-built = "0.6.0"
+anyhow = "1.0.72"
+itertools = "0.12.0"
+serde = { version = "1.0.175", features = ["derive"] }
+serde_json = "1.0.103"
+semver = "1.0.18"
+built = "0.7.1"
 
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
+winres = "0.1.12"
 
 [dev-dependencies]
-assert_cmd = "2"
-assert_fs = "1"
-indoc = "2.0.1"
+assert_cmd = "2.0.12"
+assert_fs = "1.0.13"
+indoc = "2.0.3"
 predicates = "3.0.3"
 
 [features]

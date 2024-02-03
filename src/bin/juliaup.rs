@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use juliaup::{command_add::run_command_add, command_override::run_command_override_set};
+use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
 use juliaup::command_api::run_command_api;
+use juliaup::command_completions::run_command_completions;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
@@ -18,136 +19,22 @@ use juliaup::command_status::run_command_status;
 use juliaup::command_update::run_command_update;
 use juliaup::command_update_version_db::run_command_update_version_db;
 use juliaup::global_paths::get_paths;
+use juliaup::{command_add::run_command_add, command_override::run_command_override_set};
 #[cfg(feature = "selfupdate")]
 use juliaup::{
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_modifypath::run_command_config_modifypath,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
-    command_selfchannel::run_command_selfchannel, command_selfuninstall::run_command_selfuninstall,
+    command_selfchannel::run_command_selfchannel,
 };
+
+#[cfg(feature = "selfupdate")]
+use juliaup::command_selfuninstall::run_command_selfuninstall;
+
+#[cfg(not(feature = "selfupdate"))]
+use juliaup::command_selfuninstall::run_command_selfuninstall_unavailable;
+
 use log::info;
-
-#[derive(Parser)]
-#[clap(name = "Juliaup", version)]
-/// The Julia Version Manager
-enum Juliaup {
-    /// Set the default Julia version
-    Default { channel: String },
-    /// Add a specific Julia version or channel to your system. Access via `julia +{channel}` e.g. `julia +1.6`
-    Add { channel: String },
-    /// Link an existing Julia binary to a custom channel name
-    Link {
-        channel: String,
-        file: String,
-        args: Vec<String>,
-    },
-    /// List all available channels
-    #[clap(alias = "ls")]
-    List {},
-    #[clap(subcommand, name = "override")]
-    OverrideSubCmd(OverrideSubCmd),
-    #[clap(alias = "up")]
-    /// Update all or a specific channel to the latest Julia version
-    Update { channel: Option<String> },
-    #[clap(alias = "rm")]
-    /// Remove a Julia version from your system
-    Remove { channel: String },
-    #[clap(alias = "st")]
-    /// Show all installed Julia versions
-    Status {},
-    /// Garbage collect uninstalled Julia versions
-    Gc {},
-    #[clap(subcommand, name = "config")]
-    /// Juliaup configuration
-    Config(ConfigSubCmd),
-    #[clap(hide = true)]
-    Api { command: String },
-    #[clap(name = "46029ef5-0b73-4a71-bff3-d0d05de42aac", hide = true)]
-    InitialSetupFromLauncher {},
-    #[clap(name = "0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf", hide = true)]
-    UpdateVersionDb {},
-    #[clap(name = "info", hide = true)]
-    Info {},
-    #[clap(subcommand, name = "self")]
-    SelfSubCmd(SelfSubCmd),
-    // This is used for the cron jobs that we create. By using this UUID for the command
-    // We can identify the cron jobs that were created by juliaup for uninstall purposes
-    #[cfg(feature = "selfupdate")]
-    #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", hide = true)]
-    SecretSelfUpdate {},
-}
-
-#[derive(Parser)]
-/// Manage directory overrides
-enum OverrideSubCmd {
-    Status {},
-    Set { 
-        channel: String,
-        #[clap(long, short)]
-        path: Option<String>
-    },
-    Unset {
-        #[clap(long, short)]
-        nonexistent: bool,
-        #[clap(long, short)]
-        path: Option<String>,
-    }
-}
-
-#[derive(Parser)]
-/// Manage this juliaup installation
-enum SelfSubCmd {
-    #[cfg(not(feature = "selfupdate"))]
-    /// Update the Julia versions database
-    Update {},
-    #[cfg(feature = "selfupdate")]
-    /// Update the Julia versions database and juliaup itself
-    Update {},
-    #[cfg(feature = "selfupdate")]
-    /// Configure the channel to use for juliaup updates
-    Channel { channel: String },
-    #[cfg(feature = "selfupdate")]
-    /// Uninstall this version of juliaup from the system
-    Uninstall {},
-}
-
-#[derive(Parser)]
-enum ConfigSubCmd {
-    #[cfg(not(windows))]
-    #[clap(name = "channelsymlinks")]
-    /// Create a separate symlink per channel
-    ChannelSymlinks {
-        /// New Value
-        value: Option<bool>,
-    },
-    #[cfg(feature = "selfupdate")]
-    #[clap(name = "backgroundselfupdateinterval")]
-    /// The time between automatic background updates of Juliaup in minutes, use 0 to disable.
-    BackgroundSelfupdateInterval {
-        /// New value
-        value: Option<i64>,
-    },
-    #[cfg(feature = "selfupdate")]
-    #[clap(name = "startupselfupdateinterval")]
-    /// The time between automatic updates at Julia startup of Juliaup in minutes, use 0 to disable.
-    StartupSelfupdateInterval {
-        /// New value
-        value: Option<i64>,
-    },
-    #[cfg(feature = "selfupdate")]
-    #[clap(name = "modifypath")]
-    /// Add the Julia binaries to your PATH by manipulating various shell startup scripts.
-    ModifyPath {
-        /// New value
-        value: Option<bool>,
-    },
-    /// The time between automatic updates of the versions database in minutes, use 0 to disable.
-    #[clap(name = "versionsdbupdateinterval")]
-    VersionsDbUpdateInterval {
-        /// New value
-        value: Option<i64>,
-    },
-}
 
 fn main() -> Result<()> {
     human_panic::setup_panic!(human_panic::Metadata {
@@ -205,10 +92,14 @@ fn main() -> Result<()> {
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
         Juliaup::OverrideSubCmd(subcmd) => match subcmd {
-            OverrideSubCmd::Status {  } => run_command_override_status(&paths),
-            OverrideSubCmd::Set { channel, path } => run_command_override_set(&paths, channel, path),
-            OverrideSubCmd::Unset { nonexistent, path } => run_command_override_unset(&paths, nonexistent, path),
-        }
+            OverrideSubCmd::Status {} => run_command_override_status(&paths),
+            OverrideSubCmd::Set { channel, path } => {
+                run_command_override_set(&paths, channel, path)
+            }
+            OverrideSubCmd::Unset { nonexistent, path } => {
+                run_command_override_unset(&paths, nonexistent, path)
+            }
+        },
         Juliaup::Info {} => run_command_info(&paths),
         #[cfg(feature = "selfupdate")]
         Juliaup::SecretSelfUpdate {} => run_command_selfupdate(&paths),
@@ -218,6 +109,9 @@ fn main() -> Result<()> {
             SelfSubCmd::Channel { channel } => run_command_selfchannel(channel, &paths),
             #[cfg(feature = "selfupdate")]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall(&paths),
+            #[cfg(not(feature = "selfupdate"))]
+            SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
+        Juliaup::Completions { shell } => run_command_completions(&shell),
     }
 }

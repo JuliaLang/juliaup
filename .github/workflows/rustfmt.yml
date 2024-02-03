@@ -1,8 +1,10 @@
 name: rustfmt
 
 on:
-  pull_request:
+  push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   rustfmt:
@@ -10,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
+          components: rustfmt
       - name: Rustfmt check
         run: cargo fmt -- --check -v

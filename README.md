@@ -74,6 +74,14 @@ On openSUSE Tumbleweed, Juliaup is available. To install, run with root privileg
 zypper install juliaup
 ```
 
+##### [Solus](https://getsol.us)
+
+On Solus, Juliaup is available. To install, run with root privileges:
+
+```sh
+eopkg install juliaup
+```
+
 ##### [cargo](https://crates.io/crates/juliaup/)
 
 To install via Rust's cargo, run:
@@ -107,6 +115,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup override set --path foo/bar lts` sets a directory override for the path `foo/bar` to the `lts` channel.
 - `juliaup override unset --path foo/bar` removes a directory override for the path `foo/bar`.
 - `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
+- `juliaup completions bash > ~/.local/share/bash-completion/completions/juliaup` generates Bash completions for `juliaup` and saves them to a file. To use them, simply source this file in your `~/.bashrc`. Other supported shells are `zsh`, `fish`, `elvish` and `powershell`.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
@@ -114,6 +123,7 @@ The available system provided channels are:
 - `lts`: always points to the latest long term supported version.
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
+- `nightly`: always points to the latest build from the `master` branch in the Julia repository.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.
@@ -136,6 +146,12 @@ The Julia launcher `julia` automatically determines which specific version of Ju
 3. The default Juliaup channel.
 
 The channel is used in the order listed above, using the first available option.
+
+## Path used by Juliaup
+
+Juliaup will by default use the Julia depot at `~/.julia` to store Julia versions and configuration files. This can be changed by setting
+the `JULIAUP_DEPOT_PATH` environment variable. Caution: Previous versions of Juliaup used the content of the environment variable
+`JULIA_DEPOT_PATH` to locate Juliaup files, the current version changed this behavior and no longer depends on `JULIA_DEPOT_PATH`.
 
 ## Juliaup server
 
