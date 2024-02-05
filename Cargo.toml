@@ -64,7 +64,7 @@ human-sort = "0.2.2"
 windows = { version = "0.52.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams",] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "native-tls", "socks"] }
+reqwest = { version = "0.11.24", default-features = false, features = ["blocking", "native-tls", "socks"] }
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
 reqwest = { version = "0.11.18", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
