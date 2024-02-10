@@ -29,6 +29,12 @@ function triplet2channel(triplet)
         "x86"
     elseif triplet=="aarch64-linux-gnu"
         "aarch64"
+    elseif triplet=="x86_64-linux-musl"
+        "x64"
+    elseif triplet=="i686-linux-musl"
+        "x86"
+    elseif triplet=="aarch64-linux-musl"
+        "aarch64"
     else
         error("Unknown platform.")
     end
@@ -59,11 +65,11 @@ function get_available_versions(data, platform)
     elseif platform=="aarch64-unknown-linux-gnu"
         ["aarch64-linux-gnu"]
     elseif platform=="x86_64-unknown-linux-musl"
-        ["x86_64-linux-gnu", "i686-linux-gnu"]
+        ["x86_64-linux-musl", "i686-linux-musl"]
     elseif platform=="i686-unknown-linux-musl"
-        ["i686-linux-gnu"]
+        ["i686-linux-musl"]
     elseif platform=="aarch64-unknown-linux-musl"
-        ["aarch64-linux-gnu"]
+        ["aarch64-linux-musl"]
     else
         error("Unknown platform.")
     end
