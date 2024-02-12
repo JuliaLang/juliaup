@@ -56,7 +56,7 @@ shellexpand = "3.1.0"
 env_proxy = "0.4.1"
 bstr = "1.6.0"
 indoc = "2.0.3"
-is-terminal = "0.4.9"
+is-terminal = "0.4.12"
 path-absolutize = "3.1.0"
 human-sort = "0.2.2"
 
