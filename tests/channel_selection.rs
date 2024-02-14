@@ -125,4 +125,42 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
+
+    // Now testing short channel matching
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+1.8")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.3")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("add")
+        .arg("1.8.4")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+1.8")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.4")
+        .assert()
+        .failure()
+        .stderr(
+            "`1.8` is not installed. Please run `juliaup add 1.8` to install channel or version.\n",
+        );
 }
