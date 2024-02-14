@@ -305,7 +305,14 @@ fn run_app() -> Result<i32> {
         let first_arg = &args[1];
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
-            channel_from_cmd_line = Some(stripped.to_string());
+            channel_from_cmd_line = match stripped {
+                "a" => Some("alpha".to_string()),
+                "b" => Some("beta".to_string()),
+                "l" => Some("lts".to_string()),
+                "n" => Some("nightly".to_string()),
+                "r" => Some("release".to_string()),
+                strip => Some(strip.to_string())
+            }
         }
     }
 
