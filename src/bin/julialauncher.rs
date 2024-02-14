@@ -311,7 +311,7 @@ fn run_app() -> Result<i32> {
                 "l" => Some("lts".to_string()),
                 "n" => Some("nightly".to_string()),
                 "r" => Some("release".to_string()),
-                strip => Some(strip.to_string())
+                strip => Some(strip.to_string()),
             }
         }
     }
