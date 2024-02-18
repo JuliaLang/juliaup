@@ -145,7 +145,7 @@ fn check_channel_uptodate(
         eprintln!("  juliaup update");
         eprintln!();
         eprintln!(
-            "to install Julia {} and update the `{}` channel to that version.",
+            "in your terminal shell to install Julia {} and update the `{}` channel to that version.",
             latest_version, channel
         );
     }
