@@ -62,9 +62,12 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 brew install juliaup
 ```
 
-##### [Arch Linux - AUR](https://aur.archlinux.org/packages/juliaup/)
+##### Arch Linux - AUR
 
-On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
+On Arch Linux, Juliaup is available in the Arch User Repository (AUR) in two packages.
+
+1. [juliaup](https://aur.archlinux.org/packages/juliaup/) (locally built)
+2. [juliaup-bin](https://aur.archlinux.org/packages/juliaup-bin/) (binary from github releases)
 
 ##### [openSUSE Tumbleweed](https://get.opensuse.org/tumbleweed/)
 
