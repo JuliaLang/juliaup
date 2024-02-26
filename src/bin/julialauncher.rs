@@ -283,10 +283,6 @@ fn get_override_channel(
 }
 
 fn run_app() -> Result<i32> {
-    // Set console title
-    let term = Term::stdout();
-    term.set_title("Julia");
-
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     do_initial_setup(&paths.juliaupconfig)
