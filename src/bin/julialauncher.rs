@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use console::Term;
 use atty::Stream;
+use console::Term;
 use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
@@ -289,7 +289,7 @@ fn run_app() -> Result<i32> {
         let term = Term::stdout();
         term.set_title("Julia");
     }
-    
+
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     do_initial_setup(&paths.juliaupconfig)
