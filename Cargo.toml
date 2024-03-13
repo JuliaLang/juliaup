@@ -27,7 +27,7 @@ codegen-units = 1
 
 [dependencies]
 clap = { version = "4.3.19", features = ["derive"] }
-clap_complete = "4.3.19"
+clap_complete = "4.5.1"
 dirs = "5.0.1"
 dunce = "1.0.4"
 serde = { version = "1.0.175", features = ["derive"] }
