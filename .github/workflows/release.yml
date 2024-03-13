@@ -649,9 +649,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Wix
-      run: dotnet tool install --global wix
+      run: dotnet tool install --global wix --version 4.0.4
     - name: Install Wix UI extensions
-      run: wix extension add -g WixToolset.UI.wixext
+      run: wix extension add -g WixToolset.UI.wixext/4.0.4
     - name: Install AzureSignTool
       run: dotnet tool install --global AzureSignTool
     - name: Download x86 Juliaup Windows MSI artifact
