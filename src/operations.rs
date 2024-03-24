@@ -431,6 +431,13 @@ pub fn identify_nightly(channel: &String) -> Result<String> {
         } else {
             bail!("Unsupported architecture for nightly channel on Linux.")
         }
+
+        #[cfg(target_os = "freebsd")]
+        if arch == "x64" {
+            "latest-freebsd-x86_64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on FreeBSD.")
+        }
     };
 
     Ok(name.to_string())
@@ -506,6 +513,7 @@ pub fn install_nightly(
         "latest-linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"),
         "latest-linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz"),
         "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
+        "latest-freebsd-x86_64" => Ok("bin/freebsd/x86_64/julia-latest-freebsd-x86_64.tar.gz"),
         _ => Err(anyhow!("Unknown nightly.")),
     }?;
     let download_url = download_url_base.join(download_url_path).with_context(|| {

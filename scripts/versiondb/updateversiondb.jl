@@ -15,19 +15,12 @@ function remove_prefix(s, prefix)
 end
 
 function triplet2channel(triplet)
-    if triplet=="x86_64-w64-mingw32"
+    arch = first(split(triplet, '-'))
+    if arch == "x86_64"
         "x64"
-    elseif triplet=="i686-w64-mingw32"
+    elseif arch == "i686"
         "x86"
-    elseif triplet=="x86_64-apple-darwin14"
-        "x64"
-    elseif triplet=="aarch64-apple-darwin14"
-        "aarch64"
-    elseif triplet=="x86_64-linux-gnu"
-        "x64"
-    elseif triplet=="i686-linux-gnu"
-        "x86"
-    elseif triplet=="aarch64-linux-gnu"
+    elseif arch == "aarch64"
         "aarch64"
     else
         error("Unknown platform.")
@@ -64,6 +57,8 @@ function get_available_versions(data, platform)
         ["i686-linux-gnu"]
     elseif platform=="aarch64-unknown-linux-musl"
         ["aarch64-linux-gnu"]
+    elseif platform=="x86_64-unknown-freebsd"
+        ["x86_64-unknown-freebsd11.1"]
     else
         error("Unknown platform.")
     end
@@ -275,6 +270,7 @@ function main_impl(temp_path)
         "x86_64-unknown-linux-musl",
         "i686-unknown-linux-gnu",
         "i686-unknown-linux-musl",
+        "x86_64-unknown-freebsd",
         "x86_64-apple-darwin",
         "x86_64-pc-windows-msvc",
         "i686-pc-windows-msvc",

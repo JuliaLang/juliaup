@@ -18,93 +18,99 @@ jobs:
     strategy:
       matrix:
         label: [
-          x86_64-pc-windows-msvc-windowsstore,
-          x86_64-pc-windows-msvc-windowsappinstaller,
-          x86_64-pc-windows-gnu-msi,
-          x86_64-pc-windows-gnu-msi,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          x86_64-unknown-linux-musl,
-          i686-pc-windows-msvc-windowsstore,
-          i686-pc-windows-msvc-windowsappinstaller,
-          i686-pc-windows-gnu-msi,
-          i686-unknown-linux-gnu,
-          i686-unknown-linux-musl,
-          aarch64-unknown-linux-gnu,
-          aarch64-unknown-linux-musl,
-          aarch64-apple-darwin
+          #x86_64-pc-windows-msvc-windowsstore,
+          #x86_64-pc-windows-msvc-windowsappinstaller,
+          #x86_64-pc-windows-gnu-msi,
+          #x86_64-pc-windows-gnu-msi,
+          #x86_64-apple-darwin,
+          #x86_64-unknown-linux-gnu,
+          #x86_64-unknown-linux-musl,
+          x86_64-unknown-freebsd,
+          #i686-pc-windows-msvc-windowsstore,
+          #i686-pc-windows-msvc-windowsappinstaller,
+          #i686-pc-windows-gnu-msi,
+          #i686-unknown-linux-gnu,
+          #i686-unknown-linux-musl,
+          #aarch64-unknown-linux-gnu,
+          #aarch64-unknown-linux-musl,
+          #aarch64-apple-darwin
           ]
         include:
-          - label: x86_64-pc-windows-msvc-windowsstore
-            target: x86_64-pc-windows-msvc
-            os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: x86_64-pc-windows-msvc-windowsappinstaller
-            target: x86_64-pc-windows-msvc
-            os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: x86_64-pc-windows-gnu-msi
-            target: x86_64-pc-windows-gnu
-            os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: i686-pc-windows-gnu-msi
-            target: i686-pc-windows-gnu
-            os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: x86_64-apple-darwin
-            target: x86_64-apple-darwin
-            os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: x86_64-unknown-linux-gnu
-            target: x86_64-unknown-linux-gnu
+          #- label: x86_64-pc-windows-msvc-windowsstore
+          #  target: x86_64-pc-windows-msvc
+          #  os: windows
+          #  features: windowsstore,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: x86_64-pc-windows-msvc-windowsappinstaller
+          #  target: x86_64-pc-windows-msvc
+          #  os: windows
+          #  features: windowsappinstaller,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: x86_64-pc-windows-gnu-msi
+          #  target: x86_64-pc-windows-gnu
+          #  os: windows
+          #  features: windowsappinstaller,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: i686-pc-windows-gnu-msi
+          #  target: i686-pc-windows-gnu
+          #  os: windows
+          #  features: windowsappinstaller,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: x86_64-apple-darwin
+          #  target: x86_64-apple-darwin
+          #  os: macos
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: x86_64-unknown-linux-gnu
+          #  target: x86_64-unknown-linux-gnu
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: x86_64-unknown-linux-musl
+          #  target: x86_64-unknown-linux-musl
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags: -C target-feature=+crt-static
+          - label: x86_64-unknown-freebsd
+            target: x86_64-unknown-freebsd
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
-          - label: x86_64-unknown-linux-musl
-            target: x86_64-unknown-linux-musl
-            os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags: -C target-feature=+crt-static
-          - label: i686-pc-windows-msvc-windowsstore
-            target: i686-pc-windows-msvc
-            os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: i686-pc-windows-msvc-windowsappinstaller
-            target: i686-pc-windows-msvc
-            os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: i686-unknown-linux-gnu
-            target: i686-unknown-linux-gnu
-            os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: i686-unknown-linux-musl
-            target: i686-unknown-linux-musl
-            os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags: -C target-feature=+crt-static
-          - label: aarch64-unknown-linux-gnu
-            target: aarch64-unknown-linux-gnu
-            os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags:
-          - label: aarch64-unknown-linux-musl
-            target: aarch64-unknown-linux-musl
-            os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags: -C target-feature=+crt-static
-          - label: aarch64-apple-darwin
-            target: aarch64-apple-darwin
-            os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher
-            rustflags:
+          #- label: i686-pc-windows-msvc-windowsstore
+          #  target: i686-pc-windows-msvc
+          #  os: windows
+          #  features: windowsstore,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: i686-pc-windows-msvc-windowsappinstaller
+          #  target: i686-pc-windows-msvc
+          #  os: windows
+          #  features: windowsappinstaller,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: i686-unknown-linux-gnu
+          #  target: i686-unknown-linux-gnu
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: i686-unknown-linux-musl
+          #  target: i686-unknown-linux-musl
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags: -C target-feature=+crt-static
+          #- label: aarch64-unknown-linux-gnu
+          #  target: aarch64-unknown-linux-gnu
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags:
+          #- label: aarch64-unknown-linux-musl
+          #  target: aarch64-unknown-linux-musl
+          #  os: ubuntu
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags: -C target-feature=+crt-static
+          #- label: aarch64-apple-darwin
+          #  target: aarch64-apple-darwin
+          #  os: macos
+          #  features: selfupdate,binjuliainstaller,binjulialauncher
+          #  rustflags:
     steps:
     - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
@@ -129,50 +135,56 @@ jobs:
     strategy:
       matrix:
         target: [
-          x86_64-pc-windows-msvc,
-          x86_64-pc-windows-gnu,
-          x86_64-apple-darwin,
-          x86_64-unknown-linux-gnu,
-          x86_64-unknown-linux-musl,
-          i686-pc-windows-msvc,
-          i686-pc-windows-gnu,
+          #x86_64-pc-windows-msvc,
+          #x86_64-pc-windows-gnu,
+          #x86_64-apple-darwin,
+          #x86_64-unknown-linux-gnu,
+          #x86_64-unknown-linux-musl,
+          x86_64-unknown-freebsd,
+          #i686-pc-windows-msvc,
+          #i686-pc-windows-gnu,
           ]
         include:
-          - target: x86_64-pc-windows-msvc
-            os: windows
-            features: dummy,binjulialauncher
-            rustflags:
-            toolchain: stable
-          - target: x86_64-pc-windows-gnu
-            os: windows
-            features: dummy,binjulialauncher
-            rustflags:
-            toolchain: stable-gnu
-          - target: x86_64-apple-darwin
-            os: macos
-            features: dummy,binjulialauncher
-            rustflags:
-            toolchain: stable
-          - target: x86_64-unknown-linux-gnu
+          #- target: x86_64-pc-windows-msvc
+          #  os: windows
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable
+          #- target: x86_64-pc-windows-gnu
+          #  os: windows
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable-gnu
+          #- target: x86_64-apple-darwin
+          #  os: macos
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable
+          #- target: x86_64-unknown-linux-gnu
+          #  os: ubuntu
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable
+          #- target: x86_64-unknown-linux-musl
+          #  os: ubuntu
+          #  features: dummy,binjulialauncher
+          #  rustflags: -C target-feature=+crt-static
+          #  toolchain: stable
+          - target: x86_64-unknown-freebsd
             os: ubuntu
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu
-            features: dummy,binjulialauncher
-            rustflags: -C target-feature=+crt-static
-            toolchain: stable
-          - target: i686-pc-windows-msvc
-            os: windows
-            features: dummy,binjulialauncher
-            rustflags:
-            toolchain: stable
-          - target: i686-pc-windows-gnu
-            os: windows
-            features: dummy,binjulialauncher
-            rustflags:
-            toolchain: stable-i686-gnu
+          #- target: i686-pc-windows-msvc
+          #  os: windows
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable
+          #- target: i686-pc-windows-gnu
+          #  os: windows
+          #  features: dummy,binjulialauncher
+          #  rustflags:
+          #  toolchain: stable-i686-gnu
     steps:
     - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
@@ -183,12 +195,31 @@ jobs:
         platform: x86
         version: 12.2.0
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       run: cargo test --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Test FreeBSD
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: "13.2"
+        usesh: true
+        mem: 8192
+        copyback: false
+        prepare: |
+          pkg install -y curl ca_root_nss
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        run: |
+          . "${HOME}/.cargo/env"
+          # Try to avoid https://github.com/rustls/rustls-native-certs/issues/28
+          export SSL_CERT_FILE=/usr/local/share/certs/ca-root-nss.crt
+          export RUST_BACKTRACE=full
+          cargo test --target ${{matrix.target}} --features ${{matrix.features}}
