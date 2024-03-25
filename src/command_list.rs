@@ -1,4 +1,4 @@
-use crate::operations::{compatible_nightly_archs, identify_nightly};
+use crate::operations::{compatible_nightly_channels, identify_nightly};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
 use anyhow::{Context, Result};
 use cli_table::{
@@ -20,13 +20,8 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
-    let nightly_channels: Vec<String> = std::iter::once("nightly".to_string())
-        .chain(
-            compatible_nightly_archs()?
-                .into_iter()
-                .map(|arch| format!("nightly~{}", arch)),
-        )
-        .collect();
+    let nightly_channels: Vec<String> = compatible_nightly_channels()?;
+
     let nightly_rows: Vec<ChannelRow> = nightly_channels
         .into_iter()
         .map(|channel| {
