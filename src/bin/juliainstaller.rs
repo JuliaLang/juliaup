@@ -109,7 +109,10 @@ fn is_juliaup_installed() -> bool {
         .stdin(Stdio::null())
         .status();
 
-    exit_status.is_ok()
+    match exit_status {
+        Ok(status) => status.success(),
+        Err(_) => false, // failed to execute `juliaup` command
+    }
 }
 
 #[derive(Parser)]
@@ -129,7 +132,7 @@ struct Juliainstaller {
     #[clap(short = 'p', long = "path")]
     alternate_path: Option<String>,
     /// Control adding the Juliaup dir to the PATH
-    /// Use Option<bool> and default_value="yes" to force --add_to_path=[yes|no|0|1] instead of flag
+    /// Use Option<bool> and default_value="yes" to force --add-to-path=[yes|no|0|1] instead of flag
     #[clap(long = "add-to-path", value_parser = BoolishValueParser::new(), default_value = "yes")]
     add_to_path: Option<bool>,
     /// Manually specify the background self-update interval
@@ -286,7 +289,8 @@ pub fn main() -> Result<()> {
 
     if paths.juliaupconfig.exists() {
         println!("While Juliaup does not seem to be installed on this system, there is a");
-        println!("Juliaup configuration file present from a previous installation.");
+        println!("Juliaup configuration file present from a previous installation:");
+        println!("{}", paths.juliaupconfig.display());
 
         if args.disable_confirmation_prompt {
             println!();
