@@ -51,6 +51,7 @@ curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
+- `--path` (or `-p`): Install `juliaup` in a custom location.
 
 ### Software Repositories
 
