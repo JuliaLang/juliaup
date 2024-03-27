@@ -107,9 +107,12 @@ fn is_juliaup_installed() -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .stdin(Stdio::null())
-        .status()
-        .expect("failed to execute juliaup command");
-    exit_status.success()
+        .status();
+
+    match exit_status {
+        Ok(status) => status.success(),
+        Err(_) => false  // failed to execute `juliaup` command
+    }
 }
 
 #[derive(Parser)]
