@@ -111,7 +111,7 @@ fn is_juliaup_installed() -> bool {
 
     match exit_status {
         Ok(status) => status.success(),
-        Err(_) => false  // failed to execute `juliaup` command
+        Err(_) => false, // failed to execute `juliaup` command
     }
 }
 
