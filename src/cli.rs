@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 #[derive(Parser)]
 #[clap(name = "Juliaup", version)]
@@ -73,6 +73,24 @@ pub enum OverrideSubCmd {
     },
 }
 
+#[derive(Debug, ValueEnum, Clone)]
+#[clap(rename_all = "lowercase")]
+pub enum JuliaupChannel {
+    Release,
+    ReleasePreview,
+    Dev,
+}
+
+impl JuliaupChannel {
+    pub fn to_lowercase(&self) -> &str {
+        match self {
+            JuliaupChannel::Release => "release",
+            JuliaupChannel::ReleasePreview => "releasepreview",
+            JuliaupChannel::Dev => "dev",
+        }
+    }
+}
+
 #[derive(Parser)]
 /// Manage this juliaup installation
 pub enum SelfSubCmd {
@@ -86,8 +104,8 @@ pub enum SelfSubCmd {
     #[command(arg_required_else_help = true)]
     /// Configure the channel to use for juliaup updates.
     Channel {
-        #[arg(value_parser=["release", "releasepreview", "dev"])]
-        channel: String,
+        #[arg(value_enum)]
+        channel: JuliaupChannel,
     },
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
