@@ -83,8 +83,12 @@ pub enum SelfSubCmd {
     /// Update the Julia versions database and juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
-    /// Configure the channel to use for juliaup updates
-    Channel { channel: String },
+    #[command(arg_required_else_help = true)]
+    /// Configure the channel to use for juliaup updates.
+    Channel {
+        #[arg(value_parser=["release", "releasepreview", "dev"])]
+        channel: String,
+    },
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
     Uninstall {},
