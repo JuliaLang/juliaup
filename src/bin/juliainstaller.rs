@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::builder::BoolishValueParser;
 use clap::Parser;
+use juliaup::cli::JuliaupChannel;
 
 #[cfg(feature = "selfupdate")]
 fn run_individual_config_wizard(
@@ -120,8 +121,8 @@ struct Juliainstaller {
     #[clap(long, default_value = "release")]
     default_channel: String,
     /// Juliaup channel
-    #[clap(long, default_value = "release")]
-    juliaup_channel: String,
+    #[clap(long, value_enum, default_value = "release")]
+    juliaup_channel: JuliaupChannel,
     /// Disable confirmation prompt
     #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool,

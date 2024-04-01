@@ -74,10 +74,12 @@ pub enum OverrideSubCmd {
 }
 
 #[derive(Debug, ValueEnum, Clone)]
-#[clap(rename_all = "lowercase")]
 pub enum JuliaupChannel {
+    #[clap(name = "release")]
     Release,
+    #[clap(name = "releasepreview")]
     ReleasePreview,
+    #[clap(name = "dev")]
     Dev,
 }
 
