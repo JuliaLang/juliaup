@@ -58,7 +58,8 @@ pub fn get_paths() -> Result<GlobalPaths> {
 
     #[cfg(feature = "selfupdate")]
     let my_own_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
+        .with_context(|| "Could not determine the path of the running exe.")?
+        .canonicalize()?;
 
     #[cfg(feature = "selfupdate")]
     let juliaupselfbin = my_own_path
