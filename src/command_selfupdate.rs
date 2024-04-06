@@ -53,6 +53,11 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
             "Juliaup unchanged on channel '{}' - {}",
             juliaup_channel, version
         );
+    } else if version < get_own_version().unwrap() {
+        eprintln!(
+            "Local Juliaup version is newer on channel '{}' - {}",
+            juliaup_channel, version
+        );
     } else {
         let juliaup_target = get_juliaup_target();
 
