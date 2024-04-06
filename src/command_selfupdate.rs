@@ -8,7 +8,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::operations::{download_extract_sans_parent, download_juliaup_version};
     use crate::utils::get_juliaserver_base_url;
     use crate::{get_juliaup_target, get_own_version};
-    use anyhow::{anyhow, bail};
+    use anyhow::bail;
 
     update_version_db(paths).with_context(|| "Failed to update versions db.")?;
 

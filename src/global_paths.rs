@@ -1,7 +1,5 @@
 use crate::get_juliaup_target;
 #[cfg(feature = "selfupdate")]
-use anyhow::Context;
-#[cfg(feature = "selfupdate")]
 use crate::utils::get_juliaup_path;
 use anyhow::{anyhow, bail, Result};
 use std::path::PathBuf;
