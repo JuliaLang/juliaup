@@ -4,6 +4,7 @@ use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::utils::get_juliaup_path;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -20,20 +21,6 @@ use std::path::PathBuf;
 #[error("{msg}")]
 pub struct UserError {
     msg: String,
-}
-
-fn get_juliaup_path() -> Result<PathBuf> {
-    let my_own_path = std::env::current_exe()
-        .with_context(|| "std::env::current_exe() did not find its own path.")?
-        .canonicalize()
-        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
-
-    let juliaup_path = my_own_path
-        .parent()
-        .unwrap() // unwrap OK here because this can't happen
-        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
-
-    Ok(juliaup_path)
 }
 
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {

@@ -11,6 +11,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
+use crate::utils::get_juliaup_path;
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
@@ -292,7 +293,7 @@ pub fn install_version(
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
     let full_version_string_of_bundled_version = get_bundled_julia_version();
-    let my_own_path = std::env::current_exe()?;
+    let my_own_path = get_juliaup_path()?;
     let path_of_bundled_version = my_own_path
         .parent()
         .unwrap() // unwrap OK because we can't get a path that does not have a parent
@@ -711,8 +712,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
     use itertools::Itertools;
     use std::process::Stdio;
 
-    let own_exe_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
+    let own_exe_path = get_juliaup_path()?;
 
     let my_own_path = own_exe_path.to_str().unwrap();
 

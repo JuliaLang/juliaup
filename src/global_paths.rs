@@ -1,6 +1,8 @@
 use crate::get_juliaup_target;
 #[cfg(feature = "selfupdate")]
 use anyhow::Context;
+#[cfg(feature = "selfupdate")]
+use crate::utils::get_juliaup_path;
 use anyhow::{anyhow, bail, Result};
 use std::path::PathBuf;
 pub struct GlobalPaths {
@@ -57,9 +59,7 @@ pub fn get_paths() -> Result<GlobalPaths> {
     let juliauphome = get_juliaup_home_path()?;
 
     #[cfg(feature = "selfupdate")]
-    let my_own_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?
-        .canonicalize()?;
+    let my_own_path = get_juliaup_path()?;
 
     #[cfg(feature = "selfupdate")]
     let juliaupselfbin = my_own_path
