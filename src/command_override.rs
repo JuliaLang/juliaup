@@ -81,7 +81,10 @@ pub fn run_command_override_set(
         .iter()
         .any(|i| i.path == path.to_string_lossy())
     {
-        bail!("'{}' path already has an override configured.", path.to_string_lossy());
+        bail!(
+            "'{}' path already has an override configured.",
+            path.to_string_lossy()
+        );
     }
 
     config_file.data.overrides.push(JuliaupOverride {
