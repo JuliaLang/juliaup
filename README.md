@@ -40,10 +40,6 @@ curl -fsSL https://install.julialang.org | sh
 
 in a shell.
 
-## Continuous Integration (CI)
-
-If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
-
 #### Command line arguments
 
 One can pass various command line arguments to the Julia installer. The syntax for installer arguments is
@@ -56,6 +52,10 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
 - `--path` (or `-p`): Install `juliaup` in a custom location.
+
+## Continuous Integration (CI)
+
+If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
 
 ### Software Repositories
 
