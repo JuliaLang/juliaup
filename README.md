@@ -53,10 +53,6 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
 - `--path` (or `-p`): Install `juliaup` in a custom location.
 
-## Continuous Integration (CI)
-
-If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
-
 ### Software Repositories
 
 **Important note:** As of now, we strongly recommend to install Juliaup via the Windows Store or `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future).
@@ -94,6 +90,10 @@ To install via Rust's cargo, run:
 ```sh
 cargo install juliaup
 ```
+
+## Continuous Integration (CI)
+
+If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
 
 ## Using Juliaup
 
