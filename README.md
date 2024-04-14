@@ -40,6 +40,10 @@ curl -fsSL https://install.julialang.org | sh
 
 in a shell.
 
+## Continuous Integration (CI)
+
+If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
+
 #### Command line arguments
 
 One can pass various command line arguments to the Julia installer. The syntax for installer arguments is
