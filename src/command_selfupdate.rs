@@ -9,6 +9,8 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::utils::get_juliaserver_base_url;
     use crate::{get_juliaup_target, get_own_version};
     use anyhow::{anyhow, bail};
+    use dialoguer::{theme::SimpleTheme, Confirm};
+    use is_terminal::IsTerminal;
 
     update_version_db(paths).with_context(|| "Failed to update versions db.")?;
 
@@ -33,7 +35,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         ),
     };
 
-    eprintln!("Checking for self-updates");
+    eprintln!("Checking for self-updates on channel: {}", juliaup_channel);
 
     let version_url = juliaupserver_base.join(version_url_path).with_context(|| {
         format!(
@@ -44,53 +46,57 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     let version = download_juliaup_version(&version_url.to_string())?;
 
+    // TODO: how to deal with automatic background updates?
+    if version <= get_own_version().unwrap() && std::io::stdin().is_terminal() {
+        eprintln!(
+            "You are trying to install version: {}-{}, but the currently installed version is newer (or the same)",
+            juliaup_channel, version
+        );
+
+        match Confirm::with_theme(&SimpleTheme)
+            .with_prompt("Do you want to continue?")
+            .default(false)
+            .interact()?
+        {
+            true => {}
+            false => return Ok(()),
+        }
+    }
+
     config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
     save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
 
-    if version == get_own_version().unwrap() {
-        eprintln!(
-            "Juliaup unchanged on channel '{}' - {}",
-            juliaup_channel, version
-        );
-    } else if version < get_own_version().unwrap() {
-        eprintln!(
-            "Local Juliaup version is newer on channel '{}' - {}",
-            juliaup_channel, version
-        );
-    } else {
-        let juliaup_target = get_juliaup_target();
+    let juliaup_target = get_juliaup_target();
 
-        let juliaupserver_base =
-            get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
+    let juliaupserver_base =
+        get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
 
-        let download_url_path =
-            format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
+    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
 
-        let new_juliaup_url = juliaupserver_base
-            .join(&download_url_path)
-            .with_context(|| {
-                format!(
-                    "Failed to construct a valid url from '{}' and '{}'.",
-                    juliaupserver_base, download_url_path
-                )
-            })?;
+    let new_juliaup_url = juliaupserver_base
+        .join(&download_url_path)
+        .with_context(|| {
+            format!(
+                "Failed to construct a valid url from '{}' and '{}'.",
+                juliaupserver_base, download_url_path
+            )
+        })?;
 
-        let my_own_path = std::env::current_exe()
-            .with_context(|| "Could not determine the path of the running exe.")?;
+    let my_own_path = std::env::current_exe()
+        .with_context(|| "Could not determine the path of the running exe.")?;
 
-        let my_own_folder = my_own_path
-            .parent()
-            .ok_or_else(|| anyhow!("Could not determine parent."))?;
+    let my_own_folder = my_own_path
+        .parent()
+        .ok_or_else(|| anyhow!("Could not determine parent."))?;
 
-        eprintln!(
-            "Found new version {} on channel {}.",
-            version, juliaup_channel
-        );
+    eprintln!(
+        "Found new version {} on channel {}.",
+        version, juliaup_channel
+    );
 
-        download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
-        eprintln!("Updated Juliaup to version {}.", version);
-    }
+    download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
+    eprintln!("Updated Juliaup to version {}.", version);
 
     Ok(())
 }
