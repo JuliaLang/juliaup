@@ -51,6 +51,7 @@ curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
+- `--path` (or `-p`): Install `juliaup` in a custom location.
 
 ### Software Repositories
 
@@ -121,6 +122,7 @@ Here are some of the things you can do with `juliaup`:
 The available system provided channels are:
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
+- `alpha`: always points to the latest alpha version if one exists. If a newer beta or release candidate exists, it will point to that, and if there is no alpha, beta, or rc candidate available it will point to the same version as the `release` channel.
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
