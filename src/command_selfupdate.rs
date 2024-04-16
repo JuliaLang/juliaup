@@ -46,19 +46,22 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     let version = download_juliaup_version(&version_url.to_string())?;
 
-    // TODO: how to deal with automatic background updates?
-    if version <= get_own_version().unwrap() && std::io::stdin().is_terminal() {
-        eprintln!(
-            "You are trying to install version: {}-{}, but the currently installed version is newer (or the same)",
-            juliaup_channel, version
-        );
+    if version < get_own_version().unwrap() {
+        // If not in iteractive mode, avoid downgrading automatically
+        if !std::io::stdin().is_terminal() {
+            return Ok(());
+        }
 
+        eprintln!(
+                "You are trying to install version: {}-{}, but the currently installed version is newer",
+                juliaup_channel, version
+            );
         match Confirm::with_theme(&SimpleTheme)
             .with_prompt("Do you want to continue?")
             .default(false)
             .interact()?
         {
-            true => {}
+            true => {} // continue
             false => return Ok(()),
         }
     }
