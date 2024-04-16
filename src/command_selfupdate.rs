@@ -98,9 +98,6 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         version, juliaup_channel
     );
 
-        download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
-        eprintln!("Updated Juliaup to version {}.", version);
-    }
     download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
     eprintln!("Updated Juliaup to version {}.", version);
 
