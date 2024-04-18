@@ -38,11 +38,8 @@ use log::info;
 
 fn main() -> Result<()> {
     human_panic::setup_panic!(
-        human_panic::Metadata::new(
-            "Juliaup",
-            env!("CARGO_PKG_VERSION")
-        )
-        .support("https://github.com/JuliaLang/juliaup")
+        human_panic::Metadata::new("Juliaup", env!("CARGO_PKG_VERSION"))
+            .support("https://github.com/JuliaLang/juliaup")
     );
 
     let env = env_logger::Env::new()
