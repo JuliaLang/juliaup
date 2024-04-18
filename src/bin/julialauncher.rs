@@ -448,12 +448,13 @@ fn main() -> Result<std::process::ExitCode> {
     let client_status: std::prelude::v1::Result<i32, anyhow::Error>;
 
     {
-        human_panic::setup_panic!(human_panic::Metadata {
-            name: "Juliaup launcher".into(),
-            version: env!("CARGO_PKG_VERSION").into(),
-            authors: "".into(),
-            homepage: "https://github.com/JuliaLang/juliaup".into(),
-        });
+        human_panic::setup_panic!(
+            human_panic::Metadata::new(
+                "Juliaup launcher",
+                env!("CARGO_PKG_VERSION")
+            )
+            .support("https://github.com/JuliaLang/juliaup")
+        );
 
         let env = env_logger::Env::new()
             .filter("JULIAUP_LOG")
