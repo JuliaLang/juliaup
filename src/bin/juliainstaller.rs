@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::builder::BoolishValueParser;
 use clap::Parser;
+use juliaup::cli::JuliaupChannel;
 
 #[cfg(feature = "selfupdate")]
 fn run_individual_config_wizard(
@@ -123,8 +124,8 @@ struct Juliainstaller {
     #[clap(long, default_value = "release")]
     default_channel: String,
     /// Juliaup channel
-    #[clap(long, default_value = "release")]
-    juliaup_channel: String,
+    #[clap(long, value_enum, default_value = "release")]
+    juliaup_channel: JuliaupChannel,
     /// Disable confirmation prompt
     #[clap(short = 'y', long = "yes")]
     disable_confirmation_prompt: bool,
@@ -234,12 +235,11 @@ pub fn main() -> Result<()> {
     use std::io::Seek;
     use std::path::PathBuf;
 
-    human_panic::setup_panic!(human_panic::Metadata {
-        name: "Juliainstaller".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: "".into(),
-        homepage: "https://github.com/JuliaLang/juliaup".into(),
-    });
+    human_panic::setup_panic!(human_panic::Metadata::new(
+        "Juliainstaller",
+        env!("CARGO_PKG_VERSION")
+    )
+    .support("https://github.com/JuliaLang/juliaup"));
 
     let env = env_logger::Env::new()
         .filter("JULIAUP_LOG")
