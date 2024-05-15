@@ -20,7 +20,6 @@ fn update_channel(
     let current_version =
         &config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?.clone();
 
-    eprintln!("Updating channel: {}", channel);
     match current_version {
         JuliaupConfigChannel::SystemChannel { version } => {
             let should_version = version_db.available_channels.get(channel);
@@ -52,8 +51,6 @@ fn update_channel(
                             paths,
                         )?;
                     }
-                } else {
-                    eprintln!("Already on the latest version, skipping.");
                 }
             } else if ignore_non_updatable_channel {
                 eprintln!("Skipping update for '{}' channel, it no longer exists in the version database.", channel);
