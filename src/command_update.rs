@@ -26,7 +26,7 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
-                    eprintln!("Updating channel: {}", channel);
+                    eprintln!("Channel: {} - Updating", channel);
 
                     install_version(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {
