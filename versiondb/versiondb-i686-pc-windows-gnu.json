@@ -210,8 +210,56 @@
         "1.9.2+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.9/julia-1.9.2-win32.tar.gz"
         },
+        "1.9.3+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.9/julia-1.9.3-win32.tar.gz"
+        },
+        "1.9.4+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.9/julia-1.9.4-win32.tar.gz"
+        },
         "1.10.0-alpha1+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-alpha1-win32.tar.gz"
+        },
+        "1.10.0-beta1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-beta1-win32.tar.gz"
+        },
+        "1.10.0-beta2+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-beta2-win32.tar.gz"
+        },
+        "1.10.0-beta3+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-beta3-win32.tar.gz"
+        },
+        "1.10.0-rc1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-rc1-win32.tar.gz"
+        },
+        "1.10.0-rc2+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-rc2-win32.tar.gz"
+        },
+        "1.10.0-rc3+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-rc3-win32.tar.gz"
+        },
+        "1.10.0+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.0-win32.tar.gz"
+        },
+        "1.10.1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.1-win32.tar.gz"
+        },
+        "1.10.2+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.2-win32.tar.gz"
+        },
+        "1.10.3+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.3-win32.tar.gz"
+        },
+        "1.11.0-alpha1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.11/julia-1.11.0-alpha1-win32.tar.gz"
+        },
+        "1.11.0-alpha2+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.11/julia-1.11.0-alpha2-win32.tar.gz"
+        },
+        "1.11.0-beta1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.11/julia-1.11.0-beta1-win32.tar.gz"
+        },
+        "1.11.0-beta2+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.11/julia-1.11.0-beta2-win32.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -234,7 +282,7 @@
             "Version": "0.7.0+0.x86.w64.mingw32"
         },
         "1": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         },
         "1.0": {
             "Version": "1.0.5+0.x86.w64.mingw32"
@@ -294,7 +342,10 @@
             "Version": "1.1.1+0.x86.w64.mingw32"
         },
         "1.10": {
-            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
+        },
+        "1.10.0": {
+            "Version": "1.10.0+0.x86.w64.mingw32"
         },
         "1.10.0-alpha1": {
             "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
@@ -302,8 +353,95 @@
         "1.10.0-alpha1~x86": {
             "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
         },
+        "1.10.0-beta1": {
+            "Version": "1.10.0-beta1+0.x86.w64.mingw32"
+        },
+        "1.10.0-beta1~x86": {
+            "Version": "1.10.0-beta1+0.x86.w64.mingw32"
+        },
+        "1.10.0-beta2": {
+            "Version": "1.10.0-beta2+0.x86.w64.mingw32"
+        },
+        "1.10.0-beta2~x86": {
+            "Version": "1.10.0-beta2+0.x86.w64.mingw32"
+        },
+        "1.10.0-beta3": {
+            "Version": "1.10.0-beta3+0.x86.w64.mingw32"
+        },
+        "1.10.0-beta3~x86": {
+            "Version": "1.10.0-beta3+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc1": {
+            "Version": "1.10.0-rc1+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc1~x86": {
+            "Version": "1.10.0-rc1+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc2": {
+            "Version": "1.10.0-rc2+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc2~x86": {
+            "Version": "1.10.0-rc2+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc3": {
+            "Version": "1.10.0-rc3+0.x86.w64.mingw32"
+        },
+        "1.10.0-rc3~x86": {
+            "Version": "1.10.0-rc3+0.x86.w64.mingw32"
+        },
+        "1.10.0~x86": {
+            "Version": "1.10.0+0.x86.w64.mingw32"
+        },
+        "1.10.1": {
+            "Version": "1.10.1+0.x86.w64.mingw32"
+        },
+        "1.10.1~x86": {
+            "Version": "1.10.1+0.x86.w64.mingw32"
+        },
+        "1.10.2": {
+            "Version": "1.10.2+0.x86.w64.mingw32"
+        },
+        "1.10.2~x86": {
+            "Version": "1.10.2+0.x86.w64.mingw32"
+        },
+        "1.10.3": {
+            "Version": "1.10.3+0.x86.w64.mingw32"
+        },
+        "1.10.3~x86": {
+            "Version": "1.10.3+0.x86.w64.mingw32"
+        },
         "1.10~x86": {
-            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
+        },
+        "1.11": {
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
+        },
+        "1.11.0-alpha1": {
+            "Version": "1.11.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.11.0-alpha1~x86": {
+            "Version": "1.11.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.11.0-alpha2": {
+            "Version": "1.11.0-alpha2+0.x86.w64.mingw32"
+        },
+        "1.11.0-alpha2~x86": {
+            "Version": "1.11.0-alpha2+0.x86.w64.mingw32"
+        },
+        "1.11.0-beta1": {
+            "Version": "1.11.0-beta1+0.x86.w64.mingw32"
+        },
+        "1.11.0-beta1~x86": {
+            "Version": "1.11.0-beta1+0.x86.w64.mingw32"
+        },
+        "1.11.0-beta2": {
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
+        },
+        "1.11.0-beta2~x86": {
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
+        },
+        "1.11~x86": {
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.w64.mingw32"
@@ -651,7 +789,7 @@
             "Version": "1.8.5+0.x86.w64.mingw32"
         },
         "1.9": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.9.4+0.x86.w64.mingw32"
         },
         "1.9.0": {
             "Version": "1.9.0+0.x86.w64.mingw32"
@@ -719,23 +857,35 @@
         "1.9.2~x86": {
             "Version": "1.9.2+0.x86.w64.mingw32"
         },
+        "1.9.3": {
+            "Version": "1.9.3+0.x86.w64.mingw32"
+        },
+        "1.9.3~x86": {
+            "Version": "1.9.3+0.x86.w64.mingw32"
+        },
+        "1.9.4": {
+            "Version": "1.9.4+0.x86.w64.mingw32"
+        },
+        "1.9.4~x86": {
+            "Version": "1.9.4+0.x86.w64.mingw32"
+        },
         "1.9~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.9.4+0.x86.w64.mingw32"
         },
         "1~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         },
         "alpha": {
-            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
         },
         "alpha~x86": {
-            "Version": "1.10.0-alpha1+0.x86.w64.mingw32"
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
         },
         "beta": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
         },
         "beta~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.11.0-beta2+0.x86.w64.mingw32"
         },
         "lts": {
             "Version": "1.6.7+0.x86.w64.mingw32"
@@ -744,17 +894,17 @@
             "Version": "1.6.7+0.x86.w64.mingw32"
         },
         "rc": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         },
         "rc~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         },
         "release": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         },
         "release~x86": {
-            "Version": "1.9.2+0.x86.w64.mingw32"
+            "Version": "1.10.3+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.27"
+    "Version": "1.0.43"
 }

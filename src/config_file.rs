@@ -29,6 +29,18 @@ pub struct JuliaupConfigVersion {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum JuliaupConfigChannel {
+    DirectDownloadChannel {
+        #[serde(rename = "Path")]
+        path: String,
+        #[serde(rename = "Url")]
+        url: String,
+        #[serde(rename = "LocalETag")]
+        local_etag: String,
+        #[serde(rename = "ServerETag")]
+        server_etag: String,
+        #[serde(rename = "Version")]
+        version: String,
+    },
     SystemChannel {
         #[serde(rename = "Version")]
         version: String,
@@ -71,7 +83,7 @@ pub struct JuliaupOverride {
     #[serde(rename = "Path")]
     pub path: String,
     #[serde(rename = "Channel")]
-    pub channel: String
+    pub channel: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

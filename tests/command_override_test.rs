@@ -10,6 +10,7 @@ fn command_override_status_test() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -19,6 +20,7 @@ fn command_override_status_test() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -28,6 +30,7 @@ fn command_override_status_test() {
         .arg("override")
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(" Path  Channel \n---------------\n");
@@ -44,6 +47,7 @@ fn command_override_cur_dir_test() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -53,6 +57,7 @@ fn command_override_cur_dir_test() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -62,15 +67,17 @@ fn command_override_cur_dir_test() {
         .arg("default")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -82,15 +89,17 @@ fn command_override_cur_dir_test() {
         .arg("set")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -101,15 +110,17 @@ fn command_override_cur_dir_test() {
         .arg("override")
         .arg("unset")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -127,6 +138,7 @@ fn command_override_arg_test() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -136,6 +148,7 @@ fn command_override_arg_test() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -145,15 +158,17 @@ fn command_override_arg_test() {
         .arg("default")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -167,14 +182,16 @@ fn command_override_arg_test() {
         .arg(or_dir.as_os_str())
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -187,14 +204,16 @@ fn command_override_arg_test() {
         .arg("--path")
         .arg(or_dir.as_os_str())
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
         .success()
@@ -206,7 +225,7 @@ fn command_override_overlap_test() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
     let or_dir_parent = assert_fs::TempDir::new().unwrap();
-    let or_dir_child= or_dir_parent.join("child");
+    let or_dir_child = or_dir_parent.join("child");
     std::fs::create_dir_all(&or_dir_child).unwrap();
 
     Command::cargo_bin("juliaup")
@@ -214,6 +233,7 @@ fn command_override_overlap_test() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -223,6 +243,7 @@ fn command_override_overlap_test() {
         .arg("add")
         .arg("1.7.3")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -232,6 +253,7 @@ fn command_override_overlap_test() {
         .arg("add")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -241,6 +263,7 @@ fn command_override_overlap_test() {
         .arg("default")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
@@ -253,6 +276,7 @@ fn command_override_overlap_test() {
         .arg(or_dir_parent.as_os_str())
         .arg("1.7.3")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -264,24 +288,27 @@ fn command_override_overlap_test() {
         .arg(&or_dir_child.as_os_str())
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir_parent)
         .assert()
         .success()
         .stdout("1.7.3");
 
-    Command::cargo_bin("julialauncher")
+    Command::cargo_bin("julia")
         .unwrap()
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir_child)
         .assert()
         .success()
@@ -301,10 +328,11 @@ fn command_override_delete_empty_test() {
         .arg("add")
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
-    
+
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("override")
@@ -313,6 +341,7 @@ fn command_override_delete_empty_test() {
         .arg(or_dir1.as_os_str())
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -324,6 +353,7 @@ fn command_override_delete_empty_test() {
         .arg(or_dir2.as_os_str())
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -335,6 +365,7 @@ fn command_override_delete_empty_test() {
         .arg(or_dir3.as_os_str())
         .arg("1.6.7")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -344,6 +375,7 @@ fn command_override_delete_empty_test() {
         .arg("unset")
         .arg("--nonexistent")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -352,6 +384,7 @@ fn command_override_delete_empty_test() {
         .arg("override")
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::ord::eq(" Path  Channel \n---------------\n").not());
@@ -366,6 +399,7 @@ fn command_override_delete_empty_test() {
         .arg("unset")
         .arg("--nonexistent")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
@@ -374,6 +408,7 @@ fn command_override_delete_empty_test() {
         .arg("override")
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(" Path  Channel \n---------------\n");

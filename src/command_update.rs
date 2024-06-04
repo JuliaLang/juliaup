@@ -4,10 +4,11 @@ use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
-use crate::operations::garbage_collect_versions;
+use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{download_version_to_temp_folder, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use std::path::PathBuf;
 
 fn update_channel(
     config_db: &mut JuliaupConfig,
@@ -17,7 +18,7 @@ fn update_channel(
     paths: &GlobalPaths,
 ) -> Result<()> {
     let current_version =
-        config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?;
+        &config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?.clone();
 
     match current_version {
         JuliaupConfigChannel::SystemChannel { version } => {
@@ -69,7 +70,40 @@ fn update_channel(
                     "Failed to update '{}' because it is a linked channel.",
                     channel
                 );
-            } else {
+            }
+        }
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url,
+            local_etag,
+            server_etag,
+            version,
+        } => {
+            // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+            assert!(!version.is_empty());
+
+            if local_etag != server_etag {
+                let channel_data =
+                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
+
+                config_db
+                    .installed_channels
+                    .insert(channel.clone(), channel_data);
+
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(
+                        &JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: server_etag.clone(),
+                            version: version.clone(),
+                        },
+                        &channel,
+                        paths,
+                    )?;
+                }
             }
         }
     }

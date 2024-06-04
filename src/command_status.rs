@@ -10,6 +10,7 @@ use cli_table::{
     format::{Border, Justify},
     print_stdout, Table, WithTitle,
 };
+use human_sort::compare;
 use itertools::Itertools;
 
 #[derive(Table)]
@@ -35,7 +36,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
         .data
         .installed_channels
         .iter()
-        .sorted_by_key(|i| i.0.to_string())
+        .sorted_by(|a, b| compare(&a.0.to_string(), &b.0.to_string()))
         .map(|i| -> ChannelRow {
             ChannelRow {
                 default: match config_file.data.default {
@@ -51,6 +52,15 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                 name: i.0.to_string(),
                 version: match i.1 {
                     JuliaupConfigChannel::SystemChannel { version } => version.clone(),
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: _,
+                        url: _,
+                        local_etag: _,
+                        server_etag: _,
+                        version,
+                    } => {
+                        format!("Development version {}", version)
+                    }
                     JuliaupConfigChannel::LinkedChannel { command, args } => {
                         let mut combined_command = String::new();
 
@@ -94,6 +104,19 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         command: _,
                         args: _,
                     } => "".to_string(),
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: _,
+                        url: _,
+                        local_etag,
+                        server_etag,
+                        version: _,
+                    } => {
+                        if local_etag != server_etag {
+                            "Update available".to_string()
+                        } else {
+                            "".to_string()
+                        }
+                    }
                 },
             }
         })

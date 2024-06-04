@@ -1,4 +1,3 @@
-use std::path::Path;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::{load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
@@ -7,6 +6,7 @@ use crate::operations::create_symlink;
 use crate::versions_file::load_versions_db;
 use anyhow::{bail, Context, Result};
 use path_absolutize::Absolutize;
+use std::path::Path;
 
 pub fn run_command_link(
     channel: &str,

@@ -1,7 +1,7 @@
 #[cfg(not(windows))]
 use crate::operations::remove_symlink;
 use crate::{
-    config_file::{load_mut_config_db, save_config_db},
+    config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel},
     global_paths::GlobalPaths,
     operations::garbage_collect_versions,
 };
@@ -27,12 +27,36 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         }
     }
 
-    if config_file.data.overrides.iter().any(|i| i.channel == channel) {
+    if config_file
+        .data
+        .overrides
+        .iter()
+        .any(|i| i.channel == channel)
+    {
         bail!(
             "'{}' cannot be removed because it is currently used in a directory override.",
             channel
         );
     }
+
+    let x = config_file.data.installed_channels.get(channel).unwrap();
+
+    if let JuliaupConfigChannel::DirectDownloadChannel {
+        path,
+        url: _,
+        local_etag: _,
+        server_etag: _,
+        version: _,
+    } = x
+    {
+        let path_to_delete = paths.juliauphome.join(&path);
+
+        let display = path_to_delete.display();
+
+        if std::fs::remove_dir_all(&path_to_delete).is_err() {
+            eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
+        }
+    };
 
     config_file.data.installed_channels.remove(channel);
 

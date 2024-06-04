@@ -5,7 +5,14 @@ use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::versions_file::load_versions_db;
+#[cfg(not(windows))]
+use nix::{
+    sys::wait::{waitpid, WaitStatus},
+    unistd::{fork, ForkResult},
+};
 use normpath::PathExt;
+#[cfg(not(windows))]
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -17,7 +24,9 @@ pub struct UserError {
 
 fn get_juliaup_path() -> Result<PathBuf> {
     let my_own_path = std::env::current_exe()
-        .with_context(|| "std::env::current_exe() did not find its own path.")?;
+        .with_context(|| "std::env::current_exe() did not find its own path.")?
+        .canonicalize()
+        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
 
     let juliaup_path = my_own_path
         .parent()
@@ -136,7 +145,7 @@ fn check_channel_uptodate(
         eprintln!("  juliaup update");
         eprintln!();
         eprintln!(
-            "to install Julia {} and update the `{}` channel to that version.",
+            "in your terminal shell to install Julia {} and update the `{}` channel to that version.",
             latest_version, channel
         );
     }
@@ -161,9 +170,27 @@ fn get_julia_path_from_channel(
             .installed_channels
             .get(channel)
             .ok_or_else(|| match juliaup_channel_source {
-                JuliaupChannelSource::CmdLine => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` at command line.", channel).to_string() }.into(),
-                JuliaupChannelSource::EnvVar => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL.", channel).to_string() }.into(),
-                JuliaupChannelSource::Override => UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override.", channel).to_string() }.into(),
+                JuliaupChannelSource::CmdLine => {
+                    if versions_db.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                    }
+                }.into(),
+                JuliaupChannelSource::EnvVar=> {
+                    if versions_db.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                    }
+                }.into(),
+                JuliaupChannelSource::Override=> {
+                    if versions_db.available_channels.contains_key(channel) {
+                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else {
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                    }
+                }.into(),
                 JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
             })?;
 
@@ -181,7 +208,7 @@ fn get_julia_path_from_channel(
 
             check_channel_uptodate(channel, version, versions_db).with_context(|| {
                 format!(
-                    "The Julia launcher failed while checking whether the channe {} is up-to-date.",
+                    "The Julia launcher failed while checking whether the channel {} is up-to-date.",
                     channel
                 )
             })?;
@@ -200,13 +227,50 @@ fn get_julia_path_from_channel(
                 })?;
             return Ok((absolute_path.into_path_buf(), Vec::new()));
         }
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url: _,
+            local_etag,
+            server_etag,
+            version: _,
+        } => {
+            if local_etag != server_etag {
+                eprintln!(
+                    "A new version of Julia for the `{}` channel is available. Run:",
+                    channel
+                );
+                eprintln!();
+                eprintln!("  juliaup update");
+                eprintln!();
+                eprintln!("to install the latest Julia for the `{}` channel.", channel);
+            }
+
+            let absolute_path = juliaupconfig_path
+                .parent()
+                .unwrap()
+                .join(path)
+                .join("bin")
+                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                .normalize()
+                .with_context(|| {
+                    format!(
+                        "Failed to normalize path for Julia binary, starting from `{}`.",
+                        juliaupconfig_path.display()
+                    )
+                })?;
+            return Ok((absolute_path.into_path_buf(), Vec::new()));
+        }
     }
 }
 
-fn get_override_channel(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<Option<String>> {
+fn get_override_channel(
+    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+) -> Result<Option<String>> {
     let curr_dir = std::env::current_dir()?.canonicalize()?;
 
-    let juliaup_override = config_file.data.overrides
+    let juliaup_override = config_file
+        .data
+        .overrides
         .iter()
         .filter(|i| curr_dir.starts_with(&i.path))
         .sorted_by_key(|i| i.path.len())
@@ -214,7 +278,7 @@ fn get_override_channel(config_file: &juliaup::config_file::JuliaupReadonlyConfi
 
     match juliaup_override {
         Some(val) => Ok(Some(val.channel.clone())),
-        None => Ok(None)
+        None => Ok(None),
     }
 }
 
@@ -245,21 +309,20 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let (julia_channel_to_use, juliaup_channel_source) = if let Some(channel) = channel_from_cmd_line {
-        (channel, JuliaupChannelSource::CmdLine)
-    }
-    else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
-        (channel, JuliaupChannelSource::EnvVar)
-    }
-    else if let Ok(Some(channel)) = get_override_channel(&config_file) {
-        (channel, JuliaupChannelSource::Override)
-    }
-    else if let Some(channel) = config_file.data.default.clone() {
-        (channel, JuliaupChannelSource::Default)
-    }
-    else {
-        return Err(anyhow!("The Julia launcher failed to figure out which juliaup channel to use."));
-    };    
+    let (julia_channel_to_use, juliaup_channel_source) =
+        if let Some(channel) = channel_from_cmd_line {
+            (channel, JuliaupChannelSource::CmdLine)
+        } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+            (channel, JuliaupChannelSource::EnvVar)
+        } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+            (channel, JuliaupChannelSource::Override)
+        } else if let Some(channel) = config_file.data.default.clone() {
+            (channel, JuliaupChannelSource::Default)
+        } else {
+            return Err(anyhow!(
+                "The Julia launcher failed to figure out which juliaup channel to use."
+            ));
+        };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
@@ -282,88 +345,133 @@ fn run_app() -> Result<i32> {
     }
 
     for (i, v) in args.iter().skip(1).enumerate() {
-        if i > 1 || !v.starts_with('+') {
+        if i > 0 || !v.starts_with('+') {
             new_args.push(v.clone());
         }
     }
 
-    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
-    // process to handle things.
-    ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
-
-    let mut child_process = std::process::Command::new(julia_path)
-        .args(&new_args)
-        .spawn()
-        .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
-
-    run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
-
-    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
-
-    let status = child_process
-        .wait()
-        .with_context(|| "Failed to wait for Julia process to finish.")?;
-
-    let code = match status.code() {
-        Some(code) => code,
-        None => {
-            #[cfg(not(windows))]
-            {
-                use std::os::unix::process::ExitStatusExt;
-
-                let signal = status.signal();
-
-                if let Some(signal) = signal {
-                    let signal = nix::sys::signal::Signal::try_from(signal)
-                        .with_context(|| format!("Unknown signal value {}.", signal))?;
-
-                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
-
-                    // We raise the signal twice because SIGSEGV and SIGBUS require that
-                    // https://github.com/JuliaLang/juliaup/pull/525#issuecomment-1353526900
-                    // https://github.com/rust-lang/rust/blob/984eab57f708e62c09b3d708033fe620130b5f39/library/std/src/sys/unix/stack_overflow.rs#L60-L80
-                    nix::sys::signal::raise(signal).with_context(|| "Failed to raise signal.")?;
-
-                    anyhow::bail!("Maybe we should never reach this?");
-                } else {
-                    anyhow::bail!("We weren't able to extract a signal, this should never happen.");
+    // On *nix platforms we replace the current process with the Julia one.
+    // This simplifies use in e.g. debuggers, but requires that we fork off
+    // a subprocess to do the selfupdate and versiondb update.
+    #[cfg(not(windows))]
+    match unsafe { fork() } {
+        // NOTE: It is unsafe to perform async-signal-unsafe operations from
+        // forked multithreaded programs, so for complex functionality like
+        // selfupdate to work julialauncher needs to remain single-threaded.
+        // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
+        Ok(ForkResult::Parent { child, .. }) => {
+            // wait for the daemon-spawning child to finish
+            match waitpid(child, None) {
+                Ok(WaitStatus::Exited(_, code)) => {
+                    if code != 0 {
+                        panic!("Could not fork (child process exited with code: {})", code)
+                    }
+                }
+                Ok(_) => {
+                    panic!("Could not fork (child process did not exit normally)");
+                }
+                Err(e) => {
+                    panic!("Could not fork (error waiting for child process, {})", e);
                 }
             }
 
-            #[cfg(windows)]
-            {
+            // replace the current process
+            std::process::Command::new(julia_path)
+                .args(&new_args)
+                .exec();
+
+            // this is never reached
+            Ok(0)
+        }
+        Ok(ForkResult::Child) => {
+            // double-fork to prevent zombies
+            match unsafe { fork() } {
+                Ok(ForkResult::Parent { child: _, .. }) => {
+                    // we don't do anything here so that this process can be
+                    // reaped immediately
+                }
+                Ok(ForkResult::Child) => {
+                    // this is where we perform the actual work. we don't do
+                    // any typical daemon-y things (like detaching the TTY)
+                    // so that any error output is still visible.
+
+                    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+                    // process to handle things.
+                    ctrlc::set_handler(|| ())
+                        .with_context(|| "Failed to set the Ctrl-C handler.")?;
+
+                    run_versiondb_update(&config_file)
+                        .with_context(|| "Failed to run version db update")?;
+
+                    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+                }
+                Err(_) => panic!("Could not double-fork"),
+            }
+
+            Ok(0)
+        }
+        Err(_) => panic!("Could not fork"),
+    }
+
+    // On other platforms (i.e., Windows) we just spawn a subprocess
+    #[cfg(windows)]
+    {
+        // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+        // process to handle things.
+        ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
+
+        let mut child_process = std::process::Command::new(julia_path)
+            .args(&new_args)
+            .spawn()
+            .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+
+        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+
+        run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+
+        let status = child_process
+            .wait()
+            .with_context(|| "Failed to wait for Julia process to finish.")?;
+
+        let code = match status.code() {
+            Some(code) => code,
+            None => {
                 anyhow::bail!("There is no exit code, that should not be possible on Windows.");
             }
-        }
-    };
+        };
 
-    Ok(code)
+        Ok(code)
+    }
 }
 
 fn main() -> Result<std::process::ExitCode> {
-    human_panic::setup_panic!(human_panic::Metadata {
-        name: "Juliaup launcher".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: "".into(),
-        homepage: "https://github.com/JuliaLang/juliaup".into(),
-    });
+    let client_status: std::prelude::v1::Result<i32, anyhow::Error>;
 
-    let env = env_logger::Env::new()
-        .filter("JULIAUP_LOG")
-        .write_style("JULIAUP_LOG_STYLE");
-    env_logger::init_from_env(env);
+    {
+        human_panic::setup_panic!(human_panic::Metadata::new(
+            "Juliaup launcher",
+            env!("CARGO_PKG_VERSION")
+        )
+        .support("https://github.com/JuliaLang/juliaup"));
 
-    let client_status = run_app();
+        let env = env_logger::Env::new()
+            .filter("JULIAUP_LOG")
+            .write_style("JULIAUP_LOG_STYLE");
+        env_logger::init_from_env(env);
 
-    if let Err(err) = &client_status {
-        if let Some(e) = err.downcast_ref::<UserError>() {
-            eprintln!("{}", e.msg);
+        client_status = run_app();
 
-            return Ok(std::process::ExitCode::FAILURE);
+        if let Err(err) = &client_status {
+            if let Some(e) = err.downcast_ref::<UserError>() {
+                eprintln!("{}", e.msg);
+
+                return Ok(std::process::ExitCode::FAILURE);
+            } else {
+                return Err(client_status.unwrap_err());
+            }
         }
     }
 
-    let client_status: u8 = client_status?.try_into().unwrap();
-
-    Ok(std::process::ExitCode::from(client_status))
+    // TODO https://github.com/rust-lang/rust/issues/111688 is finalized, we should use that instead of calling exit
+    std::process::exit(client_status?);
 }
