@@ -279,6 +279,9 @@
         "1.10.3+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.10/julia-1.10.3-linux-aarch64.tar.gz"
         },
+        "1.10.4+0.aarch64.linux.gnu": {
+            "UrlPath": "bin/linux/aarch64/1.10/julia-1.10.4-linux-aarch64.tar.gz"
+        },
         "1.11.0-alpha1+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.11/julia-1.11.0-alpha1-linux-aarch64.tar.gz"
         },
@@ -312,7 +315,7 @@
             "Version": "0.6.3+0.aarch64.linux.gnu"
         },
         "1": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "1.0": {
             "Version": "1.0.5+0.aarch64.linux.gnu"
@@ -354,7 +357,7 @@
             "Version": "1.1.1+0.aarch64.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "1.10.0": {
             "Version": "1.10.0+0.aarch64.linux.gnu"
@@ -422,8 +425,14 @@
         "1.10.3~aarch64": {
             "Version": "1.10.3+0.aarch64.linux.gnu"
         },
+        "1.10.4": {
+            "Version": "1.10.4+0.aarch64.linux.gnu"
+        },
+        "1.10.4~aarch64": {
+            "Version": "1.10.4+0.aarch64.linux.gnu"
+        },
         "1.10~aarch64": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "1.11": {
             "Version": "1.11.0-beta2+0.aarch64.linux.gnu"
@@ -951,7 +960,7 @@
             "Version": "1.9.4+0.aarch64.linux.gnu"
         },
         "1~aarch64": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "alpha": {
             "Version": "1.11.0-beta2+0.aarch64.linux.gnu"
@@ -972,17 +981,17 @@
             "Version": "1.6.7+0.aarch64.linux.gnu"
         },
         "rc": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "rc~aarch64": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "release": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         },
         "release~aarch64": {
-            "Version": "1.10.3+0.aarch64.linux.gnu"
+            "Version": "1.10.4+0.aarch64.linux.gnu"
         }
     },
-    "Version": "1.0.43"
+    "Version": "1.0.44"
 }
