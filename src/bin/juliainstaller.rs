@@ -457,7 +457,11 @@ pub fn main() -> Result<()> {
     .unwrap();
     run_command_config_startupselfupdate(Some(install_choices.startupselfupdate), true, &paths)
         .unwrap();
-    run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
+    if install_choices.modifypath {
+        // We only run this if true so that we don't try to touch the various shell scripts at all
+        // if this is not selected.
+        run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
+    }
     run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
     run_command_selfchannel(args.juliaup_channel, &paths).unwrap();
 
