@@ -1330,35 +1330,23 @@ fn download_direct_download_etags(
 ) -> Result<Vec<(String, String)>> {
     let client = reqwest::blocking::Client::new();
 
-    let requests: Vec<_> = config_data
-        .installed_channels
-        .iter()
-        .filter_map(|(channel_name, channel)| {
-            if let JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } = channel
-            {
-                let etag = client
-                    .head(url)
-                    .send()
-                    .unwrap()
-                    .headers()
-                    .get("etag")
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string();
+    let mut requests = Vec::new();
 
-                Some((channel_name.clone(), etag))
-            } else {
-                None
-            }
-        })
-        .collect();
+    for (channel_name, channel) in &config_data.installed_channels {
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+            let etag = client
+                .head(url)
+                .send()?
+                .headers()
+                .get("etag")
+                .ok_or_else(|| anyhow!("ETag header not found in response"))?
+                .to_str()
+                .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
+                .to_string();
+
+            requests.push((channel_name.clone(), etag));
+        }
+    }
 
     Ok(requests)
 }
