@@ -165,7 +165,7 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 For juliaup developers, information on how to build juliaup locally, update julia versions, and release updates
 can be found in the wiki https://github.com/JuliaLang/juliaup/wiki
 
-To use unstable preview versions of juliaup (e.g. to gt a patch before it makes it into the latest release), use
+To use unstable preview versions of juliaup (e.g. to get a patch before it makes it into the latest release), use
 
 ```
 curl -fsSL https://install.julialang.org/releasepreview | sh
