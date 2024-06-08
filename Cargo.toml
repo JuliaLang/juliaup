@@ -36,7 +36,6 @@ semver = "1.0.18"
 anyhow = "1.0.72"
 tempfile = "3.7.0"
 flate2 = "1.0.26"
-tar = "0.4.39"
 normpath = "1.1.1"
 fs_extra = "1.3.0"
 thiserror = "1.0.44"
@@ -59,14 +58,15 @@ indoc = "2.0.3"
 is-terminal = "0.4.9"
 path-absolutize = "3.1.0"
 human-sort = "0.2.2"
+binstall-tar = "0.4.39"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.56.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_System_Console", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams",] }
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(any(target_os = "macos",target_os = "freebsd"))'.dependencies]
 reqwest = { version = "0.12.3", default-features = false, features = ["blocking", "native-tls", "socks"] }
 
-[target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
+[target.'cfg(all(not(target_os = "macos"),not(target_os = "freebsd"),not(windows)))'.dependencies]
 reqwest = { version = "0.12.3", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
