@@ -91,6 +91,10 @@ To install via Rust's cargo, run:
 cargo install juliaup
 ```
 
+## Continuous Integration (CI)
+
+If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
+
 ## Using Juliaup
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
