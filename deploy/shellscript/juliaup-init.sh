@@ -136,7 +136,10 @@ main() {
     if [ ! -x "$_file" ]; then
         printf '%s\n' "Cannot execute $_file." 1>&2
 
-        printf '%s\n' "Please install the files to a location where you can execute binaries." 1>&2
+        printf '%s\n' "Please use a tmp location where you can execute binaries." 1>&2
+        printf '%s\n' "Hint: you can change the tmp location with" 1>&2
+        printf '%s\n' "`mkdir -p ~/tmp && curl -fsSL https://install.julialang.org | TMPDIR=~/tmp sh`" 1>&2
+        # Workaround adapted from  https://github.com/JuliaLang/juliaup/issues/450#issuecomment-1325439708
         exit 1
     fi
 
