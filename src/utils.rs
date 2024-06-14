@@ -3,6 +3,20 @@ use semver::{BuildMetadata, Version};
 use std::path::PathBuf;
 use url::Url;
 
+pub fn get_juliaup_path() -> Result<PathBuf> {
+    let my_own_path = std::env::current_exe()
+        .with_context(|| "std::env::current_exe() did not find its own path.")?
+        .canonicalize()
+        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
+
+    let juliaup_path = my_own_path
+        .parent()
+        .unwrap() // unwrap OK here because this can't happen
+        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+
+    Ok(juliaup_path)
+}
+
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
         if val.ends_with('/') {
@@ -63,8 +77,7 @@ pub fn get_bin_dir() -> Result<PathBuf> {
             path
         }
         Err(_) => {
-            let mut path = std::env::current_exe()
-                .with_context(|| "Could not determine the path of the running exe.")?
+            let mut path = get_juliaup_path()?
                 .parent()
                 .ok_or_else(|| anyhow!("Could not determine parent."))?
                 .to_path_buf();
