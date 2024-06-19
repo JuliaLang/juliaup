@@ -45,6 +45,10 @@ fn main() -> Result<()> {
     {
         let mut res = winres::WindowsResource::new();
         res.set_icon("src/julia.ico");
+
+        #[cfg(winpkgidentityext)]
+        res.set_manifest_file("deploy/winpkgidentityext/app.manifest");
+
         res.compile().unwrap();
     }
 
