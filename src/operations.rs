@@ -188,17 +188,17 @@ pub fn download_extract_sans_parent(
 }
 
 #[cfg(not(windows))]
-pub fn download_filed(
+pub fn download_file(
     url: &str,
     target_path: &Path,
     filename: &str
-) -> Result<String> {
+) -> Result<()> {
     log::debug!("Downloading from url `{}`.", url);
     let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let mut file = std::fs::File::create(target_path)?;
-    let mut content =  Cursor::new(response.bytes().get());
+    let mut file = std::fs::File::create(target_path.join(filename))?;
+    let mut content =  std::io::Cursor::new(response.bytes().unwrap());
     std::io::copy(&mut content, &mut file)?;
 
     Ok(())
