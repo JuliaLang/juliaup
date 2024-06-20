@@ -1,6 +1,7 @@
 use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
+use crate::config_file::JuliaupConfigApplication;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_dbversion;
@@ -182,6 +183,68 @@ pub fn download_extract_sans_parent(
     let archive = Archive::new(tar);
     unpack_sans_parent(archive, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
+    Ok(last_modified)
+}
+
+#[cfg(not(windows))]
+pub fn download_filed(
+    url: &str,
+    target_path: &Path,
+    filename: &str
+) -> Result<String> {
+    log::debug!("Downloading from url `{}`.", url);
+    let response = reqwest::blocking::get(url)
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let mut file = std::fs::File::create(target_path)?;
+    let mut content =  Cursor::new(response.bytes().get());
+    std::io::copy(&mut content, &mut file)?;
+
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn download_file(
+    url: &str,
+    target_path: &Path,
+    filename: &str
+) -> Result<String> {
+    use windows::{core::HSTRING, Storage::FileAccessMode};
+
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+
+    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+        .with_context(|| "Failed to convert url string to Uri.")?;
+
+    let http_response = http_client
+        .GetAsync(&request_uri)
+        .with_context(|| "Failed to initiate download.")?
+        .get()
+        .with_context(|| "Failed to complete async download operation.")?;
+
+    http_response
+        .EnsureSuccessStatusCode()
+        .with_context(|| "HTTP download reported error status code.")?;
+
+    let last_modified = http_response
+        .Headers()
+        .unwrap()
+        .Lookup(&HSTRING::from("etag"))
+        .unwrap()
+        .to_string();
+
+    let http_response_content = http_response
+        .Content()
+        .with_context(|| "Failed to obtain content from http response.")?;
+
+    let folder = windows::Storage::StorageFolder::GetFolderFromPathAsync(&HSTRING::from(target_path)).unwrap().get().unwrap();
+    let file = folder.CreateFileAsync(&HSTRING::from(filename), windows::Storage::CreationCollisionOption::ReplaceExisting).unwrap().get().unwrap();
+
+    let stream = file.OpenAsync(FileAccessMode::ReadWrite).unwrap().get().unwrap();
+
+    http_response_content.WriteToStreamAsync(&stream).unwrap().get().unwrap();
 
     Ok(last_modified)
 }
@@ -547,7 +610,9 @@ pub fn garbage_collect_versions(
                 server_etag: _,
                 version: _,
             } => true,
-        }) {
+        }) && config_data.installed_apps.iter().all(|j| match &j.1 {
+            JuliaupConfigApplication::DirectDownloadApplication { path: _, url: _, local_etag: _, server_etag: _, version, execution_aliases: _ } => version != installed_version
+        } ) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
 

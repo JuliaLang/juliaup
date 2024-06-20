@@ -54,6 +54,31 @@ pub enum JuliaupConfigChannel {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct JuliaupConfigExcutionAlias {
+    #[serde(rename = "Target")]
+    pub target: String
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum JuliaupConfigApplication {
+    DirectDownloadApplication {
+        #[serde(rename = "Path")]
+        path: String,
+        #[serde(rename = "Url")]
+        url: String,
+        #[serde(rename = "LocalETag")]
+        local_etag: String,
+        #[serde(rename = "ServerETag")]
+        server_etag: String,
+        #[serde(rename = "Version")]
+        version: String,
+        #[serde(rename = "ExecutionAliases")]
+        execution_aliases: HashMap<String, JuliaupConfigExcutionAlias>
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JuliaupConfigSettings {
     #[serde(
         rename = "CreateChannelSymlinks",
@@ -94,6 +119,8 @@ pub struct JuliaupConfig {
     pub installed_versions: HashMap<String, JuliaupConfigVersion>,
     #[serde(rename = "InstalledChannels")]
     pub installed_channels: HashMap<String, JuliaupConfigChannel>,
+    #[serde(rename = "InstalledApplications", default)]
+    pub installed_apps: HashMap<String, JuliaupConfigApplication>,
     #[serde(rename = "Settings", default)]
     pub settings: JuliaupConfigSettings,
     #[serde(rename = "Overrides", default)]
@@ -186,6 +213,7 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
+                installed_apps: HashMap::new(),
                 overrides: Vec::new(),
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
@@ -282,6 +310,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
+                installed_apps: HashMap::new(),
                 overrides: Vec::new(),
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
