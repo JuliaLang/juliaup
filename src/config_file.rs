@@ -71,8 +71,10 @@ pub enum JuliaupConfigApplication {
         local_etag: String,
         #[serde(rename = "ServerETag")]
         server_etag: String,
-        #[serde(rename = "Version")]
-        version: String,
+        #[serde(rename = "JuliaVersion")]
+        julia_version: String,
+        #[serde(rename = "JuliaDepot")]
+        julia_depot: String,
         #[serde(rename = "ExecutionAliases")]
         execution_aliases: HashMap<String, JuliaupConfigExcutionAlias>
     },

@@ -6,6 +6,7 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::{download_file, install_version};
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
+use bstr::ByteVec;
 use tempfile::Builder;
 use normpath::PathExt;
 
@@ -60,21 +61,7 @@ pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
 
     install_version(&asdf.version, &mut config_file.data, &version_db, paths).unwrap();
 
-    config_file.data.installed_apps.insert(
-        app_name.to_string(),
-        JuliaupConfigApplication::DirectDownloadApplication { 
-            path: target_path.to_str().unwrap().to_string(),
-            url: url.to_string(),
-            local_etag: "".to_string(),
-            server_etag: "".to_string(),
-            version: asdf.version.to_string(),
-            execution_aliases: exec_aliases.iter().map(|i| (i.0.clone(), JuliaupConfigExcutionAlias { target: i.1.to_string() })).collect()
-        }
-    );
-
-    save_config_db(&mut config_file).unwrap();
-
-    let absolute_path = &paths.juliaupconfig
+    let julia_binary_path = &paths.juliaupconfig
         .parent()
         .unwrap() // unwrap OK because there should always be a parent
         .join(config_file.data.installed_versions.get(&asdf.version).unwrap().path.clone())
@@ -82,7 +69,31 @@ pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
         .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
         .normalize().unwrap();
 
-    std::process::Command::new(absolute_path)
+    let depot_detection_output = std::process::Command::new(julia_binary_path)
+        .arg("-e")
+        .arg("println(Base.DEPOT_PATH[1])")
+        .output()
+        .unwrap();
+
+    let depot_detection_output = depot_detection_output.stdout.into_string().unwrap().trim().to_string();
+
+    config_file.data.installed_apps.insert(
+        app_name.to_string(),
+        JuliaupConfigApplication::DirectDownloadApplication { 
+            path: target_path.to_str().unwrap().to_string(),
+            url: url.to_string(),
+            local_etag: "".to_string(),
+            server_etag: "".to_string(),
+            julia_version: asdf.version.to_string(),
+            julia_depot: depot_detection_output,
+            execution_aliases: exec_aliases.iter().map(|i| (i.0.clone(), JuliaupConfigExcutionAlias { target: i.1.to_string() })).collect()
+        }
+    );
+
+    save_config_db(&mut config_file).unwrap();
+
+    
+    std::process::Command::new(julia_binary_path)
         .env("JULIA_PROJECT", target_path)
         .arg("-e")
         .arg("using Pkg; Pkg.instantiate()")

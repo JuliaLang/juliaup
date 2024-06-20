@@ -13,7 +13,7 @@ pub fn run_command_app_remove(name: &str, paths: &GlobalPaths) -> Result<()> {
     }
     else {
         let install_path = match &config_file.data.installed_apps.get(name).unwrap() {
-            JuliaupConfigApplication::DirectDownloadApplication { path, url: _, local_etag: _, server_etag: _, version: _, execution_aliases: _ } => {
+            JuliaupConfigApplication::DirectDownloadApplication { path, url: _, local_etag: _, server_etag: _, julia_version: _, julia_depot: _, execution_aliases: _ } => {
                 path
             }
         };
