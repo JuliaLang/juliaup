@@ -1,7 +1,9 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use semver::{BuildMetadata, Version};
 use std::path::PathBuf;
 use url::Url;
+
+use crate::global_paths::GlobalPaths;
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
@@ -45,7 +47,7 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
     Ok(parsed_url)
 }
 
-pub fn get_bin_dir() -> Result<PathBuf> {
+pub fn get_bin_dir(paths: &GlobalPaths) -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {
         ';'
     } else {
@@ -63,11 +65,7 @@ pub fn get_bin_dir() -> Result<PathBuf> {
             path
         }
         Err(_) => {
-            let mut path = std::env::current_exe()
-                .with_context(|| "Could not determine the path of the running exe.")?
-                .parent()
-                .ok_or_else(|| anyhow!("Could not determine parent."))?
-                .to_path_buf();
+            let mut path = paths.juliaupselfexecfolder.clone();
 
             if let Some(home_dir) = dirs::home_dir() {
                 if !path.starts_with(&home_dir) {

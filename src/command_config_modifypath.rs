@@ -24,7 +24,7 @@ pub fn run_command_config_modifypath(
             }
 
             if value {
-                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin)?;
+                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfexecfolder)?;
             } else {
                 remove_binfolder_from_path_in_shell_scripts()?;
             }
