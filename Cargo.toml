@@ -44,7 +44,7 @@ indicatif = "0.17.5"
 console = "0.15.7"
 ctrlc = "3.4.0"
 url = "2.4.0"
-cli-table = "0.4.7"
+cli-table = "0.4.8"
 itertools = "0.13.0"
 cluFlock = "1.2.7"
 chrono = { version = "0.4.26", features = ["serde"] }
