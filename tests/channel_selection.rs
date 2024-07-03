@@ -130,15 +130,12 @@ fn channel_selection() {
     // At this point, installed channels are: 1.6.7, 1.7.3, 1.8.5
 
     // Test that incomplete number matching does not autocomplete:
-    // https://github.com/JuliaLang/juliaup/pull/838#issuecomment-2206640506)
+    // https://github.com/JuliaLang/juliaup/pull/838#issuecomment-2206640506
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8")
-        .arg("-e")
-        .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
         .failure();
 
@@ -156,11 +153,8 @@ fn channel_selection() {
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+r")
-        .arg("-e")
-        .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .success();
 
@@ -177,11 +171,8 @@ fn channel_selection() {
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+r")
-        .arg("-e")
-        .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure();
 }

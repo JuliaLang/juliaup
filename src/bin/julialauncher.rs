@@ -159,56 +159,70 @@ enum JuliaupChannelSource {
     Default,
 }
 
+fn only<T, I>(mut iter: I) -> Option<T>
+where
+    I: Iterator<Item = T>,
+{
+    let first = iter.next();
+    if iter.next().is_some() {
+        // There are multiple elements
+        return None;
+    }
+    first
+}
+
 fn get_julia_path_from_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
-    channel: &str,
+    requested_channel: &str,
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let potential_matches: Vec<_> = config_data
-        .installed_channels
-        .keys()
-        .filter(|&item| {
-            item.starts_with(channel) && !item.starts_with("0") && !item.starts_with("1")
-        })
-        .cloned()
-        .collect();
-    let actual_channel = if potential_matches.len() == 1 {
-        potential_matches
-            .first()
-            .expect("length should be 1")
-            .as_str()
+    let expanded_channel = if requested_channel
+        .chars()
+        .next()
+        .map(char::is_numeric)
+        .unwrap_or(false)
+    {
+        requested_channel
     } else {
-        channel
+        match only(
+            config_data
+                .installed_channels
+                .keys()
+                .filter(|&item| item.starts_with(requested_channel)),
+        ) {
+            Some(val) => val,
+            None => requested_channel,
+        }
     };
 
     let channel_info = config_data
             .installed_channels
-            .get(actual_channel)
+            .get(expanded_channel)
             .ok_or_else(|| match juliaup_channel_source {
                 JuliaupChannelSource::CmdLine => {
-                    if versions_db.available_channels.contains_key(actual_channel) {
-                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", actual_channel, actual_channel) }
+                    if versions_db.available_channels.contains_key(expanded_channel) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  actual_channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
-                    if versions_db.available_channels.contains_key(actual_channel) {
-                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", actual_channel, actual_channel) }
+                    if versions_db.available_channels.contains_key(expanded_channel) {
+                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  actual_channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
-                    if versions_db.available_channels.contains_key(actual_channel) {
-                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version.", actual_channel, actual_channel) }
+                    if versions_db.available_channels.contains_key(expanded_channel) {
+                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to get a list of valid channels and versions.",  actual_channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", actual_channel)
+                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", expanded_channel)
             })?;
 
     match channel_info {
@@ -221,12 +235,12 @@ fn get_julia_path_from_channel(
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", actual_channel, version))?.path;
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", expanded_channel, version))?.path;
 
-            check_channel_uptodate(actual_channel, version, versions_db).with_context(|| {
+            check_channel_uptodate(expanded_channel, version, versions_db).with_context(|| {
                 format!(
                     "The Julia launcher failed while checking whether the channel {} is up-to-date.",
-                    actual_channel
+                    expanded_channel
                 )
             })?;
             let absolute_path = juliaupconfig_path
@@ -254,14 +268,14 @@ fn get_julia_path_from_channel(
             if local_etag != server_etag {
                 eprintln!(
                     "A new version of Julia for the `{}` channel is available. Run:",
-                    actual_channel
+                    expanded_channel
                 );
                 eprintln!();
                 eprintln!("  juliaup update");
                 eprintln!();
                 eprintln!(
                     "to install the latest Julia for the `{}` channel.",
-                    actual_channel
+                    expanded_channel
                 );
             }
 
