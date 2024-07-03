@@ -314,7 +314,7 @@ fn run_app() -> Result<i32> {
                     "r" => "release",
                     strip => strip,
                 }
-                .to_string()
+                .to_string(),
             )
         }
     }
