@@ -110,6 +110,6 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
-        Juliaup::Completions { shell } => run_command_completions(&shell),
+        Juliaup::Completions { shell } => run_command_completions(shell),
     }
 }
