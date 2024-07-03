@@ -29,6 +29,8 @@ function triplet2channel(triplet)
         "x86"
     elseif triplet=="aarch64-linux-gnu"
         "aarch64"
+    elseif triplet=="x86_64-unknown-freebsd11.1"
+        "x64"
     else
         error("Unknown platform.")
     end
@@ -64,6 +66,8 @@ function get_available_versions(data, platform)
         ["i686-linux-gnu"]
     elseif platform=="aarch64-unknown-linux-musl"
         ["aarch64-linux-gnu"]
+    elseif platform=="x86_64-unknown-freebsd"
+        ["x86_64-unknown-freebsd11.1"]
     else
         error("Unknown platform.")
     end
@@ -283,6 +287,7 @@ function main_impl(temp_path)
         "aarch64-unknown-linux-gnu",
         "aarch64-unknown-linux-musl",
         "aarch64-apple-darwin",
+        "x86_64-unknown-freebsd",
     ]
 
     new_version_dbs = platforms |>

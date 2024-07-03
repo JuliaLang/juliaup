@@ -51,6 +51,7 @@ curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
+- `--path` (or `-p`): Install `juliaup` in a custom location.
 
 ### Software Repositories
 
@@ -90,6 +91,10 @@ To install via Rust's cargo, run:
 cargo install juliaup
 ```
 
+## Continuous Integration (CI)
+
+If you use GitHub Actions as your CI provider, you can use the [`julia-actions/install-juliaup`](https://github.com/julia-actions/install-juliaup) action to install Juliaup in CI.
+
 ## Using Juliaup
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
@@ -121,6 +126,7 @@ Here are some of the things you can do with `juliaup`:
 The available system provided channels are:
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
+- `alpha`: always points to the latest alpha version if one exists. If a newer beta or release candidate exists, it will point to that, and if there is no alpha, beta, or rc candidate available it will point to the same version as the `release` channel.
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
@@ -163,7 +169,7 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 For juliaup developers, information on how to build juliaup locally, update julia versions, and release updates
 can be found in the wiki https://github.com/JuliaLang/juliaup/wiki
 
-To use unstable preview versions of juliaup (e.g. to gt a patch before it makes it into the latest release), use
+To use unstable preview versions of juliaup (e.g. to get a patch before it makes it into the latest release), use
 
 ```
 curl -fsSL https://install.julialang.org/releasepreview | sh

@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
 #[derive(Parser)]
 #[clap(name = "Juliaup", version)]
@@ -48,7 +48,7 @@ pub enum Juliaup {
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     /// Generate tab-completion scripts for your shell
-    Completions { shell: String },
+    Completions { shell: clap_complete::Shell },
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
@@ -73,6 +73,26 @@ pub enum OverrideSubCmd {
     },
 }
 
+#[derive(Debug, ValueEnum, Clone)]
+pub enum JuliaupChannel {
+    #[clap(name = "release")]
+    Release,
+    #[clap(name = "releasepreview")]
+    ReleasePreview,
+    #[clap(name = "dev")]
+    Dev,
+}
+
+impl JuliaupChannel {
+    pub fn to_lowercase(&self) -> &str {
+        match self {
+            JuliaupChannel::Release => "release",
+            JuliaupChannel::ReleasePreview => "releasepreview",
+            JuliaupChannel::Dev => "dev",
+        }
+    }
+}
+
 #[derive(Parser)]
 /// Manage this juliaup installation
 pub enum SelfSubCmd {
@@ -83,8 +103,12 @@ pub enum SelfSubCmd {
     /// Update the Julia versions database and juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
-    /// Configure the channel to use for juliaup updates
-    Channel { channel: String },
+    #[command(arg_required_else_help = true)]
+    /// Configure the channel to use for juliaup updates.
+    Channel {
+        #[arg(value_enum)]
+        channel: JuliaupChannel,
+    },
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system
     Uninstall {},

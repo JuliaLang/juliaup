@@ -37,12 +37,10 @@ use juliaup::command_selfuninstall::run_command_selfuninstall_unavailable;
 use log::info;
 
 fn main() -> Result<()> {
-    human_panic::setup_panic!(human_panic::Metadata {
-        name: "Juliaup".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        authors: "".into(),
-        homepage: "https://github.com/JuliaLang/juliaup".into(),
-    });
+    human_panic::setup_panic!(
+        human_panic::Metadata::new("Juliaup", env!("CARGO_PKG_VERSION"))
+            .support("https://github.com/JuliaLang/juliaup")
+    );
 
     let env = env_logger::Env::new()
         .filter("JULIAUP_LOG")
@@ -112,6 +110,6 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
-        Juliaup::Completions { shell } => run_command_completions(&shell),
+        Juliaup::Completions { shell } => run_command_completions(shell),
     }
 }
