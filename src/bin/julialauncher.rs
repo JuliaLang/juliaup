@@ -306,13 +306,13 @@ fn run_app() -> Result<i32> {
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
             channel_from_cmd_line = Some(match stripped {
-                "a" => "alpha".to_string(),
-                "b" => "beta".to_string(),
-                "l" => "lts".to_string(),
-                "n" => "nightly".to_string(),
-                "r" => "release".to_string(),
-                strip => strip.to_string(),
-            })
+                "a" => "alpha",
+                "b" => "beta",
+                "l" => "lts",
+                "n" => "nightly",
+                "r" => "release",
+                strip => strip,
+            }.to_string())
         }
     }
 
