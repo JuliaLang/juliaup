@@ -169,7 +169,9 @@ fn get_julia_path_from_channel(
     let potential_matches: Vec<_> = config_data
         .installed_channels
         .keys()
-        .filter(|&item| item.starts_with(channel))
+        .filter(|&item| {
+            item.starts_with(channel) && !item.starts_with("0") && !item.starts_with("1")
+        })
         .cloned()
         .collect();
     let actual_channel = if potential_matches.len() == 1 {

@@ -127,7 +127,10 @@ fn channel_selection() {
         .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
 
     // Now testing short channel matching
+    // At this point, installed channels are: 1.6.7, 1.7.3, 1.8.5
 
+    // Test that incomplete number matching does not autocomplete:
+    // https://github.com/JuliaLang/juliaup/pull/838#issuecomment-2206640506)
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.8")
@@ -137,13 +140,13 @@ fn channel_selection() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.3")
         .assert()
-        .success()
-        .stdout("1.8.5");
+        .failure();
 
+    // Test that completion works only when it should for words
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("add")
-        .arg("1.8.4")
+        .arg("release")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
@@ -152,15 +155,33 @@ fn channel_selection() {
 
     Command::cargo_bin("julia")
         .unwrap()
-        .arg("+1.8")
+        .arg("+r")
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
-        .failure()
-        .stderr(
-            "`1.8` is not installed. Please run `juliaup add 1.8` to install channel or version.\n",
-        );
+        .success();
+
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("add")
+        .arg("rc")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+r")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.4")
+        .assert()
+        .failure();
 }
