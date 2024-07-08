@@ -1,11 +1,11 @@
-use crate::config_file::JuliaupConfig;
+use crate::config_file::{JuliaupConfig, load_config_db};
 use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel};
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::{garbage_collect_versions, install_from_url};
-use crate::operations::{install_version, update_version_db};
+use crate::operations::{download_version_to_temp_folder, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::PathBuf;
@@ -26,7 +26,7 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
-                    install_version(&should_version.version, config_db, version_db, paths)
+                    download_version_to_temp_folder(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {
                             format!(
                                 "Failed to install '{}' while updating channel '{}'.",
@@ -117,26 +117,59 @@ pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Resul
     let version_db =
         load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;
 
-    let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`update` command failed to load configuration data.")?;
+    let channels_to_update;
 
-    match channel {
-        None => {
-            for (k, _) in config_file.data.installed_channels.clone() {
-                update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
-            }
-        }
-        Some(channel) => {
-            if !config_file.data.installed_channels.contains_key(&channel) {
-                bail!(
-                    "'{}' cannot be updated because it is currently not installed.",
-                    channel
-                );
-            }
+    {
+        let config_file = load_config_db(paths)
+            .with_context(|| "`update` command failed to load configuration data.")?;
 
-            update_channel(&mut config_file.data, &channel, &version_db, false, paths)?;
-        }
-    };
+        
+
+        channels_to_update = match channel {
+            None => {
+                config_file
+                    .data
+                    .installed_channels                
+                    .iter()
+                    .filter_map(|i| {
+                        match i.1 {
+                            JuliaupConfigChannel::SystemChannel {version } => Some((i.0, version)),
+                            JuliaupConfigChannel::LinkedChannel { command, args } => None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+
+                // for (k, _) in config_file.data.installed_channels.clone() {
+                //     update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
+                // }
+            }
+            Some(channel) => {
+                if !config_file.data.installed_channels.contains_key(&channel) {
+                    bail!(
+                        "'{}' cannot be updated because it is currently not installed.",
+                        channel
+                    );
+                }
+
+                config_file
+                    .data
+                    .installed_channels                
+                    .iter()
+                    .filter(|i| i.0==&channel)
+                    .filter_map(|i| {
+                        match i.1 {
+                            JuliaupConfigChannel::SystemChannel {version } => Some((i.0, version)),
+                            JuliaupConfigChannel::LinkedChannel { command, args } => None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            }
+        };
+    }
+
+    for (k,v) in channels_to_update {
+        update_channel(&mut config_file.data, &channel, &version_db, false, paths)?;
+    }
 
     garbage_collect_versions(&mut config_file.data, paths)?;
 
