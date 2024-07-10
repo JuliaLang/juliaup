@@ -1019,6 +1019,7 @@ dependencies = [
  "normpath",
  "path-absolutize",
  "predicates",
+ "regex",
  "reqwest",
  "semver",
  "serde",

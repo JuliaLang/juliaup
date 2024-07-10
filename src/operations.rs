@@ -75,13 +75,13 @@ pub fn download_extract_sans_parent(
             .progress_chars("=> "),
     );
 
-    let last_modified = response
+    let last_modified = match response
         .headers()
-        .get("etag")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+        .get("etag") {
+            Some(etag) => Ok(etag.to_str().unwrap().to_string()),
+            None => Err(anyhow!(format!("Failed to get etag from `{}`.\n\
+                This is likely due to requesting a pull request that does not have a cached build available. You may have to build locally.", url))),
+        }?;
 
     let response_with_pb = pb.wrap_read(response);
 
@@ -354,8 +354,8 @@ pub fn install_version(
     Ok(())
 }
 
-// which nightly arch to default to when simply using the `nightly` channel
-pub fn default_nightly_arch() -> Result<String> {
+// which arch to default to when simply using the `nightly` or `pr00000` channel
+pub fn default_arch() -> Result<String> {
     if cfg!(target_arch = "aarch64") {
         Ok("aarch64".to_string())
     } else if cfg!(target_arch = "x86_64") {
@@ -367,8 +367,8 @@ pub fn default_nightly_arch() -> Result<String> {
     }
 }
 
-// which nightly archs are compatible with the current system, for `juliaup list` purposes
-pub fn compatible_nightly_archs() -> Result<Vec<String>> {
+// which archs are compatible with the current system, for `juliaup list` purposes
+pub fn compatible_archs() -> Result<Vec<String>> {
     if cfg!(target_os = "macos") {
         if cfg!(target_arch = "x86_64") {
             Ok(vec!["x64".to_string()])
@@ -391,49 +391,53 @@ pub fn compatible_nightly_archs() -> Result<Vec<String>> {
 }
 
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
-pub fn identify_nightly(channel: &String) -> Result<String> {
-    let arch = if channel == "nightly" {
-        default_nightly_arch()?
-    } else {
-        let parts: Vec<&str> = channel.splitn(2, '~').collect();
-        if parts.len() != 2 {
-            bail!("Invalid nightly channel name '{}'.", channel)
-        }
-        parts[1].to_string()
+pub fn channel_to_name(channel: &String) -> Result<String> {
+    let mut parts = channel.splitn(2, '~');
+
+    let channel = parts.next().expect("Failed to parse channel name.");
+
+    let version = match channel {
+        "nightly" => "latest",
+        other => other,
     };
 
-    let name = {
+    let arch = match parts.next() {
+        Some(arch) => arch.to_string(),
+        None => default_arch()?,
+    };
+
+    let os_arch_suffix = {
         #[cfg(target_os = "macos")]
         if arch == "x64" {
-            "latest-macos-x86_64"
+            "macos-x86_64"
         } else if arch == "aarch64" {
-            "latest-macos-aarch64"
+            "macos-aarch64"
         } else {
             bail!("Unsupported architecture for nightly channel on macOS.")
         }
 
         #[cfg(target_os = "windows")]
         if arch == "x64" {
-            "latest-win64"
+            "win64"
         } else if arch == "x86" {
-            "latest-win32"
+            "win32"
         } else {
             bail!("Unsupported architecture for nightly channel on Windows.")
         }
 
         #[cfg(target_os = "linux")]
         if arch == "x64" {
-            "latest-linux-x86_64"
+            "linux-x86_64"
         } else if arch == "x86" {
-            "latest-linux-i686"
+            "linux-i686"
         } else if arch == "aarch64" {
-            "latest-linux-aarch64"
+            "linux-aarch64"
         } else {
             bail!("Unsupported architecture for nightly channel on Linux.")
         }
     };
 
-    Ok(name.to_string())
+    Ok(version.to_string() + "-" + os_arch_suffix)
 }
 
 pub fn install_from_url(
@@ -453,7 +457,7 @@ pub fn install_from_url(
         Ok(last_updated) => last_updated,
         Err(e) => {
             std::fs::remove_dir_all(temp_dir.into_path())?;
-            bail!("Failed to download and extract nightly: {}", e);
+            bail!("Failed to download and extract pr or nightly: {}", e);
         }
     };
 
@@ -491,29 +495,57 @@ pub fn install_from_url(
     })
 }
 
-pub fn install_nightly(
+pub fn install_non_db_version(
     channel: &str,
     name: &String,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
-    let download_url_path = match name.as_str() {
-        "latest-macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz"),
-        "latest-macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz"),
-        "latest-win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz"),
-        "latest-win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz"),
-        "latest-linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"),
-        "latest-linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz"),
-        "latest-linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz"),
-        _ => Err(anyhow!("Unknown nightly.")),
+    let mut parts = name.splitn(2, '-');
+    let id = parts.next().expect("Failed to parse channel name.");
+    let arch = parts.next().expect("Failed to parse channel name.");
+    let download_url_path = if id == "latest" {
+        match arch {
+            "macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz".to_owned()),
+            "macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz".to_owned()),
+            "win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz".to_owned()),
+            "win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz".to_owned()),
+            "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
+            "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
+            "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
+            _ => Err(anyhow!("Unknown nightly.")),
+        }
+    } else if id.starts_with("pr") {
+        match arch {
+            // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
+            "macos-x86_64" => {
+                Ok("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz")
+            }
+            "macos-aarch64" => {
+                Ok("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
+            }
+            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
+            "linux-x86_64" => {
+                Ok("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz")
+            }
+            "linux-aarch64" => {
+                Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+            }
+            _ => Err(anyhow!("Unknown pr.")),
+        }
+    } else {
+        Err(anyhow!("Unknown non-db channel."))
     }?;
-    let download_url = download_url_base.join(download_url_path).with_context(|| {
-        format!(
-            "Failed to construct a valid url from '{}' and '{}'.",
-            download_url_base, download_url_path
-        )
-    })?;
+
+    let download_url = download_url_base
+        .join(download_url_path.as_str())
+        .with_context(|| {
+            format!(
+                "Failed to construct a valid url from '{}' and '{}'.",
+                download_url_base, download_url_path
+            )
+        })?;
 
     let child_target_foldername = format!("julia-{}", channel);
 
