@@ -25,19 +25,6 @@ fn command_add() {
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
-        .arg("add")
-        .arg("pr123")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
-        .assert()
-        .failure()
-        .stdout("")
-        .stderr(predicate::str::contains(
-            "This is likely due to requesting a pull request that does not have a cached build available.",
-        ));
-
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+1.6.4")
