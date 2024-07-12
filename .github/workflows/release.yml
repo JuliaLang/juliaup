@@ -515,6 +515,34 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
       env:
           GH_REF: ${{ github.ref }}
+    - name: 'Azure CLI login with federated credential'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign Windows x64 files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target/x86_64-pc-windows-gnu-portable
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign Windows x86 files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target/i686-pc-windows-gnu-portable
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
     - name: Create archives
       run: |
         mkdir public
@@ -607,16 +635,40 @@ jobs:
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
-    - name: Build MSIX Windows Store
-      run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
-    - name: Build MSIX App Installer
-      run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: 'Azure CLI login with federated credential'
       uses: azure/login@v2
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign Store binary files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\windowsstore
+        files-folder-recurse: true
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign Appinstaller binary files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\winappinstaller
+        files-folder-recurse: true
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Build MSIX Windows Store
+      run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
+    - name: Build MSIX App Installer
+      run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
       uses: azure/trusted-signing-action@v0.3.20
       with:
@@ -683,16 +735,38 @@ jobs:
       shell: bash
       env:
           GH_REF: ${{ github.ref }}
-    - name: Build MSI
-      run: |
-        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
-        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: 'Azure CLI login with federated credential'
       uses: azure/login@v2
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign x64 binary files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msi\x86_64-pc-windows-gnu\release
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign x86 binary files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msi\i686-pc-windows-gnu\release
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256        
+    - name: Build MSI
+      run: |
+        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
+        wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
       uses: azure/trusted-signing-action@v0.3.20
       with:
