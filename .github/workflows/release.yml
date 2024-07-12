@@ -830,7 +830,7 @@ jobs:
         generateReleaseNotes: true
 
   deploy-github-release-binaries:
-    needs: [package-mac-linux-portable, package-windows-portable]
+    needs: [create-github-release, package-mac-linux-portable, package-windows-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
