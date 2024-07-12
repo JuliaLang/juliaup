@@ -623,13 +623,6 @@ jobs:
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
-    - name: Sign msix files
-      run: |
-        Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
-          $msixPath = $_.FullName
-          & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msixPath
-        }
-      shell: pwsh
     - name: Package Windows Store payload
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
@@ -698,7 +691,7 @@ jobs:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
-        files-folder: ${{ github.workspace }}\target\msix\winappinstallermsix
+        files-folder: ${{ github.workspace }}\target\msi
         files-folder-filter: msi
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
