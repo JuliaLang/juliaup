@@ -100,7 +100,7 @@ binjulialauncher = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="false"}, {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}] }
-winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="true"}, {name = "IdentityPublisher", value = "CN=&quot;JULIA COMPUTING, INC.&quot;, O=&quot;JULIA COMPUTING, INC.&quot;, S=Massachusetts, C=US"}] }
+winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [{name = "FlatBundle", value="true"}, {name = "IdentityPublisher", value = "CN=juliahub.com, O=juliahub.com, OU=JuliaHub Inc, L=Cambridge, S=Massachusetts, C=US, PostalCode=02138"}] }
 
 [package.metadata.winappinstaller]
 winappinstaller = "deploy/winappinstaller/Julia.appinstaller"
