@@ -527,7 +527,7 @@ jobs:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
-        files-folder: ${{ github.workspace }}\target/x86_64-pc-windows-gnu-portable
+        files-folder: ${{ github.workspace }}\target\x86_64-pc-windows-gnu-portable
         files-folder-filter: exe
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
@@ -538,7 +538,7 @@ jobs:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
-        files-folder: ${{ github.workspace }}\target/i686-pc-windows-gnu-portable
+        files-folder: ${{ github.workspace }}\target\i686-pc-windows-gnu-portable
         files-folder-filter: exe
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
