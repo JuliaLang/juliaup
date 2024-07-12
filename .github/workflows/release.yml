@@ -550,6 +550,7 @@ jobs:
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
         echo "VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
@@ -581,6 +582,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Create archives
+      shell: bash
       run: |
         mkdir public
 
@@ -596,7 +598,7 @@ jobs:
         name: portable-windows
         path: public/*.*
 
-  package-windows:
+  package-windows-msix:
     needs: [build-juliaup,test-juliaup]
     runs-on: windows-latest
     environment: package
@@ -849,7 +851,7 @@ jobs:
         prerelease: true
 
   deploy-dev-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -879,7 +881,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -909,7 +911,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -939,7 +941,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -952,7 +954,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -990,7 +992,7 @@ jobs:
           GH_REF: ${{ github.ref }}
   
   deploy-dev-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1039,7 +1041,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-releasepreview-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1084,7 +1086,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1139,7 +1141,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1152,7 +1154,7 @@ jobs:
         allowUpdates: true
 
   deploy-release-channel-crates:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
