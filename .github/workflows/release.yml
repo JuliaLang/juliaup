@@ -686,11 +686,11 @@ jobs:
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: 'Azure CLI login with federated credential'
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
-          tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign MSI files
       uses: azure/trusted-signing-action@v0.3.20
       with:
