@@ -609,12 +609,15 @@ jobs:
       run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
+    - name: 'Azure CLI login with federated credential'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign msix files
       uses: azure/trusted-signing-action@v0.3.20
       with:
-        azure-tenant-id: ${{ secrets.AZURE_TRUSTEDSIGNING_TENANT_ID }}
-        azure-client-id: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_ID }}
-        azure-client-secret: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_SECRET }}
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
@@ -682,12 +685,15 @@ jobs:
       run: |
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
+    - name: 'Azure CLI login with federated credential'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+          tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign MSI files
       uses: azure/trusted-signing-action@v0.3.20
       with:
-        azure-tenant-id: ${{ secrets.AZURE_TRUSTEDSIGNING_TENANT_ID }}
-        azure-client-id: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_ID }}
-        azure-client-secret: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_SECRET }}
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
