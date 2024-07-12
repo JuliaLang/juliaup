@@ -559,8 +559,6 @@ jobs:
         7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
         pwsh --version
     - uses: actions/checkout@v4
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
     - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Install cargo-msix
       run: cargo install cargo-msix
@@ -612,6 +610,20 @@ jobs:
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        azure-tenant-id: ${{ secrets.AZURE_TRUSTEDSIGNING_TENANT_ID }}
+        azure-client-id: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_ID }}
+        azure-client-secret: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_SECRET }}
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msix\winappinstallermsix
+        # files-folder-filter: 
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign msix files
       run: |
         Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
           $msixPath = $_.FullName
@@ -652,8 +664,6 @@ jobs:
       run: dotnet tool install --global wix --version 4.0.4
     - name: Install Wix UI extensions
       run: wix extension add -g WixToolset.UI.wixext/4.0.4
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
     - name: Download x86 Juliaup Windows MSI artifact
       uses: actions/download-artifact@v4
       with:
@@ -680,12 +690,19 @@ jobs:
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
-      run: |
-        Get-ChildItem target\msi\*.msi | ForEach-Object {
-          $msiPath = $_.FullName
-          & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msiPath
-        }
-      shell: pwsh
+      uses: azure/trusted-signing-action@v0.3.20
+      with:
+        azure-tenant-id: ${{ secrets.AZURE_TRUSTEDSIGNING_TENANT_ID }}
+        azure-client-id: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_ID }}
+        azure-client-secret: ${{ secrets.AZURE_TRUSTEDSIGNING_CLIENT_SECRET }}
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msix\winappinstallermsix
+        files-folder-filter: msi
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
     - uses: actions/upload-artifact@v4
       with:
         name: msiinstallers
