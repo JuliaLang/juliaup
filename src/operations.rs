@@ -391,12 +391,16 @@ pub fn compatible_archs() -> Result<Vec<String>> {
 }
 
 // which nightly channels are compatible with the current system
-fn compatible_nightly_channels() -> Result<Vec<String>> {
+pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
     let archs: Result<Vec<String>> = compatible_archs();
 
     if archs.is_ok() {
-        let channels: Vec<String> = std::iter::once("nightly".to_string())
-            .chain(archs?.into_iter().map(|arch| format!("nightly~{}", arch)))
+        let channels: Vec<String> = std::iter::once(channel.to_string())
+            .chain(
+                archs?
+                    .into_iter()
+                    .map(|arch| format!("{}~{}", channel, arch)),
+            )
             .collect();
         Ok(channels)
     } else {
@@ -409,7 +413,7 @@ fn compatible_nightly_channels() -> Result<Vec<String>> {
 pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> bool {
     let regular = versions_db.available_channels.contains_key(channel);
 
-    let nightly_chans = compatible_nightly_channels();
+    let nightly_chans = get_channel_variations("nightly");
 
     let nightly = nightly_chans.is_ok_and(|nightly_chans| nightly_chans.contains(channel));
     regular || nightly

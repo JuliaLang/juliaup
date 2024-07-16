@@ -20,10 +20,8 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
-    let non_db_channels: Vec<String> = std::iter::once("nightly".to_string())
-        .chain(
-            compatible_archs()?
-                .into_iter()
+    let non_db_channels: Vec<String> = (get_channel_variations("nightly")?)
+        .into_iter()
                 .map(|arch| format!("nightly~{}", arch)),
         )
         .chain(std::iter::once("pr{number}".to_string()))
