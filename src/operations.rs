@@ -396,11 +396,7 @@ pub fn compatible_nightly_channels() -> Result<Vec<String>> {
 
     if archs.is_ok() {
         let channels: Vec<String> = std::iter::once("nightly".to_string())
-            .chain(
-                compatible_archs()?
-                    .into_iter()
-                    .map(|arch| format!("nightly~{}", arch)),
-            )
+            .chain(archs?.into_iter().map(|arch| format!("nightly~{}", arch)))
             .collect();
         Ok(channels)
     } else {

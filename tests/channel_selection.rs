@@ -125,4 +125,30 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
+
+    // https://github.com/JuliaLang/juliaup/issues/766
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+1.8.2")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.4")
+        .assert()
+        .failure()
+        .stderr("`1.8.2` is not installed. Please run `juliaup add 1.8.2` to install channel or version.\n");
+
+    // https://github.com/JuliaLang/juliaup/issues/820
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+nightly")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.4")
+        .assert()
+        .failure()
+        .stderr("`nightly` is not installed. Please run `juliaup add nightly` to install channel or version.\n");
 }
