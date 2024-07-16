@@ -1,4 +1,4 @@
-use crate::operations::{channel_to_name, compatible_channels};
+use crate::operations::{channel_to_name, compatible_nightly_channels};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
 use anyhow::{Context, Result};
 use cli_table::{
@@ -20,7 +20,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
-    let non_db_channels: Vec<String> = compatible_channels()?;
+    let non_db_channels: Vec<String> = compatible_nightly_channels()?;
 
     let non_db_rows: Vec<ChannelRow> = non_db_channels
         .into_iter()
