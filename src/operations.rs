@@ -18,6 +18,7 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use regex::Regex;
 use semver::Version;
 use std::io::BufReader;
 use std::io::Seek;
@@ -417,6 +418,10 @@ pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> boo
 
     let nightly = nightly_chans.is_ok_and(|nightly_chans| nightly_chans.contains(channel));
     regular || nightly
+}
+
+pub fn is_pr_channel(channel: &String) -> bool {
+    return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
 }
 
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
