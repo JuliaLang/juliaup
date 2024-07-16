@@ -188,16 +188,16 @@ fn get_julia_path_from_channel(
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
                     if is_valid_channel(versions_db, &channel.to_string()) {
-                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
                     if is_valid_channel(versions_db, &channel.to_string()) {
-                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
