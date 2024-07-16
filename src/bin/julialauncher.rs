@@ -235,7 +235,7 @@ fn get_julia_path_from_channel(
             version: _,
         } => {
             if local_etag != server_etag {
-                if channel == "nightly" {
+                if channel.starts_with("nightly") {
                     // Nightly is updateable several times per day so this message will show
                     // more often than not unless folks update a couple of times a day.
                     // Also, folks using nightly are typically more experienced and need
