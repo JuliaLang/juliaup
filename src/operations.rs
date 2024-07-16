@@ -391,7 +391,7 @@ pub fn compatible_archs() -> Result<Vec<String>> {
 }
 
 // which nightly channels are compatible with the current system
-pub fn compatible_nightly_channels() -> Result<Vec<String>> {
+fn compatible_nightly_channels() -> Result<Vec<String>> {
     let archs: Result<Vec<String>> = compatible_archs();
 
     if archs.is_ok() {
