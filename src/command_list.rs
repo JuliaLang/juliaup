@@ -28,7 +28,6 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         )
         .chain(std::iter::once("pr{number}".to_string()))
         .collect();
-
     let non_db_rows: Vec<ChannelRow> = non_db_channels
         .into_iter()
         .map(|channel| {
