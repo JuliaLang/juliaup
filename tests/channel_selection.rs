@@ -111,7 +111,7 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr(
-            "ERROR: Invalid Juliaup channel `1.7.4` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.\n",
+            "ERROR: Invalid Juliaup channel `1.7.4` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.\n",
         );
 
     Command::cargo_bin("julia")
