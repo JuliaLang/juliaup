@@ -1,4 +1,4 @@
-use crate::operations::{channel_to_name, compatible_archs};
+use crate::operations::{channel_to_name, get_channel_variations};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
 use anyhow::{Context, Result};
 use cli_table::{
