@@ -47,6 +47,24 @@ fn main() -> Result<()> {
         .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    #[cfg(feature = "winpkgidentityext")]
+    {
+        use windows::Management::Deployment::{PackageManager,AddPackageOptions};
+
+        let package_manager = PackageManager::new().unwrap();
+
+        let package_manager_options = AddPackageOptions::new().unwrap();
+
+        let loc = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(".")).unwrap();
+
+        package_manager_options.SetExternalLocationUri(&loc).unwrap();
+        package_manager_options.SetAllowUnsigned(true).unwrap();
+
+        let arg = package_manager.AddPackageByUriAsync(&loc, &package_manager_options).unwrap();
+
+
+    }
+
     info!("Parsing command line arguments.");
     let args = Juliaup::parse();
 
