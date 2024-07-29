@@ -12,6 +12,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use anyhow::{anyhow, bail, Context, Result};
+use binstall_tar::Archive;
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use console::style;
@@ -28,7 +29,6 @@ use std::{
     io::Read,
     path::{Component::Normal, Path, PathBuf},
 };
-use tar::Archive;
 use tempfile::Builder;
 use url::Url;
 
@@ -381,8 +381,12 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     } else if cfg!(target_arch = "x86") {
         Ok(vec!["x86".to_string()])
     } else if cfg!(target_arch = "x86_64") {
-        // x86_64 can execute x86 binaries
-        Ok(vec!["x86".to_string(), "x64".to_string()])
+        // x86_64 can execute x86 binaries, but we don't produce x86 binaries for FreeBSD
+        if cfg!(target_os = "freebsd") {
+            Ok(vec!["x64".to_string()])
+        } else {
+            Ok(vec!["x86".to_string(), "x64".to_string()])
+        }
     } else if cfg!(target_arch = "aarch64") {
         Ok(vec!["aarch64".to_string()])
     } else {
@@ -434,6 +438,13 @@ pub fn channel_to_name(channel: &String) -> Result<String> {
             "linux-aarch64"
         } else {
             bail!("Unsupported architecture for nightly channel on Linux.")
+        }
+
+        #[cfg(target_os = "freebsd")]
+        if arch == "x64" {
+            "latest-freebsd-x86_64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on FreeBSD.")
         }
     };
 
@@ -514,6 +525,7 @@ pub fn install_non_db_version(
             "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
             "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
             "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
+            "freebsd-x86_64" => Ok("bin/freebsd/x86_64/julia-latest-freebsd-x86_64.tar.gz".to_owned()),
             _ => Err(anyhow!("Unknown nightly.")),
         }
     } else if id.starts_with("pr") {
@@ -531,6 +543,9 @@ pub fn install_non_db_version(
             }
             "linux-aarch64" => {
                 Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+            }
+            "freebsd-x86_64" => {
+                Ok("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
             }
             _ => Err(anyhow!("Unknown pr.")),
         }
