@@ -18,6 +18,7 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use regex::Regex;
 use semver::Version;
 use std::io::BufReader;
 use std::io::Seek;
@@ -388,6 +389,39 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     } else {
         bail!("Unsupported architecture for nightly channel.")
     }
+}
+
+// which nightly channels are compatible with the current system
+pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
+    let archs: Result<Vec<String>> = compatible_archs();
+
+    if archs.is_ok() {
+        let channels: Vec<String> = std::iter::once(channel.to_string())
+            .chain(
+                archs?
+                    .into_iter()
+                    .map(|arch| format!("{}~{}", channel, arch)),
+            )
+            .collect();
+        Ok(channels)
+    } else {
+        archs
+    }
+}
+
+// considers the nightly channels as system channels
+// XXX: does not account for PR channels
+pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> bool {
+    let regular = versions_db.available_channels.contains_key(channel);
+
+    let nightly_chans = get_channel_variations("nightly");
+
+    let nightly = nightly_chans.is_ok_and(|nightly_chans| nightly_chans.contains(channel));
+    regular || nightly
+}
+
+pub fn is_pr_channel(channel: &String) -> bool {
+    return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
 }
 
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
