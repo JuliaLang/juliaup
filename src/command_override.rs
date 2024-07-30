@@ -66,7 +66,11 @@ pub fn run_command_override_set(
         .with_context(|| "`override set` command failed to load configuration data.")?;
 
     if !config_file.data.installed_channels.contains_key(&channel) {
-        bail!("'{}' channel does not exist.", &channel);
+        bail!(
+            "'{}' is not installed. Please run `juliaup add {}` to install channel or version.",
+            &channel,
+            &channel
+        );
     }
 
     let path = match path {
@@ -75,25 +79,47 @@ pub fn run_command_override_set(
     }
     .canonicalize()?;
 
-    if config_file
+    if let Some(i) = config_file
         .data
         .overrides
-        .iter()
-        .any(|i| i.path == path.to_string_lossy())
+        .iter_mut()
+        .find(|i| i.path == path.to_string_lossy())
     {
-        bail!(
-            "'{}' path already has an override configured.",
-            path.to_string_lossy()
-        );
+        if i.channel == channel {
+            eprintln!(
+                "Override already set to '{}' for '{}'.",
+                channel,
+                path.to_string_lossy()
+            );
+            return Ok(());
+        } else {
+            eprintln!(
+                "Override changed from '{}' to '{}' for '{}'.",
+                i.channel,
+                channel,
+                path.to_string_lossy()
+            );
+            i.channel = channel.clone();
+
+            save_config_db(&mut config_file).with_context(|| {
+                "Failed to save configuration file from `override set` command."
+            })?;
+            return Ok(());
+        }
     }
 
     config_file.data.overrides.push(JuliaupOverride {
         path: path.to_string_lossy().to_string(),
         channel: channel.clone(),
     });
+    eprintln!(
+        "Override set to '{}' for '{}'.",
+        channel,
+        path.to_string_lossy()
+    );
 
     save_config_db(&mut config_file)
-        .with_context(|| "Failed to save configuration file from `override add` command.")?;
+        .with_context(|| "Failed to save configuration file from `override set` command.")?;
 
     Ok(())
 }

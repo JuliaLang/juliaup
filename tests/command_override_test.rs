@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
+use predicates::str::starts_with;
 
 #[test]
 fn command_override_status_test() {
@@ -87,12 +88,40 @@ fn command_override_cur_dir_test() {
         .unwrap()
         .arg("override")
         .arg("set")
+        .arg("1.6.7")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .current_dir(&or_dir)
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(starts_with("Override set to '1.6.7'"));
+
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("override")
+        .arg("set")
+        .arg("1.6.7")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .current_dir(&or_dir)
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(starts_with("Override already set to '1.6.7'"));
+
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("override")
+        .arg("set")
         .arg("1.8.5")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .current_dir(&or_dir)
         .assert()
-        .success();
+        .success()
+        .stdout("")
+        .stderr(starts_with("Override changed from '1.6.7' to '1.8.5'"));
 
     Command::cargo_bin("julia")
         .unwrap()
