@@ -12,8 +12,8 @@ pub struct GlobalPaths {
     pub juliaupselfhome: PathBuf,
     #[cfg(feature = "selfupdate")]
     pub juliaupselfconfig: PathBuf,
-    #[cfg(feature = "selfupdate")]
-    pub juliaupselfbin: PathBuf,
+    pub juliaupselfexecfolder: PathBuf,
+    pub juliaupselfexec: PathBuf,
 }
 
 fn get_juliaup_home_path() -> Result<PathBuf> {
@@ -54,17 +54,22 @@ fn get_default_juliaup_home_path() -> Result<PathBuf> {
 }
 
 pub fn get_paths() -> Result<GlobalPaths> {
+    use anyhow::Context;
+
     let juliauphome = get_juliaup_home_path()?;
 
-    #[cfg(feature = "selfupdate")]
     let my_own_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
+        .with_context(|| "std::env::current_exe() did not find its own path.")?
+        .canonicalize()
+        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
 
-    #[cfg(feature = "selfupdate")]
-    let juliaupselfbin = my_own_path
+    let juliaupselfexecfolder = my_own_path
         .parent()
         .ok_or_else(|| anyhow!("Could not determine parent."))?
         .to_path_buf();
+
+    let juliaupselfexec = juliaupselfexecfolder
+        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
 
     let juliaupconfig = juliauphome.join("juliaup.json");
 
@@ -92,7 +97,7 @@ pub fn get_paths() -> Result<GlobalPaths> {
         juliaupselfhome,
         #[cfg(feature = "selfupdate")]
         juliaupselfconfig,
-        #[cfg(feature = "selfupdate")]
-        juliaupselfbin,
+        juliaupselfexecfolder,
+        juliaupselfexec,
     })
 }
