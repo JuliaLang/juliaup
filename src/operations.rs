@@ -85,12 +85,47 @@ pub fn download_extract_sans_parent(
 
     let response_with_pb = pb.wrap_read(response);
 
-    let tar = GzDecoder::new(response_with_pb);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, target_path, levels_to_skip)
-        .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+    // if url is to a .dmg extract using macos native tools
+    if url.ends_with(".dmg") {
+        let mut archive = File::create(&target_path)?;
+        copy(&mut response_with_pb, &mut archive)?;
+
+        // Wait for the .dmg to mount
+        let mountpoint = wait_for_dmg_mount()?;
+
+        // Open the Julia root directory.
+        // TODO replace app name with actual name
+        let julia_root_path = mountpoint.join("Julia-1.12.app/Contents/Resources/julia");
+        let mut julia_root = File::open(&julia_root_path)?;
+
+        // Copy Julia directory to target path
+        let mut target_file = File::create(&target_path)?;
+        copy(&mut julia_root, &mut target_file)?;
+
+        // Remove the mount point directory
+        fs::remove_dir_all(&mountpoint)?;
+    } else {
+        let tar = GzDecoder::new(response_with_pb);
+        let archive = Archive::new(tar);
+        unpack_sans_parent(archive, target_path, levels_to_skip)
+            .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+    }
 
     Ok(last_modified)
+}
+
+fn wait_for_dmg_mount() -> Result<std::path::PathBuf> {
+    // Loop until we find the mounted volume
+    loop {
+        if let Some(entry) = fs::read_dir("/Volumes")?.next() {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                return Ok(entry.path());
+            }
+        }
+        // Sleep for a short time before trying again
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 }
 
 #[cfg(windows)]
@@ -321,6 +356,10 @@ pub fn install_version(
                 )
             })?
             .url_path;
+
+        if cfg!(target_os = "macos") {
+            download_url_path.trim_end_matches(".tar.gz").to_string() + ".dmg";
+        }
 
         let download_url = juliaupserver_base
             .join(download_url_path)
