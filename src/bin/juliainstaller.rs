@@ -401,7 +401,8 @@ pub fn main() -> Result<()> {
                 return Ok(());
             }
 
-            std::fs::remove_dir_all(install_choices.install_location);
+            std::fs::remove_dir_all(install_choices.install_location)
+                .with_context(|| format!("Failed to delete folder `{}`.", install_choices.install_location))?;
 
             println!();
         }
