@@ -352,10 +352,12 @@ pub fn install_version(
     );
 
     #[cfg(target_os = "macos")]
-    if semver::Version::parse(&fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap() {
+    if semver::Version::parse(&fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap()
+    {
         use normpath::PathExt;
 
-        let julia_path = &paths.juliaupconfig
+        let julia_path = &paths
+            .juliaupconfig
             .parent()
             .unwrap() // unwrap OK because there should always be a parent
             .join(rel_path)
