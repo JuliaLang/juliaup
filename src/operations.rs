@@ -370,15 +370,27 @@ pub fn install_version(
                     &paths.juliaupconfig.display()
                 )
             })?;
-        let _ = std::process::Command::new(&julia_path)
+
+        print!("Checking standard library notarization");
+        let _  = std::io::stdout().flush();
+
+        let exit_status = std::process::Command::new(&julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
-            .arg("println(\"Checking standard library notarization\"); foreach(p -> @eval(import $(Symbol(p))), filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB))); println(\"Finished checking standard library notarization\")")
+            .arg("foreach(p -> begin print('.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
             // .stdout(std::process::Stdio::null())
             // .stderr(std::process::Stdio::null())
             // .stdin(std::process::Stdio::null())
-            .status();
+            .status()
+            .unwrap();
+
+        if exit_status.success() {
+            println!("done.")
+        }
+        else {
+            println!("failed with {}.", exit_status);
+        }
     }
 
     Ok(())
