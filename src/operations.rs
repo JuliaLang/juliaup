@@ -374,11 +374,11 @@ pub fn install_version(
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
-            .arg("foreach(p -> @eval(import $(Symbol(p))), filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .stdin(std::process::Stdio::null())
-            .spawn();
+            .arg("println(\"Notarizing standard library\"); foreach(p -> @eval(import $(Symbol(p))), filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB))); println(\"Finished notarizing standard library\")")
+            // .stdout(std::process::Stdio::null())
+            // .stderr(std::process::Stdio::null())
+            // .stdin(std::process::Stdio::null())
+            .status();
     }
 
     Ok(())
