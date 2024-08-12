@@ -372,7 +372,7 @@ pub fn install_version(
             })?;
 
         print!("Checking standard library notarization");
-        let _  = std::io::stdout().flush();
+        let _ = std::io::stdout().flush();
 
         let exit_status = std::process::Command::new(&julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
@@ -387,8 +387,7 @@ pub fn install_version(
 
         if exit_status.success() {
             println!("done.")
-        }
-        else {
+        } else {
             println!("failed with {}.", exit_status);
         }
     }
