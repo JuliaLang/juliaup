@@ -292,10 +292,8 @@ pub fn install_version(
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
     let full_version_string_of_bundled_version = get_bundled_julia_version();
-    let my_own_path = std::env::current_exe()?;
-    let path_of_bundled_version = my_own_path
-        .parent()
-        .unwrap() // unwrap OK because we can't get a path that does not have a parent
+    let path_of_bundled_version = &paths
+        .juliaupselfexecfolder
         .join("BundledJulia");
 
     let child_target_foldername = format!("julia-{}", fullversion);
@@ -648,8 +646,8 @@ fn _remove_symlink(symlink_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn remove_symlink(symlink_name: &String) -> Result<()> {
-    let symlink_path = get_bin_dir()
+pub fn remove_symlink(symlink_name: &String, paths: &GlobalPaths) -> Result<()> {
+    let symlink_path = get_bin_dir(paths)
         .with_context(|| "Failed to retrieve binary directory while trying to remove a symlink.")?
         .join(symlink_name);
 
@@ -780,14 +778,9 @@ pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths
 }
 
 #[cfg(feature = "selfupdate")]
-pub fn install_background_selfupdate(interval: i64) -> Result<()> {
+pub fn install_background_selfupdate(interval: i64, paths: &GlobalPaths) -> Result<()> {
     use itertools::Itertools;
     use std::process::Stdio;
-
-    let own_exe_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
-
-    let my_own_path = own_exe_path.to_str().unwrap();
 
     match std::env::var("WSL_DISTRO_NAME") {
         // This is the WSL case, where we schedule a Windows task to do the update
@@ -804,7 +797,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
                     "/f",
                     "/it",
                     "/tr",
-                    &format!("wsl --distribution {} {} self update", val, my_own_path),
+                    &format!("wsl --distribution {} {} self update", val, &paths.juliaupselfexec),
                 ])
                 .output()
                 .with_context(|| "Failed to create new Windows task for juliaup.")?;
@@ -821,7 +814,7 @@ pub fn install_background_selfupdate(interval: i64) -> Result<()> {
                 .chain([
                     &format!(
                         "*/{} * * * * {} 4c79c12db1d34bbbab1f6c6f838f423f",
-                        interval, my_own_path
+                        interval, &paths.juliaupselfexec
                     ),
                     "",
                 ])
