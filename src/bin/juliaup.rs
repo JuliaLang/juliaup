@@ -47,6 +47,44 @@ fn main() -> Result<()> {
         .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    #[cfg(feature = "winpkgidentityext")]
+    {
+        use windows::Management::Deployment::{AddPackageOptions, PackageManager};
+
+        let package_manager = PackageManager::new().unwrap();
+
+        let package_manager_options = AddPackageOptions::new().unwrap();
+
+        let self_location = std::env::current_exe().unwrap();
+        let self_location = self_location.parent().unwrap();
+        let pkg_loc = self_location.join("juliaup.msix");
+
+        let external_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(self_location))
+                .unwrap();
+        let pkg_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(pkg_loc.as_os_str()))
+                .unwrap();
+
+        package_manager_options
+            .SetExternalLocationUri(&external_loc)
+            .unwrap();
+        package_manager_options.SetAllowUnsigned(false).unwrap();
+
+        let depl_result = package_manager
+            .AddPackageByUriAsync(&pkg_loc, &package_manager_options)
+            .unwrap()
+            .get()
+            .unwrap();
+
+        if !depl_result.IsRegistered().unwrap() {
+            println!(
+                "Failed to register package identity. Error Message ${:?}",
+                depl_result.ErrorText()
+            );
+        }
+    }
+
     info!("Parsing command line arguments.");
     let args = Juliaup::parse();
 
