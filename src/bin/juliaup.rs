@@ -50,6 +50,44 @@ fn main() -> Result<()> {
         .write_style("JULIAUP_LOG_STYLE");
     env_logger::init_from_env(env);
 
+    #[cfg(feature = "winpkgidentityext")]
+    {
+        use windows::Management::Deployment::{AddPackageOptions, PackageManager};
+
+        let package_manager = PackageManager::new().unwrap();
+
+        let package_manager_options = AddPackageOptions::new().unwrap();
+
+        let self_location = std::env::current_exe().unwrap();
+        let self_location = self_location.parent().unwrap();
+        let pkg_loc = self_location.join("juliaup.msix");
+
+        let external_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(self_location))
+                .unwrap();
+        let pkg_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(pkg_loc.as_os_str()))
+                .unwrap();
+
+        package_manager_options
+            .SetExternalLocationUri(&external_loc)
+            .unwrap();
+        package_manager_options.SetAllowUnsigned(false).unwrap();
+
+        let depl_result = package_manager
+            .AddPackageByUriAsync(&pkg_loc, &package_manager_options)
+            .unwrap()
+            .get()
+            .unwrap();
+
+        if !depl_result.IsRegistered().unwrap() {
+            println!(
+                "Failed to register package identity. Error Message ${:?}",
+                depl_result.ErrorText()
+            );
+        }
+    }
+
     info!("Parsing command line arguments.");
     let args = Juliaup::parse();
 
@@ -113,7 +151,7 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
-        Juliaup::Completions { shell } => run_command_completions(&shell),
+        Juliaup::Completions { shell } => run_command_completions(shell),
         Juliaup::Application(subcmd) => match subcmd {
             ApplicationSubCmd::Add { value } => {
                 run_command_app_add(&value, &paths)
@@ -122,6 +160,6 @@ fn main() -> Result<()> {
                 run_command_app_run(&name, &args, &paths)
             },
             ApplicationSubCmd::Remove { name } => run_command_app_remove(&name, &paths)
-        }
+        },
     }
 }

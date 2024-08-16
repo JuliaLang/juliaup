@@ -2,13 +2,20 @@ use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChanne
 use crate::global_paths::GlobalPaths;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
-use crate::operations::{identify_nightly, install_nightly, install_version, update_version_db};
+use crate::operations::{
+    channel_to_name, install_non_db_version, install_version, update_version_db,
+};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, Context, Result};
+use regex::Regex;
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
-    if channel == "nightly" || channel.starts_with("nightly~") {
-        return add_nightly(channel, paths);
+    // This regex is dynamically compiled, but its runtime is negligible compared to downloading Julia
+    if Regex::new(r"^(pr\d+|nightly)(~|$)")
+        .unwrap()
+        .is_match(channel)
+    {
+        return add_non_db(channel, paths);
     }
 
     update_version_db(paths).with_context(|| "Failed to update versions db.")?;
@@ -71,7 +78,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
-fn add_nightly(channel: &str, paths: &GlobalPaths) -> Result<()> {
+fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`add` command failed to load configuration data.")?;
 
@@ -80,8 +87,8 @@ fn add_nightly(channel: &str, paths: &GlobalPaths) -> Result<()> {
         return Ok(());
     }
 
-    let name = identify_nightly(&channel.to_string())?;
-    let config_channel = install_nightly(channel, &name, paths)?;
+    let name = channel_to_name(&channel.to_string())?;
+    let config_channel = install_non_db_version(channel, &name, paths)?;
 
     config_file
         .data

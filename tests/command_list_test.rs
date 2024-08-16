@@ -15,7 +15,9 @@ fn command_list() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));
+        .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")))
+        .stdout(predicate::str::contains("nightly"))
+        .stdout(predicate::str::contains("pr{number}"));
 
     Command::cargo_bin("juliaup")
         .unwrap()

@@ -48,7 +48,7 @@ pub enum Juliaup {
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     /// Generate tab-completion scripts for your shell
-    Completions { shell: String },
+    Completions { shell: clap_complete::Shell },
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]

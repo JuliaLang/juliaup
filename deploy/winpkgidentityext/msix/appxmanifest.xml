@@ -5,25 +5,27 @@
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
   xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity Name="JuliaComputingInc.Julia" Publisher="{{{IdentityPublisher}}}" Version="{{ Version }}.0" ProcessorArchitecture="{{ ProcessorArchitecture }}"/>
+  <Identity Name="JuliaHubInc.JuliaDev" Publisher="CN=&quot;JuliaHub, Inc.&quot;, O=&quot;JuliaHub, Inc.&quot;, L=CAMBRIDGE, S=Massachusetts, C=US" Version="1.0.0.0" ProcessorArchitecture="x64"/>
 
   <Properties>
-    <DisplayName>Julia</DisplayName>
+    <DisplayName>Julia Dev</DisplayName>
     <PublisherDisplayName>JuliaHub, Inc.</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
     <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+    <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17134.0" MaxVersionTested="10.0.19043.0" />
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19043.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.19043.0" />
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.19041.0" MaxVersionTested="10.0.19043.0" />
     <PackageDependency Name="Microsoft.VCLibs.140.00.UWPDesktop" MinVersion="14.0.29231.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
   </Dependencies>
 
@@ -32,7 +34,7 @@
   </Resources>
 
   <Applications>
-    <Application Id="Julia" Executable="Julia\julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Julia" Executable="julialauncher.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
       <uap:VisualElements
         DisplayName="Julia"
         Description="Julia is a high-level, high-performance, dynamic programming language"
@@ -53,18 +55,9 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="julia.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
-        <uap3:Extension Category="windows.appExtension">
-          <uap3:AppExtension Name="com.microsoft.windows.terminal.settings" Id="Julia" PublicFolder="Public" DisplayName="Julia">
-          </uap3:AppExtension>
-        </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="Juliaup" Executable="Julia\juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Juliaup" Executable="juliaup.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
       <uap:VisualElements
         DisplayName="Juliaup"
         Description="Julia version management"
@@ -86,11 +79,6 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="juliaup.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
       </Extensions>
     </Application>
   </Applications>

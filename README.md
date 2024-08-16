@@ -6,7 +6,7 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 
 ## Status
 
-This installer is considered production ready. 
+This installer is considered production ready.
 
 ## Installation
 
@@ -63,9 +63,12 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 brew install juliaup
 ```
 
-##### [Arch Linux - AUR](https://aur.archlinux.org/packages/juliaup/)
+##### Arch Linux - AUR
 
-On Arch Linux, Juliaup is available [in the Arch User Repository (AUR)](https://aur.archlinux.org/packages/juliaup/).
+On Arch Linux, Juliaup is available in the Arch User Repository (AUR) in two packages.
+
+1. [juliaup](https://aur.archlinux.org/packages/juliaup/) (locally built)
+2. [juliaup-bin](https://aur.archlinux.org/packages/juliaup-bin/) (binary from github releases)
 
 ##### [openSUSE Tumbleweed](https://get.opensuse.org/tumbleweed/)
 
@@ -130,6 +133,7 @@ The available system provided channels are:
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
+- `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has recently and successfully built Julia on that branch.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.

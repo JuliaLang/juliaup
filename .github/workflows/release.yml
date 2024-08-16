@@ -5,6 +5,8 @@ on:
     tags:
       - 'v*'
 
+permissions: write-all
+      
 jobs:
 
   build-juliaup:
@@ -454,22 +456,12 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SOURCE_DIR: 'public'
 
-  package-portable:
+  package-mac-linux-portable:
     needs: [build-juliaup,test-juliaup]
     environment: package
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - name: Download x86_64-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: juliaup-x86_64-pc-windows-gnu-portable
-        path: target/x86_64-pc-windows-gnu-portable
-    - name: Download i686-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: juliaup-i686-pc-windows-gnu-portable
-        path: target/i686-pc-windows-gnu-portable
     - name: Download x86_64-apple-darwin-portable artifact
       uses: actions/download-artifact@v4
       with:
@@ -532,7 +524,69 @@ jobs:
         cd ../../target/aarch64-apple-darwin-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-apple-darwin-portable.tar.gz .
 
-        cd ../../target/x86_64-pc-windows-gnu-portable
+        cd ../..
+    - uses: actions/upload-artifact@v4
+      with:
+        name: portable-mac-linux
+        path: public/*.*
+
+  package-windows-portable:
+    needs: [build-juliaup,test-juliaup]
+    environment: package
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Download x86_64-pc-windows-gnu-portable artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: juliaup-x86_64-pc-windows-gnu-portable
+        path: target/x86_64-pc-windows-gnu-portable
+    - name: Download i686-pc-windows-gnu-portable artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: juliaup-i686-pc-windows-gnu-portable
+        path: target/i686-pc-windows-gnu-portable
+    - name: Export version
+      run: |
+        export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+      shell: bash
+      env:
+          GH_REF: ${{ github.ref }}
+    - name: 'Azure CLI login with federated credential'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign Windows x64 files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\x86_64-pc-windows-gnu-portable
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign Windows x86 files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\i686-pc-windows-gnu-portable
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Create archives
+      shell: bash
+      run: |
+        mkdir public
+
+        cd target/x86_64-pc-windows-gnu-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-x86_64-pc-windows-gnu-portable.tar.gz .
 
         cd ../../target/i686-pc-windows-gnu-portable
@@ -541,10 +595,10 @@ jobs:
         cd ../..
     - uses: actions/upload-artifact@v4
       with:
-        name: portable
+        name: portable-windows
         path: public/*.*
 
-  package-windows:
+  package-windows-msix:
     needs: [build-juliaup,test-juliaup]
     runs-on: windows-latest
     environment: package
@@ -559,8 +613,6 @@ jobs:
         7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
         pwsh --version
     - uses: actions/checkout@v4
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
     - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Install cargo-msix
       run: cargo install cargo-msix
@@ -607,17 +659,51 @@ jobs:
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
+    - name: 'Azure CLI login with federated credential'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign Store binary files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\windowsstore
+        files-folder-recurse: true
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign Appinstaller binary files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\winappinstaller
+        files-folder-recurse: true
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
     - name: Build MSIX Windows Store
       run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
-      run: |
-        Get-ChildItem target\msix\winappinstallermsix | ForEach-Object {
-          $msixPath = $_.FullName
-          & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msixPath
-        }
-      shell: pwsh
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msix\winappinstallermsix
+        # files-folder-filter: 
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
     - name: Package Windows Store payload
       run: |
         md (Join-Path $env:GITHUB_WORKSPACE "storepackage")
@@ -652,8 +738,6 @@ jobs:
       run: dotnet tool install --global wix --version 4.0.4
     - name: Install Wix UI extensions
       run: wix extension add -g WixToolset.UI.wixext/4.0.4
-    - name: Install AzureSignTool
-      run: dotnet tool install --global AzureSignTool
     - name: Download x86 Juliaup Windows MSI artifact
       uses: actions/download-artifact@v4
       with:
@@ -675,17 +759,49 @@ jobs:
       shell: bash
       env:
           GH_REF: ${{ github.ref }}
+    - name: 'Azure CLI login with federated credential'
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
+        tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    - name: Sign x64 binary files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msi\x86_64-pc-windows-gnu\release
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign x86 binary files
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msi\i686-pc-windows-gnu\release
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256        
     - name: Build MSI
       run: |
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
-      run: |
-        Get-ChildItem target\msi\*.msi | ForEach-Object {
-          $msiPath = $_.FullName
-          & azuresigntool sign -kvt "${{ secrets.AzureKeyVaultTenantId }}" -kvu "${{ secrets.AzureKeyVaultUrl }}" -kvi "${{ secrets.AzureKeyVaultClientId }}" -kvs "${{ secrets.AzureKeyVaultClientSecret }}" -kvc ${{ secrets.AzureKeyVaultCertName }} -tr http://timestamp.digicert.com -v $msiPath
-        }
-      shell: pwsh
+      uses: azure/trusted-signing-action@v0.4.0
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\msi
+        files-folder-filter: msi
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
     - uses: actions/upload-artifact@v4
       with:
         name: msiinstallers
@@ -714,13 +830,17 @@ jobs:
         generateReleaseNotes: true
 
   deploy-github-release-binaries:
-    needs: [package-portable]
+    needs: [create-github-release, package-mac-linux-portable, package-windows-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - uses: actions/download-artifact@v4
       with:
-        name: portable
+        name: portable-mac-linux
+        path: public
+    - uses: actions/download-artifact@v4
+      with:
+        name: portable-windows
         path: public
     - name: Release
       uses: ncipollo/release-action@v1
@@ -731,7 +851,7 @@ jobs:
         prerelease: true
 
   deploy-dev-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -761,7 +881,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -791,7 +911,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -821,7 +941,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -834,7 +954,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -872,7 +992,7 @@ jobs:
           GH_REF: ${{ github.ref }}
   
   deploy-dev-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -921,7 +1041,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-releasepreview-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -966,7 +1086,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1021,7 +1141,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1034,7 +1154,7 @@ jobs:
         allowUpdates: true
 
   deploy-release-channel-crates:
-    needs: [create-github-release,package-mac-linux,package-windows,package-windows-msi]
+    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
