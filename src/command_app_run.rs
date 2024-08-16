@@ -14,7 +14,7 @@ pub fn run_command_app_run(name: &str, args: &Vec<String>, paths: &GlobalPaths) 
         .installed_apps
         .iter()
         .flat_map(|i| match&i.1 {
-            JuliaupConfigApplication::DirectDownloadApplication { path, url: _, local_etag: _, server_etag: _, julia_version, julia_depot, execution_aliases } => execution_aliases.iter().map(|j| (j.0.clone(), (j.1.target.clone(), path.clone(), julia_version.clone(), julia_depot.clone())))
+            JuliaupConfigApplication::DevedApplication { path, julia_version, julia_depot, execution_aliases } => execution_aliases.iter().map(|j| (j.0.clone(), (j.1.target.clone(), path.clone(), julia_version.clone(), julia_depot.clone())))
         })
         .map(|i| (i.0.clone(), (i.1.0.clone(), i.1.1.clone(), i.1.2.clone(), i.1.3.clone())))
         .collect();
@@ -37,7 +37,8 @@ pub fn run_command_app_run(name: &str, args: &Vec<String>, paths: &GlobalPaths) 
             .normalize().unwrap();
 
         std::process::Command::new(julia_binary_path)
-            .env("JULIA_PROJECT", target_path)
+            .arg(format!("--project={}", target_path))
+            // .env("JULIA_PROJECT", target_path)
             .env("JULIA_DEPOT_PATH", foo.3.clone())
             .arg("-e")
             .arg(format!("import {}; {}(ARGS)", parts[0], foo.0))

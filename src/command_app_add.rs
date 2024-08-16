@@ -1,37 +1,29 @@
 use std::fs;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigApplication, JuliaupConfigExcutionAlias};
 use crate::global_paths::GlobalPaths;
-use crate::operations::{download_file, install_version};
+use crate::operations::install_version;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
 use bstr::ByteVec;
-use tempfile::Builder;
 use normpath::PathExt;
 
-pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
-    let download_uri_project = format!("{}/Project.toml", url);
-    let download_uri_manifest = format!("{}/Manifest.toml", url);
+pub fn run_command_app_add(path: &str, paths: &GlobalPaths) -> Result<()> {
+    let app_folder_path = PathBuf::from(path);
 
-    let temp_dir = Builder::new()
-        .prefix("julia-temp-app-")
-        .tempdir_in(&paths.juliauphome)
-        .expect("Failed to create temporary directory");
+    let project_path = app_folder_path.join("Project.toml");
+    let manifest_path = app_folder_path.join("Manifest.toml");
 
-    download_file(&download_uri_project, temp_dir.path(), "Project.toml").unwrap();
-    download_file(&download_uri_manifest, temp_dir.path(), "Manifest.toml").unwrap();
-
-    let project_content = fs::read_to_string(temp_dir.path().join("Project.toml")).unwrap();
+    let project_content = fs::read_to_string(project_path).unwrap();
     let project_parsed = toml_edit::DocumentMut::from_str(&project_content).unwrap();
 
-    let manifest_content = fs::read_to_string(temp_dir.path().join("Manifest.toml")).unwrap();
+    let manifest_content = fs::read_to_string(&manifest_path).unwrap();
     let manifest_parsed = toml_edit::DocumentMut::from_str(&manifest_content).unwrap();
 
     let app_name = project_parsed.as_table().get_key_value("name").unwrap().1.as_str().unwrap();
     let julia_version = manifest_parsed.as_table().get_key_value("julia_version").unwrap().1.as_str().unwrap();
-
-    let target_path = paths.juliauphome.join("applications").join(app_name);
 
     let exec_aliases: Vec<(String, String)> = project_parsed
         .as_table()
@@ -44,12 +36,6 @@ pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
         .iter()
         .map(|i| (i.0.to_string(), i.1.clone().into_value().unwrap().as_str().unwrap().to_string()))
         .collect();
-
-    if target_path.exists() {
-        std::fs::remove_dir_all(&target_path)?;
-    }
-    std::fs::create_dir_all(paths.juliauphome.join("applications")).unwrap();
-    std::fs::rename(temp_dir.into_path(), &target_path)?;
 
     let version_db =
         load_versions_db(paths).with_context(|| "`add app` command failed to load versions db.")?;
@@ -79,11 +65,8 @@ pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
 
     config_file.data.installed_apps.insert(
         app_name.to_string(),
-        JuliaupConfigApplication::DirectDownloadApplication { 
-            path: target_path.to_str().unwrap().to_string(),
-            url: url.to_string(),
-            local_etag: "".to_string(),
-            server_etag: "".to_string(),
+        JuliaupConfigApplication::DevedApplication { 
+            path: app_folder_path.to_str().unwrap().to_string(),
             julia_version: asdf.version.to_string(),
             julia_depot: depot_detection_output,
             execution_aliases: exec_aliases.iter().map(|i| (i.0.clone(), JuliaupConfigExcutionAlias { target: i.1.to_string() })).collect()
@@ -91,10 +74,9 @@ pub fn run_command_app_add(url: &str, paths: &GlobalPaths) -> Result<()> {
     );
 
     save_config_db(&mut config_file).unwrap();
-
     
     std::process::Command::new(julia_binary_path)
-        .env("JULIA_PROJECT", target_path)
+        .env("JULIA_PROJECT", &app_folder_path)
         .arg("-e")
         .arg("using Pkg; Pkg.instantiate()")
         .status()

@@ -684,7 +684,7 @@ pub fn garbage_collect_versions(
                 version: _,
             } => true,
         }) && config_data.installed_apps.iter().all(|j| match &j.1 {
-            JuliaupConfigApplication::DirectDownloadApplication { path: _, url: _, local_etag: _, server_etag: _, julia_version, julia_depot: _, execution_aliases: _ } => julia_version != installed_version
+            JuliaupConfigApplication::DevedApplication { path: _, julia_version, julia_depot: _, execution_aliases: _ } => julia_version != installed_version
         } ) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();

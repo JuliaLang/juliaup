@@ -62,15 +62,9 @@ pub struct JuliaupConfigExcutionAlias {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum JuliaupConfigApplication {
-    DirectDownloadApplication {
+    DevedApplication {
         #[serde(rename = "Path")]
         path: String,
-        #[serde(rename = "Url")]
-        url: String,
-        #[serde(rename = "LocalETag")]
-        local_etag: String,
-        #[serde(rename = "ServerETag")]
-        server_etag: String,
         #[serde(rename = "JuliaVersion")]
         julia_version: String,
         #[serde(rename = "JuliaDepot")]
