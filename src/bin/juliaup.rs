@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "winpkgidentityext")]
     {
-        use windows::Management::Deployment::{PackageManager,AddPackageOptions};
+        use windows::Management::Deployment::{AddPackageOptions, PackageManager};
 
         let package_manager = PackageManager::new().unwrap();
 
@@ -59,16 +59,29 @@ fn main() -> Result<()> {
         let self_location = self_location.parent().unwrap();
         let pkg_loc = self_location.join("juliaup.msix");
 
-        let external_loc = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(self_location)).unwrap();
-        let pkg_loc = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(pkg_loc.as_os_str())).unwrap();
+        let external_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(self_location))
+                .unwrap();
+        let pkg_loc =
+            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(pkg_loc.as_os_str()))
+                .unwrap();
 
-        package_manager_options.SetExternalLocationUri(&external_loc).unwrap();
-        package_manager_options.SetAllowUnsigned(false).unwrap();     
+        package_manager_options
+            .SetExternalLocationUri(&external_loc)
+            .unwrap();
+        package_manager_options.SetAllowUnsigned(false).unwrap();
 
-        let depl_result = package_manager.AddPackageByUriAsync(&pkg_loc, &package_manager_options).unwrap().get().unwrap();
+        let depl_result = package_manager
+            .AddPackageByUriAsync(&pkg_loc, &package_manager_options)
+            .unwrap()
+            .get()
+            .unwrap();
 
         if !depl_result.IsRegistered().unwrap() {
-            println!("Failed to register package identity. Error Message ${:?}", depl_result.ErrorText());
+            println!(
+                "Failed to register package identity. Error Message ${:?}",
+                depl_result.ErrorText()
+            );
         }
     }
 
