@@ -6,7 +6,7 @@
 
     <MainBundle
         Name="JuliaComputingInc.Julia"
-        Publisher="CN=&quot;JULIA COMPUTING, INC.&quot;, O=&quot;JULIA COMPUTING, INC.&quot;, S=Massachusetts, C=US"
+        Publisher="CN=juliahub.com, O=juliahub.com, OU=JuliaHub Inc, L=Cambridge, S=Massachusetts, C=US, PostalCode=02138"
         Version="{{Version}}.0"
         Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
 

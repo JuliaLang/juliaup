@@ -351,6 +351,47 @@ pub fn install_version(
         },
     );
 
+    #[cfg(target_os = "macos")]
+    if semver::Version::parse(&fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap()
+    {
+        use normpath::PathExt;
+
+        let julia_path = &paths
+            .juliaupconfig
+            .parent()
+            .unwrap() // unwrap OK because there should always be a parent
+            .join(rel_path)
+            .join("bin")
+            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    &paths.juliaupconfig.display()
+                )
+            })?;
+
+        print!("Checking standard library notarization");
+        let _ = std::io::stdout().flush();
+
+        let exit_status = std::process::Command::new(&julia_path)
+            .env("JULIA_LOAD_PATH", "@stdlib")
+            .arg("--startup-file=no")
+            .arg("-e")
+            .arg("foreach(p -> begin print('.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
+            // .stdout(std::process::Stdio::null())
+            // .stderr(std::process::Stdio::null())
+            // .stdin(std::process::Stdio::null())
+            .status()
+            .unwrap();
+
+        if exit_status.success() {
+            println!("done.")
+        } else {
+            println!("failed with {}.", exit_status);
+        }
+    }
+
     Ok(())
 }
 
