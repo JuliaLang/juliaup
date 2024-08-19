@@ -394,16 +394,16 @@ pub fn main() -> Result<()> {
 
         let paths = find_shell_scripts_to_be_modified(false)?;
 
-        let failed_paths: Vec<PathBuf> = [];
+        let mut failed_paths: Vec<PathBuf> = Vec::<PathBuf>::new();
 
         for cur_path in paths {
-            let mut file_result = std::fs::OpenOptions::new()
+            let file_result = std::fs::OpenOptions::new()
                 .read(true)
                 .write(true)
-                .open(cur_path);
+                .open(&cur_path);
 
             if file_result.is_err() {
-                failed_paths.push(cur_path);
+                failed_paths.push(cur_path.clone());
             }
         }
 
@@ -413,7 +413,7 @@ pub fn main() -> Result<()> {
             println!("this is caused by incorrect permissions on these files. The");
             println!("following files could not be edited:");
             for cur_path in failed_paths {
-                println("  {}", cur_path.display());
+                println!("  {}", cur_path.display());
             }
             println!("You can find more help with this problem at");
             println!(
