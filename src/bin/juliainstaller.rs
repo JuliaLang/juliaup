@@ -381,7 +381,7 @@ pub fn main() -> Result<()> {
 
     if install_choices.install_location.exists() {
         println!("You are trying to install Juliaup into the folder");
-        println!("`{}`,", install_choices.install_location);
+        println!("`{}`,", install_choices.install_location.display());
         println!("but that folder already exists. Please remove that folder");
         println!("and then start the setup process again.");
 
