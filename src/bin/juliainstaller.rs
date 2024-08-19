@@ -392,7 +392,7 @@ pub fn main() -> Result<()> {
         // Now check whether we have the necessary permissions for all the files
         // we want to modify.
 
-        let paths = find_shell_scripts_to_be_modified(true)?;
+        let paths = find_shell_scripts_to_be_modified(false)?;
 
         let failed_paths: Vec<PathBuf> = [];
 
@@ -416,7 +416,9 @@ pub fn main() -> Result<()> {
                 println("  {}", cur_path.display());
             }
             println!("You can find more help with this problem at");
-            println!("  https://github.com/JuliaLang/juliaup/wiki/Permission-problems-during-setup");
+            println!(
+                "  https://github.com/JuliaLang/juliaup/wiki/Permission-problems-during-setup"
+            );
             println!();
 
             return Ok(());
