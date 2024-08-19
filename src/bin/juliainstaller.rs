@@ -382,30 +382,11 @@ pub fn main() -> Result<()> {
     if install_choices.install_location.exists() {
         println!("You are trying to install Juliaup into the folder");
         println!("`{}`,", install_choices.install_location);
-        println!("but that folder already exists.");
+        println!("but that folder already exists. Please remove that folder");
+        println!("and then start the setup process again.");
 
-        if args.disable_confirmation_prompt {
-            println!();
-            println!(
-                "Please remove the folder or use interactive mode."
-            );
 
-            return Ok(());
-        } else {
-            let continue_with_setup = Confirm::with_theme(theme.as_ref())
-                .with_prompt("Do you want to continue with the installation and overwrite the existing Juliaup installation folder?")
-                .default(true)
-                .interact_opt()?;
-
-            if !continue_with_setup.unwrap_or(false) {
-                return Ok(());
-            }
-
-            std::fs::remove_dir_all(install_choices.install_location)
-                .with_context(|| format!("Failed to delete folder `{}`.", install_choices.install_location))?;
-
-            println!();
-        }
+        return Ok(());        
     }
 
     let juliaupselfbin = install_choices.install_location.join("bin");
