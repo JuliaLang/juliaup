@@ -388,6 +388,41 @@ pub fn main() -> Result<()> {
         return Ok(());
     }
 
+    if install_choices.modifypath {
+        // Now check whether we have the necessary permissions for all the files
+        // we want to modify.
+
+        let paths = find_shell_scripts_to_be_modified(true)?;
+
+        let failed_paths: Vec<PathBuf> = [];
+
+        for cur_path in paths {
+            let mut file_result = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(cur_path);
+
+            if file_result.is_err() {
+                failed_paths.push(cur_path);
+            }
+        }
+
+        if failed_paths.len() > 0 {
+            println!("Juliaup needs to modify a number of existin files on your");
+            println!("system, but is unable to edit some of these files. Most likely");
+            println!("this is caused by incorrect permissions on these files. The");
+            println!("following files could not be edited:");
+            for cur_path in failed_paths {
+                println("  {}", cur_path.display());
+            }
+            println!("You can find more help with this problem at");
+            println!("  https://github.com/JuliaLang/juliaup/wiki/Permission-problems-during-setup");
+            println!();
+
+            return Ok(());
+        }
+    }
+
     let juliaupselfbin = install_choices.install_location.join("bin");
 
     trace!("Set juliaupselfbin to `{:?}`", juliaupselfbin);
