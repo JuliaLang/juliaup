@@ -408,7 +408,7 @@ pub fn main() -> Result<()> {
         }
 
         if failed_paths.len() > 0 {
-            println!("Juliaup needs to modify a number of existin files on your");
+            println!("Juliaup needs to modify a number of existing files on your");
             println!("system, but is unable to edit some of these files. Most likely");
             println!("this is caused by incorrect permissions on these files. The");
             println!("following files could not be edited:");
