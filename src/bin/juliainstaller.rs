@@ -385,8 +385,7 @@ pub fn main() -> Result<()> {
         println!("but that folder already exists. Please remove that folder");
         println!("and then start the setup process again.");
 
-
-        return Ok(());        
+        return Ok(());
     }
 
     let juliaupselfbin = install_choices.install_location.join("bin");
