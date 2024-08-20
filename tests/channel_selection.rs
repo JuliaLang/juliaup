@@ -151,4 +151,57 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr("ERROR: `nightly` is not installed. Please run `juliaup add nightly` to install channel or version.\n");
+
+    // Now testing short channel matching
+    // At this point, installed channels are: 1.6.7, 1.7.3, 1.8.5
+
+    // Test that incomplete number matching does not autocomplete:
+    // https://github.com/JuliaLang/juliaup/pull/838#issuecomment-2206640506
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+1.8")
+        .arg("-v")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .failure();
+
+    // Test that completion works only when it should for words
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("add")
+        .arg("release")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+r")
+        .arg("-v")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success();
+
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("add")
+        .arg("rc")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success()
+        .stdout("");
+
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+r")
+        .arg("-v")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .failure();
 }

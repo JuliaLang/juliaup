@@ -356,4 +356,7 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
+# Apple junk
+*.DS_Store
+
 !/src/bin

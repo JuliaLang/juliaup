@@ -168,40 +168,71 @@ enum JuliaupChannelSource {
     Default,
 }
 
+fn only<T, I>(mut iter: I) -> Option<T>
+where
+    I: Iterator<Item = T>,
+{
+    let first = iter.next();
+    if iter.next().is_some() {
+        // There are multiple elements
+        return None;
+    }
+    first
+}
+
 fn get_julia_path_from_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
-    channel: &str,
+    requested_channel: &str,
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
+    let expanded_channel = if requested_channel
+        .chars()
+        .next()
+        .map(char::is_numeric)
+        .unwrap_or(false)
+    {
+        requested_channel
+    } else {
+        match only(
+            config_data
+                .installed_channels
+                .keys()
+                .filter(|&item| item.starts_with(requested_channel)),
+        ) {
+            Some(val) => val,
+            None => requested_channel,
+        }
+    };
+
+    let channel_valid = is_valid_channel(versions_db, &expanded_channel.to_string())?;
     let channel_info = config_data
             .installed_channels
-            .get(channel)
+            .get(expanded_channel)
             .ok_or_else(|| match juliaup_channel_source {
                 JuliaupChannelSource::CmdLine => {
                     if channel_valid {
-                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
                     if channel_valid {
-                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
                     if channel_valid {
-                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", expanded_channel, expanded_channel) }
                     } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  expanded_channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
+                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", expanded_channel) }
             })?;
 
     match channel_info {
@@ -214,12 +245,12 @@ fn get_julia_path_from_channel(
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", expanded_channel, version))?.path;
 
-            check_channel_uptodate(channel, version, versions_db).with_context(|| {
+            check_channel_uptodate(expanded_channel, version, versions_db).with_context(|| {
                 format!(
                     "The Julia launcher failed while checking whether the channel {} is up-to-date.",
-                    channel
+                    expanded_channel
                 )
             })?;
             let absolute_path = juliaupconfig_path
@@ -245,7 +276,7 @@ fn get_julia_path_from_channel(
             version: _,
         } => {
             if local_etag != server_etag {
-                if channel.starts_with("nightly") {
+                if expanded_channel.starts_with("nightly") {
                     // Nightly is updateable several times per day so this message will show
                     // more often than not unless folks update a couple of times a day.
                     // Also, folks using nightly are typically more experienced and need
@@ -256,12 +287,15 @@ fn get_julia_path_from_channel(
                 } else {
                     eprintln!(
                         "A new version of Julia for the `{}` channel is available. Run:",
-                        channel
+                        expanded_channel
                     );
                     eprintln!();
                     eprintln!("  juliaup update");
                     eprintln!();
-                    eprintln!("to install the latest Julia for the `{}` channel.", channel);
+                    eprintln!(
+                        "to install the latest Julia for the `{}` channel.",
+                        expanded_channel
+                    );
                 }
             }
 
