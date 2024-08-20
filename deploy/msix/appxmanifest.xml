@@ -15,7 +15,7 @@
 
   <Properties>
     <DisplayName>Julia</DisplayName>
-    <PublisherDisplayName>JuliaHub, Inc.</PublisherDisplayName>
+    <PublisherDisplayName>{{{PublisherDisplayName}}}</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
     <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
