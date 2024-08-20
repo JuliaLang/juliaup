@@ -150,7 +150,7 @@ To launch a specific Julia version, say in channel `release`, run `julia +releas
 
 The Julia launcher `julia` automatically determines which specific version of Julia to launch. There are several ways to control and override which Juliaup channel should be used:
 
-1. A command line Julia version specifier, such as `julia +release`.
+1. A command line Julia version specifier, such as `julia +release`. For non-version channels, any unambiguous installed channel prefix will launch that channel.
 2. The `JULIAUP_CHANNEL` environment variable.
 3. A directory override, set with the `juliaup override set` command.
 3. The default Juliaup channel.
