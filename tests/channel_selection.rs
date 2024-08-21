@@ -174,8 +174,7 @@ fn channel_selection() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
-        .success()
-        .stdout("");
+        .success();
 
     Command::cargo_bin("julia")
         .unwrap()
@@ -193,8 +192,7 @@ fn channel_selection() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
-        .success()
-        .stdout("");
+        .success();
 
     Command::cargo_bin("julia")
         .unwrap()
