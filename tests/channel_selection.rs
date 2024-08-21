@@ -1,5 +1,44 @@
 use assert_cmd::Command;
 
+use anyhow::Result;
+use juliaup::config_file::{load_config_db, JuliaupConfigChannel};
+use juliaup::global_paths::get_paths_from_home_path;
+use normpath::PathExt;
+use std::path::PathBuf;
+
+// Simpler reimplementation of get_julia_path_from_channel from julialauncher.rs to help link channels
+fn get_julia_path_from_channel(
+    requested_channel: &str,
+    juliaup_depot_path: PathBuf,
+) -> Result<PathBuf> {
+    let paths = get_paths_from_home_path(juliaup_depot_path)?;
+    let config_file = load_config_db(&paths)?;
+    let config_data = config_file.data;
+
+    let juliaupconfig_path = paths.juliaupconfig.as_path();
+
+    let channel_info = config_data
+        .installed_channels
+        .get(requested_channel)
+        .unwrap();
+
+    let path: &String = if let JuliaupConfigChannel::SystemChannel { version } = channel_info {
+        &config_data.installed_versions.get(version).unwrap().path
+    } else {
+        panic!("whoops")
+    };
+
+    let absolute_path = juliaupconfig_path
+        .parent()
+        .unwrap() // unwrap OK because there should always be a parent
+        .join(path)
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+        .normalize()?;
+
+    return Ok(absolute_path.into_path_buf());
+}
+
 #[test]
 fn channel_selection() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
@@ -167,10 +206,15 @@ fn channel_selection() {
         .failure();
 
     // Test that completion works only when it should for words
+    let linked_julia_path =
+        get_julia_path_from_channel("1.6.7", depot_dir.path().to_path_buf().join("juliaup"))
+            .unwrap();
+    let linked_julia_version = linked_julia_path.to_str().unwrap();
     Command::cargo_bin("juliaup")
         .unwrap()
-        .arg("add")
-        .arg("release")
+        .arg("link")
+        .arg("ra")
+        .arg(linked_julia_version)
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
@@ -187,8 +231,9 @@ fn channel_selection() {
 
     Command::cargo_bin("juliaup")
         .unwrap()
-        .arg("add")
-        .arg("rc")
+        .arg("link")
+        .arg("rb")
+        .arg(linked_julia_version)
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
