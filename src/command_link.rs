@@ -25,7 +25,7 @@ pub fn run_command_link(
         bail!("Channel name `{}` is already used.", channel)
     }
 
-    if is_valid_channel(&versiondb_data, &channel.to_string()) {
+    if is_valid_channel(&versiondb_data, &channel.to_string())? {
         eprintln!("WARNING: The channel name `{}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.", channel);
     }
 

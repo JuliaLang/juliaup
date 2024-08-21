@@ -175,26 +175,27 @@ fn get_julia_path_from_channel(
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
+    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
     let channel_info = config_data
             .installed_channels
             .get(channel)
             .ok_or_else(|| match juliaup_channel_source {
                 JuliaupChannelSource::CmdLine => {
-                    if is_valid_channel(versions_db, &channel.to_string()) {
+                    if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
                         UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
-                    if is_valid_channel(versions_db, &channel.to_string()) {
+                    if channel_valid {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
                         UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
-                    if is_valid_channel(versions_db, &channel.to_string()) {
+                    if channel_valid {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
                         UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
