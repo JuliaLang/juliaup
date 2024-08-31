@@ -955,7 +955,7 @@ jobs:
 
   deploy-release-channel-aur:
     needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
-    environment: release-preview-channel
+    environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
