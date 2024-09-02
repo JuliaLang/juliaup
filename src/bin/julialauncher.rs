@@ -471,14 +471,16 @@ fn run_app() -> Result<i32> {
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
-        unsafe {
+        // We ignore any error here, as that is what libuv also does, see the documentation
+        // at https://github.com/libuv/libuv/blob/5ff1fc724f7f53d921599dbe18e6f96b298233f1/src/win/process.c#L1077
+        let _ = unsafe {
             AssignProcessToJobObject(
                 job_handle,
                 std::mem::transmute::<RawHandle, windows::Win32::Foundation::HANDLE>(
                     child_process.as_raw_handle(),
                 ),
             )
-        }?;
+        };
 
         run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
