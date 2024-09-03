@@ -13,8 +13,15 @@ use nix::{
 use normpath::PathExt;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
+#[cfg(windows)]
+use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(windows)]
+use windows::Win32::System::{
+    JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
+    Threading::GetCurrentProcess,
+};
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
@@ -430,10 +437,49 @@ fn run_app() -> Result<i32> {
         // process to handle things.
         ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
 
+        let mut job_attr: windows::Win32::Security::SECURITY_ATTRIBUTES =
+            windows::Win32::Security::SECURITY_ATTRIBUTES::default();
+        let mut job_info: windows::Win32::System::JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION =
+            windows::Win32::System::JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+
+        job_attr.bInheritHandle = false.into();
+        job_info.BasicLimitInformation.LimitFlags =
+            windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_BREAKAWAY_OK
+                | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
+                | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+        let job_handle = unsafe {
+            windows::Win32::System::JobObjects::CreateJobObjectW(
+                Some(&job_attr),
+                windows::core::PCWSTR::null(),
+            )
+        }?;
+        unsafe {
+            SetInformationJobObject(
+                job_handle,
+                windows::Win32::System::JobObjects::JobObjectExtendedLimitInformation,
+                &job_info as *const _ as *const std::os::raw::c_void,
+                std::mem::size_of_val(&job_info) as u32,
+            )
+        }?;
+
+        unsafe { AssignProcessToJobObject(job_handle, GetCurrentProcess()) }?;
+
         let mut child_process = std::process::Command::new(julia_path)
             .args(&new_args)
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+
+        // We ignore any error here, as that is what libuv also does, see the documentation
+        // at https://github.com/libuv/libuv/blob/5ff1fc724f7f53d921599dbe18e6f96b298233f1/src/win/process.c#L1077
+        let _ = unsafe {
+            AssignProcessToJobObject(
+                job_handle,
+                std::mem::transmute::<RawHandle, windows::Win32::Foundation::HANDLE>(
+                    child_process.as_raw_handle(),
+                ),
+            )
+        };
 
         run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
