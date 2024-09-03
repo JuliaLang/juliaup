@@ -509,7 +509,7 @@ pub fn main() -> Result<()> {
         run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
     }
     run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
-    run_command_selfchannel(args.juliaup_channel, &paths).unwrap();
+    run_command_selfchannel(Some(args.juliaup_channel), &paths).unwrap();
 
     run_command_add(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;
