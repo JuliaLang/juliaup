@@ -5,6 +5,7 @@ use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::utils::is_valid_julia_path;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -396,9 +397,16 @@ fn run_app() -> Result<i32> {
             }
 
             // replace the current process
-            std::process::Command::new(julia_path)
-                .args(&new_args)
-                .exec();
+            if is_valid_julia_path(&julia_path) {
+                std::process::Command::new(julia_path)
+                    .args(&new_args)
+                    .exec();
+            } else {
+                panic!(
+                    "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
+                    julia_path.to_string_lossy()
+                );
+            }
 
             // this is never reached
             Ok(0)
