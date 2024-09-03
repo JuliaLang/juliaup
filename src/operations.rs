@@ -11,6 +11,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
+use crate::utils::is_valid_julia_path;
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
@@ -602,6 +603,7 @@ pub fn install_non_db_version(
 }
 
 pub fn garbage_collect_versions(
+    prune_linked: bool,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
 ) -> Result<()> {
@@ -633,6 +635,27 @@ pub fn garbage_collect_versions(
 
     for i in versions_to_uninstall {
         config_data.installed_versions.remove(&i);
+    }
+
+    if prune_linked {
+        let mut channels_to_uninstall: Vec<String> = Vec::new();
+        for (installed_channel, detail) in &config_data.installed_channels {
+            match &detail {
+                JuliaupConfigChannel::LinkedChannel {
+                    command: cmd,
+                    args: _,
+                } => {
+                    if !is_valid_julia_path(&PathBuf::from(cmd)) {
+                        channels_to_uninstall.push(installed_channel.clone());
+                    }
+                }
+                _ => (),
+            }
+        }
+        for channel in channels_to_uninstall {
+            remove_symlink(&format!("julia-{}", &channel))?;
+            config_data.installed_channels.remove(&channel);
+        }
     }
 
     Ok(())

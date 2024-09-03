@@ -33,7 +33,10 @@ pub enum Juliaup {
     /// Show all installed Julia versions
     Status {},
     /// Garbage collect uninstalled Julia versions
-    Gc {},
+    Gc {
+        #[clap(long)]
+        prune_linked: bool,
+    },
     #[clap(subcommand, name = "config")]
     /// Juliaup configuration
     Config(ConfigSubCmd),
