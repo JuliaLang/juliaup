@@ -5,18 +5,18 @@ use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::versions_file::load_versions_db;
-use normpath::PathExt;
-#[cfg(not(windows))]
-use std::os::unix::process::CommandExt;
-use std::path::Path;
-use std::path::PathBuf;
 #[cfg(not(windows))]
 use nix::{
     sys::wait::{waitpid, WaitStatus},
     unistd::{fork, ForkResult},
 };
+use normpath::PathExt;
+#[cfg(not(windows))]
+use std::os::unix::process::CommandExt;
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, RawHandle};
+use std::path::Path;
+use std::path::PathBuf;
 #[cfg(windows)]
 use windows::Win32::System::{
     JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
