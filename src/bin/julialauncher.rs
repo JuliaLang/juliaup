@@ -446,7 +446,6 @@ fn run_app() -> Result<i32> {
         job_info.BasicLimitInformation.LimitFlags =
             windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_BREAKAWAY_OK
                 | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
-                | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION
                 | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
         let job_handle = unsafe {
