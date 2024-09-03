@@ -5,6 +5,7 @@ use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+#[cfg(not(windows))]
 use juliaup::utils::is_valid_julia_path;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
