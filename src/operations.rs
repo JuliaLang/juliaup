@@ -638,14 +638,15 @@ pub fn garbage_collect_versions(
     Ok(())
 }
 
-fn _remove_symlink(symlink_path: &Path) -> Result<()> {
+fn _remove_symlink(symlink_path: &Path) -> Result<Option<&Path>> {
     std::fs::create_dir_all(symlink_path.parent().unwrap())?;
 
     if symlink_path.exists() {
-        std::fs::remove_file(symlink_path)?;
+        std::fs::remove_file(&symlink_path)?;
+        return Ok(Some(symlink_path));
     }
 
-    Ok(())
+    Ok(None)
 }
 
 pub fn remove_symlink(symlink_name: &String) -> Result<()> {
@@ -675,20 +676,32 @@ pub fn create_symlink(
 
     let symlink_path = symlink_folder.join(symlink_name);
 
-    _remove_symlink(&symlink_path)?;
+    let updating = match _remove_symlink(&symlink_path)? {
+        Some(path) => Some(std::fs::read_link(path)?),
+        None => None,
+    };
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_foldername = format!("julia-{}", version);
-
             let target_path = paths.juliauphome.join(&child_target_foldername);
 
-            eprintln!(
-                "{} {} for Julia {}.",
-                style("Creating symlink").cyan().bold(),
-                symlink_name,
-                version
-            );
+            if let Some(ref prev_link) = updating {
+                eprintln!(
+                    "{} symlink {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_link.to_string_lossy(),
+                    version
+                );
+            } else {
+                eprintln!(
+                    "{} {} for Julia {}.",
+                    style("Creating symlink").cyan().bold(),
+                    symlink_name,
+                    version
+                );
+            }
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
                 .with_context(|| {
@@ -707,12 +720,22 @@ pub fn create_symlink(
         } => {
             let target_path = paths.juliauphome.join(path);
 
-            eprintln!(
-                "{} {} for Julia {}.",
-                style("Creating symlink").cyan().bold(),
-                symlink_name,
-                version
-            );
+            if let Some(ref prev_link) = updating {
+                eprintln!(
+                    "{} symlink {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_link.to_string_lossy(),
+                    version
+                );
+            } else {
+                eprintln!(
+                    "{} {} for Julia {}.",
+                    style("Creating symlink").cyan().bold(),
+                    symlink_name,
+                    version
+                );
+            }
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
                 .with_context(|| {
@@ -728,12 +751,22 @@ pub fn create_symlink(
                 None => command.clone(),
             };
 
-            eprintln!(
-                "{} {} for `{}`",
-                style("Creating shim").cyan().bold(),
-                symlink_name,
-                formatted_command
-            );
+            if let Some(ref prev_link) = updating {
+                eprintln!(
+                    "{} shim {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_link.to_string_lossy(),
+                    formatted_command
+                );
+            } else {
+                eprintln!(
+                    "{} {} for {}.",
+                    style("Creating shim").cyan().bold(),
+                    symlink_name,
+                    formatted_command
+                );
+            }
 
             std::fs::write(
                 &symlink_path,
@@ -762,12 +795,14 @@ pub fn create_symlink(
         }
     };
 
-    if let Ok(path) = std::env::var("PATH") {
-        if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
-            eprintln!(
+    if updating.is_none() {
+        if let Ok(path) = std::env::var("PATH") {
+            if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
+                eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
                 &symlink_name, symlink_folder.display(),
             );
+            }
         }
     }
 
