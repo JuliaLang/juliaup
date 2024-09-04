@@ -638,12 +638,13 @@ pub fn garbage_collect_versions(
     Ok(())
 }
 
-fn _remove_symlink(symlink_path: &Path) -> Result<Option<&Path>> {
+fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
     std::fs::create_dir_all(symlink_path.parent().unwrap())?;
 
     if symlink_path.exists() {
-        std::fs::remove_file(&symlink_path)?;
-        return Ok(Some(symlink_path));
+        let prev_target = std::fs::read_link(&symlink_path)?;
+        std::fs::remove_file(symlink_path)?;
+        return Ok(Some(prev_target));
     }
 
     Ok(None)
@@ -676,22 +677,19 @@ pub fn create_symlink(
 
     let symlink_path = symlink_folder.join(symlink_name);
 
-    let updating = match _remove_symlink(&symlink_path)? {
-        Some(path) => Some(std::fs::read_link(path)?),
-        None => None,
-    };
+    let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_foldername = format!("julia-{}", version);
             let target_path = paths.juliauphome.join(&child_target_foldername);
 
-            if let Some(ref prev_link) = updating {
+            if let Some(ref prev_target) = updating {
                 eprintln!(
                     "{} symlink {} ( {} -> {} )",
                     style("Updating").cyan().bold(),
                     symlink_name,
-                    prev_link.to_string_lossy(),
+                    prev_target.to_string_lossy(),
                     version
                 );
             } else {
@@ -720,12 +718,12 @@ pub fn create_symlink(
         } => {
             let target_path = paths.juliauphome.join(path);
 
-            if let Some(ref prev_link) = updating {
+            if let Some(ref prev_target) = updating {
                 eprintln!(
                     "{} symlink {} ( {} -> {} )",
                     style("Updating").cyan().bold(),
                     symlink_name,
-                    prev_link.to_string_lossy(),
+                    prev_target.to_string_lossy(),
                     version
                 );
             } else {
@@ -751,12 +749,12 @@ pub fn create_symlink(
                 None => command.clone(),
             };
 
-            if let Some(ref prev_link) = updating {
+            if let Some(ref prev_target) = updating {
                 eprintln!(
                     "{} shim {} ( {} -> {} )",
                     style("Updating").cyan().bold(),
                     symlink_name,
-                    prev_link.to_string_lossy(),
+                    prev_target.to_string_lossy(),
                     formatted_command
                 );
             } else {
