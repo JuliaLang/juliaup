@@ -8,6 +8,7 @@ use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use console::style;
 use std::path::PathBuf;
 
 fn update_channel(
@@ -26,6 +27,8 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
+                    eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+
                     install_version(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {
                             format!(
