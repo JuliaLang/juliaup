@@ -100,9 +100,11 @@ impl JuliaupChannel {
 /// Manage this juliaup installation
 pub enum SelfSubCmd {
     #[cfg(not(feature = "selfupdate"))]
+    #[clap(alias = "up")]
     /// Update the Julia versions database
     Update {},
     #[cfg(feature = "selfupdate")]
+    #[clap(alias = "up")]
     /// Update the Julia versions database and juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
