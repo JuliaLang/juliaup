@@ -110,7 +110,10 @@ fn is_juliaup_installed() -> bool {
         .stdin(Stdio::null())
         .status();
 
-    exit_status.is_ok()
+    match exit_status {
+        Ok(status) => status.success(),
+        Err(_) => false, // failed to execute `juliaup` command
+    }
 }
 
 #[derive(Parser)]
@@ -286,7 +289,8 @@ pub fn main() -> Result<()> {
 
     if paths.juliaupconfig.exists() {
         println!("While Juliaup does not seem to be installed on this system, there is a");
-        println!("Juliaup configuration file present from a previous installation.");
+        println!("Juliaup configuration file present from a previous installation:");
+        println!("{}", paths.juliaupconfig.display());
 
         if args.disable_confirmation_prompt {
             println!();
