@@ -60,6 +60,10 @@ is-terminal = "0.4"
 path-absolutize = "3.1.0"
 human-sort = "0.2.2"
 regex = "1.10"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "serde", "serde_json"] }
+tracing-error = "0.2.0"
+directories = "5.0.1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Threading", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams", "Management_Deployment"] }
