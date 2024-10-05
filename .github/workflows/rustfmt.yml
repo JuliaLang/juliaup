@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# https://github.com/reviewdog/action-suggester?tab=readme-ov-file#required-permissions
+permissions:
+  contents: read
+  checks: write
+  issues: write
+  pull-requests: write
+
 jobs:
   rustfmt:
     name: Rustfmt Check
@@ -18,4 +25,14 @@ jobs:
         with:
           components: rustfmt
       - name: Rustfmt check
+        if: ${{ github.event_name != 'pull_request' }}
         run: cargo fmt -- --check -v
+      - name: Rustfmt PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: cargo fmt -- -v
+      - name: Suggest format changes
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: rustfmt
+          fail_on_error: true
