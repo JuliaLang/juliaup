@@ -13,12 +13,14 @@ use nix::{
     unistd::{fork, ForkResult},
 };
 use normpath::PathExt;
+use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::path::PathBuf;
+use toml::Value;
 #[cfg(windows)]
 use windows::Win32::System::{
     JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
@@ -161,10 +163,12 @@ fn check_channel_uptodate(
     Ok(())
 }
 
+#[derive(PartialEq, Eq)]
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
     Override,
+    Manifest,
     Default,
 }
 
@@ -176,6 +180,12 @@ fn get_julia_path_from_channel(
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
     let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
+    if juliaup_channel_source == JuliaupChannelSource::Manifest {
+        let path =
+            get_julia_path_for_version(config_data, juliaupconfig_path, &Version::parse(channel)?)?;
+        return Ok((path, Vec::new()));
+    }
+
     let channel_info = config_data
             .installed_channels
             .get(channel)
@@ -208,6 +218,8 @@ fn get_julia_path_from_channel(
                     }
                 }.into(),
                 JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
+                JuliaupChannelSource::Manifest => unreachable!(),
+                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
             })?;
 
     match channel_info {
@@ -308,6 +320,189 @@ fn get_override_channel(
     }
 }
 
+fn get_program_file(args: &Vec<String>) -> Option<(usize, &String)> {
+    let mut program_file: Option<(usize, &String)> = None;
+    let no_arg_short_switches = ['v', 'h', 'i', 'q'];
+    let no_arg_long_switches = [
+        "--version",
+        "--help",
+        "--help-hidden",
+        "--interactive",
+        "--quiet",
+        // Hidden options
+        "--lisp",
+        "--image-codegen",
+        "--rr-detach",
+        "--strip-metadata",
+        "--strip-ir",
+        "--permalloc-pkgimg",
+        "--heap-size-hint",
+        "--trim",
+    ];
+    let mut skip_next = false;
+    for (i, arg) in args.iter().skip(1).enumerate() {
+        if skip_next {
+            skip_next = false;
+        } else if arg == "--" {
+            if i + 1 < args.len() {
+                program_file = Some((i + 1, args.get(i + 1).unwrap()));
+            }
+            break;
+        } else if arg.starts_with("--") {
+            if !no_arg_long_switches.contains(&arg.as_str()) && !arg.contains('=') {
+                skip_next = true;
+            }
+        } else if arg.starts_with("-") {
+            let arg: Vec<char> = arg.chars().skip(1).collect();
+            if arg.iter().all(|&c| no_arg_short_switches.contains(&c)) {
+                continue;
+            }
+            for (j, &c) in arg.iter().enumerate() {
+                if no_arg_short_switches.contains(&c) {
+                    continue;
+                } else if j < arg.len() - 1 {
+                    break;
+                } else {
+                    // `j == arg.len() - 1`
+                    skip_next = true;
+                }
+            }
+        } else {
+            program_file = Some((i, arg));
+            break;
+        }
+    }
+    return program_file;
+}
+
+fn get_project(args: &Vec<String>) -> Option<PathBuf> {
+    let program_file = get_program_file(args);
+    let recognised_proj_flags: [&str; 4] = ["--project", "--projec", "--proje", "--proj"];
+    let mut project_arg: Option<String> = None;
+    for arg in args
+        .iter()
+        .take(program_file.map_or(args.len(), |(i, _)| i))
+    {
+        if arg.starts_with("--proj") {
+            let mut parts = arg.splitn(2, '=');
+            if recognised_proj_flags.contains(&parts.next().unwrap_or("")) {
+                project_arg = Some(parts.next().unwrap_or("@.").to_string());
+            }
+        }
+    }
+    let project = if project_arg.is_some() {
+        project_arg.unwrap()
+    } else if let Ok(val) = std::env::var("JULIA_PROJECT") {
+        val
+    } else {
+        return None;
+    };
+    if project == "@" {
+        return None;
+    } else if project == "@." || project == "" {
+        let mut path = PathBuf::from(std::env::current_dir().unwrap());
+        while !path.join("Project.toml").exists() && !path.join("JuliaProject.toml").exists() {
+            if !path.pop() {
+                return None;
+            }
+        }
+        return Some(path);
+    } else if project == "@script" {
+        if let Some((_, file)) = program_file {
+            let mut path = PathBuf::from(file);
+            path.pop();
+            while !path.join("Project.toml").exists() && !path.join("JuliaProject.toml").exists() {
+                if !path.pop() {
+                    return None;
+                }
+            }
+            return Some(path);
+        } else {
+            return None;
+        }
+    } else if project.starts_with('@') {
+        let depot = match std::env::var("JULIA_DEPOT_PATH") {
+            Ok(val) => match val.split(':').next() {
+                Some(p) => PathBuf::from(p),
+                None => dirs::home_dir().unwrap().join(".julia"),
+            },
+            _ => dirs::home_dir().unwrap().join(".julia"),
+        };
+        let path = depot.join("environments").join(&project[1..]);
+        if path.exists() {
+            return Some(path);
+        } else {
+            return None;
+        }
+    } else {
+        return Some(PathBuf::from(project));
+    }
+}
+
+fn julia_version_from_manifest(path: PathBuf) -> Option<Version> {
+    let manifest = if path.join("JuliaManifest.toml").exists() {
+        path.join("JuliaManifest.toml")
+    } else if path.join("Manifest.toml").exists() {
+        path.join("Manifest.toml")
+    } else {
+        return None;
+    };
+    let content = std::fs::read_to_string(manifest)
+        .ok()?
+        .parse::<Value>()
+        .ok()?;
+    if let Some(manifest_format) = content.get("manifest_format") {
+        if manifest_format.as_str()?.starts_with("2.") {
+            if let Some(julia_version) = content.get("julia_version") {
+                return julia_version.as_str().and_then(|v| Version::parse(v).ok());
+            }
+        }
+    }
+    return None;
+}
+
+fn get_julia_path_for_version(
+    config_data: &JuliaupConfig,
+    juliaupconfig_path: &Path,
+    version: &Version,
+) -> Result<PathBuf> {
+    let mut best_match: Option<(&String, Version)> = None;
+    for (installed_version_str, path) in &config_data.installed_versions {
+        if let Ok(installed_semver) = Version::parse(installed_version_str) {
+            if installed_semver.major != version.major || installed_semver.minor != version.minor {
+                continue;
+            }
+            if let Some((_, ref best_version)) = best_match {
+                if installed_semver > *best_version {
+                    best_match = Some((&path.path, installed_semver));
+                }
+            } else {
+                best_match = Some((&path.path, installed_semver));
+            }
+        }
+    }
+    if let Some((path, _)) = best_match {
+        let absolute_path = juliaupconfig_path
+            .parent()
+            .unwrap()
+            .join(path)
+            .join("bin")
+            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
+        return Ok(absolute_path.into_path_buf());
+    } else {
+        return Err(anyhow!(
+            "No installed version of Julia matches the requested version."
+        ));
+    }
+}
+
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -344,6 +539,8 @@ fn run_app() -> Result<i32> {
             (channel, JuliaupChannelSource::EnvVar)
         } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
             (channel, JuliaupChannelSource::Override)
+        } else if let Some(version) = get_project(&args).and_then(julia_version_from_manifest) {
+            (version.to_string(), JuliaupChannelSource::Manifest)
         } else if let Some(channel) = config_file.data.default.clone() {
             (channel, JuliaupChannelSource::Default)
         } else {
