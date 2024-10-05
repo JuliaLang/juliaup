@@ -25,8 +25,12 @@ jobs:
         with:
           components: rustfmt
       - name: Rustfmt check
-        run: cargo fmt -- -v ${{ github.event_name == 'pull_request' && '' || '--check' }}
-      - name: Suggest changes
+        if: ${{ github.event_name != 'pull_request' }}
+        run: cargo fmt -- --check -v
+      - name: Rustfmt PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: cargo fmt -- -v
+      - name: Suggest format changes
         if: ${{ github.event_name == 'pull_request' }}
         uses: reviewdog/action-suggester@v1
         with:
