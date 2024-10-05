@@ -16,28 +16,32 @@ use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use console::style;
+#[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
 use semver::Version;
-use std::io::BufReader;
-use std::io::Seek;
-use std::io::Write;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(not(target_os = "freebsd"))]
+use std::path::Component::Normal;
 use std::{
-    io::Read,
-    path::{Component::Normal, Path, PathBuf},
+    io::{BufReader, Read, Seek, Write},
+    path::{Path, PathBuf},
 };
+#[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
 use url::Url;
 
-fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
+#[cfg(not(target_os = "freebsd"))]
+fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
 where
     R: Read,
     P: AsRef<Path>,
 {
+    let tar = GzDecoder::new(src);
+    let mut archive = Archive::new(tar);
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path: PathBuf = entry
@@ -48,6 +52,39 @@ where
             .collect();
         entry.unpack(dst.as_ref().join(path))?;
     }
+    Ok(())
+}
+
+// As of this writing, the Rust `tar` library does not fully implement reading the
+// POSIX.1-2001 PAX format. This is the default format used by BSD tar, and is thus
+// the format of the Julia tarballs on BSD systems. There is a PR to add support for
+// PAX to tar.rs: https://github.com/alexcrichton/tar-rs/pull/298, but as of this
+// writing, it has not been merged. Thus we'll shell out to command line `tar` on
+// FreeBSD in the meantime, and unify the approaches if/when support is available.
+#[cfg(target_os = "freebsd")]
+fn unpack_sans_parent<R, P>(mut src: R, dst: P, levels_to_skip: usize) -> Result<()>
+where
+    R: Read,
+    P: AsRef<Path>,
+{
+    std::fs::create_dir_all(dst.as_ref())?;
+    let mut tar = std::process::Command::new("tar")
+        .arg("-C")
+        .arg(dst.as_ref())
+        .arg("-x")
+        .arg("-z")
+        .arg(format!("--strip-components={}", levels_to_skip))
+        .arg("-f")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .expect("Failed to spawn `tar` process");
+    let mut stdin = tar
+        .stdin
+        .take()
+        .expect("Failed to get stdin for `tar` process");
+    std::io::copy(&mut src, &mut stdin)?;
     Ok(())
 }
 
@@ -86,9 +123,7 @@ pub fn download_extract_sans_parent(
 
     let response_with_pb = pb.wrap_read(response);
 
-    let tar = GzDecoder::new(response_with_pb);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, target_path, levels_to_skip)
+    unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
     Ok(last_modified)
@@ -179,9 +214,7 @@ pub fn download_extract_sans_parent(
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
-    let tar = GzDecoder::new(response_with_pb);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, target_path, levels_to_skip)
+    unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
     Ok(last_modified)
@@ -423,8 +456,12 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     } else if cfg!(target_arch = "x86") {
         Ok(vec!["x86".to_string()])
     } else if cfg!(target_arch = "x86_64") {
-        // x86_64 can execute x86 binaries
-        Ok(vec!["x86".to_string(), "x64".to_string()])
+        // x86_64 can execute x86 binaries, but we don't produce x86 binaries for FreeBSD
+        if cfg!(target_os = "freebsd") {
+            Ok(vec!["x64".to_string()])
+        } else {
+            Ok(vec!["x86".to_string(), "x64".to_string()])
+        }
     } else if cfg!(target_arch = "aarch64") {
         Ok(vec!["aarch64".to_string()])
     } else {
@@ -476,6 +513,13 @@ pub fn channel_to_name(channel: &String) -> Result<String> {
             "linux-aarch64"
         } else {
             bail!("Unsupported architecture for nightly channel on Linux.")
+        }
+
+        #[cfg(target_os = "freebsd")]
+        if arch == "x64" {
+            "freebsd-x86_64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on FreeBSD.")
         }
     };
 
@@ -556,6 +600,9 @@ pub fn install_non_db_version(
             "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
             "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
             "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
+            "freebsd-x86_64" => {
+                Ok("bin/freebsd/x86_64/julia-latest-freebsd-x86_64.tar.gz".to_owned())
+            }
             _ => Err(anyhow!("Unknown nightly.")),
         }
     } else if id.starts_with("pr") {
@@ -573,6 +620,9 @@ pub fn install_non_db_version(
             }
             "linux-aarch64" => {
                 Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+            }
+            "freebsd-x86_64" => {
+                Ok("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
             }
             _ => Err(anyhow!("Unknown pr.")),
         }

@@ -23,6 +23,7 @@ jobs:
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
           x86_64-unknown-linux-musl-portable,
+          x86_64-unknown-freebsd,
           i686-pc-windows-msvc-windowsstore,
           i686-pc-windows-msvc-windowsappinstaller,
           i686-pc-windows-gnu-msi,
@@ -114,6 +115,13 @@ jobs:
             features: dummy
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - label: x86_64-unknown-freebsd
+            target: x86_64-unknown-freebsd
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
+            os: ubuntu
+            features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags:
+            toolchain: stable
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             bins: --bin juliaup --bin julialauncher
@@ -194,10 +202,12 @@ jobs:
         platform: x86
         version: 12.2.0
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Release build
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       uses: clechasseur/rs-cargo@v2
       with:
         command: build
@@ -207,6 +217,20 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: FreeBSD release build
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: "13.2"
+        usesh: true
+        mem: 8192
+        copyback: true
+        prepare: |
+          pkg install -y curl
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        run: |
+          . "${HOME}/.cargo/env"
+          cargo build --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v4
       with:
         name: juliaup-${{matrix.label}}
@@ -234,6 +258,7 @@ jobs:
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
+          x86_64-unknown-freebsd,
           i686-pc-windows-msvc,
           ]
         include:
@@ -262,6 +287,11 @@ jobs:
             features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - target: x86_64-unknown-freebsd
+            os: ubuntu
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy,binjulialauncher
@@ -282,10 +312,12 @@ jobs:
         platform: x86
         version: 12.2.0
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       uses: clechasseur/rs-cargo@v2
       with:
         command: test
@@ -295,8 +327,21 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
-  
-  package-mac-linux:
+    - name: Test FreeBSD
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: "13.2"
+        usesh: true
+        mem: 8192
+        copyback: false
+        prepare: |
+          pkg install -y curl
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        run: |
+          . "${HOME}/.cargo/env"
+          cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+  package-unix:
     needs: [build-juliaup,test-juliaup]
     environment: package
     runs-on: ubuntu-latest
@@ -342,6 +387,11 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-musl
         path: target/aarch64-unknown-linux-musl
+    - name: Download FreeBSD x64 juliaup artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: juliaup-x86_64-unknown-freebsd
+        path: target/x86_64-unknown-freebsd
     - name: Download installer artifacts for x86_64-apple-darwin
       uses: actions/download-artifact@v4
       with:
@@ -382,6 +432,11 @@ jobs:
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/installer/aarch64-apple-darwin
+    - name: Download installer artifacts for x86_64-unknown-freebsd
+      uses: actions/download-artifact@v4
+      with:
+        name: juliainstaller-x86_64-unknown-freebsd
+        path: target/installer/x86_64-unknown-freebsd
     - name: Set permissions
       run: |
         chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
@@ -400,6 +455,8 @@ jobs:
         chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
         chmod a+rx target/aarch64-unknown-linux-musl/juliaup
         chmod a+rx target/aarch64-unknown-linux-musl/julialauncher
+        chmod a+rx target/x86_64-unknown-freebsd/juliaup
+        chmod a+rx target/x86_64-unknown-freebsd/julialauncher
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
@@ -416,7 +473,7 @@ jobs:
 
         cd ../../target/x86_64-unknown-linux-musl
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-musl.tar.gz .
-        
+
         cd ../../target/i686-unknown-linux-gnu
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-i686-unknown-linux-gnu.tar.gz .
 
@@ -435,12 +492,16 @@ jobs:
         cd ../../target/aarch64-unknown-linux-musl
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-musl.tar.gz .
 
+        cd ../../target/x86_64-unknown-freebsd
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-freebsd.tar.gz .
+
         cd ../..
     - name: Rename and move juliainstaller
       run: |
         mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
         mv target/installer/x86_64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-gnu
         mv target/installer/x86_64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-linux-musl
+        mv target/installer/x86_64-unknown-freebsd/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-unknown-freebsd
         mv target/installer/i686-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-gnu
         mv target/installer/i686-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-i686-unknown-linux-musl
         mv target/installer/aarch64-unknown-linux-gnu/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
@@ -456,7 +517,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SOURCE_DIR: 'public'
 
-  package-mac-linux-portable:
+  package-unix-portable:
     needs: [build-juliaup,test-juliaup]
     environment: package
     runs-on: ubuntu-latest
@@ -514,7 +575,7 @@ jobs:
 
         cd ../../target/x86_64-unknown-linux-musl-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-x86_64-unknown-linux-musl-portable.tar.gz .
-        
+
         cd ../../target/i686-unknown-linux-musl-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-unknown-linux-musl-portable.tar.gz .
 
@@ -619,7 +680,7 @@ jobs:
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
     - name: Download and extract bundled Julia versions
-      run: |      
+      run: |
         $x64Versions = Get-Content versiondb\versiondb-x86_64-pc-windows-msvc.json | ConvertFrom-Json
         $x64VersionFromChannel = $x64Versions.AvailableChannels.release.Version
         $x64DownloadUrl = $x64Versions.AvailableVersions.$x64VersionFromChannel.UrlPath
@@ -726,7 +787,7 @@ jobs:
       with:
         name: winappinstaller
         path: target\msix\winappinstaller\Julia.appinstaller
-  
+
   package-windows-msi:
     needs: [build-juliaup,test-juliaup]
     runs-on: windows-latest
@@ -816,7 +877,7 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  
+
   create-github-release:
     needs: [test-juliaup]
     runs-on: ubuntu-latest
@@ -830,7 +891,7 @@ jobs:
         generateReleaseNotes: true
 
   deploy-github-release-binaries:
-    needs: [create-github-release, package-mac-linux-portable, package-windows-portable]
+    needs: [create-github-release, package-unix-portable, package-windows-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -851,7 +912,7 @@ jobs:
         prerelease: true
 
   deploy-dev-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -863,12 +924,12 @@ jobs:
         curl -sLO https://github.com/PowerShell/PowerShell/releases/download/v7.2.17/PowerShell-7.2.17-win-x64.zip
         RMDIR "%extractPath%" /S /Q
         7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
-        pwsh --version  
+        pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v4
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -881,7 +942,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-releasepreview-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -893,12 +954,12 @@ jobs:
         curl -sLO https://github.com/PowerShell/PowerShell/releases/download/v7.2.17/PowerShell-7.2.17-win-x64.zip
         RMDIR "%extractPath%" /S /Q
         7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
-        pwsh --version  
+        pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v4
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -911,7 +972,7 @@ jobs:
         Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-winstore:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -923,12 +984,12 @@ jobs:
         curl -sLO https://github.com/PowerShell/PowerShell/releases/download/v7.2.17/PowerShell-7.2.17-win-x64.zip
         RMDIR "%extractPath%" /S /Q
         7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
-        pwsh --version  
+        pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
     - uses: actions/download-artifact@v4
       with:
-        name: storepackage      
+        name: storepackage
     - name: Authenticate with store
       env:
         TENANTID: ${{ secrets.TENANTID }}
@@ -941,7 +1002,7 @@ jobs:
         Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
 
   deploy-release-channel-brew:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -954,7 +1015,7 @@ jobs:
         force: true
 
   deploy-release-channel-aur:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -990,9 +1051,9 @@ jobs:
           git push origin master
         env:
           GH_REF: ${{ github.ref }}
-  
+
   deploy-dev-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1007,7 +1068,7 @@ jobs:
         run: |
           export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "$VERSION" > public/DEVCHANNELVERSION          
+          echo "$VERSION" > public/DEVCHANNELVERSION
         env:
           GH_REF: ${{ github.ref }}
       - uses: actions/download-artifact@v4
@@ -1041,7 +1102,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-releasepreview-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1086,7 +1147,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-s3:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1141,7 +1202,7 @@ jobs:
           SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1154,7 +1215,7 @@ jobs:
         allowUpdates: true
 
   deploy-release-channel-crates:
-    needs: [create-github-release,package-mac-linux,package-windows-msix,package-windows-msi]
+    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
