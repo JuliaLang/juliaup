@@ -396,12 +396,15 @@ fn run_app() -> Result<i32> {
             }
 
             // replace the current process
-            std::process::Command::new(julia_path)
+            std::process::Command::new(&julia_path)
                 .args(&new_args)
                 .exec();
 
-            // this is never reached
-            Ok(0)
+            // this is only ever reached if launching Julia fails
+            panic!(
+                "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
+                julia_path.to_string_lossy()
+            )
         }
         Ok(ForkResult::Child) => {
             // double-fork to prevent zombies
