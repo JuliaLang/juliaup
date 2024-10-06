@@ -55,7 +55,9 @@ fn get_default_juliaup_home_path() -> Result<PathBuf> {
 
 pub fn get_paths() -> Result<GlobalPaths> {
     let juliauphome = get_juliaup_home_path()?;
-
+    return get_paths_from_home_path(juliauphome);
+}
+pub fn get_paths_from_home_path(juliauphome: PathBuf) -> Result<GlobalPaths> {
     #[cfg(feature = "selfupdate")]
     let my_own_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
