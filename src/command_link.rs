@@ -4,6 +4,7 @@ use crate::global_paths::GlobalPaths;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::is_valid_channel;
+use crate::utils::is_valid_julia_path;
 use crate::versions_file::load_versions_db;
 use anyhow::{bail, Context, Result};
 use path_absolutize::Absolutize;
@@ -32,6 +33,10 @@ pub fn run_command_link(
     let absolute_file_path = Path::new(file)
         .absolutize()
         .with_context(|| format!("Failed to convert path `{}` to absolute path.", file))?;
+
+    if !is_valid_julia_path(&absolute_file_path.to_path_buf()) {
+        eprintln!("WARNING: There is no julia binary at {}. If this was a mistake, run `juliaup remove {}` and try again.", absolute_file_path.to_string_lossy(), channel);
+    }
 
     config_file.data.installed_channels.insert(
         channel.to_string(),

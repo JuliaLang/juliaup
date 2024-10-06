@@ -30,9 +30,9 @@ If neither the Windows Store nor the App Installer version work on your Windows 
 msiexec /i <PATH_TO_JULIA_MSI> ALLUSERS=1
 ```
 
-### Mac and Linux
+### Mac, Linux, and FreeBSD
 
-Juliaup can be installed on Linux or Mac by executing
+Juliaup can be installed on Unix-like platforms (currently Linux, Mac, or FreeBSD) by executing
 
 ```
 curl -fsSL https://install.julialang.org | sh
