@@ -86,6 +86,8 @@ fn update_channel(
             assert!(!version.is_empty());
 
             if local_etag != server_etag {
+                eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
 
