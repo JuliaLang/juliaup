@@ -469,6 +469,27 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     }
 }
 
+// which nightly channels are compatible with the current system
+fn compatible_nightly_channels() -> Result<Vec<String>> {
+    let archs: Vec<String> = compatible_archs()?;
+
+    let channels: Vec<String> = std::iter::once("nightly".to_string())
+        .chain(archs.into_iter().map(|arch| format!("nightly~{}", arch)))
+        .collect();
+    Ok(channels)
+}
+
+// considers the nightly channels as system channels
+// XXX: does not account for PR channels
+pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
+    let regular = versions_db.available_channels.contains_key(channel);
+
+    let nightly_chans = compatible_nightly_channels()?;
+
+    let nightly = nightly_chans.contains(channel);
+    Ok(regular || nightly)
+}
+
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
 pub fn channel_to_name(channel: &String) -> Result<String> {
     let mut parts = channel.splitn(2, '~');
