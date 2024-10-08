@@ -109,12 +109,12 @@ pub fn download_extract_sans_parent(
         None => ProgressBar::new_spinner(),
     };
 
-    pb.set_prefix("  Downloading:");
+    pb.set_prefix("  Downloading");
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+            .template("{prefix:.cyan.bold}: {bar:.cyan/white} {bytes}/{total_bytes} eta: {eta}")
             .unwrap()
-            .progress_chars("=> "),
+            .progress_chars("━╸━"),
     );
 
     let last_modified = match response
@@ -209,12 +209,12 @@ pub fn download_extract_sans_parent(
         ProgressBar::new_spinner()
     };
 
-    pb.set_prefix("  Downloading:");
+    pb.set_prefix("  Downloading");
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
+            .template("{prefix:.cyan.bold}: {bar:.cyan/white} {bytes}/{total_bytes} eta: {eta}")
             .unwrap()
-            .progress_chars("=> "),
+            .progress_chars("━╸━"),
     );
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
