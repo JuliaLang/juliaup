@@ -527,10 +527,7 @@ fn main() -> Result<std::process::ExitCode> {
 
         if let Err(err) = &client_status {
             if let Some(e) = err.downcast_ref::<UserError>() {
-                eprintln!("{} {}",
-                    style("ERROR:").red().bold(),
-                    e.msg
-                );
+                eprintln!("{} {}", style("ERROR:").red().bold(), e.msg);
 
                 return Ok(std::process::ExitCode::FAILURE);
             } else {
