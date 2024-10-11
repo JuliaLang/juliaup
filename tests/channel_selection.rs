@@ -137,7 +137,7 @@ fn channel_selection() {
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr("`1.8.2` is not installed. Please run `juliaup add 1.8.2` to install channel or version.\n");
+        .stderr("ERROR: `1.8.2` is not installed. Please run `juliaup add 1.8.2` to install channel or version.\n");
 
     // https://github.com/JuliaLang/juliaup/issues/820
     Command::cargo_bin("julia")
@@ -150,5 +150,5 @@ fn channel_selection() {
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr("`nightly` is not installed. Please run `juliaup add nightly` to install channel or version.\n");
+        .stderr("ERROR: `nightly` is not installed. Please run `juliaup add nightly` to install channel or version.\n");
 }
