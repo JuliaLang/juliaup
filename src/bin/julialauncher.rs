@@ -140,7 +140,8 @@ fn check_channel_uptodate(
     let latest_version = &versions_db
         .available_channels
         .get(channel)
-        .ok_or_else(|| UserError {msg: format!(
+        .ok_or_else(|| UserError {
+            msg: format!(
                 "The channel `{}` does not exist in the versions database.",
                 channel
             )
