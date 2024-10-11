@@ -180,10 +180,10 @@ fn get_julia_path_from_channel(
 ) -> Result<(PathBuf, Vec<String>)> {
     if let JuliaupChannelSource::Manifest { version } = launch_parameters {
         let version_string = versions_db.available_channels.get(version)
-            .ok_or_else(|| anyhow!("The project you are trying to launch uses Julia {}, but no such Julia version exists. Please make sure you are using a valid Julia manifest file.", version))?;
+            .ok_or_else(|| UserError {msg: format!("The project you are trying to launch uses Julia {}, but no such Julia version exists. Please make sure you are using a valid Julia manifest file.", version) } )?;
 
         let version_config = config_data.installed_versions.get(&version_string.version)
-            .ok_or_else(|| anyhow!("The project you are trying to launch uses Julia {}, but you do not have that version installed. You can install it by running `juliaup add {}`.", version, version))?;
+            .ok_or_else(|| UserError {msg: format!("The project you are trying to launch uses Julia {}, but you do not have that version installed. You can install it by running `juliaup add {}`.", version, version) } )?;
 
         let absolute_path = juliaupconfig_path
             .parent()
