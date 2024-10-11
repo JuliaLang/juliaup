@@ -144,7 +144,7 @@ fn check_channel_uptodate(
             msg: format!(
                 "The channel `{}` does not exist in the versions database.",
                 channel
-            )
+            ),
         })?
         .version;
 
