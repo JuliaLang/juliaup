@@ -19,7 +19,7 @@ fn command_initial_setup() {
         .assert()
         .success()
         .stdout(predicate::str::is_empty())
-        .stderr(predicate::str::starts_with("Installing Julia 1.11.0").and(predicate::str::contains("apple.darwin14").not().or(predicate::str::contains("Checking standard library notarization").and(predicate::str::ends_with("done.")))));
+        .stderr(predicate::str::starts_with("Installing Julia 1.11.0").and(predicate::str::contains("apple.darwin14").not().or(predicate::str::contains("Checking standard library notarization").and(predicate::str::ends_with("done.\n")))));
 
     depot_dir
         .child(Path::new("juliaup").join("juliaup.json"))
