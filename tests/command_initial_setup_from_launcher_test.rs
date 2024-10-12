@@ -18,7 +18,8 @@ fn command_initial_setup() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::is_empty().or(predicate::str::starts_with("Checking standard library notarization").and(predicate::str::ends_with("done."))));
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty().or(predicate::str::starts_with("Checking standard library notarization").and(predicate::str::ends_with("done."))));
 
     depot_dir
         .child(Path::new("juliaup").join("juliaup.json"))
