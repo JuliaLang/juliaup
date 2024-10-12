@@ -78,7 +78,7 @@ fn main() -> Result<()> {
             .unwrap();
 
         if !depl_result.IsRegistered().unwrap() {
-            println!(
+            eprintln!(
                 "Failed to register package identity. Error Message ${:?}",
                 depl_result.ErrorText()
             );

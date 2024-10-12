@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use console::Term;
+use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
@@ -140,11 +140,11 @@ fn check_channel_uptodate(
     let latest_version = &versions_db
         .available_channels
         .get(channel)
-        .ok_or_else(|| {
-            anyhow!(
+        .ok_or_else(|| UserError {
+            msg: format!(
                 "The channel `{}` does not exist in the versions database.",
                 channel
-            )
+            ),
         })?
         .version;
 
@@ -184,24 +184,24 @@ fn get_julia_path_from_channel(
                     if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
+                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
             })?;
 
     match channel_info {
@@ -527,7 +527,7 @@ fn main() -> Result<std::process::ExitCode> {
 
         if let Err(err) = &client_status {
             if let Some(e) = err.downcast_ref::<UserError>() {
-                eprintln!("{}", e.msg);
+                eprintln!("{} {}", style("ERROR:").red().bold(), e.msg);
 
                 return Ok(std::process::ExitCode::FAILURE);
             } else {
