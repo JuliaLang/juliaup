@@ -151,4 +151,17 @@ fn channel_selection() {
         .assert()
         .failure()
         .stderr("ERROR: `nightly` is not installed. Please run `juliaup add nightly` to install channel or version.\n");
+
+    // https://github.com/JuliaLang/juliaup/issues/995
+    Command::cargo_bin("julia")
+        .unwrap()
+        .arg("+pr1")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_CHANNEL", "1.7.4")
+        .assert()
+        .failure()
+        .stderr("ERROR: `pr1` is not installed. Please run `juliaup add pr1` to install pull request channel if available.\n");
 }
