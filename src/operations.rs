@@ -112,7 +112,9 @@ pub fn download_extract_sans_parent(
     pb.set_prefix("  Downloading");
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold}: {bar:.cyan/white} {bytes}/{total_bytes} eta: {eta}")
+            .template(
+                "{prefix:.cyan.bold}: {bar:.cyan/black.bright} {bytes}/{total_bytes} eta: {eta}",
+            )
             .unwrap()
             .progress_chars("━╸━"),
     );
