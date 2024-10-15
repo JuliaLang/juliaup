@@ -17,7 +17,7 @@ use crate::utils::is_valid_julia_path;
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
-use console::style;
+use console::{colors_enabled, style};
 #[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -92,6 +92,19 @@ where
     Ok(())
 }
 
+fn bar_style() -> ProgressStyle {
+    let pchars = if colors_enabled() {
+        "━╸━"
+    } else {
+        "━╸ "
+    };
+
+    ProgressStyle::default_bar()
+        .template("{prefix:.cyan.bold}: {bar:.cyan/black.bright} {bytes}/{total_bytes} eta: {eta}")
+        .unwrap()
+        .progress_chars(pchars)
+}
+
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
@@ -110,14 +123,7 @@ pub fn download_extract_sans_parent(
     };
 
     pb.set_prefix("  Downloading");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template(
-                "{prefix:.cyan.bold}: {bar:.cyan/black.bright} {bytes}/{total_bytes} eta: {eta}",
-            )
-            .unwrap()
-            .progress_chars("━╸━"),
-    );
+    pb.set_style(bar_style());
 
     let last_modified = match response
         .headers()
@@ -212,12 +218,7 @@ pub fn download_extract_sans_parent(
     };
 
     pb.set_prefix("  Downloading");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold}: {bar:.cyan/white} {bytes}/{total_bytes} eta: {eta}")
-            .unwrap()
-            .progress_chars("━╸━"),
-    );
+    pb.set_style(bar_style());
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
