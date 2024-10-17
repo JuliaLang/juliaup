@@ -24,7 +24,6 @@ use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
 use semver::Version;
-use tempfile::TempPath;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(not(target_os = "freebsd"))]
@@ -36,6 +35,7 @@ use std::{
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
+use tempfile::TempPath;
 use url::Url;
 
 #[cfg(not(target_os = "freebsd"))]
@@ -1429,15 +1429,18 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                     ))
                     .with_context(|| "Failed to construct URL for version db download.")?;
 
-                let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap()).unwrap().into_temp_path();
+                let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap())
+                    .unwrap()
+                    .into_temp_path();
 
-                download_versiondb(&onlineversiondburl.to_string(), &temp_path)
-                    .with_context(|| {
+                download_versiondb(&onlineversiondburl.to_string(), &temp_path).with_context(
+                    || {
                         format!(
                             "Failed to download new version db from {}.",
                             onlineversiondburl
                         )
-                    })?;
+                    },
+                )?;
 
                 temp_versiondb_download_path = Some(temp_path);
             }
@@ -1487,8 +1490,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
 
     if let Some(foo) = temp_versiondb_download_path {
         std::fs::rename(&foo, &paths.versiondb)?;
-    }
-    else if delete_old_version_db {
+    } else if delete_old_version_db {
         let _ = std::fs::remove_file(&paths.versiondb);
     }
 
@@ -1498,9 +1500,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
 }
 
 #[cfg(windows)]
-fn download_direct_download_etags(
-    config_data: &JuliaupConfig,
-) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
     use windows::core::HSTRING;
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
