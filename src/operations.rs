@@ -1456,6 +1456,10 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     // This is our optimistic locking check: if someone changed the last modified
     // field since we released the read-lock, we just give up
     if new_config_file.data != old_config_file.data {
+        if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+            let _ = std::fs::remove_file(temp_versiondb_download_path);
+        }
+
         return Ok(());
     }
 
@@ -1491,8 +1495,8 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
 
     new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
 
-    if let Some(foo) = temp_versiondb_download_path {
-        std::fs::rename(&foo, &paths.versiondb)?;
+    if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+        std::fs::rename(&temp_versiondb_download_path, &paths.versiondb)?;
     } else if delete_old_version_db {
         let _ = std::fs::remove_file(&paths.versiondb);
     }
