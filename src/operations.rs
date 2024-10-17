@@ -1347,7 +1347,7 @@ mod tests {
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let old_last_version_db_update: Option<DateTime<Utc>>;
     let direct_download_etags: Vec<(String, String)>;
-    let temp_versiondb_download_path: Option<TempPath>;
+    let mut temp_versiondb_download_path: Option<TempPath> = None;
     let mut delete_old_version_db: bool = false;
 
     {
@@ -1429,9 +1429,9 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                     ))
                     .with_context(|| "Failed to construct URL for version db download.")?;
 
-                let foo = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap()).unwrap().into_temp_path()
+                let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap()).unwrap().into_temp_path();
 
-                download_versiondb(&onlineversiondburl.to_string(), &foo)
+                download_versiondb(&onlineversiondburl.to_string(), &temp_path)
                     .with_context(|| {
                         format!(
                             "Failed to download new version db from {}.",
@@ -1439,12 +1439,10 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                         )
                     })?;
 
-                temp_versiondb_download_path = Some(foo);
+                temp_versiondb_download_path = Some(temp_path);
             }
         } else if local_dbversion.is_some() {
             // If the bundled version is up-to-date we can delete any cached version db json file
-            
-
             delete_old_version_db = true;
         }
     }
