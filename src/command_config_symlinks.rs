@@ -43,7 +43,7 @@ pub fn run_command_config_symlinks(
             }
         }
         None => {
-            let config_file = load_config_db(paths)
+            let config_file = load_config_db(paths, None)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {

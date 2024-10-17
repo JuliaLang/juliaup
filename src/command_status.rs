@@ -26,7 +26,7 @@ struct ChannelRow {
 }
 
 pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
-    let config_file = load_config_db(paths)
+    let config_file = load_config_db(paths, None)
         .with_context(|| "`status` command failed to load configuration file.")?;
 
     let versiondb_data =
