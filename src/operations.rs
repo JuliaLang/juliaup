@@ -1419,7 +1419,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
 
     let bundled_dbversion = get_bundled_dbversion()
-        .with_context(|| "Failed to determine the bundled version db version.")?;  
+        .with_context(|| "Failed to determine the bundled version db version.")?;
 
     if online_dbversion > bundled_dbversion {
         if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
@@ -1460,7 +1460,11 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     }
 
     for (channel, etag) in direct_download_etags {
-        let channel_data = new_config_file.data.installed_channels.get(&channel).unwrap();
+        let channel_data = new_config_file
+            .data
+            .installed_channels
+            .get(&channel)
+            .unwrap();
 
         match channel_data {
             JuliaupConfigChannel::DirectDownloadChannel {
