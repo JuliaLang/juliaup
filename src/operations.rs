@@ -1559,7 +1559,7 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 
 #[cfg(not(windows))]
 fn download_direct_download_etags(
-    config_data: &mut JuliaupConfig,
+    config_data: &JuliaupConfig,
 ) -> Result<Vec<(String, String)>> {
     let client = reqwest::blocking::Client::new();
 
