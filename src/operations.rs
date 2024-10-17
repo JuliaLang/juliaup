@@ -1382,7 +1382,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     }
 
     #[cfg(feature = "selfupdate")]
-    let juliaup_channel = match &config_file.self_data.juliaup_channel {
+    let juliaup_channel = match &old_config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string(),
     };
