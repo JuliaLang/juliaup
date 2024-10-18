@@ -5,7 +5,7 @@ use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::is_valid_channel;
+use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -183,6 +183,8 @@ fn get_julia_path_from_channel(
                 JuliaupChannelSource::CmdLine => {
                     if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
@@ -190,6 +192,8 @@ fn get_julia_path_from_channel(
                 JuliaupChannelSource::EnvVar=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()) {
+                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
@@ -197,6 +201,8 @@ fn get_julia_path_from_channel(
                 JuliaupChannelSource::Override=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()){
+                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
