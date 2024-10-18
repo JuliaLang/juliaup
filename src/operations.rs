@@ -22,6 +22,7 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
@@ -473,11 +474,15 @@ pub fn compatible_archs() -> Result<Vec<String>> {
 }
 
 // which nightly channels are compatible with the current system
-fn compatible_nightly_channels() -> Result<Vec<String>> {
-    let archs: Vec<String> = compatible_archs()?;
+pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
+    let archs = compatible_archs()?;
 
-    let channels: Vec<String> = std::iter::once("nightly".to_string())
-        .chain(archs.into_iter().map(|arch| format!("nightly~{}", arch)))
+    let channels: Vec<String> = std::iter::once(channel.to_string())
+        .chain(
+            archs
+                .into_iter()
+                .map(|arch| format!("{}~{}", channel, arch)),
+        )
         .collect();
     Ok(channels)
 }
@@ -487,10 +492,14 @@ fn compatible_nightly_channels() -> Result<Vec<String>> {
 pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
     let regular = versions_db.available_channels.contains_key(channel);
 
-    let nightly_chans = compatible_nightly_channels()?;
+    let nightly_chans = get_channel_variations("nightly")?;
 
     let nightly = nightly_chans.contains(channel);
     Ok(regular || nightly)
+}
+
+pub fn is_pr_channel(channel: &String) -> bool {
+    return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
 }
 
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
