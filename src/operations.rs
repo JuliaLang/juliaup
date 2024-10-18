@@ -1,3 +1,5 @@
+use crate::config_file::get_read_lock;
+use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
@@ -32,6 +34,7 @@ use std::{
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
+use tempfile::TempPath;
 use url::Url;
 
 #[cfg(not(target_os = "freebsd"))]
@@ -1341,12 +1344,45 @@ mod tests {
 }
 
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
-    let mut config_file = load_mut_config_db(paths).with_context(|| {
+    let file_lock = get_read_lock(paths)?;
+
+    let mut temp_versiondb_download_path: Option<TempPath> = None;
+    let mut delete_old_version_db: bool = false;
+
+    let old_config_file = load_config_db(paths, Some(&file_lock)).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
 
+    let local_dbversion = match std::fs::OpenOptions::new()
+        .read(true)
+        .open(&paths.versiondb)
+    {
+        Ok(file) => {
+            let reader = BufReader::new(&file);
+
+            if let Ok(versiondb) =
+                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
+            {
+                if let Ok(version) = semver::Version::parse(&versiondb.version) {
+                    Some(version)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
+
+    // This scope makes sure the lock file gets closed after we release the lock
+    {
+        let (_, res) = file_lock.data_unlock();
+        res.with_context(|| "Failed to unlock configuration file.")?;
+    }
+
     #[cfg(feature = "selfupdate")]
-    let juliaup_channel = match &config_file.self_data.juliaup_channel {
+    let juliaup_channel = match &old_config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string(),
     };
@@ -1380,10 +1416,59 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
-    let direct_download_etags = download_direct_download_etags(&mut config_file.data)?;
+    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+
+    let bundled_dbversion = get_bundled_dbversion()
+        .with_context(|| "Failed to determine the bundled version db version.")?;
+
+    if online_dbversion > bundled_dbversion {
+        if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
+            let onlineversiondburl = juliaupserver_base
+                .join(&format!(
+                    "juliaup/versiondb/versiondb-{}-{}.json",
+                    online_dbversion,
+                    get_juliaup_target()
+                ))
+                .with_context(|| "Failed to construct URL for version db download.")?;
+
+            let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap())
+                .unwrap()
+                .into_temp_path();
+
+            download_versiondb(&onlineversiondburl.to_string(), &temp_path).with_context(|| {
+                format!(
+                    "Failed to download new version db from {}.",
+                    onlineversiondburl
+                )
+            })?;
+
+            temp_versiondb_download_path = Some(temp_path);
+        }
+    } else if local_dbversion.is_some() {
+        // If the bundled version is up-to-date we can delete any cached version db json file
+        delete_old_version_db = true;
+    }
+
+    let mut new_config_file = load_mut_config_db(paths).with_context(|| {
+        "`run_command_update_version_db` command failed to load configuration db."
+    })?;
+
+    // This is our optimistic locking check: if someone changed the last modified
+    // field since we released the read-lock, we just give up
+    if new_config_file.data != old_config_file.data {
+        if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+            let _ = std::fs::remove_file(temp_versiondb_download_path);
+        }
+
+        return Ok(());
+    }
 
     for (channel, etag) in direct_download_etags {
-        let channel_data = config_file.data.installed_channels.get(&channel).unwrap();
+        let channel_data = new_config_file
+            .data
+            .installed_channels
+            .get(&channel)
+            .unwrap();
 
         match channel_data {
             JuliaupConfigChannel::DirectDownloadChannel {
@@ -1393,7 +1478,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 server_etag: _,
                 version,
             } => {
-                config_file.data.installed_channels.insert(
+                new_config_file.data.installed_channels.insert(
                     channel,
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: path.clone(),
@@ -1408,66 +1493,21 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         }
     }
 
-    config_file.data.last_version_db_update = Some(chrono::Utc::now());
+    new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
-
-    let bundled_dbversion = get_bundled_dbversion()
-        .with_context(|| "Failed to determine the bundled version db version.")?;
-
-    let local_dbversion = match std::fs::OpenOptions::new()
-        .read(true)
-        .open(&paths.versiondb)
-    {
-        Ok(file) => {
-            let reader = BufReader::new(&file);
-
-            if let Ok(versiondb) =
-                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
-            {
-                if let Ok(version) = semver::Version::parse(&versiondb.version) {
-                    Some(version)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    };
-
-    if online_dbversion > bundled_dbversion {
-        if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
-            let onlineversiondburl = juliaupserver_base
-                .join(&format!(
-                    "juliaup/versiondb/versiondb-{}-{}.json",
-                    online_dbversion,
-                    get_juliaup_target()
-                ))
-                .with_context(|| "Failed to construct URL for version db download.")?;
-
-            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb).with_context(
-                || {
-                    format!(
-                        "Failed to download new version db from {}.",
-                        onlineversiondburl
-                    )
-                },
-            )?;
-        }
-    } else if local_dbversion.is_some() {
-        // If the bundled version is up-to-date we can delete any cached version db json file
+    if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+        std::fs::rename(&temp_versiondb_download_path, &paths.versiondb)?;
+    } else if delete_old_version_db {
         let _ = std::fs::remove_file(&paths.versiondb);
     }
+
+    save_config_db(&mut new_config_file).with_context(|| "Failed to save configuration file.")?;
 
     Ok(())
 }
 
 #[cfg(windows)]
-fn download_direct_download_etags(
-    config_data: &mut JuliaupConfig,
-) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
     use windows::core::HSTRING;
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
@@ -1525,9 +1565,7 @@ fn download_direct_download_etags(
 }
 
 #[cfg(not(windows))]
-fn download_direct_download_etags(
-    config_data: &mut JuliaupConfig,
-) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
     let client = reqwest::blocking::Client::new();
 
     let mut requests = Vec::new();
