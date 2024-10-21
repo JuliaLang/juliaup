@@ -20,14 +20,15 @@ fn command_initial_setup() {
         .success()
         .stdout(predicate::str::is_empty())
         .stderr(
-            predicate::str::starts_with("Checking for new Julia versions\nInstalling Julia 1.11.1").and(
-                predicate::str::contains("apple.darwin14")
-                    .not()
-                    .or(
-                        predicate::str::contains("Checking standard library notarization")
-                            .and(predicate::str::ends_with("done.\n")),
-                    ),
-            ),
+            predicate::str::starts_with("Checking for new Julia versions\nInstalling Julia 1.11.1")
+                .and(
+                    predicate::str::contains("apple.darwin14")
+                        .not()
+                        .or(
+                            predicate::str::contains("Checking standard library notarization")
+                                .and(predicate::str::ends_with("done.\n")),
+                        ),
+                ),
         );
 
     depot_dir
