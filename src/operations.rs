@@ -1353,6 +1353,8 @@ mod tests {
 }
 
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
+    eprintln!("{} for new Julia versions", style("Checking").green().bold());
+
     let file_lock = get_read_lock(paths)?;
 
     let mut temp_versiondb_download_path: Option<TempPath> = None;
