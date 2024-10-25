@@ -82,10 +82,11 @@ fn update_channel(
             server_etag,
             version,
         } => {
-            // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
-            assert!(!version.is_empty());
-
             if local_etag != server_etag {
+                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+                if version.is_empty() {
+                    eprintln!("Channel {} version is empty, something may be wrong.", channel);
+                }
                 eprintln!("{} channel {}", style("Updating").green().bold(), channel);
 
                 let channel_data =
