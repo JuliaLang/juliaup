@@ -580,6 +580,22 @@ pub fn install_from_url(
         }
     };
 
+    #[cfg(target_os = "macos")]
+    {
+        // TODO Add prompt that asks users to confirm this
+        eprintln!("Code signing");
+        for entry in walkdir::WalkDir::new(temp_dir.path()).into_iter().filter_map(|e| e.ok()) {
+            // TODO We also need to check for the correct permissions
+            if entry.metadata()?.is_file() {
+                std::process::Command::new("codesign")
+                    .arg("--sign")
+                    .arg("-")
+                    .arg(entry.path())
+                    .status()?;
+            }
+        }
+    }
+
     // Query the actual version
     let julia_path = temp_dir
         .path()
