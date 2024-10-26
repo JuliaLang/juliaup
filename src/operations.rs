@@ -582,11 +582,14 @@ pub fn install_from_url(
 
     #[cfg(target_os = "macos")]
     {
+        use std::os::unix::fs::PermissionsExt;
+
         // TODO Add prompt that asks users to confirm this
         eprintln!("Code signing");
         for entry in walkdir::WalkDir::new(temp_dir.path()).into_iter().filter_map(|e| e.ok()) {
-            // TODO We also need to check for the correct permissions
-            if entry.metadata()?.is_file() {
+            // TODO Instead of comparing > 0 we need to change this to check for the right permissions on exectuable files and only
+            // sign those
+            if entry.metadata()?.is_file() && entry.metadata()?.permissions().mode() > 0 {
                 std::process::Command::new("codesign")
                     .arg("--sign")
                     .arg("-")
