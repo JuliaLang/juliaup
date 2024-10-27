@@ -86,7 +86,7 @@ fn update_channel(
                 // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
                 if version.is_empty() {
                     eprintln!(
-                        "Channel {} version is empty, something may be wrong.",
+                        "Channel {} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request.",
                         channel
                     );
                 }
