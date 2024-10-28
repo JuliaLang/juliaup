@@ -879,6 +879,12 @@
         "1.10.5+0.x64.linux.gnu": {
             "UrlPath": "bin/linux/x64/1.10/julia-1.10.5-linux-x86_64.tar.gz"
         },
+        "1.10.6+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.10/julia-1.10.6-linux-i686.tar.gz"
+        },
+        "1.10.6+0.x64.linux.gnu": {
+            "UrlPath": "bin/linux/x64/1.10/julia-1.10.6-linux-x86_64.tar.gz"
+        },
         "1.11.0-alpha1+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.11/julia-1.11.0-alpha1-linux-i686.tar.gz"
         },
@@ -1551,7 +1557,7 @@
             "Version": "1.1.1+0.x86.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.5+0.x64.linux.gnu"
+            "Version": "1.10.6+0.x64.linux.gnu"
         },
         "1.10.0": {
             "Version": "1.10.0+0.x64.linux.gnu"
@@ -1670,11 +1676,20 @@
         "1.10.5~x86": {
             "Version": "1.10.5+0.x86.linux.gnu"
         },
+        "1.10.6": {
+            "Version": "1.10.6+0.x64.linux.gnu"
+        },
+        "1.10.6~x64": {
+            "Version": "1.10.6+0.x64.linux.gnu"
+        },
+        "1.10.6~x86": {
+            "Version": "1.10.6+0.x86.linux.gnu"
+        },
         "1.10~x64": {
-            "Version": "1.10.5+0.x64.linux.gnu"
+            "Version": "1.10.6+0.x64.linux.gnu"
         },
         "1.10~x86": {
-            "Version": "1.10.5+0.x86.linux.gnu"
+            "Version": "1.10.6+0.x86.linux.gnu"
         },
         "1.11": {
             "Version": "1.11.1+0.x64.linux.gnu"
@@ -2541,13 +2556,13 @@
             "Version": "1.11.1+0.x86.linux.gnu"
         },
         "lts": {
-            "Version": "1.10.5+0.x64.linux.gnu"
+            "Version": "1.10.6+0.x64.linux.gnu"
         },
         "lts~x64": {
-            "Version": "1.10.5+0.x64.linux.gnu"
+            "Version": "1.10.6+0.x64.linux.gnu"
         },
         "lts~x86": {
-            "Version": "1.10.5+0.x86.linux.gnu"
+            "Version": "1.10.6+0.x86.linux.gnu"
         },
         "rc": {
             "Version": "1.11.1+0.x64.linux.gnu"
@@ -2568,5 +2583,5 @@
             "Version": "1.11.1+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.54"
+    "Version": "1.0.55"
 }
