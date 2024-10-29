@@ -3,7 +3,6 @@ use clap::Parser;
 use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
 use juliaup::command_api::run_command_api;
 use juliaup::command_completions::run_command_completions;
-use juliaup::command_config_featuremanifestsupport::run_command_config_featuremanifestsupport;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
@@ -123,9 +122,6 @@ fn main() -> Result<()> {
             }
             ConfigSubCmd::VersionsDbUpdateInterval { value } => {
                 run_command_config_versionsdbupdate(value, false, &paths)
-            }
-            ConfigSubCmd::FeatureManifestSupport { value } => {
-                run_command_config_featuremanifestsupport(value, false, &paths)
             }
         },
         Juliaup::Api { command } => run_command_api(&command, &paths),
