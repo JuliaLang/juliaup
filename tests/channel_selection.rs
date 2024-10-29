@@ -295,7 +295,7 @@ fn manifest_version_selection() {
         .current_dir(&proj1_dir)
         .assert()
         .success()
-        .stdout("1.10.1");    
+        .stdout("1.10.1");
 
     let sub_dir1 = &proj1_dir.path().join("subdir1");
     std::fs::create_dir(&sub_dir1).unwrap();
