@@ -13,12 +13,14 @@ use nix::{
     unistd::{fork, ForkResult},
 };
 use normpath::PathExt;
+use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::path::PathBuf;
+use toml::Value;
 #[cfg(windows)]
 use windows::Win32::System::{
     JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
@@ -161,26 +163,59 @@ fn check_channel_uptodate(
     Ok(())
 }
 
+#[derive(PartialEq, Eq)]
 enum JuliaupChannelSource {
-    CmdLine,
-    EnvVar,
-    Override,
-    Default,
+    CmdLine { channel: String },
+    EnvVar { channel: String },
+    Override { channel: String },
+    Manifest { version: String },
+    Default { channel: String },
 }
 
 fn get_julia_path_from_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
-    channel: &str,
+    launch_parameters: &JuliaupChannelSource,
     juliaupconfig_path: &Path,
-    juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
-    let channel_info = config_data
+    if let JuliaupChannelSource::Manifest { version } = launch_parameters {
+        let version_string = versions_db.available_channels.get(version)
+            .ok_or_else(|| UserError {msg: format!("The project you are trying to launch uses Julia {}, but no such Julia version exists. Please make sure you are using a valid Julia manifest file.", version) } )?;
+
+        let version_config = config_data.installed_versions.get(&version_string.version)
+            .ok_or_else(|| UserError {msg: format!("The project you are trying to launch uses Julia {}, but you do not have that version installed. You can install it by running `juliaup add {}`.", version, version) } )?;
+
+        let absolute_path = juliaupconfig_path
+            .parent()
+            .unwrap() // unwrap OK because there should always be a parent
+            .join(&version_config.path)
+            .join("bin")
+            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
+
+        return Ok((absolute_path.into_path_buf(), Vec::new()));
+    } else {
+        let channel = match launch_parameters {
+            JuliaupChannelSource::CmdLine { channel } => channel,
+            JuliaupChannelSource::Default { channel } => channel,
+            JuliaupChannelSource::EnvVar { channel } => channel,
+            JuliaupChannelSource::Override { channel } => channel,
+            _ => unreachable!(),
+        };
+
+        let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
+
+        let channel_info = config_data
             .installed_channels
             .get(channel)
-            .ok_or_else(|| match juliaup_channel_source {
-                JuliaupChannelSource::CmdLine => {
+            .ok_or_else(|| match launch_parameters {
+                JuliaupChannelSource::CmdLine {..} => {
                     if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else if is_pr_channel(&channel.to_string()) {
@@ -189,7 +224,7 @@ fn get_julia_path_from_channel(
                         UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::EnvVar=> {
+                JuliaupChannelSource::EnvVar {..} => {
                     if channel_valid {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else if is_pr_channel(&channel.to_string()) {
@@ -198,7 +233,7 @@ fn get_julia_path_from_channel(
                         UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Override=> {
+                JuliaupChannelSource::Override {..} => {
                     if channel_valid {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
                     } else if is_pr_channel(&channel.to_string()){
@@ -207,84 +242,86 @@ fn get_julia_path_from_channel(
                         UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
+                JuliaupChannelSource::Manifest {..} => unreachable!(),
+                JuliaupChannelSource::Default {..} => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
             })?;
 
-    match channel_info {
-        JuliaupConfigChannel::LinkedChannel { command, args } => {
-            return Ok((
-                PathBuf::from(command),
-                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-            ))
-        }
-        JuliaupConfigChannel::SystemChannel { version } => {
-            let path = &config_data
+        match channel_info {
+            JuliaupConfigChannel::LinkedChannel { command, args } => {
+                return Ok((
+                    PathBuf::from(command),
+                    args.as_ref().map_or_else(Vec::new, |v| v.clone()),
+                ))
+            }
+            JuliaupConfigChannel::SystemChannel { version } => {
+                let path = &config_data
                 .installed_versions.get(version)
                 .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
 
-            check_channel_uptodate(channel, version, versions_db).with_context(|| {
+                check_channel_uptodate(channel, version, versions_db).with_context(|| {
                 format!(
                     "The Julia launcher failed while checking whether the channel {} is up-to-date.",
                     channel
                 )
             })?;
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap() // unwrap OK because there should always be a parent
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
-            return Ok((absolute_path.into_path_buf(), Vec::new()));
-        }
-        JuliaupConfigChannel::DirectDownloadChannel {
-            path,
-            url: _,
-            local_etag,
-            server_etag,
-            version: _,
-        } => {
-            if local_etag != server_etag {
-                if channel.starts_with("nightly") {
-                    // Nightly is updateable several times per day so this message will show
-                    // more often than not unless folks update a couple of times a day.
-                    // Also, folks using nightly are typically more experienced and need
-                    // less detailed prompting
-                    eprintln!(
-                        "A new `nightly` version is available. Install with `juliaup update`."
-                    );
-                } else {
-                    eprintln!(
-                        "A new version of Julia for the `{}` channel is available. Run:",
-                        channel
-                    );
-                    eprintln!();
-                    eprintln!("  juliaup update");
-                    eprintln!();
-                    eprintln!("to install the latest Julia for the `{}` channel.", channel);
-                }
+                let absolute_path = juliaupconfig_path
+                    .parent()
+                    .unwrap() // unwrap OK because there should always be a parent
+                    .join(path)
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                    .normalize()
+                    .with_context(|| {
+                        format!(
+                            "Failed to normalize path for Julia binary, starting from `{}`.",
+                            juliaupconfig_path.display()
+                        )
+                    })?;
+                return Ok((absolute_path.into_path_buf(), Vec::new()));
             }
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path,
+                url: _,
+                local_etag,
+                server_etag,
+                version: _,
+            } => {
+                if local_etag != server_etag {
+                    if channel.starts_with("nightly") {
+                        // Nightly is updateable several times per day so this message will show
+                        // more often than not unless folks update a couple of times a day.
+                        // Also, folks using nightly are typically more experienced and need
+                        // less detailed prompting
+                        eprintln!(
+                            "A new `nightly` version is available. Install with `juliaup update`."
+                        );
+                    } else {
+                        eprintln!(
+                            "A new version of Julia for the `{}` channel is available. Run:",
+                            channel
+                        );
+                        eprintln!();
+                        eprintln!("  juliaup update");
+                        eprintln!();
+                        eprintln!("to install the latest Julia for the `{}` channel.", channel);
+                    }
+                }
 
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap()
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
-            return Ok((absolute_path.into_path_buf(), Vec::new()));
+                let absolute_path = juliaupconfig_path
+                    .parent()
+                    .unwrap()
+                    .join(path)
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                    .normalize()
+                    .with_context(|| {
+                        format!(
+                            "Failed to normalize path for Julia binary, starting from `{}`.",
+                            juliaupconfig_path.display()
+                        )
+                    })?;
+                return Ok((absolute_path.into_path_buf(), Vec::new()));
+            }
         }
     }
 }
@@ -306,6 +343,151 @@ fn get_override_channel(
         Some(val) => Ok(Some(val.channel.clone())),
         None => Ok(None),
     }
+}
+
+fn get_program_file(args: &Vec<String>) -> Option<(usize, &String)> {
+    let mut program_file: Option<(usize, &String)> = None;
+    let no_arg_short_switches = ['v', 'h', 'i', 'q'];
+    let no_arg_long_switches = [
+        "--version",
+        "--help",
+        "--help-hidden",
+        "--interactive",
+        "--quiet",
+        // Hidden options
+        "--lisp",
+        "--image-codegen",
+        "--rr-detach",
+        "--strip-metadata",
+        "--strip-ir",
+        "--permalloc-pkgimg",
+        "--heap-size-hint",
+        "--trim",
+    ];
+    let mut skip_next = false;
+    for (i, arg) in args.iter().skip(1).enumerate() {
+        if skip_next {
+            skip_next = false;
+        } else if arg == "--" {
+            if i + 1 < args.len() {
+                program_file = Some((i + 1, args.get(i + 1).unwrap()));
+            }
+            break;
+        } else if arg.starts_with("--") {
+            if !no_arg_long_switches.contains(&arg.as_str()) && !arg.contains('=') {
+                skip_next = true;
+            }
+        } else if arg.starts_with("-") {
+            let arg: Vec<char> = arg.chars().skip(1).collect();
+            if arg.iter().all(|&c| no_arg_short_switches.contains(&c)) {
+                continue;
+            }
+            for (j, &c) in arg.iter().enumerate() {
+                if no_arg_short_switches.contains(&c) {
+                    continue;
+                } else if j < arg.len() - 1 {
+                    break;
+                } else {
+                    // `j == arg.len() - 1`
+                    skip_next = true;
+                }
+            }
+        } else {
+            program_file = Some((i, arg));
+            break;
+        }
+    }
+    return program_file;
+}
+
+fn get_project(args: &Vec<String>, config: &JuliaupConfig) -> Option<PathBuf> {
+    if !config.settings.feature_manifest_support {
+        return None;
+    }
+
+    let program_file = get_program_file(args);
+    let recognised_proj_flags: [&str; 4] = ["--project", "--projec", "--proje", "--proj"];
+    let mut project_arg: Option<String> = None;
+    for arg in args
+        .iter()
+        .take(program_file.map_or(args.len(), |(i, _)| i))
+    {
+        if arg.starts_with("--proj") {
+            let mut parts = arg.splitn(2, '=');
+            if recognised_proj_flags.contains(&parts.next().unwrap_or("")) {
+                project_arg = Some(parts.next().unwrap_or("@.").to_string());
+            }
+        }
+    }
+    let project = if project_arg.is_some() {
+        project_arg.unwrap()
+    } else if let Ok(val) = std::env::var("JULIA_PROJECT") {
+        val
+    } else {
+        return None;
+    };
+    if project == "@" {
+        return None;
+    } else if project == "@." || project == "" {
+        let mut path = PathBuf::from(std::env::current_dir().unwrap());
+        while !path.join("Project.toml").exists() && !path.join("JuliaProject.toml").exists() {
+            if !path.pop() {
+                return None;
+            }
+        }
+        return Some(path);
+    } else if project == "@script" {
+        if let Some((_, file)) = program_file {
+            let mut path = PathBuf::from(file);
+            path.pop();
+            while !path.join("Project.toml").exists() && !path.join("JuliaProject.toml").exists() {
+                if !path.pop() {
+                    return None;
+                }
+            }
+            return Some(path);
+        } else {
+            return None;
+        }
+    } else if project.starts_with('@') {
+        let depot = match std::env::var("JULIA_DEPOT_PATH") {
+            Ok(val) => match val.split(':').next() {
+                Some(p) => PathBuf::from(p),
+                None => dirs::home_dir().unwrap().join(".julia"),
+            },
+            _ => dirs::home_dir().unwrap().join(".julia"),
+        };
+        let path = depot.join("environments").join(&project[1..]);
+        if path.exists() {
+            return Some(path);
+        } else {
+            return None;
+        }
+    } else {
+        return Some(PathBuf::from(project));
+    }
+}
+
+fn julia_version_from_manifest(path: PathBuf) -> Option<Version> {
+    let manifest = if path.join("JuliaManifest.toml").exists() {
+        path.join("JuliaManifest.toml")
+    } else if path.join("Manifest.toml").exists() {
+        path.join("Manifest.toml")
+    } else {
+        return None;
+    };
+    let content = std::fs::read_to_string(manifest)
+        .ok()?
+        .parse::<Value>()
+        .ok()?;
+    if let Some(manifest_format) = content.get("manifest_format") {
+        if manifest_format.as_str()?.starts_with("2.") {
+            if let Some(julia_version) = content.get("julia_version") {
+                return julia_version.as_str().and_then(|v| Version::parse(v).ok());
+            }
+        }
+    }
+    return None;
 }
 
 fn run_app() -> Result<i32> {
@@ -337,34 +519,33 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let (julia_channel_to_use, juliaup_channel_source) =
-        if let Some(channel) = channel_from_cmd_line {
-            (channel, JuliaupChannelSource::CmdLine)
-        } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
-            (channel, JuliaupChannelSource::EnvVar)
-        } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
-            (channel, JuliaupChannelSource::Override)
-        } else if let Some(channel) = config_file.data.default.clone() {
-            (channel, JuliaupChannelSource::Default)
-        } else {
-            return Err(anyhow!(
-                "The Julia launcher failed to figure out which juliaup channel to use."
-            ));
-        };
+    let julia_launch_config = if let Some(channel) = channel_from_cmd_line {
+        JuliaupChannelSource::CmdLine { channel: channel }
+    } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+        JuliaupChannelSource::EnvVar { channel: channel }
+    } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+        JuliaupChannelSource::Override { channel: channel }
+    } else if let Some(version) =
+        get_project(&args, &config_file.data).and_then(julia_version_from_manifest)
+    {
+        JuliaupChannelSource::Manifest {
+            version: version.to_string(),
+        }
+    } else if let Some(channel) = config_file.data.default.clone() {
+        JuliaupChannelSource::Default { channel: channel }
+    } else {
+        return Err(anyhow!(
+            "The Julia launcher failed to figure out which juliaup channel to use."
+        ));
+    };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
         &config_file.data,
-        &julia_channel_to_use,
+        &julia_launch_config,
         &paths.juliaupconfig,
-        juliaup_channel_source,
     )
-    .with_context(|| {
-        format!(
-            "The Julia launcher failed to determine the command for the `{}` channel.",
-            julia_channel_to_use
-        )
-    })?;
+    .with_context(|| "The Julia launcher failed to determine the Julia version to launch.")?;
 
     let mut new_args: Vec<String> = Vec::new();
 
