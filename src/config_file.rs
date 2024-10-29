@@ -67,12 +67,6 @@ pub struct JuliaupConfigSettings {
         skip_serializing_if = "is_default_versionsdb_update_interval"
     )]
     pub versionsdb_update_interval: i64,
-    #[serde(
-        rename = "FeatureManifestSupport",
-        default,
-        skip_serializing_if = "is_default"
-    )]
-    pub feature_manifest_support: bool,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -80,7 +74,6 @@ impl Default for JuliaupConfigSettings {
         JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
-            feature_manifest_support: false,
         }
     }
 }
@@ -210,7 +203,6 @@ pub fn load_config_db(
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
-                    feature_manifest_support: false,
                 },
                 last_version_db_update: None,
             },
@@ -309,7 +301,6 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
-                    feature_manifest_support: false,
                 },
                 last_version_db_update: None,
             };
