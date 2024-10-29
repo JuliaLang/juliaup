@@ -415,7 +415,7 @@ fn get_project(args: &Vec<String>, config: &JuliaupConfig) -> Option<PathBuf> {
         if arg.starts_with("--proj") {
             let mut parts = arg.splitn(2, '=');
             if recognised_proj_flags.contains(&parts.next().unwrap_or("")) {
-                project_arg = Some(parts.next().unwrap_or("@").to_string());
+                project_arg = Some(parts.next().unwrap_or("@.").to_string());
             }
         }
     }
