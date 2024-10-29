@@ -402,7 +402,7 @@ fn get_program_file(args: &Vec<String>) -> Option<(usize, &String)> {
 
 fn get_project(args: &Vec<String>, config: &JuliaupConfig) -> Option<PathBuf> {
     if !config.settings.feature_manifest_support {
-        return None
+        return None;
     }
 
     let program_file = get_program_file(args);
@@ -525,7 +525,9 @@ fn run_app() -> Result<i32> {
         JuliaupChannelSource::EnvVar { channel: channel }
     } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
         JuliaupChannelSource::Override { channel: channel }
-    } else if let Some(version) = get_project(&args, &config_file.data).and_then(julia_version_from_manifest) {
+    } else if let Some(version) =
+        get_project(&args, &config_file.data).and_then(julia_version_from_manifest)
+    {
         JuliaupChannelSource::Manifest {
             version: version.to_string(),
         }
