@@ -157,4 +157,10 @@ pub enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
+    /// Enable Julia version selection from manifests
+    #[clap(name = "featuremanifestsupport")]
+    FeatureManifestSupport {
+        /// New value
+        value: Option<bool>,
+    },
 }
