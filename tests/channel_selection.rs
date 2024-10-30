@@ -312,7 +312,6 @@ fn manifest_version_selection() {
         .success()
         .stdout("1.11.1");
 
-    // TODO This currently fails, but it shouldn't
     Command::cargo_bin("julia")
         .unwrap()
         .arg("--project")
