@@ -32,15 +32,11 @@ use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
 };
-use std::sync::mpsc::channel;
-use std::thread;
-use std::time::Duration;
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
 use tempfile::TempPath;
 use url::Url;
-
 
 #[cfg(not(target_os = "freebsd"))]
 fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
@@ -1478,9 +1474,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
 
     // Attempt to receive the result with a timeout of 3 seconds
     let direct_download_etags = match rx.recv_timeout(Duration::from_secs(3)) {
-        Ok(result) => {
-            result?
-        },
+        Ok(result) => result?,
         Err(_) => {
             // Function has not completed within 3 seconds, inform why
             eprintln!(
