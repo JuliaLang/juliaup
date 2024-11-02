@@ -32,6 +32,9 @@ use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
 };
+use std::sync::mpsc::channel;
+use std::thread;
+use std::time::Duration;
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
