@@ -29,9 +29,10 @@ use std::os::unix::fs::PermissionsExt;
 #[cfg(not(target_os = "freebsd"))]
 use std::path::Component::Normal;
 use std::{
-    io::{BufReader, Read, Seek, Write},
+    io::{BufReader, Read, Seek, Write, copy},
     path::{Path, PathBuf},
 };
+use std::time::Instant;
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
@@ -244,8 +245,18 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
+    // Start the timer before making the request
+    let start = Instant::now();
+
     let mut response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    // Measure the time taken to receive the response headers
+    let request_duration = start.elapsed();
+    println!(
+        "Time to receive response headers from `{}`: {:?}",
+        url, request_duration
+    );
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -253,10 +264,20 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .truncate(true)
         .open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
-    let mut buf: Vec<u8> = vec![];
-    response.copy_to(&mut buf)?;
-    file.write_all(buf.as_slice())
+
+    // Continue the timer for the data transfer
+    let transfer_start = Instant::now();
+
+    copy(&mut response, &mut file)
         .with_context(|| "Failed to write content into version db file.")?;
+
+    // Measure the time taken to download the body and write to the file
+    let transfer_duration = transfer_start.elapsed();
+    println!("Time to download and save content: {:?}", transfer_duration);
+
+    // Total duration
+    let total_duration = start.elapsed();
+    println!("Total time for request and download: {:?}", total_duration);
 
     Ok(())
 }
@@ -1430,10 +1451,16 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
+    println!("Online db version `{}`: {:?}", dbversion_url, online_dbversion);
+
     let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+
+    println!("Direct download etags: {:?}", direct_download_etags);
 
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
+
+    println!("Bundled db version: {:?}", bundled_dbversion);
 
     if online_dbversion > bundled_dbversion {
         if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
@@ -1586,6 +1613,8 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 
     for (channel_name, channel) in &config_data.installed_channels {
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+            let start_time = Instant::now();
+
             let etag = client
                 .head(url)
                 .send()?
@@ -1595,6 +1624,10 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                 .to_str()
                 .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
                 .to_string();
+
+            let duration = start_time.elapsed();
+
+            println!("Request to '{}' took {:?}", url, duration);
 
             requests.push((channel_name.clone(), etag));
         }
