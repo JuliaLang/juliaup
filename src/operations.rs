@@ -32,11 +32,15 @@ use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
 };
+use std::sync::mpsc::channel;
+use std::thread;
+use std::time::Duration;
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
 use tempfile::TempPath;
 use url::Url;
+
 
 #[cfg(not(target_os = "freebsd"))]
 fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
@@ -1430,8 +1434,6 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
-    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
-
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
 
@@ -1462,6 +1464,35 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         // If the bundled version is up-to-date we can delete any cached version db json file
         delete_old_version_db = true;
     }
+
+    // Checking etags can be slow because of server caching, so inform if it's taking longer
+    // than 3 seconds
+    let (tx, rx) = channel();
+    // Clone the data if needed
+    let data_clone = old_config_file.data.clone();
+    // Run the function in a separate thread
+    thread::spawn(move || {
+        let result = download_direct_download_etags(&data_clone);
+        tx.send(result).unwrap();
+    });
+
+    // Attempt to receive the result with a timeout of 3 seconds
+    let direct_download_etags = match rx.recv_timeout(Duration::from_secs(3)) {
+        Ok(result) => {
+            result?
+        },
+        Err(_) => {
+            // Function has not completed within 3 seconds, inform why
+            eprintln!(
+                "{} for new Julia nightlies is taking a while.. this can be slow due to server caching",
+                style("Checking").green().bold()
+            );
+
+            // Now wait for the function to complete
+            let result = rx.recv().unwrap();
+            result?
+        }
+    };
 
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
