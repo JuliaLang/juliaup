@@ -1615,9 +1615,12 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
             let start_time = Instant::now();
 
-            let etag = client
-                .head(url)
-                .send()?
+            let response = client
+                .get(url)
+                .header("Range", "bytes=0-0") // Request only the first byte
+                .send()?;
+
+            let etag = response
                 .headers()
                 .get("etag")
                 .ok_or_else(|| anyhow!("ETag header not found in response"))?
