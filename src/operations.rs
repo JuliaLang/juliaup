@@ -14,7 +14,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
-use anyhow::{anyhow, bail, Context, Result, Error};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use console::style;
@@ -1524,11 +1524,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
 }
 
 // A generic function to run a function with a timeout and a message to inform the user why it is taking so long
-fn run_with_slow_message<F, R>(
-    func: F,
-    timeout_secs: u64,
-    message: &str,
-) -> Result<R, Error>
+fn run_with_slow_message<F, R>(func: F, timeout_secs: u64, message: &str) -> Result<R, Error>
 where
     F: FnOnce() -> Result<R, Error> + Send + 'static,
     R: Send + 'static,
@@ -1638,10 +1634,9 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 
             let etag = run_with_slow_message(
                 move || {
-                    let response = client
-                        .head(&url_clone)
-                        .send()
-                        .with_context(|| format!("Failed to send HEAD request to {}", &url_clone))?;
+                    let response = client.head(&url_clone).send().with_context(|| {
+                        format!("Failed to send HEAD request to {}", &url_clone)
+                    })?;
 
                     let etag = response
                         .headers()
@@ -1665,4 +1660,3 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 
     Ok(requests)
 }
-
