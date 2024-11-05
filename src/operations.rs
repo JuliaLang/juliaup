@@ -1401,7 +1401,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         None => "release".to_string(),
     };
 
-    // TODO Figure out how we can learn about the correctn Juliaup channel here
+    // TODO Figure out how we can learn about the correct Juliaup channel here
     #[cfg(not(feature = "selfupdate"))]
     let juliaup_channel = "release".to_string();
 
