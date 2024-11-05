@@ -109,6 +109,40 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Err(_) => continue,
                 }
             }
+            // TODO: fix
+            JuliaupConfigChannel::AliasedChannel { channel } => {
+                let mut new_args: Vec<String> = Vec::new();
+
+                new_args.push("--version".to_string());
+
+                let res = std::process::Command::new(&command)
+                    .args(&new_args)
+                    .output();
+
+                match res {
+                    Ok(output) => {
+                        let expected_version_prefix = "julia version ";
+
+                        let trimmed_string = std::str::from_utf8(&output.stdout).unwrap().trim();
+
+                        if !trimmed_string.starts_with(expected_version_prefix) {
+                            continue;
+                        }
+
+                        let version =
+                            Version::parse(&trimmed_string[expected_version_prefix.len()..])?;
+
+                        JuliaupChannelInfo {
+                            name: key.clone(),
+                            file: version.to_string(),
+                            args: Vec::new(),
+                            version: version.to_string(),
+                            arch: "".to_string(),
+                        }
+                    }
+                    Err(_) => continue,
+                }
+            }
             JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
                 JuliaupChannelInfo {
                     name: key.clone(),

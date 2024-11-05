@@ -18,6 +18,8 @@ pub enum Juliaup {
         file: String,
         args: Vec<String>,
     },
+    /// Link an existing juliaup channel to a custom channel name
+    Alias { alias: String, channel: String },
     /// List all available channels
     #[clap(alias = "ls")]
     List {},

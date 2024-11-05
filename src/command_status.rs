@@ -86,6 +86,9 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         }
                         format!("Linked to `{}`", combined_command)
                     }
+                    JuliaupConfigChannel::AliasedChannel { channel } => {
+                        format!("Aliased to channel `{}`", channel)
+                    }
                 },
                 update: match i.1 {
                     JuliaupConfigChannel::SystemChannel { version } => {
@@ -104,6 +107,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         command: _,
                         args: _,
                     } => "".to_string(),
+                    JuliaupConfigChannel::AliasedChannel { channel: _ } => "".to_string(),
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: _,
                         url: _,
