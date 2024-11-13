@@ -22,19 +22,15 @@ winget install julia -s msstore
 
 on a command line.
 
-Alternatively if the Windows Store is blocked on a system, or you don´t have Admin Rights on the system, you can install it through [scoop](https://scoop.sh) by execution in a PowerShell:
-
-```powershell
-scoop install main/juliaup
-```
-
-Other alternatives include installing directly with [MSIX App Installer](https://learn.microsoft.com/en-us/windows/msix/app-installer/app-installer-file-overview) based setup. Note that this is currently experimental, please report back successes and failures [here](https://github.com/JuliaLang/juliaup/issues/343). To use the App Installer version, download [this](https://install.julialang.org/Julia.appinstaller) file and open it by double clicking on it.
+If the Windows Store is blocked on a system, we have an alternative [MSIX App Installer](https://learn.microsoft.com/en-us/windows/msix/app-installer/app-installer-file-overview) based setup. Note that this is currently experimental, please report back successes and failures [here](https://github.com/JuliaLang/juliaup/issues/343). To use the App Installer version, download [this](https://install.julialang.org/Julia.appinstaller) file and open it by double clicking on it.
 
 If neither the Windows Store nor the App Installer version work on your Windows system, you can also use a MSI based installer. Note that this installation methods comes with serious limitations and is generally not recommended unless no other method works. For example, there is no automatic update mechanism for Juliaup with this installation method. The 64 bit version of the MSI installer can be downloaded from [here](https://install.julialang.org/Julia-x64.msi) and the 32 bit version from [here](https://install.julialang.org/Julia-x86.msi). By default the install will be a per-user install that does not require elevation. You can also do a system install by running the following command from a shell:
 
 ```
 msiexec /i <PATH_TO_JULIA_MSI> ALLUSERS=1
 ```
+
+Also, you can install Juliaup through [`scoop`](#scoop).
 
 ### Mac, Linux, and FreeBSD
 
@@ -98,6 +94,14 @@ To install via Rust's cargo, run:
 
 ```sh
 cargo install juliaup
+```
+
+##### [scoop](https://scoop.sh)
+
+On Windows, to install via scoop, run:
+
+```sh
+scoop install main/juliaup
 ```
 
 ## Continuous Integration (CI)
