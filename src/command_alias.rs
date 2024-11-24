@@ -8,7 +8,6 @@ use crate::versions_file::load_versions_db;
 use anyhow::{bail, Context, Result};
 
 pub fn run_command_alias(alias: &str, channel: &str, paths: &GlobalPaths) -> Result<()> {
-    println!("alias: {}, channel: {}", alias, channel);
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`alias` command failed to load configuration data.")?;
 
