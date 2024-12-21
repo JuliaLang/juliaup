@@ -66,6 +66,7 @@ windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_Shell"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "native-tls", "socks"] }
+walkdir = "2.5"
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }

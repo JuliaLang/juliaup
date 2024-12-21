@@ -1170,6 +1170,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.8",
  "url",
+ "walkdir",
  "windows",
  "winres",
 ]
