@@ -94,7 +94,7 @@ fn main() -> Result<()> {
         Juliaup::Default { channel } => run_command_default(&channel, &paths),
         Juliaup::Add { channel } => run_command_add(&channel, &paths),
         Juliaup::Remove { channel } => run_command_remove(&channel, &paths),
-        Juliaup::Status {} => run_command_status(&paths),
+        Juliaup::Status(args) => run_command_status(&paths, args.fmt),
         Juliaup::Update { channel } => run_command_update(channel, &paths),
         Juliaup::Gc { prune_linked } => run_command_gc(prune_linked, &paths),
         Juliaup::Link {

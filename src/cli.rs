@@ -1,3 +1,4 @@
+use crate::command_status::StatusArgs;
 use clap::{Parser, ValueEnum};
 
 #[derive(Parser)]
@@ -31,7 +32,7 @@ pub enum Juliaup {
     Remove { channel: String },
     #[clap(alias = "st")]
     /// Show all installed Julia versions
-    Status {},
+    Status(StatusArgs),
     /// Garbage collect uninstalled Julia versions
     Gc {
         #[clap(long)]

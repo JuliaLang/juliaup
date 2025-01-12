@@ -3,6 +3,7 @@ use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
+use clap::{Args, ValueEnum};
 use cli_table::format::HorizontalLine;
 use cli_table::format::Separator;
 use cli_table::ColorChoice;
@@ -12,8 +13,10 @@ use cli_table::{
 };
 use human_sort::compare;
 use itertools::Itertools;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Table)]
+#[derive(Table, Serialize, Deserialize)]
 struct ChannelRow {
     #[table(title = "Default", justify = "Justify::Right")]
     default: &'static str,
@@ -25,7 +28,24 @@ struct ChannelRow {
     update: String,
 }
 
-pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
+// First, let's create an enum for the allowed format values
+#[derive(ValueEnum, Clone, Debug)]
+pub enum OutputFormat {
+    Json,
+    Ndjson,
+    Csv,
+    Tsv,
+}
+
+// Create a separate struct for ListPaths arguments
+#[derive(Args, Debug)]
+pub struct StatusArgs {
+    /// Output format (json, ndjson, csv, or tsv)
+    #[arg(long, value_enum, short = 'f')]
+    pub fmt: Option<OutputFormat>,
+}
+
+pub fn run_command_status(paths: &GlobalPaths, fmt: Option<OutputFormat>) -> Result<()> {
     let config_file = load_config_db(paths, None)
         .with_context(|| "`status` command failed to load configuration file.")?;
 
@@ -121,6 +141,38 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
             }
         })
         .collect();
+
+    if let Some(f) = fmt {
+        match f {
+            OutputFormat::Json => {
+                println!("{}", serde_json::to_string_pretty(&rows_in_table)?);
+            }
+            OutputFormat::Ndjson => {
+                for row in rows_in_table {
+                    println!("{}", serde_json::to_string(&row)?);
+                }
+            }
+            OutputFormat::Csv => {
+                println!("default,name,version,update");
+                for row in rows_in_table {
+                    println!(
+                        "{},{},{},{}",
+                        row.default, row.name, row.version, row.update
+                    );
+                }
+            }
+            OutputFormat::Tsv => {
+                println!("default\tname\tversion\tupdate");
+                for row in rows_in_table {
+                    println!(
+                        "{}\t{}\t{}\t{}",
+                        row.default, row.name, row.version, row.update
+                    );
+                }
+            }
+        }
+        return Ok(());
+    };
 
     print_stdout(
         rows_in_table
