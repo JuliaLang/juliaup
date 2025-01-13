@@ -208,7 +208,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v3
       with:
         command: build
         use-cross: ${{ matrix.os == 'ubuntu' }}
@@ -318,7 +318,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v3
       with:
         command: test
         use-cross: ${{ matrix.os == 'ubuntu' }}
