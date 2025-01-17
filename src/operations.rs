@@ -752,20 +752,13 @@ pub fn garbage_collect_versions(
     paths: &GlobalPaths,
 ) -> Result<()> {
     let mut versions_to_uninstall: Vec<String> = Vec::new();
+
+    // GC for SystemChannel channels
     for (installed_version, detail) in &config_data.installed_versions {
+        // Removes installed version if not associated to any installed channel
         if config_data.installed_channels.iter().all(|j| match &j.1 {
             JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
-            JuliaupConfigChannel::LinkedChannel {
-                command: _,
-                args: _,
-            } => true,
-            JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url: _,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } => true,
+            _ => true,
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
@@ -776,9 +769,8 @@ pub fn garbage_collect_versions(
             versions_to_uninstall.push(installed_version.clone());
         }
     }
-
-    for i in versions_to_uninstall {
-        config_data.installed_versions.remove(&i);
+    for version_to_delete in versions_to_uninstall {
+        config_data.installed_versions.remove(&version_to_delete);
     }
 
     if prune_linked {
