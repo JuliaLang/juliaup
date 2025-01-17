@@ -22,6 +22,7 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use itertools::Itertools;
 use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
@@ -748,6 +749,7 @@ pub fn install_non_db_version(
 
 pub fn garbage_collect_versions(
     prune_linked: bool,
+    prune_orphans: bool,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
 ) -> Result<()> {
@@ -773,8 +775,65 @@ pub fn garbage_collect_versions(
         config_data.installed_versions.remove(&version_to_delete);
     }
 
+    // GC for DirectDownloadChannel channels
+    let jl_dirs: Vec<_> = std::fs::read_dir(&paths.juliauphome)?
+        .into_iter()
+        .filter_map_ok(|r| {
+            if r.path().is_dir() {
+                Some(r.path())
+            } else {
+                None
+            }
+        })
+        .filter_map_ok(|r| {
+            let dirname = r.file_name()?.to_str()?;
+            if dirname.starts_with("julia-") {
+                Some(dirname.to_owned())
+            } else {
+                None
+            }
+        })
+        .filter(|r| r.is_ok())
+        .map(|r| r.unwrap()) // This is safe, since we only have the Ok variants
+        .collect();
+
+    if prune_orphans {
+        for jl_dir in jl_dirs {
+            if config_data
+                .installed_channels
+                .iter()
+                .all(|(_, detail)| match &detail {
+                    JuliaupConfigChannel::SystemChannel { version } => {
+                        let channel_path = &config_data.installed_versions[version]
+                            .path
+                            .replace("./", "");
+                        *channel_path != jl_dir
+                    }
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path,
+                        url: _,
+                        local_etag: _,
+                        server_etag: _,
+                        version: _,
+                    } => {
+                        let channel_path = path.replace("./", "");
+                        channel_path != jl_dir
+                    }
+                    JuliaupConfigChannel::LinkedChannel {
+                        command: _,
+                        args: _,
+                    } => true,
+                })
+            {
+                if std::fs::remove_dir_all(paths.juliauphome.join(&jl_dir)).is_err() {
+                    eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", &jl_dir)
+                }
+            }
+        }
+    }
+
     if prune_linked {
-        let mut channels_to_uninstall: Vec<String> = Vec::new();
+        let mut linked_channels_to_uninstall: Vec<String> = Vec::new();
         for (installed_channel, detail) in &config_data.installed_channels {
             match &detail {
                 JuliaupConfigChannel::LinkedChannel {
@@ -782,13 +841,13 @@ pub fn garbage_collect_versions(
                     args: _,
                 } => {
                     if !is_valid_julia_path(&PathBuf::from(cmd)) {
-                        channels_to_uninstall.push(installed_channel.clone());
+                        linked_channels_to_uninstall.push(installed_channel.clone());
                     }
                 }
                 _ => (),
             }
         }
-        for channel in channels_to_uninstall {
+        for channel in linked_channels_to_uninstall {
             remove_symlink(&format!("julia-{}", &channel))?;
             config_data.installed_channels.remove(&channel);
         }

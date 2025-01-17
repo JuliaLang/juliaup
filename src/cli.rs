@@ -36,6 +36,8 @@ pub enum Juliaup {
     Gc {
         #[clap(long)]
         prune_linked: bool,
+        #[clap(long)]
+        prune_orphans: bool,
     },
     #[clap(subcommand, name = "config")]
     /// Juliaup configuration

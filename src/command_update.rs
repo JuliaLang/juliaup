@@ -147,7 +147,7 @@ pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Resul
         }
     };
 
-    garbage_collect_versions(false, &mut config_file.data, paths)?;
+    garbage_collect_versions(false, false, &mut config_file.data, paths)?;
 
     save_config_db(&mut config_file)
         .with_context(|| "`update` command failed to save configuration db.")?;
