@@ -502,17 +502,33 @@ pub fn is_pr_channel(channel: &String) -> bool {
     return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
 }
 
+fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
+    let nightly_re =
+        Regex::new(r"^((?:nightly|latest)|latest|(\d+\.\d+)-(?:nightly|latest))").unwrap();
+
+    let caps = nightly_re.captures(channel)?;
+    if let Some(xy_match) = caps.get(2) {
+        Some(xy_match.as_str().to_string())
+    } else {
+        Some("".to_string())
+    }
+}
+
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
 pub fn channel_to_name(channel: &String) -> Result<String> {
     let mut parts = channel.splitn(2, '~');
 
     let channel = parts.next().expect("Failed to parse channel name.");
 
-    let version = match channel {
-        "nightly" => "latest",
-        other => other,
+    let version = if let Some(version_prefix) = parse_nightly_channel_or_id(channel) {
+        if version_prefix.is_empty() {
+            "latest".to_string()
+        } else {
+            format!("{}-latest", version_prefix)
+        }
+    } else {
+        channel.to_string()
     };
-
     let arch = match parts.next() {
         Some(arch) => arch.to_string(),
         None => default_arch()?,
@@ -621,41 +637,86 @@ pub fn install_non_db_version(
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
+
     let mut parts = name.splitn(2, '-');
-    let id = parts.next().expect("Failed to parse channel name.");
-    let arch = parts.next().expect("Failed to parse channel name.");
-    let download_url_path = if id == "latest" {
+
+    let mut id = parts
+        .next()
+        .expect("Failed to parse channel name.")
+        .to_string();
+    let mut arch = parts.next().expect("Failed to parse channel name.");
+
+    // Check for the case where name is given as "x.y-latest-...", in which case
+    // we peel off the "latest" part of the `arch` and attach it to the `id``.
+    if arch.starts_with("latest") {
+        let mut parts = arch.splitn(2, '-');
+        let nightly = parts.next().expect("Failed to parse channel name.");
+        id.push_str("-");
+        id.push_str(nightly);
+        arch = parts.next().expect("Failed to parse channel name.");
+    }
+
+    let nightly_version = parse_nightly_channel_or_id(&id);
+
+    let download_url_path = if let Some(nightly_version) = nightly_version {
+        let nightly_folder = if nightly_version.is_empty() {
+            "".to_string() // No version folder
+        } else {
+            format!("/{}", nightly_version) // Use version as folder
+        };
         match arch {
-            "macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz".to_owned()),
-            "macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz".to_owned()),
-            "win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz".to_owned()),
-            "win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz".to_owned()),
-            "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
-            "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
-            "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
-            "freebsd-x86_64" => {
-                Ok("bin/freebsd/x86_64/julia-latest-freebsd-x86_64.tar.gz".to_owned())
-            }
+            "macos-x86_64" => Ok(format!(
+                "bin/macos/x86_64{}/julia-latest-macos-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "macos-aarch64" => Ok(format!(
+                "bin/macos/aarch64{}/julia-latest-macos-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "win64" => Ok(format!(
+                "bin/winnt/x64{}/julia-latest-win64.tar.gz",
+                nightly_folder
+            )),
+            "win32" => Ok(format!(
+                "bin/winnt/x86{}/julia-latest-win32.tar.gz",
+                nightly_folder
+            )),
+            "linux-x86_64" => Ok(format!(
+                "bin/linux/x86_64{}/julia-latest-linux-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "linux-i686" => Ok(format!(
+                "bin/linux/i686{}/julia-latest-linux-i686.tar.gz",
+                nightly_folder
+            )),
+            "linux-aarch64" => Ok(format!(
+                "bin/linux/aarch64{}/julia-latest-linux-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "freebsd-x86_64" => Ok(format!(
+                "bin/freebsd/x86_64{}/julia-latest-freebsd-x86_64.tar.gz",
+                nightly_folder
+            )),
             _ => Err(anyhow!("Unknown nightly.")),
         }
     } else if id.starts_with("pr") {
         match arch {
             // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
             "macos-x86_64" => {
-                Ok("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz")
+                Ok("bin/macos/x86_64/julia-".to_owned() + &id + "-macos-x86_64.tar.gz")
             }
             "macos-aarch64" => {
-                Ok("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
+                Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
             }
-            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
+            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
             "linux-x86_64" => {
-                Ok("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz")
+                Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
             }
             "linux-aarch64" => {
-                Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+                Ok("bin/linux/aarch64/julia-".to_owned() + &id + "-linux-aarch64.tar.gz")
             }
             "freebsd-x86_64" => {
-                Ok("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
+                Ok("bin/freebsd/x86_64/julia-".to_owned() + &id + "-freebsd-x86_64.tar.gz")
             }
             _ => Err(anyhow!("Unknown pr.")),
         }

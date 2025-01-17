@@ -22,6 +22,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
 
     let non_db_channels: Vec<String> = (get_channel_variations("nightly")?)
         .into_iter()
+        .chain(get_channel_variations("x.y-nightly")?)
         .chain(get_channel_variations("pr{number}")?)
         .collect();
     let non_db_rows: Vec<ChannelRow> = non_db_channels
