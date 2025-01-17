@@ -67,7 +67,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     save_config_db(&mut config_file).with_context(|| {
         format!(
-            "Failed to save configuration file from `remove` command after '{}' was installed.",
+            "Failed to save configuration file from `remove` command after '{}' was removed.",
             channel
         )
     })?;
