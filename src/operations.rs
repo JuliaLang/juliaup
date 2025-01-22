@@ -1553,16 +1553,25 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 server_etag: _,
                 version,
             } => {
-                new_config_file.data.installed_channels.insert(
-                    channel,
-                    JuliaupConfigChannel::DirectDownloadChannel {
-                        path: path.clone(),
-                        url: url.clone(),
-                        local_etag: local_etag.clone(),
-                        server_etag: etag,
-                        version: version.clone(),
-                    },
-                );
+                if let Some(etag) = etag {
+                    new_config_file.data.installed_channels.insert(
+                        channel,
+                        JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: etag,
+                            version: version.clone(),
+                        },
+                    );
+                }
+                else {
+                    eprintln!(
+                        "{} to update {}. This can happen if a build is no longer available.",
+                        style("Failed").red().bold(),
+                        channel
+                    );
+                }
             }
             _ => {}
         }
@@ -1615,7 +1624,7 @@ where
 }
 
 #[cfg(windows)]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
     use windows::Web::Http::HttpClient;
@@ -1652,17 +1661,22 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                     let response = async_op
                         .get()
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
+                    
+                    if response.IsSuccessStatusCode()? {
+                        let headers = response
+                            .Headers()
+                            .map_err(|e| anyhow!("Failed to get headers: {:?}", e))?;
 
-                    let headers = response
-                        .Headers()
-                        .map_err(|e| anyhow!("Failed to get headers: {:?}", e))?;
+                        let etag = headers
+                            .Lookup(&HSTRING::from("ETag"))
+                            .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
+                            .to_string();
 
-                    let etag = headers
-                        .Lookup(&HSTRING::from("ETag"))
-                        .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
-                        .to_string();
-
-                    Ok::<String, anyhow::Error>(etag)
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag))
+                    }
+                    else {
+                        return Ok::<Option<String>, anyhow::Error>(None)
+                    }
                 },
                 3, // Timeout in seconds
                 &message,
