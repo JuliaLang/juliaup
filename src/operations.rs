@@ -1690,7 +1690,7 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 }
 
 #[cfg(not(windows))]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
 
     let client = Arc::new(reqwest::blocking::Client::new());
@@ -1714,17 +1714,23 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                         format!("Failed to send HEAD request to {}", &url_clone)
                     })?;
 
-                    let etag = response
-                        .headers()
-                        .get("etag")
-                        .ok_or_else(|| {
-                            anyhow!("ETag header not found in response from {}", &url_clone)
-                        })?
-                        .to_str()
-                        .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
-                        .to_string();
+                    if response.status().is_success() {
+                        let etag = response
+                            .headers()
+                            .get("etag")
+                            .ok_or_else(|| {
+                                anyhow!("ETag header not found in response from {}", &url_clone)
+                            })?
+                            .to_str()
+                            .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
+                            .to_string();
 
-                    Ok::<String, anyhow::Error>(etag)
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag))
+                    }
+                    else {
+                        return Ok::<Option<String>, anyhow::Error>(None)
+                    }
+
                 },
                 3, // Timeout in seconds
                 &message,
