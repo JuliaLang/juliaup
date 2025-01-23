@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::CompleteEnv;
 use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
+use juliaup::command_alias::run_command_alias;
 use juliaup::command_api::run_command_api;
-use juliaup::command_completions::run_command_completions;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
@@ -37,6 +38,8 @@ use juliaup::command_selfuninstall::run_command_selfuninstall_unavailable;
 use log::info;
 
 fn main() -> Result<()> {
+    CompleteEnv::with_factory(|| Juliaup::command()).complete();
+
     human_panic::setup_panic!(
         human_panic::Metadata::new("Juliaup", env!("CARGO_PKG_VERSION"))
             .support("https://github.com/JuliaLang/juliaup")
@@ -102,6 +105,7 @@ fn main() -> Result<()> {
             file,
             args,
         } => run_command_link(&channel, &file, &args, &paths),
+        Juliaup::Alias { alias, channel } => run_command_alias(&alias, &channel, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]
@@ -148,6 +152,5 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
-        Juliaup::Completions { shell } => run_command_completions(shell),
     }
 }
