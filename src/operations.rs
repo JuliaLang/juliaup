@@ -1564,8 +1564,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                             version: version.clone(),
                         },
                     );
-                }
-                else {
+                } else {
                     eprintln!(
                         "{} to update {}. This can happen if a build is no longer available.",
                         style("Failed").red().bold(),
@@ -1624,7 +1623,9 @@ where
 }
 
 #[cfg(windows)]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, Option<String>)>> {
+fn download_direct_download_etags(
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
     use windows::Web::Http::HttpClient;
@@ -1661,7 +1662,7 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                     let response = async_op
                         .get()
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
-                    
+
                     if response.IsSuccessStatusCode()? {
                         let headers = response
                             .Headers()
@@ -1672,10 +1673,9 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                             .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
                             .to_string();
 
-                        return Ok::<Option<String>, anyhow::Error>(Some(etag))
-                    }
-                    else {
-                        return Ok::<Option<String>, anyhow::Error>(None)
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
                     }
                 },
                 3, // Timeout in seconds
@@ -1690,7 +1690,9 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
 }
 
 #[cfg(not(windows))]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, Option<String>)>> {
+fn download_direct_download_etags(
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
 
     let client = Arc::new(reqwest::blocking::Client::new());
@@ -1725,12 +1727,10 @@ fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(St
                             .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
                             .to_string();
 
-                        return Ok::<Option<String>, anyhow::Error>(Some(etag))
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
                     }
-                    else {
-                        return Ok::<Option<String>, anyhow::Error>(None)
-                    }
-
                 },
                 3, // Timeout in seconds
                 &message,
