@@ -208,10 +208,10 @@ jobs:
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v3
       with:
         command: build
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
@@ -318,10 +318,10 @@ jobs:
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v3
       with:
         command: test
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
