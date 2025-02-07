@@ -6,7 +6,8 @@ The installer also bundles a full Julia version manager called `juliaup`. One ca
 
 ## Status
 
-This installer is considered production ready.
+> This installer is considered production ready.
+Reality - Is debatable unless you use a customised version of juliaup that is simple and just works. BeAwsm.
 
 ## Installation
 
