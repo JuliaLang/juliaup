@@ -404,7 +404,7 @@ fn run_app() -> Result<i32> {
             }
 
             // replace the current process
-            std::process::Command::new(&julia_path)
+            let _ = std::process::Command::new(&julia_path)
                 .args(&new_args)
                 .exec();
 

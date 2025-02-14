@@ -11,7 +11,7 @@ use regex::Regex;
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     // This regex is dynamically compiled, but its runtime is negligible compared to downloading Julia
-    if Regex::new(r"^(pr\d+|nightly)(~|$)")
+    if Regex::new(r"^(?:pr\d+|nightly|\d+\.\d+-nightly)(?:~|$)")
         .unwrap()
         .is_match(channel)
     {

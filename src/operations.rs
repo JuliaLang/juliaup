@@ -14,7 +14,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use console::style;
@@ -502,17 +502,33 @@ pub fn is_pr_channel(channel: &String) -> bool {
     return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
 }
 
+fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
+    let nightly_re =
+        Regex::new(r"^((?:nightly|latest)|latest|(\d+\.\d+)-(?:nightly|latest))").unwrap();
+
+    let caps = nightly_re.captures(channel)?;
+    if let Some(xy_match) = caps.get(2) {
+        Some(xy_match.as_str().to_string())
+    } else {
+        Some("".to_string())
+    }
+}
+
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
 pub fn channel_to_name(channel: &String) -> Result<String> {
     let mut parts = channel.splitn(2, '~');
 
     let channel = parts.next().expect("Failed to parse channel name.");
 
-    let version = match channel {
-        "nightly" => "latest",
-        other => other,
+    let version = if let Some(version_prefix) = parse_nightly_channel_or_id(channel) {
+        if version_prefix.is_empty() {
+            "latest".to_string()
+        } else {
+            format!("{}-latest", version_prefix)
+        }
+    } else {
+        channel.to_string()
     };
-
     let arch = match parts.next() {
         Some(arch) => arch.to_string(),
         None => default_arch()?,
@@ -621,41 +637,86 @@ pub fn install_non_db_version(
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
+
     let mut parts = name.splitn(2, '-');
-    let id = parts.next().expect("Failed to parse channel name.");
-    let arch = parts.next().expect("Failed to parse channel name.");
-    let download_url_path = if id == "latest" {
+
+    let mut id = parts
+        .next()
+        .expect("Failed to parse channel name.")
+        .to_string();
+    let mut arch = parts.next().expect("Failed to parse channel name.");
+
+    // Check for the case where name is given as "x.y-latest-...", in which case
+    // we peel off the "latest" part of the `arch` and attach it to the `id``.
+    if arch.starts_with("latest") {
+        let mut parts = arch.splitn(2, '-');
+        let nightly = parts.next().expect("Failed to parse channel name.");
+        id.push_str("-");
+        id.push_str(nightly);
+        arch = parts.next().expect("Failed to parse channel name.");
+    }
+
+    let nightly_version = parse_nightly_channel_or_id(&id);
+
+    let download_url_path = if let Some(nightly_version) = nightly_version {
+        let nightly_folder = if nightly_version.is_empty() {
+            "".to_string() // No version folder
+        } else {
+            format!("/{}", nightly_version) // Use version as folder
+        };
         match arch {
-            "macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz".to_owned()),
-            "macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz".to_owned()),
-            "win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz".to_owned()),
-            "win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz".to_owned()),
-            "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
-            "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
-            "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
-            "freebsd-x86_64" => {
-                Ok("bin/freebsd/x86_64/julia-latest-freebsd-x86_64.tar.gz".to_owned())
-            }
+            "macos-x86_64" => Ok(format!(
+                "bin/macos/x86_64{}/julia-latest-macos-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "macos-aarch64" => Ok(format!(
+                "bin/macos/aarch64{}/julia-latest-macos-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "win64" => Ok(format!(
+                "bin/winnt/x64{}/julia-latest-win64.tar.gz",
+                nightly_folder
+            )),
+            "win32" => Ok(format!(
+                "bin/winnt/x86{}/julia-latest-win32.tar.gz",
+                nightly_folder
+            )),
+            "linux-x86_64" => Ok(format!(
+                "bin/linux/x86_64{}/julia-latest-linux-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "linux-i686" => Ok(format!(
+                "bin/linux/i686{}/julia-latest-linux-i686.tar.gz",
+                nightly_folder
+            )),
+            "linux-aarch64" => Ok(format!(
+                "bin/linux/aarch64{}/julia-latest-linux-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "freebsd-x86_64" => Ok(format!(
+                "bin/freebsd/x86_64{}/julia-latest-freebsd-x86_64.tar.gz",
+                nightly_folder
+            )),
             _ => Err(anyhow!("Unknown nightly.")),
         }
     } else if id.starts_with("pr") {
         match arch {
             // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
             "macos-x86_64" => {
-                Ok("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz")
+                Ok("bin/macos/x86_64/julia-".to_owned() + &id + "-macos-x86_64.tar.gz")
             }
             "macos-aarch64" => {
-                Ok("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
+                Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
             }
-            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
+            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
             "linux-x86_64" => {
-                Ok("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz")
+                Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
             }
             "linux-aarch64" => {
-                Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+                Ok("bin/linux/aarch64/julia-".to_owned() + &id + "-linux-aarch64.tar.gz")
             }
             "freebsd-x86_64" => {
-                Ok("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
+                Ok("bin/freebsd/x86_64/julia-".to_owned() + &id + "-freebsd-x86_64.tar.gz")
             }
             _ => Err(anyhow!("Unknown pr.")),
         }
@@ -1430,8 +1491,6 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
-    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
-
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
 
@@ -1463,6 +1522,8 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         delete_old_version_db = true;
     }
 
+    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
@@ -1492,16 +1553,24 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 server_etag: _,
                 version,
             } => {
-                new_config_file.data.installed_channels.insert(
-                    channel,
-                    JuliaupConfigChannel::DirectDownloadChannel {
-                        path: path.clone(),
-                        url: url.clone(),
-                        local_etag: local_etag.clone(),
-                        server_etag: etag,
-                        version: version.clone(),
-                    },
-                );
+                if let Some(etag) = etag {
+                    new_config_file.data.installed_channels.insert(
+                        channel,
+                        JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: etag,
+                            version: version.clone(),
+                        },
+                    );
+                } else {
+                    eprintln!(
+                        "{} to update {}. This can happen if a build is no longer available.",
+                        style("Failed").red().bold(),
+                        channel
+                    );
+                }
             }
             _ => {}
         }
@@ -1520,83 +1589,154 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
+// A generic function to run a function with a timeout and a message to inform the user why it is taking so long
+fn run_with_slow_message<F, R>(func: F, timeout_secs: u64, message: &str) -> Result<R, Error>
+where
+    F: FnOnce() -> Result<R, Error> + Send + 'static,
+    R: Send + 'static,
+{
+    use std::sync::mpsc::channel;
+    use std::thread;
+    use std::time::Duration;
+
+    let (tx, rx) = channel();
+
+    // Run the function in a separate thread
+    thread::spawn(move || {
+        let result = func();
+        tx.send(result).unwrap();
+    });
+
+    // Attempt to receive the result with a timeout
+    match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            // Function has not completed within timeout_secs seconds, inform why
+            eprintln!("{}", message);
+
+            // Now wait for the function to complete
+            let result = rx.recv().unwrap();
+            result
+        }
+        Err(e) => panic!("Error receiving result: {:?}", e),
+    }
+}
+
 #[cfg(windows)]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
+fn download_direct_download_etags(
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpClient;
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
-
-    let requests: Vec<_> = config_data
-        .installed_channels
-        .iter()
-        .filter_map(|(channel_name, channel)| {
-            if let JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } = channel
-            {
-                let request_uri =
-                    windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
-                        .with_context(|| "Failed to convert url string to Uri.")
-                        .unwrap();
-
-                let request =
-                    HttpRequestMessage::Create(&HttpMethod::Head().unwrap(), &request_uri).unwrap();
-
-                let request = http_client.SendRequestAsync(&request).unwrap();
-
-                Some((channel_name, request))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let requests: Vec<_> = requests
-        .into_iter()
-        .map(|(channel_name, request)| {
-            (
-                channel_name.clone(),
-                request
-                    .get()
-                    .unwrap()
-                    .Headers()
-                    .unwrap()
-                    .Lookup(&HSTRING::from("etag"))
-                    .unwrap()
-                    .to_string(),
-            )
-        })
-        .collect();
-
-    Ok(requests)
-}
-
-#[cfg(not(windows))]
-fn download_direct_download_etags(config_data: &JuliaupConfig) -> Result<Vec<(String, String)>> {
-    let client = reqwest::blocking::Client::new();
+    let http_client = HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
     let mut requests = Vec::new();
 
     for (channel_name, channel) in &config_data.installed_channels {
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
-            let etag = client
-                .head(url)
-                .send()?
-                .headers()
-                .get("etag")
-                .ok_or_else(|| anyhow!("ETag header not found in response"))?
-                .to_str()
-                .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
-                .to_string();
+            let http_client = http_client.clone();
+            let url_clone = url.clone();
+            let channel_name_clone = channel_name.clone();
+            let message = format!(
+                "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
+                style("Checking").green().bold(),
+                channel_name
+            );
 
-            requests.push((channel_name.clone(), etag));
+            let etag = run_with_slow_message(
+                move || {
+                    let request_uri = Uri::CreateUri(&HSTRING::from(&url_clone))
+                        .with_context(|| format!("Failed to create URI from {}", &url_clone))?;
+
+                    let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
+                        .with_context(|| "Failed to create HttpRequestMessage.")?;
+
+                    let async_op = http_client
+                        .SendRequestAsync(&request)
+                        .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
+
+                    let response = async_op
+                        .get()
+                        .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
+
+                    if response.IsSuccessStatusCode()? {
+                        let headers = response
+                            .Headers()
+                            .map_err(|e| anyhow!("Failed to get headers: {:?}", e))?;
+
+                        let etag = headers
+                            .Lookup(&HSTRING::from("ETag"))
+                            .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
+                            .to_string();
+
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
+                    }
+                },
+                3, // Timeout in seconds
+                &message,
+            )?;
+
+            requests.push((channel_name_clone, etag));
+        }
+    }
+
+    Ok(requests)
+}
+
+#[cfg(not(windows))]
+fn download_direct_download_etags(
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
+    use std::sync::Arc;
+
+    let client = Arc::new(reqwest::blocking::Client::new());
+
+    let mut requests = Vec::new();
+
+    for (channel_name, channel) in &config_data.installed_channels {
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+            let client = Arc::clone(&client);
+            let url_clone = url.clone();
+            let channel_name_clone = channel_name.clone();
+            let message = format!(
+                "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
+                style("Checking").green().bold(),
+                channel_name
+            );
+
+            let etag = run_with_slow_message(
+                move || {
+                    let response = client.head(&url_clone).send().with_context(|| {
+                        format!("Failed to send HEAD request to {}", &url_clone)
+                    })?;
+
+                    if response.status().is_success() {
+                        let etag = response
+                            .headers()
+                            .get("etag")
+                            .ok_or_else(|| {
+                                anyhow!("ETag header not found in response from {}", &url_clone)
+                            })?
+                            .to_str()
+                            .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
+                            .to_string();
+
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
+                    }
+                },
+                3, // Timeout in seconds
+                &message,
+            )?;
+
+            requests.push((channel_name_clone, etag));
         }
     }
 
