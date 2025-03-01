@@ -2,12 +2,13 @@
 
 This repository contains a cross-platform installer for the Julia programming language.
 
-The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction.
+The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it sometimes alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction.
 
 ## Status
 
 > This installer is considered production ready.
-Reality - Is debatable unless you use a customised version of juliaup that is simple and just works. BeAwsm.
+ 
+Reality - Is always debatable unless you use a customised version of juliaup that worksaround all the deficiencies and bugs. and that is simple and just works. Be Awsm.
 
 ## Installation
 
