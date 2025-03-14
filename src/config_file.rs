@@ -51,6 +51,10 @@ pub enum JuliaupConfigChannel {
         #[serde(rename = "Args")]
         args: Option<Vec<String>>,
     },
+    AliasedChannel {
+        #[serde(rename = "Channel")]
+        channel: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -136,6 +140,7 @@ pub struct JuliaupConfigFile {
     pub self_data: JuliaupSelfConfig,
 }
 
+#[derive(Clone)]
 pub struct JuliaupReadonlyConfigFile {
     pub data: JuliaupConfig,
     #[cfg(feature = "selfupdate")]
