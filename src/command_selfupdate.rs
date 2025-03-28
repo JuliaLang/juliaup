@@ -10,7 +10,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::{get_juliaup_target, get_own_version};
     use anyhow::{anyhow, bail};
 
-    update_version_db(paths).with_context(|| "Failed to update versions db.")?;
+    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`selfupdate` command failed to load configuration db.")?;
@@ -97,7 +97,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow},
     };
 
-    update_version_db(paths).with_context(|| "Failed to update versions db.")?;
+    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
     let update_manager = windows::Services::Store::StoreContext::GetDefault()
         .with_context(|| "Failed to get the store context.")?;
@@ -146,6 +146,6 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
 #[cfg(not(any(feature = "windowsstore", feature = "selfupdate")))]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
-    update_version_db(paths).with_context(|| "Failed to update versions db.")?;
+    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
     Ok(())
 }
