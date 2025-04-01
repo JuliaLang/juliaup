@@ -17,7 +17,7 @@ On all platforms it is recommended that you first uninstall any previous Julia v
 On Windows Julia and Juliaup can be installed directly from the Windows store [here](https://www.microsoft.com/store/apps/9NJNWW8PVKMN). One can also install exactly the same version by executing
 
 ```
-winget install julia -s msstore
+winget install 9NJNWW8PVKMN -s msstore
 ```
 
 on a command line.
