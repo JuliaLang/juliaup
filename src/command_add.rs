@@ -18,7 +18,8 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         return add_non_db(channel, paths);
     }
 
-    update_version_db(paths).with_context(|| "Failed to update versions db.")?;
+    update_version_db(&Some(channel.to_string()), paths)
+        .with_context(|| "Failed to update versions db.")?;
     let version_db =
         load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
 
