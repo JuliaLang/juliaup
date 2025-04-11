@@ -1,5 +1,4 @@
 use assert_cmd::Command;
-#[cfg(not(target_os = "freebsd"))]
 use predicates::prelude::predicate;
 
 #[test]
@@ -47,7 +46,6 @@ fn command_add() {
         .success()
         .stdout("1.6.4");
 
-    #[cfg(not(target_os = "freebsd"))]
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+nightly")
