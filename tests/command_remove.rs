@@ -84,6 +84,7 @@ fn command_remove() {
         .success()
         .stdout("");
 
+    #[cfg(not(target_os = "freebsd"))]
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("status")
