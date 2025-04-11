@@ -210,7 +210,7 @@ jobs:
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: vmactions/freebsd-vm@v1
       with:
-        release: "13.2"
+        release: "13.4"
         usesh: true
         mem: 8192
         copyback: false
