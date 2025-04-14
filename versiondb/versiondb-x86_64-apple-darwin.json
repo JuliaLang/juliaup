@@ -294,6 +294,9 @@
         "1.11.4+0.x64.apple.darwin14": {
             "UrlPath": "bin/mac/x64/1.11/julia-1.11.4-mac64.tar.gz"
         },
+        "1.11.5+0.x64.apple.darwin14": {
+            "UrlPath": "bin/mac/x64/1.11/julia-1.11.5-mac64.tar.gz"
+        },
         "1.12.0-beta1+0.x64.apple.darwin14": {
             "UrlPath": "bin/mac/x64/1.12/julia-1.12.0-beta1-mac64.tar.gz"
         }
@@ -318,7 +321,7 @@
             "Version": "0.7.0+0.x64.apple.darwin14"
         },
         "1": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "1.0": {
             "Version": "1.0.5+0.x64.apple.darwin14"
@@ -486,7 +489,7 @@
             "Version": "1.10.9+0.x64.apple.darwin14"
         },
         "1.11": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "1.11.0": {
             "Version": "1.11.0+0.x64.apple.darwin14"
@@ -566,8 +569,14 @@
         "1.11.4~x64": {
             "Version": "1.11.4+0.x64.apple.darwin14"
         },
+        "1.11.5": {
+            "Version": "1.11.5+0.x64.apple.darwin14"
+        },
+        "1.11.5~x64": {
+            "Version": "1.11.5+0.x64.apple.darwin14"
+        },
         "1.11~x64": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "1.12": {
             "Version": "1.12.0-beta1+0.x64.apple.darwin14"
@@ -987,7 +996,7 @@
             "Version": "1.9.4+0.x64.apple.darwin14"
         },
         "1~x64": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "alpha": {
             "Version": "1.12.0-beta1+0.x64.apple.darwin14"
@@ -1008,17 +1017,17 @@
             "Version": "1.10.9+0.x64.apple.darwin14"
         },
         "rc": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "rc~x64": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "release": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         },
         "release~x64": {
-            "Version": "1.11.4+0.x64.apple.darwin14"
+            "Version": "1.11.5+0.x64.apple.darwin14"
         }
     },
-    "Version": "1.0.62"
+    "Version": "1.0.63"
 }
