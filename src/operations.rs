@@ -783,9 +783,13 @@ pub fn garbage_collect_versions(
         }
     }
 
-    for i in versions_to_uninstall {
-        eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
-        config_data.installed_versions.remove(&i);
+    if versions_to_uninstall.is_empty() {
+        eprintln!("Nothing to remove.");
+    } else {
+        for i in versions_to_uninstall {
+            eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
+            config_data.installed_versions.remove(&i);
+        }
     }
 
     if prune_linked {
