@@ -767,7 +767,7 @@ pub fn garbage_collect_versions(
                 version: _,
             } => true,
         }) {
-            let path_to_delete = paths.juliauphome.join(&detail.path);
+            let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
             let display = path_to_delete.display();
 
             match std::fs::remove_dir_all(&path_to_delete) {
