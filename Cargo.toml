@@ -102,7 +102,7 @@ winpkgidentityext = []
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [
     {name = "FlatBundle", value="false"},
-    {name = "PublisherDisplayName", value="Julia Computing, Inc."},
+    {name = "PublisherDisplayName", value="JuliaHub, Inc."},
     {name = "IdentityPublisher", value = "CN=7FB784C5-4411-4067-914E-A7B06CC00FFC"}
 ] }
 winappinstallermsix = { file = "deploy/msix/PackagingLayout.xml", variables = [
