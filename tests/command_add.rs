@@ -25,6 +25,7 @@ fn command_add() {
         .success()
         .stdout("");
 
+    #[cfg(not(target_os = "freebsd"))]
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("add")
