@@ -767,18 +767,29 @@ pub fn garbage_collect_versions(
                 version: _,
             } => true,
         }) {
-            let path_to_delete = paths.juliauphome.join(&detail.path);
+            let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
             let display = path_to_delete.display();
 
-            if std::fs::remove_dir_all(&path_to_delete).is_err() {
-                eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
+            match std::fs::remove_dir_all(&path_to_delete) {
+                Ok(_) => versions_to_uninstall.push(installed_version.clone()),
+                Err(_) => eprintln!(
+                    "{}: Failed to delete {}. \
+                    Make sure to close any old julia version still running.\n\
+                    You can try to delete at a later point by running `juliaup gc`.",
+                    style("WARNING").yellow().bold(),
+                    display
+                ),
             }
-            versions_to_uninstall.push(installed_version.clone());
         }
     }
 
-    for i in versions_to_uninstall {
-        config_data.installed_versions.remove(&i);
+    if versions_to_uninstall.is_empty() {
+        eprintln!("Nothing to remove.");
+    } else {
+        for i in versions_to_uninstall {
+            eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
+            config_data.installed_versions.remove(&i);
+        }
     }
 
     if prune_linked {
