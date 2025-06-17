@@ -8,6 +8,7 @@ use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use console::style;
 use std::path::PathBuf;
 
 fn update_channel(
@@ -26,6 +27,8 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
+                    eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+
                     install_version(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {
                             format!(
@@ -79,10 +82,16 @@ fn update_channel(
             server_etag,
             version,
         } => {
-            // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
-            assert!(!version.is_empty());
-
             if local_etag != server_etag {
+                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+                if version.is_empty() {
+                    eprintln!(
+                        "Channel {} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request.",
+                        channel
+                    );
+                }
+                eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
 
@@ -138,7 +147,7 @@ pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Resul
         }
     };
 
-    garbage_collect_versions(&mut config_file.data, paths)?;
+    garbage_collect_versions(false, &mut config_file.data, paths)?;
 
     save_config_db(&mut config_file)
         .with_context(|| "`update` command failed to save configuration db.")?;

@@ -89,6 +89,14 @@ pub fn get_bin_dir() -> Result<PathBuf> {
     Ok(path)
 }
 
+pub fn is_valid_julia_path(julia_path: &PathBuf) -> bool {
+    return std::process::Command::new(julia_path)
+        .arg("-v")
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .is_ok();
+}
+
 pub fn get_arch() -> Result<String> {
     if std::env::consts::ARCH == "x86" {
         return Ok("x86".to_string());

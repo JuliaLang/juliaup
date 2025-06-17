@@ -33,7 +33,10 @@ pub enum Juliaup {
     /// Show all installed Julia versions
     Status {},
     /// Garbage collect uninstalled Julia versions
-    Gc {},
+    Gc {
+        #[clap(long)]
+        prune_linked: bool,
+    },
     #[clap(subcommand, name = "config")]
     /// Juliaup configuration
     Config(ConfigSubCmd),
@@ -100,17 +103,18 @@ impl JuliaupChannel {
 /// Manage this juliaup installation
 pub enum SelfSubCmd {
     #[cfg(not(feature = "selfupdate"))]
+    #[clap(alias = "up")]
     /// Update the Julia versions database
     Update {},
     #[cfg(feature = "selfupdate")]
+    #[clap(alias = "up")]
     /// Update the Julia versions database and juliaup itself
     Update {},
     #[cfg(feature = "selfupdate")]
-    #[command(arg_required_else_help = true)]
-    /// Configure the channel to use for juliaup updates.
+    /// Configure the channel to use for juliaup updates. Leave CHANNEL blank to see current channel.
     Channel {
         #[arg(value_enum)]
-        channel: JuliaupChannel,
+        channel: Option<JuliaupChannel>,
     },
     #[cfg(feature = "selfupdate")]
     /// Uninstall this version of juliaup from the system

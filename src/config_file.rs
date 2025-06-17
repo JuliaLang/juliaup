@@ -20,13 +20,13 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
     *i == default_versionsdb_update_interval()
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
     pub path: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum JuliaupConfigChannel {
     DirectDownloadChannel {
@@ -74,7 +74,7 @@ pub enum JuliaupConfigApplication {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct JuliaupConfigSettings {
     #[serde(
         rename = "CreateChannelSymlinks",
@@ -99,7 +99,7 @@ impl Default for JuliaupConfigSettings {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct JuliaupOverride {
     #[serde(rename = "Path")]
     pub path: String,
@@ -107,7 +107,7 @@ pub struct JuliaupOverride {
     pub channel: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct JuliaupConfig {
     #[serde(rename = "Default")]
     pub default: Option<String>,
@@ -165,7 +165,7 @@ pub struct JuliaupReadonlyConfigFile {
     pub self_data: JuliaupSelfConfig,
 }
 
-pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
+pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
     std::fs::create_dir_all(&paths.juliauphome)
         .with_context(|| "Could not create juliaup home folder.")?;
 
@@ -179,16 +179,29 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
         Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e)),
     };
 
-    let file_lock = match SharedFlock::try_lock(&lock_file) {
+    let file_lock = match SharedFlock::try_lock(lock_file) {
         Ok(lock) => lock,
-        Err(_e) => {
+        Err(e) => {
             eprintln!(
                 "Juliaup configuration is locked by another process, waiting for it to unlock."
             );
 
-            SharedFlock::wait_lock(&lock_file).unwrap()
+            SharedFlock::wait_lock(e.into()).unwrap()
         }
     };
+
+    return Ok(file_lock);
+}
+
+pub fn load_config_db(
+    paths: &GlobalPaths,
+    existing_lock: Option<&FlockLock<File>>,
+) -> Result<JuliaupReadonlyConfigFile> {
+    let mut file_lock: Option<FlockLock<File>> = None;
+
+    if existing_lock.is_none() {
+        file_lock = Some(get_read_lock(paths)?);
+    }
 
     let v = match std::fs::OpenOptions::new()
         .read(true)
@@ -253,9 +266,11 @@ pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> 
         };
     }
 
-    file_lock
-        .unlock()
-        .with_context(|| "Failed to unlock configuration file.")?;
+    if let Some(file_lock) = file_lock {
+        file_lock
+            .unlock()
+            .with_context(|| "Failed to unlock configuration file.")?;
+    }
 
     Ok(JuliaupReadonlyConfigFile {
         data: v,

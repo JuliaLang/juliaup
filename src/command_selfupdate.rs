@@ -127,7 +127,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         .with_context(|| "Call to Size on update results failed.")?
         > 0
     {
-        println!("An update is available.");
+        eprintln!("An update is available.");
 
         let download_operation = update_manager
             .RequestDownloadAndInstallStorePackageUpdatesAsync(&updates)
@@ -138,7 +138,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         })?;
         // This code will not be reached if the user opts to install updates
     } else {
-        println!("No updates available.");
+        eprintln!("No updates available.");
     }
 
     Ok(())

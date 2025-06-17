@@ -81,7 +81,7 @@ fn main() -> Result<()> {
             .unwrap();
 
         if !depl_result.IsRegistered().unwrap() {
-            println!(
+            eprintln!(
                 "Failed to register package identity. Error Message ${:?}",
                 depl_result.ErrorText()
             );
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
         Juliaup::Remove { channel } => run_command_remove(&channel, &paths),
         Juliaup::Status {} => run_command_status(&paths),
         Juliaup::Update { channel } => run_command_update(channel, &paths),
-        Juliaup::Gc {} => run_command_gc(&paths),
+        Juliaup::Gc { prune_linked } => run_command_gc(prune_linked, &paths),
         Juliaup::Link {
             channel,
             file,

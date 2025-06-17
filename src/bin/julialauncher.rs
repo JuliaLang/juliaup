@@ -1,9 +1,11 @@
 use anyhow::{anyhow, Context, Result};
-use console::Term;
+use console::{style, Term};
+use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -13,8 +15,15 @@ use nix::{
 use normpath::PathExt;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
+#[cfg(windows)]
+use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(windows)]
+use windows::Win32::System::{
+    JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
+    Threading::GetCurrentProcess,
+};
 
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
@@ -131,11 +140,11 @@ fn check_channel_uptodate(
     let latest_version = &versions_db
         .available_channels
         .get(channel)
-        .ok_or_else(|| {
-            anyhow!(
+        .ok_or_else(|| UserError {
+            msg: format!(
                 "The channel `{}` does not exist in the versions database.",
                 channel
-            )
+            ),
         })?
         .version;
 
@@ -166,32 +175,39 @@ fn get_julia_path_from_channel(
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
+    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
     let channel_info = config_data
             .installed_channels
             .get(channel)
             .ok_or_else(|| match juliaup_channel_source {
                 JuliaupChannelSource::CmdLine => {
-                    if versions_db.available_channels.contains_key(channel) {
+                    if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()) {
+                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::EnvVar=> {
-                    if versions_db.available_channels.contains_key(channel) {
-                        UserError { msg: format!("`{}` for environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    if channel_valid {
+                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()) {
+                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
                 JuliaupChannelSource::Override=> {
-                    if versions_db.available_channels.contains_key(channel) {
-                        UserError { msg: format!("`{}` for directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    if channel_valid {
+                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+                    } else if is_pr_channel(&channel.to_string()){
+                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
-                        UserError { msg: format!("ERROR: Invalid Juliaup channel `{}` in directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                        UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
                 }.into(),
-                JuliaupChannelSource::Default => anyhow!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel)
+                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
             })?;
 
     match channel_info {
@@ -293,16 +309,18 @@ fn get_override_channel(
 }
 
 fn run_app() -> Result<i32> {
-    // Set console title
-    let term = Term::stdout();
-    term.set_title("Julia");
+    if std::io::stdout().is_terminal() {
+        // Set console title
+        let term = Term::stdout();
+        term.set_title("Julia");
+    }
 
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_file = load_config_db(&paths)
+    let config_file = load_config_db(&paths, None)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data = load_versions_db(&paths)
@@ -386,12 +404,15 @@ fn run_app() -> Result<i32> {
             }
 
             // replace the current process
-            std::process::Command::new(julia_path)
+            let _ = std::process::Command::new(&julia_path)
                 .args(&new_args)
                 .exec();
 
-            // this is never reached
-            Ok(0)
+            // this is only ever reached if launching Julia fails
+            panic!(
+                "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
+                julia_path.to_string_lossy()
+            )
         }
         Ok(ForkResult::Child) => {
             // double-fork to prevent zombies
@@ -430,10 +451,49 @@ fn run_app() -> Result<i32> {
         // process to handle things.
         ctrlc::set_handler(|| ()).with_context(|| "Failed to set the Ctrl-C handler.")?;
 
+        let mut job_attr: windows::Win32::Security::SECURITY_ATTRIBUTES =
+            windows::Win32::Security::SECURITY_ATTRIBUTES::default();
+        let mut job_info: windows::Win32::System::JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION =
+            windows::Win32::System::JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+
+        job_attr.bInheritHandle = false.into();
+        job_info.BasicLimitInformation.LimitFlags =
+            windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_BREAKAWAY_OK
+                | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK
+                | windows::Win32::System::JobObjects::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+        let job_handle = unsafe {
+            windows::Win32::System::JobObjects::CreateJobObjectW(
+                Some(&job_attr),
+                windows::core::PCWSTR::null(),
+            )
+        }?;
+        unsafe {
+            SetInformationJobObject(
+                job_handle,
+                windows::Win32::System::JobObjects::JobObjectExtendedLimitInformation,
+                &job_info as *const _ as *const std::os::raw::c_void,
+                std::mem::size_of_val(&job_info) as u32,
+            )
+        }?;
+
+        unsafe { AssignProcessToJobObject(job_handle, GetCurrentProcess()) }?;
+
         let mut child_process = std::process::Command::new(julia_path)
             .args(&new_args)
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
+
+        // We ignore any error here, as that is what libuv also does, see the documentation
+        // at https://github.com/libuv/libuv/blob/5ff1fc724f7f53d921599dbe18e6f96b298233f1/src/win/process.c#L1077
+        let _ = unsafe {
+            AssignProcessToJobObject(
+                job_handle,
+                std::mem::transmute::<RawHandle, windows::Win32::Foundation::HANDLE>(
+                    child_process.as_raw_handle(),
+                ),
+            )
+        };
 
         run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
 
@@ -473,7 +533,7 @@ fn main() -> Result<std::process::ExitCode> {
 
         if let Err(err) = &client_status {
             if let Some(e) = err.downcast_ref::<UserError>() {
-                eprintln!("{}", e.msg);
+                eprintln!("{} {}", style("ERROR:").red().bold(), e.msg);
 
                 return Ok(std::process::ExitCode::FAILURE);
             } else {

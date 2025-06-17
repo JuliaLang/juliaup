@@ -110,7 +110,10 @@ fn is_juliaup_installed() -> bool {
         .stdin(Stdio::null())
         .status();
 
-    exit_status.is_ok()
+    match exit_status {
+        Ok(status) => status.success(),
+        Err(_) => false, // failed to execute `juliaup` command
+    }
 }
 
 #[derive(Parser)]
@@ -286,7 +289,8 @@ pub fn main() -> Result<()> {
 
     if paths.juliaupconfig.exists() {
         println!("While Juliaup does not seem to be installed on this system, there is a");
-        println!("Juliaup configuration file present from a previous installation.");
+        println!("Juliaup configuration file present from a previous installation:");
+        println!("{}", paths.juliaupconfig.display());
 
         if args.disable_confirmation_prompt {
             println!();
@@ -379,6 +383,52 @@ pub fn main() -> Result<()> {
         }
     }
 
+    if install_choices.install_location.exists() {
+        println!("You are trying to install Juliaup into the folder");
+        println!("`{}`,", install_choices.install_location.display());
+        println!("but that folder already exists. Please remove that folder");
+        println!("and then start the setup process again.");
+
+        return Ok(());
+    }
+
+    if install_choices.modifypath {
+        // Now check whether we have the necessary permissions for all the files
+        // we want to modify.
+
+        let paths = find_shell_scripts_to_be_modified(false)?;
+
+        let mut failed_paths: Vec<PathBuf> = Vec::<PathBuf>::new();
+
+        for cur_path in paths {
+            let file_result = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&cur_path);
+
+            if file_result.is_err() {
+                failed_paths.push(cur_path.clone());
+            }
+        }
+
+        if failed_paths.len() > 0 {
+            println!("Juliaup needs to modify a number of existing files on your");
+            println!("system, but is unable to edit some of these files. Most likely");
+            println!("this is caused by incorrect permissions on these files. The");
+            println!("following files could not be edited:");
+            for cur_path in failed_paths {
+                println!("  {}", cur_path.display());
+            }
+            println!("You can find more help with this problem at");
+            println!(
+                "  https://github.com/JuliaLang/juliaup/wiki/Permission-problems-during-setup"
+            );
+            println!();
+
+            return Ok(());
+        }
+    }
+
     let juliaupselfbin = install_choices.install_location.join("bin");
 
     trace!("Set juliaupselfbin to `{:?}`", juliaupselfbin);
@@ -463,7 +513,7 @@ pub fn main() -> Result<()> {
         run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
     }
     run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
-    run_command_selfchannel(args.juliaup_channel, &paths).unwrap();
+    run_command_selfchannel(Some(args.juliaup_channel), &paths).unwrap();
 
     run_command_add(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;

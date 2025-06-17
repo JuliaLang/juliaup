@@ -1,6 +1,6 @@
 # Edit the following two lines to change the LTS Julia version
 const lts_major = 1
-const lts_minor = 6
+const lts_minor = 10
 
 using Pkg
 Pkg.activate(@__DIR__)

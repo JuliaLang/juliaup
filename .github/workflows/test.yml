@@ -25,6 +25,7 @@ jobs:
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
+          x86_64-unknown-freebsd,
           i686-pc-windows-msvc-windowsstore,
           i686-pc-windows-msvc-windowsappinstaller,
           i686-pc-windows-gnu-msi,
@@ -70,6 +71,11 @@ jobs:
             os: ubuntu
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
+          - label: x86_64-unknown-freebsd
+            target: x86_64-unknown-freebsd
+            os: ubuntu
+            features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags:
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
@@ -134,6 +140,7 @@ jobs:
           x86_64-apple-darwin,
           x86_64-unknown-linux-gnu,
           x86_64-unknown-linux-musl,
+          x86_64-unknown-freebsd,
           i686-pc-windows-msvc,
           i686-pc-windows-gnu,
           ]
@@ -163,6 +170,11 @@ jobs:
             features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
+          - target: x86_64-unknown-freebsd
+            os: ubuntu
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable
           - target: i686-pc-windows-msvc
             os: windows
             features: dummy,binjulialauncher
@@ -183,12 +195,29 @@ jobs:
         platform: x86
         version: 12.2.0
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
+      if: ${{ ! contains(matrix.target, 'freebsd') }}
       run: cargo test --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Test FreeBSD
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: vmactions/freebsd-vm@v1
+      with:
+        release: "13.4"
+        usesh: true
+        mem: 8192
+        copyback: false
+        prepare: |
+          pkg install -y curl
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        run: |
+          . "${HOME}/.cargo/env"
+          export RUST_BACKTRACE=full
+          cargo test --target ${{matrix.target}} --features ${{matrix.features}}

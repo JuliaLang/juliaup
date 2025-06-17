@@ -1,3 +1,5 @@
+use crate::config_file::get_read_lock;
+use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
@@ -12,32 +14,39 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
-use anyhow::{anyhow, bail, Context, Result};
+use crate::utils::is_valid_julia_path;
+use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use console::style;
+#[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
+use regex::Regex;
 use semver::Version;
-use std::io::BufReader;
-use std::io::Seek;
-use std::io::Write;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(not(target_os = "freebsd"))]
+use std::path::Component::Normal;
 use std::{
-    io::Read,
-    path::{Component::Normal, Path, PathBuf},
+    io::{BufReader, Read, Seek, Write},
+    path::{Path, PathBuf},
 };
+#[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
+use tempfile::TempPath;
 use url::Url;
 
-fn unpack_sans_parent<R, P>(mut archive: Archive<R>, dst: P, levels_to_skip: usize) -> Result<()>
+#[cfg(not(target_os = "freebsd"))]
+fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
 where
     R: Read,
     P: AsRef<Path>,
 {
+    let tar = GzDecoder::new(src);
+    let mut archive = Archive::new(tar);
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path: PathBuf = entry
@@ -48,6 +57,39 @@ where
             .collect();
         entry.unpack(dst.as_ref().join(path))?;
     }
+    Ok(())
+}
+
+// As of this writing, the Rust `tar` library does not fully implement reading the
+// POSIX.1-2001 PAX format. This is the default format used by BSD tar, and is thus
+// the format of the Julia tarballs on BSD systems. There is a PR to add support for
+// PAX to tar.rs: https://github.com/alexcrichton/tar-rs/pull/298, but as of this
+// writing, it has not been merged. Thus we'll shell out to command line `tar` on
+// FreeBSD in the meantime, and unify the approaches if/when support is available.
+#[cfg(target_os = "freebsd")]
+fn unpack_sans_parent<R, P>(mut src: R, dst: P, levels_to_skip: usize) -> Result<()>
+where
+    R: Read,
+    P: AsRef<Path>,
+{
+    std::fs::create_dir_all(dst.as_ref())?;
+    let mut tar = std::process::Command::new("tar")
+        .arg("-C")
+        .arg(dst.as_ref())
+        .arg("-x")
+        .arg("-z")
+        .arg(format!("--strip-components={}", levels_to_skip))
+        .arg("-f")
+        .arg("-")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .expect("Failed to spawn `tar` process");
+    let mut stdin = tar
+        .stdin
+        .take()
+        .expect("Failed to get stdin for `tar` process");
+    std::io::copy(&mut src, &mut stdin)?;
     Ok(())
 }
 
@@ -86,9 +128,7 @@ pub fn download_extract_sans_parent(
 
     let response_with_pb = pb.wrap_read(response);
 
-    let tar = GzDecoder::new(response_with_pb);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, target_path, levels_to_skip)
+    unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
     Ok(last_modified)
@@ -179,9 +219,7 @@ pub fn download_extract_sans_parent(
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
-    let tar = GzDecoder::new(response_with_pb);
-    let archive = Archive::new(tar);
-    unpack_sans_parent(archive, target_path, levels_to_skip)
+    unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
 
     Ok(last_modified)
@@ -434,14 +472,14 @@ pub fn install_version(
                 )
             })?;
 
-        print!("Checking standard library notarization");
+        eprint!("Checking standard library notarization");
         let _ = std::io::stdout().flush();
 
         let exit_status = std::process::Command::new(&julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
-            .arg("foreach(p -> begin print('.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
+            .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
             // .stdout(std::process::Stdio::null())
             // .stderr(std::process::Stdio::null())
             // .stdin(std::process::Stdio::null())
@@ -449,9 +487,9 @@ pub fn install_version(
             .unwrap();
 
         if exit_status.success() {
-            println!("done.")
+            eprintln!("done.")
         } else {
-            println!("failed with {}.", exit_status);
+            eprintln!("failed with {}.", exit_status);
         }
     }
 
@@ -485,12 +523,57 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     } else if cfg!(target_arch = "x86") {
         Ok(vec!["x86".to_string()])
     } else if cfg!(target_arch = "x86_64") {
-        // x86_64 can execute x86 binaries
-        Ok(vec!["x86".to_string(), "x64".to_string()])
+        // x86_64 can execute x86 binaries, but we don't produce x86 binaries for FreeBSD
+        if cfg!(target_os = "freebsd") {
+            Ok(vec!["x64".to_string()])
+        } else {
+            Ok(vec!["x86".to_string(), "x64".to_string()])
+        }
     } else if cfg!(target_arch = "aarch64") {
         Ok(vec!["aarch64".to_string()])
     } else {
         bail!("Unsupported architecture for nightly channel.")
+    }
+}
+
+// which nightly channels are compatible with the current system
+pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
+    let archs = compatible_archs()?;
+
+    let channels: Vec<String> = std::iter::once(channel.to_string())
+        .chain(
+            archs
+                .into_iter()
+                .map(|arch| format!("{}~{}", channel, arch)),
+        )
+        .collect();
+    Ok(channels)
+}
+
+// considers the nightly channels as system channels
+// XXX: does not account for PR channels
+pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
+    let regular = versions_db.available_channels.contains_key(channel);
+
+    let nightly_chans = get_channel_variations("nightly")?;
+
+    let nightly = nightly_chans.contains(channel);
+    Ok(regular || nightly)
+}
+
+pub fn is_pr_channel(channel: &String) -> bool {
+    return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
+}
+
+fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
+    let nightly_re =
+        Regex::new(r"^((?:nightly|latest)|latest|(\d+\.\d+)-(?:nightly|latest))").unwrap();
+
+    let caps = nightly_re.captures(channel)?;
+    if let Some(xy_match) = caps.get(2) {
+        Some(xy_match.as_str().to_string())
+    } else {
+        Some("".to_string())
     }
 }
 
@@ -500,11 +583,15 @@ pub fn channel_to_name(channel: &String) -> Result<String> {
 
     let channel = parts.next().expect("Failed to parse channel name.");
 
-    let version = match channel {
-        "nightly" => "latest",
-        other => other,
+    let version = if let Some(version_prefix) = parse_nightly_channel_or_id(channel) {
+        if version_prefix.is_empty() {
+            "latest".to_string()
+        } else {
+            format!("{}-latest", version_prefix)
+        }
+    } else {
+        channel.to_string()
     };
-
     let arch = match parts.next() {
         Some(arch) => arch.to_string(),
         None => default_arch()?,
@@ -538,6 +625,13 @@ pub fn channel_to_name(channel: &String) -> Result<String> {
             "linux-aarch64"
         } else {
             bail!("Unsupported architecture for nightly channel on Linux.")
+        }
+
+        #[cfg(target_os = "freebsd")]
+        if arch == "x64" {
+            "freebsd-x86_64"
+        } else {
+            bail!("Unsupported architecture for nightly channel on FreeBSD.")
         }
     };
 
@@ -606,35 +700,86 @@ pub fn install_non_db_version(
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
+
     let mut parts = name.splitn(2, '-');
-    let id = parts.next().expect("Failed to parse channel name.");
-    let arch = parts.next().expect("Failed to parse channel name.");
-    let download_url_path = if id == "latest" {
+
+    let mut id = parts
+        .next()
+        .expect("Failed to parse channel name.")
+        .to_string();
+    let mut arch = parts.next().expect("Failed to parse channel name.");
+
+    // Check for the case where name is given as "x.y-latest-...", in which case
+    // we peel off the "latest" part of the `arch` and attach it to the `id``.
+    if arch.starts_with("latest") {
+        let mut parts = arch.splitn(2, '-');
+        let nightly = parts.next().expect("Failed to parse channel name.");
+        id.push_str("-");
+        id.push_str(nightly);
+        arch = parts.next().expect("Failed to parse channel name.");
+    }
+
+    let nightly_version = parse_nightly_channel_or_id(&id);
+
+    let download_url_path = if let Some(nightly_version) = nightly_version {
+        let nightly_folder = if nightly_version.is_empty() {
+            "".to_string() // No version folder
+        } else {
+            format!("/{}", nightly_version) // Use version as folder
+        };
         match arch {
-            "macos-x86_64" => Ok("bin/macos/x86_64/julia-latest-macos-x86_64.tar.gz".to_owned()),
-            "macos-aarch64" => Ok("bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz".to_owned()),
-            "win64" => Ok("bin/winnt/x64/julia-latest-win64.tar.gz".to_owned()),
-            "win32" => Ok("bin/winnt/x86/julia-latest-win32.tar.gz".to_owned()),
-            "linux-x86_64" => Ok("bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz".to_owned()),
-            "linux-i686" => Ok("bin/linux/i686/julia-latest-linux-i686.tar.gz".to_owned()),
-            "linux-aarch64" => Ok("bin/linux/aarch64/julia-latest-linux-aarch64.tar.gz".to_owned()),
+            "macos-x86_64" => Ok(format!(
+                "bin/macos/x86_64{}/julia-latest-macos-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "macos-aarch64" => Ok(format!(
+                "bin/macos/aarch64{}/julia-latest-macos-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "win64" => Ok(format!(
+                "bin/winnt/x64{}/julia-latest-win64.tar.gz",
+                nightly_folder
+            )),
+            "win32" => Ok(format!(
+                "bin/winnt/x86{}/julia-latest-win32.tar.gz",
+                nightly_folder
+            )),
+            "linux-x86_64" => Ok(format!(
+                "bin/linux/x86_64{}/julia-latest-linux-x86_64.tar.gz",
+                nightly_folder
+            )),
+            "linux-i686" => Ok(format!(
+                "bin/linux/i686{}/julia-latest-linux-i686.tar.gz",
+                nightly_folder
+            )),
+            "linux-aarch64" => Ok(format!(
+                "bin/linux/aarch64{}/julia-latest-linux-aarch64.tar.gz",
+                nightly_folder
+            )),
+            "freebsd-x86_64" => Ok(format!(
+                "bin/freebsd/x86_64{}/julia-latest-freebsd-x86_64.tar.gz",
+                nightly_folder
+            )),
             _ => Err(anyhow!("Unknown nightly.")),
         }
     } else if id.starts_with("pr") {
         match arch {
             // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
             "macos-x86_64" => {
-                Ok("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz")
+                Ok("bin/macos/x86_64/julia-".to_owned() + &id + "-macos-x86_64.tar.gz")
             }
             "macos-aarch64" => {
-                Ok("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
+                Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
             }
-            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
+            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
             "linux-x86_64" => {
-                Ok("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz")
+                Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
             }
             "linux-aarch64" => {
-                Ok("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+                Ok("bin/linux/aarch64/julia-".to_owned() + &id + "-linux-aarch64.tar.gz")
+            }
+            "freebsd-x86_64" => {
+                Ok("bin/freebsd/x86_64/julia-".to_owned() + &id + "-freebsd-x86_64.tar.gz")
             }
             _ => Err(anyhow!("Unknown pr.")),
         }
@@ -665,6 +810,7 @@ pub fn install_non_db_version(
 }
 
 pub fn garbage_collect_versions(
+    prune_linked: bool,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
 ) -> Result<()> {
@@ -700,17 +846,40 @@ pub fn garbage_collect_versions(
         config_data.installed_versions.remove(&i);
     }
 
-    Ok(())
-}
-
-fn _remove_symlink(symlink_path: &Path) -> Result<()> {
-    std::fs::create_dir_all(symlink_path.parent().unwrap())?;
-
-    if symlink_path.exists() {
-        std::fs::remove_file(symlink_path)?;
+    if prune_linked {
+        let mut channels_to_uninstall: Vec<String> = Vec::new();
+        for (installed_channel, detail) in &config_data.installed_channels {
+            match &detail {
+                JuliaupConfigChannel::LinkedChannel {
+                    command: cmd,
+                    args: _,
+                } => {
+                    if !is_valid_julia_path(&PathBuf::from(cmd)) {
+                        channels_to_uninstall.push(installed_channel.clone());
+                    }
+                }
+                _ => (),
+            }
+        }
+        for channel in channels_to_uninstall {
+            remove_symlink(&format!("julia-{}", &channel))?;
+            config_data.installed_channels.remove(&channel);
+        }
     }
 
     Ok(())
+}
+
+fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
+    std::fs::create_dir_all(symlink_path.parent().unwrap())?;
+
+    if symlink_path.exists() {
+        let prev_target = std::fs::read_link(&symlink_path)?;
+        std::fs::remove_file(symlink_path)?;
+        return Ok(Some(prev_target));
+    }
+
+    Ok(None)
 }
 
 pub fn remove_symlink(symlink_name: &String) -> Result<()> {
@@ -740,20 +909,29 @@ pub fn create_symlink(
 
     let symlink_path = symlink_folder.join(symlink_name);
 
-    _remove_symlink(&symlink_path)?;
+    let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_foldername = format!("julia-{}", version);
-
             let target_path = paths.juliauphome.join(&child_target_foldername);
 
-            eprintln!(
-                "{} {} for Julia {}.",
-                style("Creating symlink").cyan().bold(),
-                symlink_name,
-                version
-            );
+            if let Some(ref prev_target) = updating {
+                eprintln!(
+                    "{} symlink {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_target.to_string_lossy(),
+                    version
+                );
+            } else {
+                eprintln!(
+                    "{} {} for Julia {}.",
+                    style("Creating symlink").cyan().bold(),
+                    symlink_name,
+                    version
+                );
+            }
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
                 .with_context(|| {
@@ -772,12 +950,22 @@ pub fn create_symlink(
         } => {
             let target_path = paths.juliauphome.join(path);
 
-            eprintln!(
-                "{} {} for Julia {}.",
-                style("Creating symlink").cyan().bold(),
-                symlink_name,
-                version
-            );
+            if let Some(ref prev_target) = updating {
+                eprintln!(
+                    "{} symlink {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_target.to_string_lossy(),
+                    version
+                );
+            } else {
+                eprintln!(
+                    "{} {} for Julia {}.",
+                    style("Creating symlink").cyan().bold(),
+                    symlink_name,
+                    version
+                );
+            }
 
             std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
                 .with_context(|| {
@@ -793,12 +981,22 @@ pub fn create_symlink(
                 None => command.clone(),
             };
 
-            eprintln!(
-                "{} {} for `{}`",
-                style("Creating shim").cyan().bold(),
-                symlink_name,
-                formatted_command
-            );
+            if let Some(ref prev_target) = updating {
+                eprintln!(
+                    "{} shim {} ( {} -> {} )",
+                    style("Updating").cyan().bold(),
+                    symlink_name,
+                    prev_target.to_string_lossy(),
+                    formatted_command
+                );
+            } else {
+                eprintln!(
+                    "{} {} for {}.",
+                    style("Creating shim").cyan().bold(),
+                    symlink_name,
+                    formatted_command
+                );
+            }
 
             std::fs::write(
                 &symlink_path,
@@ -827,12 +1025,14 @@ pub fn create_symlink(
         }
     };
 
-    if let Ok(path) = std::env::var("PATH") {
-        if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
-            eprintln!(
+    if updating.is_none() {
+        if let Ok(path) = std::env::var("PATH") {
+            if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
+                eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
                 &symlink_name, symlink_folder.display(),
             );
+            }
         }
     }
 
@@ -1279,12 +1479,50 @@ mod tests {
 }
 
 pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
-    let mut config_file = load_mut_config_db(paths).with_context(|| {
+    eprintln!(
+        "{} for new Julia versions",
+        style("Checking").green().bold()
+    );
+
+    let file_lock = get_read_lock(paths)?;
+
+    let mut temp_versiondb_download_path: Option<TempPath> = None;
+    let mut delete_old_version_db: bool = false;
+
+    let old_config_file = load_config_db(paths, Some(&file_lock)).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
 
+    let local_dbversion = match std::fs::OpenOptions::new()
+        .read(true)
+        .open(&paths.versiondb)
+    {
+        Ok(file) => {
+            let reader = BufReader::new(&file);
+
+            if let Ok(versiondb) =
+                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
+            {
+                if let Ok(version) = semver::Version::parse(&versiondb.version) {
+                    Some(version)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        Err(_) => None,
+    };
+
+    // This scope makes sure the lock file gets closed after we release the lock
+    {
+        let (_, res) = file_lock.data_unlock();
+        res.with_context(|| "Failed to unlock configuration file.")?;
+    }
+
     #[cfg(feature = "selfupdate")]
-    let juliaup_channel = match &config_file.self_data.juliaup_channel {
+    let juliaup_channel = match &old_config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string(),
     };
@@ -1318,62 +1556,8 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
     let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
         .with_context(|| "Failed to download current version db version.")?;
 
-    let direct_download_etags = download_direct_download_etags(&mut config_file.data)?;
-
-    for (channel, etag) in direct_download_etags {
-        let channel_data = config_file.data.installed_channels.get(&channel).unwrap();
-
-        match channel_data {
-            JuliaupConfigChannel::DirectDownloadChannel {
-                path,
-                url,
-                local_etag,
-                server_etag: _,
-                version,
-            } => {
-                config_file.data.installed_channels.insert(
-                    channel,
-                    JuliaupConfigChannel::DirectDownloadChannel {
-                        path: path.clone(),
-                        url: url.clone(),
-                        local_etag: local_etag.clone(),
-                        server_etag: etag,
-                        version: version.clone(),
-                    },
-                );
-            }
-            _ => {}
-        }
-    }
-
-    config_file.data.last_version_db_update = Some(chrono::Utc::now());
-
-    save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
-
     let bundled_dbversion = get_bundled_dbversion()
         .with_context(|| "Failed to determine the bundled version db version.")?;
-
-    let local_dbversion = match std::fs::OpenOptions::new()
-        .read(true)
-        .open(&paths.versiondb)
-    {
-        Ok(file) => {
-            let reader = BufReader::new(&file);
-
-            if let Ok(versiondb) =
-                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
-            {
-                if let Ok(version) = semver::Version::parse(&versiondb.version) {
-                    Some(version)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    };
 
     if online_dbversion > bundled_dbversion {
         if local_dbversion.is_none() || online_dbversion > local_dbversion.unwrap() {
@@ -1385,104 +1569,239 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            download_versiondb(&onlineversiondburl.to_string(), &paths.versiondb).with_context(
-                || {
-                    format!(
-                        "Failed to download new version db from {}.",
-                        onlineversiondburl
-                    )
-                },
-            )?;
+            let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap())
+                .unwrap()
+                .into_temp_path();
+
+            download_versiondb(&onlineversiondburl.to_string(), &temp_path).with_context(|| {
+                format!(
+                    "Failed to download new version db from {}.",
+                    onlineversiondburl
+                )
+            })?;
+
+            temp_versiondb_download_path = Some(temp_path);
         }
     } else if local_dbversion.is_some() {
         // If the bundled version is up-to-date we can delete any cached version db json file
+        delete_old_version_db = true;
+    }
+
+    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+
+    let mut new_config_file = load_mut_config_db(paths).with_context(|| {
+        "`run_command_update_version_db` command failed to load configuration db."
+    })?;
+
+    // This is our optimistic locking check: if someone changed the last modified
+    // field since we released the read-lock, we just give up
+    if new_config_file.data != old_config_file.data {
+        if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+            let _ = std::fs::remove_file(temp_versiondb_download_path);
+        }
+
+        return Ok(());
+    }
+
+    for (channel, etag) in direct_download_etags {
+        let channel_data = new_config_file
+            .data
+            .installed_channels
+            .get(&channel)
+            .unwrap();
+
+        match channel_data {
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path,
+                url,
+                local_etag,
+                server_etag: _,
+                version,
+            } => {
+                if let Some(etag) = etag {
+                    new_config_file.data.installed_channels.insert(
+                        channel,
+                        JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: etag,
+                            version: version.clone(),
+                        },
+                    );
+                } else {
+                    eprintln!(
+                        "{} to update {}. This can happen if a build is no longer available.",
+                        style("Failed").red().bold(),
+                        channel
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
+
+    if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
+        std::fs::rename(&temp_versiondb_download_path, &paths.versiondb)?;
+    } else if delete_old_version_db {
         let _ = std::fs::remove_file(&paths.versiondb);
     }
+
+    save_config_db(&mut new_config_file).with_context(|| "Failed to save configuration file.")?;
 
     Ok(())
 }
 
+// A generic function to run a function with a timeout and a message to inform the user why it is taking so long
+fn run_with_slow_message<F, R>(func: F, timeout_secs: u64, message: &str) -> Result<R, Error>
+where
+    F: FnOnce() -> Result<R, Error> + Send + 'static,
+    R: Send + 'static,
+{
+    use std::sync::mpsc::channel;
+    use std::thread;
+    use std::time::Duration;
+
+    let (tx, rx) = channel();
+
+    // Run the function in a separate thread
+    thread::spawn(move || {
+        let result = func();
+        tx.send(result).unwrap();
+    });
+
+    // Attempt to receive the result with a timeout
+    match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
+        Ok(result) => result,
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+            // Function has not completed within timeout_secs seconds, inform why
+            eprintln!("{}", message);
+
+            // Now wait for the function to complete
+            let result = rx.recv().unwrap();
+            result
+        }
+        Err(e) => panic!("Error receiving result: {:?}", e),
+    }
+}
+
 #[cfg(windows)]
 fn download_direct_download_etags(
-    config_data: &mut JuliaupConfig,
-) -> Result<Vec<(String, String)>> {
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpClient;
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+    let http_client = HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
 
-    let requests: Vec<_> = config_data
-        .installed_channels
-        .iter()
-        .filter_map(|(channel_name, channel)| {
-            if let JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } = channel
-            {
-                let request_uri =
-                    windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
-                        .with_context(|| "Failed to convert url string to Uri.")
-                        .unwrap();
+    let mut requests = Vec::new();
 
-                let request =
-                    HttpRequestMessage::Create(&HttpMethod::Head().unwrap(), &request_uri).unwrap();
+    for (channel_name, channel) in &config_data.installed_channels {
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+            let http_client = http_client.clone();
+            let url_clone = url.clone();
+            let channel_name_clone = channel_name.clone();
+            let message = format!(
+                "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
+                style("Checking").green().bold(),
+                channel_name
+            );
 
-                let request = http_client.SendRequestAsync(&request).unwrap();
+            let etag = run_with_slow_message(
+                move || {
+                    let request_uri = Uri::CreateUri(&HSTRING::from(&url_clone))
+                        .with_context(|| format!("Failed to create URI from {}", &url_clone))?;
 
-                Some((channel_name, request))
-            } else {
-                None
-            }
-        })
-        .collect();
+                    let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
+                        .with_context(|| "Failed to create HttpRequestMessage.")?;
 
-    let requests: Vec<_> = requests
-        .into_iter()
-        .map(|(channel_name, request)| {
-            (
-                channel_name.clone(),
-                request
-                    .get()
-                    .unwrap()
-                    .Headers()
-                    .unwrap()
-                    .Lookup(&HSTRING::from("etag"))
-                    .unwrap()
-                    .to_string(),
-            )
-        })
-        .collect();
+                    let async_op = http_client
+                        .SendRequestAsync(&request)
+                        .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
+
+                    let response = async_op
+                        .get()
+                        .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
+
+                    if response.IsSuccessStatusCode()? {
+                        let headers = response
+                            .Headers()
+                            .map_err(|e| anyhow!("Failed to get headers: {:?}", e))?;
+
+                        let etag = headers
+                            .Lookup(&HSTRING::from("ETag"))
+                            .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
+                            .to_string();
+
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
+                    }
+                },
+                3, // Timeout in seconds
+                &message,
+            )?;
+
+            requests.push((channel_name_clone, etag));
+        }
+    }
 
     Ok(requests)
 }
 
 #[cfg(not(windows))]
 fn download_direct_download_etags(
-    config_data: &mut JuliaupConfig,
-) -> Result<Vec<(String, String)>> {
-    let client = reqwest::blocking::Client::new();
+    config_data: &JuliaupConfig,
+) -> Result<Vec<(String, Option<String>)>> {
+    use std::sync::Arc;
+
+    let client = Arc::new(reqwest::blocking::Client::new());
 
     let mut requests = Vec::new();
 
     for (channel_name, channel) in &config_data.installed_channels {
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
-            let etag = client
-                .head(url)
-                .send()?
-                .headers()
-                .get("etag")
-                .ok_or_else(|| anyhow!("ETag header not found in response"))?
-                .to_str()
-                .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
-                .to_string();
+            let client = Arc::clone(&client);
+            let url_clone = url.clone();
+            let channel_name_clone = channel_name.clone();
+            let message = format!(
+                "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
+                style("Checking").green().bold(),
+                channel_name
+            );
 
-            requests.push((channel_name.clone(), etag));
+            let etag = run_with_slow_message(
+                move || {
+                    let response = client.head(&url_clone).send().with_context(|| {
+                        format!("Failed to send HEAD request to {}", &url_clone)
+                    })?;
+
+                    if response.status().is_success() {
+                        let etag = response
+                            .headers()
+                            .get("etag")
+                            .ok_or_else(|| {
+                                anyhow!("ETag header not found in response from {}", &url_clone)
+                            })?
+                            .to_str()
+                            .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
+                            .to_string();
+
+                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                    } else {
+                        return Ok::<Option<String>, anyhow::Error>(None);
+                    }
+                },
+                3, // Timeout in seconds
+                &message,
+            )?;
+
+            requests.push((channel_name_clone, etag));
         }
     }
 

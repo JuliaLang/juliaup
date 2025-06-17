@@ -18,7 +18,18 @@ fn command_initial_setup() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stdout("");
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::starts_with("Checking for new Julia versions\nInstalling Julia 1.")
+                .and(
+                    predicate::str::contains("apple.darwin14")
+                        .not()
+                        .or(
+                            predicate::str::contains("Checking standard library notarization")
+                                .and(predicate::str::ends_with("done.\n")),
+                        ),
+                ),
+        );
 
     depot_dir
         .child(Path::new("juliaup").join("juliaup.json"))
