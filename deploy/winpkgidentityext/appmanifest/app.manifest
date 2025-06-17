@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="Julialang.Juliaup"/>
-  <msix xmlns="urn:schemas-microsoft-com:msix.v1"
-          publisher="CN=&quot;JuliaHub, Inc.&quot;, O=&quot;JuliaHub, Inc.&quot;, L=CAMBRIDGE, S=Massachusetts, C=US"
-          packageName="Juliaup"
-          applicationId="Juliaup"
-        />
-</assembly>
