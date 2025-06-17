@@ -164,9 +164,9 @@ pub enum ConfigSubCmd {
 
 #[derive(Parser)]
 pub enum ApplicationSubCmd {
-    #[clap(name = "add")]
-    /// Add a Julia application
-    Add {
+    #[clap(name = "register")]
+    /// Register a Julia application
+    Register {
         value: String
     },
     #[clap(name = "run")]

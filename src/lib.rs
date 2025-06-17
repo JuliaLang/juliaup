@@ -3,7 +3,7 @@ use anyhow::Context;
 pub mod cli;
 pub mod command_add;
 pub mod command_api;
-pub mod command_app_add;
+pub mod command_app_register;
 pub mod command_app_run;
 pub mod command_app_remove;
 pub mod command_completions;

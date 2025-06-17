@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use juliaup::cli::{ApplicationSubCmd, ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
 use juliaup::command_api::run_command_api;
-use juliaup::command_app_add::run_command_app_add;
+use juliaup::command_app_register::run_command_app_register;
 use juliaup::command_app_run::run_command_app_run;
 use juliaup::command_app_remove::run_command_app_remove;
 use juliaup::command_completions::run_command_completions;
@@ -153,8 +153,8 @@ fn main() -> Result<()> {
         },
         Juliaup::Completions { shell } => run_command_completions(shell),
         Juliaup::Application(subcmd) => match subcmd {
-            ApplicationSubCmd::Add { value } => {
-                run_command_app_add(&value, &paths)
+            ApplicationSubCmd::Register { value } => {
+                run_command_app_register(&value, &paths)
             },
             ApplicationSubCmd::Run { name, args } => {
                 run_command_app_run(&name, &args, &paths)

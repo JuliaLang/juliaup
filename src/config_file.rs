@@ -53,13 +53,13 @@ pub enum JuliaupConfigChannel {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct JuliaupConfigExcutionAlias {
     #[serde(rename = "Target")]
     pub target: String
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum JuliaupConfigApplication {
     DevedApplication {

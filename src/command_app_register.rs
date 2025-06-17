@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use bstr::ByteVec;
 use normpath::PathExt;
 
-pub fn run_command_app_add(path: &str, paths: &GlobalPaths) -> Result<()> {
+pub fn run_command_app_register(path: &str, paths: &GlobalPaths) -> Result<()> {
     let app_folder_path = PathBuf::from(path);
 
     let project_path = app_folder_path.join("Project.toml");
@@ -81,28 +81,6 @@ pub fn run_command_app_add(path: &str, paths: &GlobalPaths) -> Result<()> {
         .arg("using Pkg; Pkg.instantiate()")
         .status()
         .unwrap();
-
-    // #[cfg(feature = "winpkgidentityext")]
-    {
-        use windows::Management::Deployment::{RegisterPackageOptions, PackageManager};
-
-        let package_manager = PackageManager::new().unwrap();
-        let register_package_options = RegisterPackageOptions::new().unwrap();
-        register_package_options.SetAllowUnsigned(true)?;
-
-        let self_location = std::env::current_exe().unwrap();
-        let self_location = self_location.parent().unwrap().parent().unwrap().parent().unwrap().join("stringbuislders.xml");
-
-        println!("WE ARE AT {:?}", self_location);
-
-        let external_loc =
-            windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from("C:\\Users\\david\\source\\juliaup\\AppxManifest.xml"))
-                .unwrap();
-
-        let asdf = package_manager.RegisterPackageByUriAsync(&external_loc, &register_package_options).unwrap().get().unwrap();
-
-        println!("DEPLOY WAS {:?} with {:?}", asdf.IsRegistered().unwrap(), asdf.ErrorText().unwrap());
-    }
 
     return Ok(())
 }
