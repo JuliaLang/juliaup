@@ -22,3 +22,5 @@ $params = @{
     }
 
 Invoke-TrustedSigning @params
+
+Move-Item .\juliaup.msix ..\..\target\debug\ -Force
