@@ -6,7 +6,7 @@ use normpath::PathExt;
 
 pub fn run_command_app_run(name: &str, args: &Vec<String>, paths: &GlobalPaths) -> Result<()> {
 
-    let config_file = load_config_db(paths)
+    let config_file = load_config_db(paths, None)
         .with_context(|| "`app run` command failed to load configuration data.")?;
 
     let target: HashMap<String,(String,String,String,String)> = config_file

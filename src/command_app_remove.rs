@@ -12,7 +12,7 @@ pub fn run_command_app_remove(name: &str, paths: &GlobalPaths) -> Result<()> {
     else {
         config_file.data.installed_apps.remove(name).unwrap();
 
-        garbage_collect_versions(&mut config_file.data, paths).unwrap();
+        garbage_collect_versions(false, &mut config_file.data, paths).unwrap();
 
         save_config_db(&mut config_file).unwrap();
     }
