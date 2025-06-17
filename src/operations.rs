@@ -226,68 +226,6 @@ pub fn download_extract_sans_parent(
 }
 
 #[cfg(not(windows))]
-pub fn download_file(
-    url: &str,
-    target_path: &Path,
-    filename: &str
-) -> Result<()> {
-    log::debug!("Downloading from url `{}`.", url);
-    let response = reqwest::blocking::get(url)
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
-
-    let mut file = std::fs::File::create(target_path.join(filename))?;
-    let mut content =  std::io::Cursor::new(response.bytes().unwrap());
-    std::io::copy(&mut content, &mut file)?;
-
-    Ok(())
-}
-
-#[cfg(windows)]
-pub fn download_file(
-    url: &str,
-    target_path: &Path,
-    filename: &str
-) -> Result<String> {
-    use windows::{core::HSTRING, Storage::FileAccessMode};
-
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
-
-    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
-        .with_context(|| "Failed to convert url string to Uri.")?;
-
-    let http_response = http_client
-        .GetAsync(&request_uri)
-        .with_context(|| "Failed to initiate download.")?
-        .get()
-        .with_context(|| "Failed to complete async download operation.")?;
-
-    http_response
-        .EnsureSuccessStatusCode()
-        .with_context(|| "HTTP download reported error status code.")?;
-
-    let last_modified = http_response
-        .Headers()
-        .unwrap()
-        .Lookup(&HSTRING::from("etag"))
-        .unwrap()
-        .to_string();
-
-    let http_response_content = http_response
-        .Content()
-        .with_context(|| "Failed to obtain content from http response.")?;
-
-    let folder = windows::Storage::StorageFolder::GetFolderFromPathAsync(&HSTRING::from(target_path)).unwrap().get().unwrap();
-    let file = folder.CreateFileAsync(&HSTRING::from(filename), windows::Storage::CreationCollisionOption::ReplaceExisting).unwrap().get().unwrap();
-
-    let stream = file.OpenAsync(FileAccessMode::ReadWrite).unwrap().get().unwrap();
-
-    http_response_content.WriteToStreamAsync(&stream).unwrap().get().unwrap();
-
-    Ok(last_modified)
-}
-
-#[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = reqwest::blocking::get(url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?
