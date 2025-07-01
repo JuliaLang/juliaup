@@ -59,7 +59,8 @@ indoc = "2.0.3"
 is-terminal = "0.4"
 path-absolutize = "3.1.0"
 human-sort = "0.2.2"
-regex = "1.10"
+toml_edit = "0.22"
+regex = "1.10.5"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Threading", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams", "Management_Deployment"] }
