@@ -372,6 +372,9 @@
         "1.11.5+0.x64.unknown.freebsd11.1": {
             "UrlPath": "bin/freebsd/x64/1.11/julia-1.11.5-freebsd-x86_64.tar.gz"
         },
+        "1.11.6+0.x64.unknown.freebsd11.1": {
+            "UrlPath": "bin/freebsd/x64/1.11/julia-1.11.6-freebsd-x86_64.tar.gz"
+        },
         "1.12.0-beta1+0.x64.unknown.freebsd11.1": {
             "UrlPath": "bin/freebsd/x64/1.12/julia-1.12.0-beta1-freebsd-x86_64.tar.gz"
         },
@@ -441,7 +444,7 @@
             "Version": "0.7.0+0.x64.unknown.freebsd11.1"
         },
         "1": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "1.0": {
             "Version": "1.0.5+0.x64.unknown.freebsd11.1"
@@ -633,7 +636,7 @@
             "Version": "1.10.10+0.x64.unknown.freebsd11.1"
         },
         "1.11": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "1.11.0": {
             "Version": "1.11.0+0.x64.unknown.freebsd11.1"
@@ -719,8 +722,14 @@
         "1.11.5~x64": {
             "Version": "1.11.5+0.x64.unknown.freebsd11.1"
         },
+        "1.11.6": {
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
+        },
+        "1.11.6~x64": {
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
+        },
         "1.11~x64": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "1.12": {
             "Version": "1.12.0-beta4+0.x64.unknown.freebsd11.1"
@@ -1248,7 +1257,7 @@
             "Version": "1.9.4+0.x64.unknown.freebsd11.1"
         },
         "1~x64": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "alpha": {
             "Version": "1.12.0-beta4+0.x64.unknown.freebsd11.1"
@@ -1269,17 +1278,17 @@
             "Version": "1.10.10+0.x64.unknown.freebsd11.1"
         },
         "rc": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "rc~x64": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "release": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         },
         "release~x64": {
-            "Version": "1.11.5+0.x64.unknown.freebsd11.1"
+            "Version": "1.11.6+0.x64.unknown.freebsd11.1"
         }
     },
-    "Version": "1.0.67"
+    "Version": "1.0.68"
 }
