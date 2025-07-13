@@ -326,6 +326,9 @@
         },
         "1.12.0-beta4+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.12/julia-1.12.0-beta4-win32.tar.gz"
+        },
+        "1.12.0-rc1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.12/julia-1.12.0-rc1-win32.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -618,7 +621,7 @@
             "Version": "1.11.6+0.x86.w64.mingw32"
         },
         "1.12": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "1.12.0-beta1": {
             "Version": "1.12.0-beta1+0.x86.w64.mingw32"
@@ -644,8 +647,14 @@
         "1.12.0-beta4~x86": {
             "Version": "1.12.0-beta4+0.x86.w64.mingw32"
         },
+        "1.12.0-rc1": {
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
+        },
+        "1.12.0-rc1~x86": {
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
+        },
         "1.12~x86": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.w64.mingw32"
@@ -1080,16 +1089,16 @@
             "Version": "1.11.6+0.x86.w64.mingw32"
         },
         "alpha": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "alpha~x86": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "beta": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "beta~x86": {
-            "Version": "1.12.0-beta4+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "lts": {
             "Version": "1.10.10+0.x86.w64.mingw32"
@@ -1098,10 +1107,10 @@
             "Version": "1.10.10+0.x86.w64.mingw32"
         },
         "rc": {
-            "Version": "1.11.6+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "rc~x86": {
-            "Version": "1.11.6+0.x86.w64.mingw32"
+            "Version": "1.12.0-rc1+0.x86.w64.mingw32"
         },
         "release": {
             "Version": "1.11.6+0.x86.w64.mingw32"
@@ -1110,5 +1119,5 @@
             "Version": "1.11.6+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.68"
+    "Version": "1.0.69"
 }

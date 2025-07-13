@@ -512,6 +512,9 @@
         },
         "1.12.0-beta4+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.12/julia-1.12.0-beta4-linux-i686.tar.gz"
+        },
+        "1.12.0-rc1+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.12/julia-1.12.0-rc1-linux-i686.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1134,7 +1137,7 @@
             "Version": "1.11.6+0.x86.linux.gnu"
         },
         "1.12": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "1.12.0-beta1": {
             "Version": "1.12.0-beta1+0.x86.linux.gnu"
@@ -1160,8 +1163,14 @@
         "1.12.0-beta4~x86": {
             "Version": "1.12.0-beta4+0.x86.linux.gnu"
         },
+        "1.12.0-rc1": {
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
+        },
+        "1.12.0-rc1~x86": {
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
+        },
         "1.12~x86": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.linux.gnu"
@@ -1662,16 +1671,16 @@
             "Version": "1.11.6+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "beta": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "beta~x86": {
-            "Version": "1.12.0-beta4+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "lts": {
             "Version": "1.10.10+0.x86.linux.gnu"
@@ -1680,10 +1689,10 @@
             "Version": "1.10.10+0.x86.linux.gnu"
         },
         "rc": {
-            "Version": "1.11.6+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "rc~x86": {
-            "Version": "1.11.6+0.x86.linux.gnu"
+            "Version": "1.12.0-rc1+0.x86.linux.gnu"
         },
         "release": {
             "Version": "1.11.6+0.x86.linux.gnu"
@@ -1692,5 +1701,5 @@
             "Version": "1.11.6+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.68"
+    "Version": "1.0.69"
 }
