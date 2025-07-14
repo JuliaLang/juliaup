@@ -140,7 +140,9 @@ fn channel_selection() {
         .assert()
         .success()
         .stdout("1.8.2")
-        .stderr(predicates::str::contains("Info: Installing Julia 1.8.2 as it was requested but not installed."));
+        .stderr(predicates::str::contains(
+            "Info: Installing Julia 1.8.2 as it was requested but not installed.",
+        ));
 
     // https://github.com/JuliaLang/juliaup/issues/820
     // Command line channel selector should auto-install valid channels including nightly
@@ -148,14 +150,16 @@ fn channel_selection() {
         .unwrap()
         .arg("+nightly")
         .arg("-e")
-        .arg("print(\"SUCCESS\")")  // Use SUCCESS instead of VERSION since nightly version can vary
+        .arg("print(\"SUCCESS\")") // Use SUCCESS instead of VERSION since nightly version can vary
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .success()
         .stdout("SUCCESS")
-        .stderr(predicates::str::contains("Info: Installing Julia nightly as it was requested but not installed."));
+        .stderr(predicates::str::contains(
+            "Info: Installing Julia nightly as it was requested but not installed.",
+        ));
 
     // https://github.com/JuliaLang/juliaup/issues/995
     // PR channels that don't exist should attempt auto-install but fail with a descriptive error
@@ -199,5 +203,7 @@ fn auto_install_valid_channel() {
         .assert()
         .success()
         .stdout("1.10.10")
-        .stderr(predicates::str::contains("Info: Installing Julia 1.10.10 as it was requested but not installed."));
+        .stderr(predicates::str::contains(
+            "Info: Installing Julia 1.10.10 as it was requested but not installed.",
+        ));
 }

@@ -186,7 +186,7 @@ fn get_julia_path_from_channel(
             config_data,
             channel,
             juliaupconfig_path,
-            channel_info
+            channel_info,
         );
     }
 
@@ -200,8 +200,9 @@ fn get_julia_path_from_channel(
             );
 
             // Install the channel
-            run_command_add(channel, paths)
-                .with_context(|| format!("Failed to automatically install channel '{}'", channel))?;
+            run_command_add(channel, paths).with_context(|| {
+                format!("Failed to automatically install channel '{}'", channel)
+            })?;
 
             // Reload the config to get the newly installed channel
             let updated_config_file = load_config_db(paths, None)
@@ -213,13 +214,14 @@ fn get_julia_path_from_channel(
                     &updated_config_file.data,
                     channel,
                     juliaupconfig_path,
-                    channel_info
+                    channel_info,
                 );
             } else {
                 return Err(anyhow!(
                     "Channel '{}' was installed but could not be found in configuration.",
                     channel
-                ).into());
+                )
+                .into());
             }
         }
     }
