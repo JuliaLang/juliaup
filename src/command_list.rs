@@ -36,7 +36,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         })
         .collect();
 
-    let rows_in_table: Vec<_> = versiondb_data
+    let mut all_rows: Vec<ChannelRow> = versiondb_data
         .available_channels
         .iter()
         .map(|i| -> ChannelRow {
@@ -45,12 +45,13 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
                 version: i.1.version.clone(),
             }
         })
-        .sorted_by(|a, b| compare(&a.name, &b.name))
-        .chain(non_db_rows)
         .collect();
+    
+    all_rows.extend(non_db_rows);
+    all_rows.sort_by(|a, b| compare(&a.name, &b.name));
 
     print_stdout(
-        rows_in_table
+        all_rows
             .with_title()
             .color_choice(ColorChoice::Never)
             .border(Border::builder().build())
