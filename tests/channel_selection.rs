@@ -1,5 +1,5 @@
 use assert_cmd::Command;
-use predicates::str;
+use predicates::str::contains;
 
 #[test]
 fn channel_selection() {
@@ -140,7 +140,7 @@ fn channel_selection() {
         .assert()
         .success()
         .stdout("1.8.2")
-        .stderr(predicates::str::contains(
+        .stderr(contains(
             "Info: Installing Julia 1.8.2 as it was requested but not installed.",
         ));
 
@@ -157,7 +157,7 @@ fn channel_selection() {
         .assert()
         .success()
         .stdout("SUCCESS")
-        .stderr(predicates::str::contains(
+        .stderr(contains(
             "Info: Installing Julia nightly as it was requested but not installed.",
         ));
 
@@ -173,8 +173,8 @@ fn channel_selection() {
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr(predicates::str::contains("Failed to automatically install channel 'pr1'"))
-        .stderr(predicates::str::contains("This is likely due to requesting a pull request that does not have a cached build available"));
+        .stderr(contains("Failed to automatically install channel 'pr1'"))
+        .stderr(contains("This is likely due to requesting a pull request that does not have a cached build available"));
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn auto_install_valid_channel() {
         .assert()
         .success()
         .stdout("1.10.10")
-        .stderr(predicates::str::contains(
+        .stderr(contains(
             "Info: Installing Julia 1.10.10 as it was requested but not installed.",
         ));
 }
