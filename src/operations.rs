@@ -710,6 +710,7 @@ pub fn install_non_db_version(
                 Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
             }
             "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
+            "win32" => Ok("bin/windows/x86/julia-".to_owned() + &id + "-windows-x86.tar.gz"),
             "linux-x86_64" => {
                 Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
             }
