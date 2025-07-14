@@ -175,7 +175,8 @@ pub fn download_extract_sans_parent(
 
     http_response
         .EnsureSuccessStatusCode()
-        .with_context(|| "HTTP download reported error status code.")?;
+        .with_context(|| format!("Failed to get etag from `{}`.\n\
+            This is likely due to requesting a pull request that does not have a cached build available. You may have to build locally.", url))?;
 
     let last_modified = http_response
         .Headers()
