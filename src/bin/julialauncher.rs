@@ -178,41 +178,41 @@ fn get_julia_path_from_channel(
     paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<(PathBuf, Vec<String>)> {
     let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
-    
+
     // First check if the channel is already installed
     if let Some(channel_info) = config_data.installed_channels.get(channel) {
         return get_julia_path_from_installed_channel(
-            versions_db, 
-            config_data, 
-            channel, 
-            juliaupconfig_path, 
+            versions_db,
+            config_data,
+            channel,
+            juliaupconfig_path,
             channel_info
         );
     }
-    
+
     // Handle auto-installation for command line channel selection
     if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
         if channel_valid || is_pr_channel(&channel.to_string()) {
             eprintln!(
-                "{} Installing Julia {} as it was requested but not installed.", 
+                "{} Installing Julia {} as it was requested but not installed.",
                 style("Info:").cyan().bold(),
                 channel
             );
-            
+
             // Install the channel
             run_command_add(channel, paths)
                 .with_context(|| format!("Failed to automatically install channel '{}'", channel))?;
-            
+
             // Reload the config to get the newly installed channel
             let updated_config_file = load_config_db(paths, None)
                 .with_context(|| "Failed to reload configuration after installing channel.")?;
-            
+
             if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel) {
                 return get_julia_path_from_installed_channel(
-                    versions_db, 
-                    &updated_config_file.data, 
-                    channel, 
-                    juliaupconfig_path, 
+                    versions_db,
+                    &updated_config_file.data,
+                    channel,
+                    juliaupconfig_path,
                     channel_info
                 );
             } else {
@@ -223,7 +223,7 @@ fn get_julia_path_from_channel(
             }
         }
     }
-    
+
     // Original error handling for non-command-line sources or invalid channels
     let error = match juliaup_channel_source {
         JuliaupChannelSource::CmdLine => {
@@ -255,7 +255,7 @@ fn get_julia_path_from_channel(
         },
         JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
     };
-    
+
     Err(error.into())
 }
 
