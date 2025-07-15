@@ -57,6 +57,9 @@ pub enum Juliaup {
     #[cfg(feature = "selfupdate")]
     #[clap(name = "4c79c12db1d34bbbab1f6c6f838f423f", hide = true)]
     SecretSelfUpdate {},
+    #[clap(subcommand, name = "app")]
+    /// Juliaup applications
+    Application(ApplicationSubCmd),
 }
 
 #[derive(Parser)]
@@ -157,4 +160,24 @@ pub enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
+}
+
+#[derive(Parser)]
+pub enum ApplicationSubCmd {
+    #[clap(name = "add")]
+    /// Add a Julia application
+    Add {
+        value: String
+    },
+    #[clap(name = "run")]
+    /// Run a Julia application
+    Run {
+        name: String,
+        args: Vec<String>
+    },
+    #[clap(name = "remove", alias = "rm")]
+    /// Remove a Julia application
+    Remove {
+        name: String
+    }
 }

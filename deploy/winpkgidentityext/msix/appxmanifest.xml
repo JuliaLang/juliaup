@@ -12,7 +12,7 @@
   xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:iot2="http://schemas.microsoft.com/appx/manifest/iot/windows10/2" IgnorableNamespaces="mp uap uap3 uap5 rescap desktop desktop4 desktop6 iot2">
 
-  <Identity Name="JuliaHubInc.JuliaDev" Publisher="CN=&quot;JuliaHub, Inc.&quot;, O=&quot;JuliaHub, Inc.&quot;, L=CAMBRIDGE, S=Massachusetts, C=US" Version="1.0.0.0" ProcessorArchitecture="x64"/>
+  <Identity Name="JuliaHubInc.JuliaDev" Publisher="CN=&quot;JuliaHub, Inc.&quot;, O=&quot;JuliaHub, Inc.&quot;, L=CAMBRIDGE, S=Massachusetts, C=US" Version="1.0.0.3" ProcessorArchitecture="x64"/>
 
   <Properties>
     <DisplayName>Julia Dev</DisplayName>
@@ -78,13 +78,22 @@
         </uap:DefaultTile >
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
-      <Extensions>
-      </Extensions>
+      
     </Application>
   </Applications>
+
+<Extensions>
+      <uap10:Extension Category="windows.hostRuntime"
+          Executable="julialauncher.exe"
+          uap10:RuntimeBehavior="win32App"
+          uap10:TrustLevel="mediumIL">
+      <uap10:HostRuntime Id="JuliaHost"/>
+    </uap10:Extension>
+      </Extensions>
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
     <rescap:Capability Name="unvirtualizedResources"/>
+    <rescap:Capability Name="packageManagement" />
   </Capabilities>
 </Package>
