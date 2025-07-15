@@ -3,6 +3,7 @@ use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
 use crate::config_file::JuliaupConfig;
+use crate::config_file::JuliaupConfigApplication;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::JuliaupConfigVersion;
 use crate::get_bundled_dbversion;
@@ -591,7 +592,7 @@ pub fn install_from_url(
     let server_etag = match download_result {
         Ok(last_updated) => last_updated,
         Err(e) => {
-            std::fs::remove_dir_all(temp_dir.into_path())?;
+            std::fs::remove_dir_all(temp_dir.keep())?;
             bail!("Failed to download and extract pr or nightly: {}", e);
         }
     };
@@ -619,7 +620,7 @@ pub fn install_from_url(
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
-    std::fs::rename(temp_dir.into_path(), &target_path)?;
+    std::fs::rename(temp_dir.keep(), &target_path)?;
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
@@ -766,7 +767,9 @@ pub fn garbage_collect_versions(
                 server_etag: _,
                 version: _,
             } => true,
-        }) {
+        }) && config_data.installed_apps.iter().all(|j| match &j.1 {
+            JuliaupConfigApplication::DevedApplication { path: _, julia_version, julia_depot: _, execution_aliases: _ } => julia_version != installed_version
+        } ) {
             let path_to_delete = paths.juliauphome.join(&detail.path);
             let display = path_to_delete.display();
 
