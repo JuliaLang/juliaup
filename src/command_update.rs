@@ -120,8 +120,8 @@ fn update_channel(
     Ok(())
 }
 
-pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Result<()> {
-    update_version_db(paths).with_context(|| "Failed to update versions db.")?;
+pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
+    update_version_db(channel, paths).with_context(|| "Failed to update versions db.")?;
 
     let version_db =
         load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;
@@ -136,7 +136,7 @@ pub fn run_command_update(channel: Option<String>, paths: &GlobalPaths) -> Resul
             }
         }
         Some(channel) => {
-            if !config_file.data.installed_channels.contains_key(&channel) {
+            if !config_file.data.installed_channels.contains_key(channel) {
                 bail!(
                     "'{}' cannot be updated because it is currently not installed.",
                     channel
