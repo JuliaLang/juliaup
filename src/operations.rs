@@ -1413,7 +1413,7 @@ mod tests {
     }
 }
 
-pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
+pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
     eprintln!(
         "{} for new Julia versions",
         style("Checking").green().bold()
@@ -1462,7 +1462,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         None => "release".to_string(),
     };
 
-    // TODO Figure out how we can learn about the correctn Juliaup channel here
+    // TODO Figure out how we can learn about the correct Juliaup channel here
     #[cfg(not(feature = "selfupdate"))]
     let juliaup_channel = "release".to_string();
 
@@ -1522,7 +1522,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         delete_old_version_db = true;
     }
 
-    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+    let direct_download_etags = download_direct_download_etags(&channel, &old_config_file.data)?;
 
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
@@ -1624,6 +1624,7 @@ where
 
 #[cfg(windows)]
 fn download_direct_download_etags(
+    channel: &Option<String>,
     config_data: &JuliaupConfig,
 ) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
@@ -1636,8 +1637,15 @@ fn download_direct_download_etags(
 
     let mut requests = Vec::new();
 
-    for (channel_name, channel) in &config_data.installed_channels {
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+    for (channel_name, installed_channel) in &config_data.installed_channels {
+        if let Some(chan) = channel{
+            // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
+            if chan != channel_name {
+                continue;
+            }
+        }
+
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
             let http_client = http_client.clone();
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
@@ -1691,6 +1699,7 @@ fn download_direct_download_etags(
 
 #[cfg(not(windows))]
 fn download_direct_download_etags(
+    channel: &Option<String>,
     config_data: &JuliaupConfig,
 ) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
@@ -1699,8 +1708,15 @@ fn download_direct_download_etags(
 
     let mut requests = Vec::new();
 
-    for (channel_name, channel) in &config_data.installed_channels {
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+    for (channel_name, installed_channel) in &config_data.installed_channels {
+        if let Some(chan) = channel{
+            // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
+            if chan != channel_name {
+                continue;
+            }
+        }
+
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
