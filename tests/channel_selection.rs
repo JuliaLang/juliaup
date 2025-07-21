@@ -151,7 +151,9 @@ fn channel_selection() {
         .assert()
         .success()
         .stdout("1.8.2")
-        .stderr(contains("Info: Installing Julia 1.8.2 automatically per juliaup settings..."));
+        .stderr(contains(
+            "Info: Installing Julia 1.8.2 automatically per juliaup settings...",
+        ));
 
     // https://github.com/JuliaLang/juliaup/issues/820
     // Command line channel selector should auto-install valid channels including nightly
@@ -166,7 +168,9 @@ fn channel_selection() {
         .assert()
         .success()
         .stdout("SUCCESS")
-        .stderr(contains("Info: Installing Julia nightly automatically per juliaup settings..."));
+        .stderr(contains(
+            "Info: Installing Julia nightly automatically per juliaup settings...",
+        ));
 
     // https://github.com/JuliaLang/juliaup/issues/995
     // Reset auto-install to false for this test
@@ -231,5 +235,7 @@ fn auto_install_valid_channel() {
         .assert()
         .success()
         .stdout("1.10.10")
-        .stderr(contains("Info: Installing Julia 1.10.10 automatically per juliaup settings..."));
+        .stderr(contains(
+            "Info: Installing Julia 1.10.10 automatically per juliaup settings...",
+        ));
 }
