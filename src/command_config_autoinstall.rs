@@ -18,7 +18,12 @@ pub fn run_command_config_autoinstall(
                 "true" => Some(true),
                 "false" => Some(false),
                 "default" => None,
-                _ => return Err(anyhow!("Invalid value '{}'. Valid values are: true, false, default", value_str)),
+                _ => {
+                    return Err(anyhow!(
+                        "Invalid value '{}'. Valid values are: true, false, default",
+                        value_str
+                    ))
+                }
             };
 
             if new_value != config_file.data.settings.auto_install_channels {
@@ -33,12 +38,9 @@ pub fn run_command_config_autoinstall(
                 let display_value = new_value
                     .map(|b| b.to_string())
                     .unwrap_or_else(|| "default (not set)".to_string());
-                
+
                 if value_changed {
-                    eprintln!(
-                        "Property 'autoinstallchannels' set to '{}'",
-                        display_value
-                    );
+                    eprintln!("Property 'autoinstallchannels' set to '{}'", display_value);
                 } else {
                     eprintln!(
                         "Property 'autoinstallchannels' is already set to '{}'",
@@ -54,7 +56,10 @@ pub fn run_command_config_autoinstall(
             if !quiet {
                 eprintln!(
                     "Property 'autoinstallchannels' set to '{}'",
-                    config_file.data.settings.auto_install_channels
+                    config_file
+                        .data
+                        .settings
+                        .auto_install_channels
                         .map(|b| b.to_string())
                         .unwrap_or_else(|| "default (not set)".to_string())
                 );

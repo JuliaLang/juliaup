@@ -2,7 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
-use juliaup::config_file::{load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel};
+use juliaup::config_file::{
+    load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
+};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
@@ -182,7 +184,10 @@ fn handle_auto_install_prompt(
     }
 }
 
-fn set_auto_install_preference(auto_install: bool, paths: &juliaup::global_paths::GlobalPaths) -> Result<()> {
+fn set_auto_install_preference(
+    auto_install: bool,
+    paths: &juliaup::global_paths::GlobalPaths,
+) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "Failed to load configuration for setting auto-install preference.")?;
 
@@ -200,7 +205,11 @@ fn set_auto_install_preference(auto_install: bool, paths: &juliaup::global_paths
     Ok(())
 }
 
-fn spawn_juliaup_add(channel: &str, _paths: &juliaup::global_paths::GlobalPaths, is_automatic: bool) -> Result<()> {
+fn spawn_juliaup_add(
+    channel: &str,
+    _paths: &juliaup::global_paths::GlobalPaths,
+    is_automatic: bool,
+) -> Result<()> {
     if is_automatic {
         eprintln!(
             "{} Installing Julia {} automatically per juliaup settings...",
@@ -320,7 +329,8 @@ fn get_julia_path_from_channel(
                 let updated_config_file = load_config_db(paths, None)
                     .with_context(|| "Failed to reload configuration after installing channel.")?;
 
-                if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel) {
+                if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel)
+                {
                     return get_julia_path_from_installed_channel(
                         versions_db,
                         &updated_config_file.data,
