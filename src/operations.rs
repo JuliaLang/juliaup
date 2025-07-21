@@ -769,18 +769,29 @@ pub fn garbage_collect_versions(
                 version: _,
             } => true,
         }) {
-            let path_to_delete = paths.juliauphome.join(&detail.path);
+            let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
             let display = path_to_delete.display();
 
-            if std::fs::remove_dir_all(&path_to_delete).is_err() {
-                eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
+            match std::fs::remove_dir_all(&path_to_delete) {
+                Ok(_) => versions_to_uninstall.push(installed_version.clone()),
+                Err(_) => eprintln!(
+                    "{}: Failed to delete {}. \
+                    Make sure to close any old julia version still running.\n\
+                    You can try to delete at a later point by running `juliaup gc`.",
+                    style("WARNING").yellow().bold(),
+                    display
+                ),
             }
-            versions_to_uninstall.push(installed_version.clone());
         }
     }
 
-    for i in versions_to_uninstall {
-        config_data.installed_versions.remove(&i);
+    if versions_to_uninstall.is_empty() {
+        eprintln!("Nothing to remove.");
+    } else {
+        for i in versions_to_uninstall {
+            eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
+            config_data.installed_versions.remove(&i);
+        }
     }
 
     if prune_linked {
@@ -1415,7 +1426,7 @@ mod tests {
     }
 }
 
-pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
+pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
     eprintln!(
         "{} for new Julia versions",
         style("Checking").green().bold()
@@ -1464,7 +1475,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         None => "release".to_string(),
     };
 
-    // TODO Figure out how we can learn about the correctn Juliaup channel here
+    // TODO Figure out how we can learn about the correct Juliaup channel here
     #[cfg(not(feature = "selfupdate"))]
     let juliaup_channel = "release".to_string();
 
@@ -1524,7 +1535,7 @@ pub fn update_version_db(paths: &GlobalPaths) -> Result<()> {
         delete_old_version_db = true;
     }
 
-    let direct_download_etags = download_direct_download_etags(&old_config_file.data)?;
+    let direct_download_etags = download_direct_download_etags(&channel, &old_config_file.data)?;
 
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
@@ -1626,6 +1637,7 @@ where
 
 #[cfg(windows)]
 fn download_direct_download_etags(
+    channel: &Option<String>,
     config_data: &JuliaupConfig,
 ) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
@@ -1638,8 +1650,15 @@ fn download_direct_download_etags(
 
     let mut requests = Vec::new();
 
-    for (channel_name, channel) in &config_data.installed_channels {
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+    for (channel_name, installed_channel) in &config_data.installed_channels {
+        if let Some(chan) = channel{
+            // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
+            if chan != channel_name {
+                continue;
+            }
+        }
+
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
             let http_client = http_client.clone();
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
@@ -1693,6 +1712,7 @@ fn download_direct_download_etags(
 
 #[cfg(not(windows))]
 fn download_direct_download_etags(
+    channel: &Option<String>,
     config_data: &JuliaupConfig,
 ) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
@@ -1701,8 +1721,15 @@ fn download_direct_download_etags(
 
     let mut requests = Vec::new();
 
-    for (channel_name, channel) in &config_data.installed_channels {
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = channel {
+    for (channel_name, installed_channel) in &config_data.installed_channels {
+        if let Some(chan) = channel{
+            // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
+            if chan != channel_name {
+                continue;
+            }
+        }
+
+        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
