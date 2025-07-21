@@ -128,6 +128,17 @@ fn channel_selection() {
         .stderr("ERROR: Invalid Juliaup channel `1.8.6`. Please run `juliaup list` to get a list of valid channels and versions.\n");
 
     // https://github.com/JuliaLang/juliaup/issues/766
+    // First enable auto-install in configuration
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("config")
+        .arg("autoinstallchannels")
+        .arg("true")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success();
+
     // Command line channel selector should auto-install valid channels
     Command::cargo_bin("julia")
         .unwrap()
@@ -141,7 +152,7 @@ fn channel_selection() {
         .success()
         .stdout("1.8.2")
         .stderr(contains(
-            "Info: Installing Julia 1.8.2 as it was requested but not installed.",
+            "Info: Installing Julia 1.8.2 as requested...",
         ));
 
     // https://github.com/JuliaLang/juliaup/issues/820
@@ -158,11 +169,22 @@ fn channel_selection() {
         .success()
         .stdout("SUCCESS")
         .stderr(contains(
-            "Info: Installing Julia nightly as it was requested but not installed.",
+            "Info: Installing Julia nightly as requested...",
         ));
 
     // https://github.com/JuliaLang/juliaup/issues/995
-    // PR channels that don't exist should attempt auto-install but fail with a descriptive error
+    // Reset auto-install to false for this test
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("config")
+        .arg("autoinstallchannels")
+        .arg("false")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success();
+
+    // PR channels that don't exist should not auto-install in non-interactive mode
     Command::cargo_bin("julia")
         .unwrap()
         .arg("+pr1")
@@ -173,8 +195,7 @@ fn channel_selection() {
         .env("JULIAUP_CHANNEL", "1.7.4")
         .assert()
         .failure()
-        .stderr(contains("Failed to automatically install channel 'pr1'"))
-        .stderr(contains("This is likely due to requesting a pull request that does not have a cached build available"));
+        .stderr(contains("`pr1` is not installed. Please run `juliaup add pr1` to install pull request channel if available."));
 }
 
 #[test]
@@ -192,6 +213,17 @@ fn auto_install_valid_channel() {
         .success()
         .stdout("");
 
+    // Enable auto-install for this test
+    Command::cargo_bin("juliaup")
+        .unwrap()
+        .arg("config")
+        .arg("autoinstallchannels")
+        .arg("true")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .assert()
+        .success();
+
     // Now test auto-installing a valid but not installed channel via command line
     Command::cargo_bin("julia")
         .unwrap()
@@ -204,6 +236,6 @@ fn auto_install_valid_channel() {
         .success()
         .stdout("1.10.10")
         .stderr(contains(
-            "Info: Installing Julia 1.10.10 as it was requested but not installed.",
+            "Info: Installing Julia 1.10.10 as requested...",
         ));
 }

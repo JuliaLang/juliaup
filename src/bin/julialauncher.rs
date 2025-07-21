@@ -2,8 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
-use juliaup::command_add::run_command_add;
-use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
+use juliaup::config_file::{load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
@@ -133,6 +132,112 @@ fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile
     Ok(())
 }
 
+fn is_interactive() -> bool {
+    std::io::stdin().is_terminal() && std::io::stderr().is_terminal()
+}
+
+fn handle_auto_install_prompt(
+    channel: &str,
+    paths: &juliaup::global_paths::GlobalPaths,
+) -> Result<bool> {
+    use std::io::Write;
+
+    // Check if we're in interactive mode
+    if !is_interactive() {
+        // Non-interactive mode, don't auto-install
+        return Ok(false);
+    }
+
+    // Prompt the user for auto-installation
+    eprint!(
+        "{} The Julia channel '{}' is not installed. Would you like to install it?\n  [y]es (default), [Y]es and remember my choice, [n]o\nChoice: ",
+        style("Question:").yellow().bold(),
+        channel
+    );
+    std::io::stderr().flush()?;
+
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+    let input = input.trim();
+
+    match input {
+        "" | "y" | "yes" => {
+            // Just install for this time
+            Ok(true)
+        }
+        "Y" | "Yes" => {
+            // Install and remember the preference
+            set_auto_install_preference(true, paths)?;
+            Ok(true)
+        }
+        "n" | "no" => {
+            // Don't install
+            Ok(false)
+        }
+        _ => {
+            // Invalid input, default to no
+            eprintln!("Invalid input. Defaulting to 'no'.");
+            Ok(false)
+        }
+    }
+}
+
+fn set_auto_install_preference(auto_install: bool, paths: &juliaup::global_paths::GlobalPaths) -> Result<()> {
+    let mut config_file = load_mut_config_db(paths)
+        .with_context(|| "Failed to load configuration for setting auto-install preference.")?;
+
+    config_file.data.settings.auto_install_channels = Some(auto_install);
+
+    save_config_db(&mut config_file)
+        .with_context(|| "Failed to save auto-install preference to configuration.")?;
+
+    eprintln!(
+        "{} Auto-install preference set to '{}'.",
+        style("Info:").cyan().bold(),
+        auto_install
+    );
+
+    Ok(())
+}
+
+fn spawn_juliaup_add(channel: &str, _paths: &juliaup::global_paths::GlobalPaths, is_automatic: bool) -> Result<()> {
+    if is_automatic {
+        eprintln!(
+            "{} Installing Julia {} automatically per juliaup settings...",
+            style("Info:").cyan().bold(),
+            channel
+        );
+    } else {
+        eprintln!(
+            "{} Installing Julia {} as requested...",
+            style("Info:").cyan().bold(),
+            channel
+        );
+    }
+
+    let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
+
+    let status = std::process::Command::new(juliaup_path)
+        .args(["add", channel])
+        .status()
+        .with_context(|| format!("Failed to spawn juliaup to install channel '{}'", channel))?;
+
+    if status.success() {
+        eprintln!(
+            "{} Successfully installed Julia {}.",
+            style("Info:").cyan().bold(),
+            channel
+        );
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "Failed to install channel '{}'. juliaup add command failed with exit code: {:?}",
+            channel,
+            status.code()
+        ))
+    }
+}
+
 fn check_channel_uptodate(
     channel: &str,
     current_version: &str,
@@ -193,36 +298,45 @@ fn get_julia_path_from_channel(
     // Handle auto-installation for command line channel selection
     if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
         if channel_valid || is_pr_channel(&channel.to_string()) {
-            eprintln!(
-                "{} Installing Julia {} as it was requested but not installed.",
-                style("Info:").cyan().bold(),
-                channel
-            );
+            // Check the user's auto-install preference
+            let should_auto_install = match config_data.settings.auto_install_channels {
+                Some(auto_install) => auto_install, // User has explicitly set a preference
+                None => {
+                    // User hasn't set a preference - prompt in interactive mode, default to false in non-interactive
+                    if is_interactive() {
+                        handle_auto_install_prompt(channel, paths)?
+                    } else {
+                        false
+                    }
+                }
+            };
 
-            // Install the channel
-            run_command_add(channel, paths).with_context(|| {
-                format!("Failed to automatically install channel '{}'", channel)
-            })?;
+            if should_auto_install {
+                // Install the channel using juliaup
+                let is_automatic = config_data.settings.auto_install_channels == Some(true);
+                spawn_juliaup_add(channel, paths, is_automatic)?;
 
-            // Reload the config to get the newly installed channel
-            let updated_config_file = load_config_db(paths, None)
-                .with_context(|| "Failed to reload configuration after installing channel.")?;
+                // Reload the config to get the newly installed channel
+                let updated_config_file = load_config_db(paths, None)
+                    .with_context(|| "Failed to reload configuration after installing channel.")?;
 
-            if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel) {
-                return get_julia_path_from_installed_channel(
-                    versions_db,
-                    &updated_config_file.data,
-                    channel,
-                    juliaupconfig_path,
-                    channel_info,
-                );
-            } else {
-                return Err(anyhow!(
-                    "Channel '{}' was installed but could not be found in configuration.",
-                    channel
-                )
-                .into());
+                if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel) {
+                    return get_julia_path_from_installed_channel(
+                        versions_db,
+                        &updated_config_file.data,
+                        channel,
+                        juliaupconfig_path,
+                        channel_info,
+                    );
+                } else {
+                    return Err(anyhow!(
+                        "Channel '{}' was installed but could not be found in configuration.",
+                        channel
+                    )
+                    .into());
+                }
             }
+            // If we reach here, either installation failed or user declined
         }
     }
 
