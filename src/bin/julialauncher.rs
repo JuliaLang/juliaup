@@ -135,7 +135,54 @@ fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile
 }
 
 fn is_interactive() -> bool {
-    std::io::stdin().is_terminal() && std::io::stderr().is_terminal()
+    // First check if we have TTY access - this is a prerequisite for interactivity
+    if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        return false;
+    }
+
+    // Even with TTY available, check if Julia is being invoked in a non-interactive way
+    let args: Vec<String> = std::env::args().collect();
+
+    // Skip the first argument (program name) and any channel specification (+channel)
+    let mut julia_args = args.iter().skip(1);
+
+    // Skip channel specification if present
+    if let Some(first_arg) = julia_args.clone().next() {
+        if first_arg.starts_with('+') {
+            julia_args.next(); // consume the +channel argument
+        }
+    }
+
+    // Check for non-interactive usage patterns
+    for arg in julia_args {
+        match arg.as_str() {
+            // Expression evaluation is non-interactive
+            "-e" | "--eval" => return false,
+            // Reading from stdin pipe is non-interactive
+            "-" => return false,
+            // Print options are typically non-interactive
+            "-p" | "--print" => return false,
+            // License/version display is non-interactive
+            "-L" | "--license" => return false,
+            "-v" | "--version" => return false,
+            // Help is non-interactive
+            "-h" | "--help" => return false,
+            // Check if this looks like a Julia file (ends with .jl)
+            filename if filename.ends_with(".jl") && !filename.starts_with('-') => {
+                return false;
+            }
+            // Any other non-flag argument that doesn't start with '-' could be a script
+            filename if !filename.starts_with('-') && !filename.is_empty() => {
+                // This could be a script file, check if it exists as a file
+                if std::path::Path::new(filename).exists() {
+                    return false;
+                }
+            }
+            _ => {} // Continue checking other arguments
+        }
+    }
+
+    true
 }
 
 fn handle_auto_install_prompt(
