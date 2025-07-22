@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
+use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{
@@ -189,43 +190,41 @@ fn handle_auto_install_prompt(
     channel: &str,
     paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<bool> {
-    use std::io::Write;
-
     // Check if we're in interactive mode
     if !is_interactive() {
         // Non-interactive mode, don't auto-install
         return Ok(false);
     }
 
-    // Prompt the user for auto-installation
-    eprint!(
-        "{} The Julia channel '{}' is not installed. Would you like to install it?\n  [y]es (default), [Y]es and remember my choice, [n]o\nChoice: ",
-        style("Question:").yellow().bold(),
-        channel
-    );
-    std::io::stderr().flush()?;
+    // Use dialoguer for a consistent UI experience
+    let selection = Select::new()
+        .with_prompt(format!(
+            "{} The Julia channel '{}' is not installed. Would you like to install it?",
+            style("Question:").yellow().bold(),
+            channel
+        ))
+        .item("Yes (install this time only)")
+        .item("Yes and remember my choice (always auto-install)")
+        .item("No")
+        .default(0) // Default to "Yes"
+        .interact()?;
 
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-    let input = input.trim();
-
-    match input {
-        "" | "y" | "yes" => {
+    match selection {
+        0 => {
             // Just install for this time
             Ok(true)
         }
-        "Y" | "Yes" => {
+        1 => {
             // Install and remember the preference
             set_auto_install_preference(true, paths)?;
             Ok(true)
         }
-        "n" | "no" => {
+        2 => {
             // Don't install
             Ok(false)
         }
         _ => {
-            // Invalid input, default to no
-            eprintln!("Invalid input. Defaulting to 'no'.");
+            // Should not happen with dialoguer, but default to no
             Ok(false)
         }
     }
