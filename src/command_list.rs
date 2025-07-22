@@ -5,6 +5,7 @@ use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
+use human_sort::compare;
 
 #[derive(Table)]
 struct ChannelRow {
@@ -46,7 +47,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         .collect();
 
     all_rows.extend(non_db_rows);
-    all_rows.sort_by(|a, b| a.name.cmp(&b.name));
+    all_rows.sort_by(|a, b| compare(&a.name, &b.name));
 
     print_stdout(
         all_rows
