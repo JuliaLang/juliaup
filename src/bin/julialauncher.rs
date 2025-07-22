@@ -199,7 +199,7 @@ fn handle_auto_install_prompt(
     // Use dialoguer for a consistent UI experience
     let selection = Select::new()
         .with_prompt(format!(
-            "{} The Julia channel '{}' is not installed. Would you like to install it?",
+            "{} The Juliaup channel '{}' is not installed. Would you like to install it?",
             style("Question:").yellow().bold(),
             channel
         ))
