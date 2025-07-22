@@ -6,6 +6,7 @@ use cli_table::{
     print_stdout, ColorChoice, Table, WithTitle,
 };
 use human_sort::compare;
+use itertools::Itertools;
 
 #[derive(Table)]
 struct ChannelRow {
