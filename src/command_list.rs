@@ -45,7 +45,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
             }
         })
         .collect();
-
+    
     all_rows.extend(non_db_rows);
     all_rows.sort_by(|a, b| compare(&a.name, &b.name));
 
