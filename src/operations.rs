@@ -591,7 +591,7 @@ pub fn install_from_url(
     let server_etag = match download_result {
         Ok(last_updated) => last_updated,
         Err(e) => {
-            std::fs::remove_dir_all(temp_dir.into_path())?;
+            std::fs::remove_dir_all(temp_dir.keep())?;
             bail!("Failed to download and extract pr or nightly: {}", e);
         }
     };
@@ -619,7 +619,7 @@ pub fn install_from_url(
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
-    std::fs::rename(temp_dir.into_path(), &target_path)?;
+    std::fs::rename(temp_dir.keep(), &target_path)?;
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
