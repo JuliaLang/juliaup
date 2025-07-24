@@ -797,12 +797,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "human-sort"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "140a09c9305e6d5e557e2ed7cbc68e05765a7d4213975b87cb04920689cc6219"
-
-[[package]]
 name = "hyper"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1179,7 +1173,6 @@ dependencies = [
  "flate2",
  "fs_extra",
  "human-panic",
- "human-sort",
  "indicatif",
  "indoc",
  "is-terminal",
@@ -1187,6 +1180,7 @@ dependencies = [
  "log",
  "nix",
  "normpath",
+ "numeric-sort",
  "path-absolutize",
  "predicates",
  "regex",
@@ -1328,6 +1322,12 @@ name = "number_prefix"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
+
+[[package]]
+name = "numeric-sort"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2dcb6053ab98da45585315f79932c5c9821fab8efa4301c0d7b637c91630eb7"
 
 [[package]]
 name = "object"
