@@ -75,6 +75,17 @@ fn update_channel(
                 );
             }
         }
+        JuliaupConfigChannel::AliasedChannel {
+            channel: realchannel,
+        } => {
+            return update_channel(
+                config_db,
+                realchannel,
+                version_db,
+                ignore_non_updatable_channel,
+                paths,
+            )
+        }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
             url,

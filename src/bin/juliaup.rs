@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
+use juliaup::command_alias::run_command_alias;
 use juliaup::command_api::run_command_api;
 use juliaup::command_completions::run_command_completions;
 #[cfg(not(windows))]
@@ -102,6 +103,7 @@ fn main() -> Result<()> {
             file,
             args,
         } => run_command_link(&channel, &file, &args, &paths),
+        Juliaup::Alias { alias, channel } => run_command_alias(&alias, &channel, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]

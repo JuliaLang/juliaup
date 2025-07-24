@@ -759,6 +759,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
+            JuliaupConfigChannel::AliasedChannel { channel: _ } => true,
             JuliaupConfigChannel::DirectDownloadChannel {
                 path: _,
                 url: _,
@@ -968,6 +969,19 @@ pub fn create_symlink(
                     symlink_path.to_string_lossy()
                 )
             })?;
+        }
+        JuliaupConfigChannel::AliasedChannel {
+            channel: newchannel,
+        } => {
+            let config_file = load_config_db(paths, None)
+        .with_context(|| "Configuration file loading failed while trying to create symlink for aliased channel.")?;
+            if config_file.data.installed_channels.contains_key(newchannel) {
+                return create_symlink(
+                    config_file.data.installed_channels.get(newchannel).unwrap(),
+                    symlink_name,
+                    paths,
+                );
+            }
         }
     };
 
