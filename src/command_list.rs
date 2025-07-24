@@ -5,7 +5,7 @@ use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
-use human_sort::compare;
+use numeric_sort::cmp;
 use itertools::Itertools;
 
 #[derive(Table)]
@@ -45,7 +45,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
                 version: i.1.version.clone(),
             }
         })
-        .sorted_by(|a, b| compare(&a.name, &b.name))
+        .sorted_by(|a, b| cmp(&a.name, &b.name))
         .chain(non_db_rows)
         .collect();
 

@@ -58,7 +58,7 @@ bstr = "1.10"
 indoc = "2.0.3"
 is-terminal = "0.4"
 path-absolutize = "3.1.0"
-human-sort = "0.2.2"
+numeric-sort = "0.1.5"
 regex = "1.10"
 
 [target.'cfg(windows)'.dependencies]
