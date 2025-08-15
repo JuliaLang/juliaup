@@ -20,7 +20,7 @@ pub fn run_command_config_autoinstall(
                 "default" => None,
                 _ => {
                     return Err(anyhow!(
-                        "Invalid value '{}'. Valid values are: true, false, default",
+                        "Invalid value '{}'. Valid values are: true, false, default (to unset the property)",
                         value_str
                     ))
                 }
