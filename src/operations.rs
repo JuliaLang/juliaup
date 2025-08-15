@@ -175,7 +175,8 @@ pub fn download_extract_sans_parent(
 
     http_response
         .EnsureSuccessStatusCode()
-        .with_context(|| "HTTP download reported error status code.")?;
+        .with_context(|| format!("Failed to get etag from `{}`.\n\
+            This is likely due to requesting a pull request that does not have a cached build available. You may have to build locally.", url))?;
 
     let last_modified = http_response
         .Headers()
@@ -709,6 +710,7 @@ pub fn install_non_db_version(
                 Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
             }
             "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
+            "win32" => Ok("bin/windows/x86/julia-".to_owned() + &id + "-windows-x86.tar.gz"),
             "linux-x86_64" => {
                 Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
             }
@@ -1649,7 +1651,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;
@@ -1720,7 +1722,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;
