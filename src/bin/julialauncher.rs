@@ -25,6 +25,18 @@ use windows::Win32::System::{
     Threading::GetCurrentProcess,
 };
 
+/// Check if this binary is being run as 'julia' (the launcher) rather than 'juliaup'
+fn is_julia_launcher() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(|name| name == "julia" || name == "julialauncher")
+        })
+        .unwrap_or(false)
+}
+
 #[derive(thiserror::Error, Debug)]
 #[error("{msg}")]
 pub struct UserError {
@@ -49,10 +61,25 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
         let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
 
-        std::process::Command::new(juliaup_path)
+        // Try to run initial setup, but don't fail Julia startup if it fails
+        // This ensures Julia can still run even without network connectivity
+        match std::process::Command::new(juliaup_path)
             .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
             .status()
-            .with_context(|| "Failed to start juliaup for the initial setup.")?;
+        {
+            Ok(status) => {
+                if !status.success() {
+                    // Don't show warnings when running as Julia launcher to avoid confusion
+                    if !is_julia_launcher() {
+                        eprintln!("Warning: Initial setup failed, but Julia will still attempt to run.");
+                    }
+                }
+            }
+            Err(_) => {
+                // Silently ignore initial setup failures to avoid confusing Julia users
+                // The initial setup will be retried on next run
+            }
+        }
     }
     Ok(())
 }
@@ -347,9 +374,34 @@ fn run_app() -> Result<i32> {
         } else if let Some(channel) = config_file.data.default.clone() {
             (channel, JuliaupChannelSource::Default)
         } else {
-            return Err(anyhow!(
-                "The Julia launcher failed to figure out which juliaup channel to use."
-            ));
+            // Check if we have any installed channels at all
+            if config_file.data.installed_channels.is_empty() {
+                return Err(UserError {
+                    msg: format!(
+                        "No Julia versions are installed. This can happen if Julia installation failed due to network issues.\n\
+                        \n\
+                        To fix this, please run:\n\
+                        \n\
+                        juliaup add release\n\
+                        \n\
+                        when you have network connectivity to install the latest stable Julia version."
+                    )
+                }.into());
+            } else {
+                return Err(UserError {
+                    msg: format!(
+                        "No default Julia version is set. You have the following versions installed: {}\n\
+                        \n\
+                        To set a default version, please run:\n\
+                        \n\
+                        juliaup default CHANNEL\n\
+                        \n\
+                        where CHANNEL is one of: {}",
+                        config_file.data.installed_channels.keys().map(|s| s.as_str()).collect::<Vec<&str>>().join(", "),
+                        config_file.data.installed_channels.keys().map(|s| s.as_str()).collect::<Vec<&str>>().join(", ")
+                    )
+                }.into());
+            }
         };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
@@ -431,10 +483,11 @@ fn run_app() -> Result<i32> {
                     ctrlc::set_handler(|| ())
                         .with_context(|| "Failed to set the Ctrl-C handler.")?;
 
-                    run_versiondb_update(&config_file)
-                        .with_context(|| "Failed to run version db update")?;
+                    // Silently handle version db update failures to avoid confusing Julia users
+                    let _ = run_versiondb_update(&config_file);
 
-                    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+                    // Silently handle selfupdate failures to avoid confusing Julia users  
+                    let _ = run_selfupdate(&config_file);
                 }
                 Err(_) => panic!("Could not double-fork"),
             }
@@ -495,9 +548,11 @@ fn run_app() -> Result<i32> {
             )
         };
 
-        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+        // Silently handle version db update failures to avoid confusing Julia users
+        let _ = run_versiondb_update(&config_file);
 
-        run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+        // Silently handle selfupdate failures to avoid confusing Julia users
+        let _ = run_selfupdate(&config_file);
 
         let status = child_process
             .wait()
@@ -537,7 +592,15 @@ fn main() -> Result<std::process::ExitCode> {
 
                 return Ok(std::process::ExitCode::FAILURE);
             } else {
-                return Err(client_status.unwrap_err());
+                // If we're running as the Julia launcher, don't fail on juliaup errors
+                // This ensures 'julia' command never fails due to juliaup issues
+                if is_julia_launcher() {
+                    eprintln!("Julia startup encountered an issue: {}", err);
+                    eprintln!("Julia installation may be incomplete. Please run 'juliaup add release' to fix this.");
+                    return Ok(std::process::ExitCode::FAILURE);
+                } else {
+                    return Err(client_status.unwrap_err());
+                }
             }
         }
     }
