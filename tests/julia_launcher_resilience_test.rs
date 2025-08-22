@@ -13,7 +13,7 @@ fn julia_version_with_no_versions_installed() {
     // Create a minimal juliaup config directory but with no installed versions
     let juliaup_dir = depot_dir.child("juliaup");
     juliaup_dir.create_dir_all().unwrap();
-    
+
     // Create a minimal juliaup.json with no installed channels
     let config_content = r#"{
         "default": null,
@@ -29,8 +29,11 @@ fn julia_version_with_no_versions_installed() {
         "overrides": [],
         "last_version_db_update": null
     }"#;
-    
-    juliaup_dir.child("juliaup.json").write_str(config_content).unwrap();
+
+    juliaup_dir
+        .child("juliaup.json")
+        .write_str(config_content)
+        .unwrap();
 
     // When no versions are installed, `julia --version` should fail gracefully
     // with a helpful error message, not crash due to juliaup issues
@@ -41,9 +44,10 @@ fn julia_version_with_no_versions_installed() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Julia startup encountered an issue").or(
-            predicate::str::contains("No Julia versions are installed")
-        ))
+        .stderr(
+            predicate::str::contains("Julia startup encountered an issue")
+                .or(predicate::str::contains("No Julia versions are installed")),
+        )
         .stderr(predicate::str::contains("juliaup add release"))
         // Should NOT contain panic messages or stack traces
         .stderr(predicate::str::contains("panic").not())
@@ -78,13 +82,15 @@ fn julia_version_with_corrupted_config() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Julia startup encountered an issue"))
+        .stderr(predicate::str::contains(
+            "Julia startup encountered an issue",
+        ))
         .stderr(predicate::str::contains("juliaup add release"));
 }
 
 /// Test that `julia` command handles network issues gracefully during initial setup
 /// This directly tests the scenario from issue #1204
-#[test] 
+#[test]
 fn julia_with_network_unavailable_during_initial_setup() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
@@ -102,15 +108,15 @@ fn julia_with_network_unavailable_during_initial_setup() {
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("https_proxy", "http://invalid-proxy:9999")
-        .env("http_proxy", "http://invalid-proxy:9999") 
+        .env("http_proxy", "http://invalid-proxy:9999")
         .timeout(Duration::from_secs(15)) // Don't wait too long
         .assert();
-    
+
     // The command should either:
     // 1. Fail gracefully with a helpful error message, or
     // 2. Succeed if it can fall back to bundled versions
     // It should NOT panic or hang indefinitely
-    
+
     // Check that output doesn't contain panic information
     if let Ok(output) = std::process::Command::new("cargo")
         .args(&["run", "--bin", "julia", "--", "-e", "println(\"Hello\")"])
@@ -119,11 +125,19 @@ fn julia_with_network_unavailable_during_initial_setup() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .env("https_proxy", "http://invalid-proxy:9999")
         .env("http_proxy", "http://invalid-proxy:9999")
-        .output() 
+        .output()
     {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(!stderr.contains("panic"), "Julia launcher should not panic: {}", stderr);
-        assert!(!stderr.contains("thread 'main' panicked"), "Julia launcher should not panic: {}", stderr);
+        assert!(
+            !stderr.contains("panic"),
+            "Julia launcher should not panic: {}",
+            stderr
+        );
+        assert!(
+            !stderr.contains("thread 'main' panicked"),
+            "Julia launcher should not panic: {}",
+            stderr
+        );
     }
 }
 
@@ -165,7 +179,7 @@ fn julia_with_channel_when_setup_fails() {
 fn julia_with_env_channel_when_config_broken() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
-    // First install a specific version  
+    // First install a specific version
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("add")

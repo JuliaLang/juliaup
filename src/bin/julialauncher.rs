@@ -71,7 +71,9 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
                 if !status.success() {
                     // Don't show warnings when running as Julia launcher to avoid confusion
                     if !is_julia_launcher() {
-                        eprintln!("Warning: Initial setup failed, but Julia will still attempt to run.");
+                        eprintln!(
+                            "Warning: Initial setup failed, but Julia will still attempt to run."
+                        );
                     }
                 }
             }
@@ -364,19 +366,20 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let (julia_channel_to_use, juliaup_channel_source) =
-        if let Some(channel) = channel_from_cmd_line {
-            (channel, JuliaupChannelSource::CmdLine)
-        } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
-            (channel, JuliaupChannelSource::EnvVar)
-        } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
-            (channel, JuliaupChannelSource::Override)
-        } else if let Some(channel) = config_file.data.default.clone() {
-            (channel, JuliaupChannelSource::Default)
-        } else {
-            // Check if we have any installed channels at all
-            if config_file.data.installed_channels.is_empty() {
-                return Err(UserError {
+    let (julia_channel_to_use, juliaup_channel_source) = if let Some(channel) =
+        channel_from_cmd_line
+    {
+        (channel, JuliaupChannelSource::CmdLine)
+    } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+        (channel, JuliaupChannelSource::EnvVar)
+    } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+        (channel, JuliaupChannelSource::Override)
+    } else if let Some(channel) = config_file.data.default.clone() {
+        (channel, JuliaupChannelSource::Default)
+    } else {
+        // Check if we have any installed channels at all
+        if config_file.data.installed_channels.is_empty() {
+            return Err(UserError {
                     msg: format!(
                         "No Julia versions are installed. This can happen if Julia installation failed due to network issues.\n\
                         \n\
@@ -387,8 +390,8 @@ fn run_app() -> Result<i32> {
                         when you have network connectivity to install the latest stable Julia version."
                     )
                 }.into());
-            } else {
-                return Err(UserError {
+        } else {
+            return Err(UserError {
                     msg: format!(
                         "No default Julia version is set. You have the following versions installed: {}\n\
                         \n\
@@ -401,8 +404,8 @@ fn run_app() -> Result<i32> {
                         config_file.data.installed_channels.keys().map(|s| s.as_str()).collect::<Vec<&str>>().join(", ")
                     )
                 }.into());
-            }
-        };
+        }
+    };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
@@ -486,7 +489,7 @@ fn run_app() -> Result<i32> {
                     // Silently handle version db update failures to avoid confusing Julia users
                     let _ = run_versiondb_update(&config_file);
 
-                    // Silently handle selfupdate failures to avoid confusing Julia users  
+                    // Silently handle selfupdate failures to avoid confusing Julia users
                     let _ = run_selfupdate(&config_file);
                 }
                 Err(_) => panic!("Could not double-fork"),
