@@ -2,11 +2,11 @@ use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
-use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
-use juliaup::global_paths::get_paths;
-use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::{is_pr_channel, is_valid_channel};
-use juliaup::versions_file::load_versions_db;
+use crate::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
+use crate::global_paths::get_paths;
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::operations::{is_pr_channel, is_valid_channel};
+use crate::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
     sys::wait::{waitpid, WaitStatus},
@@ -58,7 +58,7 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
 }
 
 fn run_versiondb_update(
-    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    config_file: &crate::config_file::JuliaupReadonlyConfigFile,
 ) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
@@ -93,7 +93,7 @@ fn run_versiondb_update(
 }
 
 #[cfg(feature = "selfupdate")]
-fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+fn run_selfupdate(config_file: &crate::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
@@ -128,7 +128,7 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
 }
 
 #[cfg(not(feature = "selfupdate"))]
-fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+fn run_selfupdate(_config_file: &crate::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     Ok(())
 }
 
@@ -290,7 +290,7 @@ fn get_julia_path_from_channel(
 }
 
 fn get_override_channel(
-    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    config_file: &crate::config_file::JuliaupReadonlyConfigFile,
 ) -> Result<Option<String>> {
     let curr_dir = std::env::current_dir()?.canonicalize()?;
 
@@ -308,11 +308,13 @@ fn get_override_channel(
     }
 }
 
-fn run_app() -> Result<i32> {
+pub fn run_julia_launcher(args: Vec<String>, console_title: Option<&str>) -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
-        let term = Term::stdout();
-        term.set_title("Julia");
+        if let Some(title) = console_title {
+            let term = Term::stdout();
+            term.set_title(title);
+        }
     }
 
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
@@ -328,7 +330,6 @@ fn run_app() -> Result<i32> {
 
     // Parse command line
     let mut channel_from_cmd_line: Option<String> = None;
-    let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let first_arg = &args[1];
 
@@ -514,7 +515,7 @@ fn run_app() -> Result<i32> {
     }
 }
 
-fn main() -> Result<std::process::ExitCode> {
+pub fn main_impl() -> Result<std::process::ExitCode> {
     let client_status: std::prelude::v1::Result<i32, anyhow::Error>;
 
     {
@@ -529,7 +530,7 @@ fn main() -> Result<std::process::ExitCode> {
             .write_style("JULIAUP_LOG_STYLE");
         env_logger::init_from_env(env);
 
-        client_status = run_app();
+        client_status = run_julia_launcher(std::env::args().collect(), Some("Julia"));
 
         if let Err(err) = &client_status {
             if let Some(e) = err.downcast_ref::<UserError>() {
