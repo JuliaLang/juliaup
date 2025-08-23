@@ -29,6 +29,7 @@ pub mod jsonstructs_versionsdb;
 pub mod operations;
 pub mod utils;
 pub mod versions_file;
+pub mod julia_launcher;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
 include!(concat!(env!("OUT_DIR"), "/various_constants.rs"));

@@ -133,3 +133,7 @@ path = "src/bin/juliaup.rs"
 name = "juliainstaller"
 path = "src/bin/juliainstaller.rs"
 required-features = ["binjuliainstaller"]
+
+[[bin]]
+name = "jlpkg"
+path = "src/bin/jlpkg.rs"
