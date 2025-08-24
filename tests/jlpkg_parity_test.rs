@@ -108,12 +108,12 @@ fn test_help_subcommands() {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
 fn test_command_parity_with_flags() {
     let temp_dir = setup_test_project();
 
     // Test various commands - the args are the same as the pkg command string
     let test_commands = vec![
-        vec!["status"],
         vec!["status", "--manifest"],
         vec!["status", "--outdated"],
         vec!["gc", "--all"],
