@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Context, Result};
-use console::{style, Term};
-use is_terminal::IsTerminal;
-use itertools::Itertools;
 use crate::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use crate::global_paths::get_paths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::operations::{is_pr_channel, is_valid_channel};
 use crate::versions_file::load_versions_db;
+use anyhow::{anyhow, Context, Result};
+use console::{style, Term};
+use is_terminal::IsTerminal;
+use itertools::Itertools;
 #[cfg(not(windows))]
 use nix::{
     sys::wait::{waitpid, WaitStatus},
@@ -57,9 +57,7 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_versiondb_update(
-    config_file: &crate::config_file::JuliaupReadonlyConfigFile,
-) -> Result<()> {
+fn run_versiondb_update(config_file: &crate::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
