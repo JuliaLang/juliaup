@@ -263,21 +263,12 @@ enum PkgCommand {
         manifest: bool,
     },
 
-    /// Preview a registry package
-    Preview {
-        /// Package name
-        package: String,
-    },
-
     /// Explains why a package is in the dependency graph
     #[command(name = "why")]
     Why {
         /// Package name to explain
         package: String,
     },
-
-    /// Clean the Julia cache
-    Clean,
 }
 
 #[derive(Subcommand)]
@@ -431,12 +422,8 @@ fn main() -> Result<std::process::ExitCode> {
 
     // Add default flags if not already specified
     for (flag, value) in defaults {
-        // Check if this flag (or its underscore variant) is already specified
-        let flag_underscore = flag.replace('-', "_");
-        if !julia_flags
-            .iter()
-            .any(|f| f.starts_with(flag) || f.starts_with(&flag_underscore))
-        {
+        // Check if this flag is already specified
+        if !julia_flags.iter().any(|f| f.starts_with(flag)) {
             new_args.push(format!("{}={}", flag, value));
         }
     }
