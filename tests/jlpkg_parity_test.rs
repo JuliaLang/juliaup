@@ -53,7 +53,7 @@ fn test_status_parity() {
     // Run with julia
     let julia_output = julia()
         .current_dir(&temp_dir)
-        .args(&["--project=.", "--startup-file=no", "--threads=auto", "-e"])
+        .args(["--project=.", "--startup-file=no", "--threads=auto", "-e"])
         .arg("using Pkg; isdefined(Pkg.REPLMode, :PRINTED_REPL_WARNING) && (Pkg.REPLMode.PRINTED_REPL_WARNING[] = true); Pkg.REPLMode.pkgstr(\"status\")")
         .output()
         .unwrap();
@@ -89,17 +89,17 @@ fn test_help_subcommands() {
 
     for cmd in subcommands {
         // Test basic help
-        jlpkg().args(&[cmd, "--help"]).assert().success();
+        jlpkg().args([cmd, "--help"]).assert().success();
 
         // Test help with Julia flags before
         jlpkg()
-            .args(&["--project=/tmp", cmd, "--help"])
+            .args(["--project=/tmp", cmd, "--help"])
             .assert()
             .success();
 
         // Test help with multiple Julia flags
         jlpkg()
-            .args(&["--threads=4", "--color=no", cmd, "--help"])
+            .args(["--threads=4", "--color=no", cmd, "--help"])
             .assert()
             .success();
     }

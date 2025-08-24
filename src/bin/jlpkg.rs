@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use juliaup::cli::CompletionShell;
 
 // IMPORTANT: This CLI wrapper for Julia's Pkg does NOT include the following REPL-only commands:
@@ -380,7 +380,7 @@ fn parse_arguments(args: &[String]) -> ParsedArgs {
 
 /// Show help message and exit
 fn show_help() -> Result<std::process::ExitCode> {
-    match Cli::try_parse_from(&["jlpkg", "--help"]) {
+    match Cli::try_parse_from(["jlpkg", "--help"]) {
         Ok(_) => {}
         Err(e) => {
             // Clap returns an error for --help but prints to stderr

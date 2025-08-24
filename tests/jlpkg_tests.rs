@@ -35,7 +35,7 @@ fn test_help_command() {
 #[test]
 fn test_subcommand_help() {
     let mut cmd = jlpkg();
-    cmd.args(&["add", "--help"]);
+    cmd.args(["add", "--help"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Add packages to project"))
@@ -45,7 +45,7 @@ fn test_subcommand_help() {
 #[test]
 fn test_registry_subcommand_help() {
     let mut cmd = jlpkg();
-    cmd.args(&["registry", "--help"]);
+    cmd.args(["registry", "--help"]);
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Registry operations"))
@@ -76,7 +76,7 @@ fn test_status_with_version_selector() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["+1.11", "status"]);
+    cmd.args(["+1.11", "status"]);
 
     // Should either succeed or fail gracefully if version not installed
     let output = cmd.output().unwrap();
@@ -97,7 +97,7 @@ fn test_version_selector_after_command() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["status", "+1.11"]);
+    cmd.args(["status", "+1.11"]);
 
     // With new implementation, "+1.11" is passed as an argument to status
     // which Julia's Pkg will likely reject or ignore
@@ -120,7 +120,7 @@ fn test_color_output_default() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["--color=yes", "status"]);
+    cmd.args(["--color=yes", "status"]);
 
     cmd.assert()
         .success()
@@ -134,7 +134,7 @@ fn test_color_output_disabled() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["--color=no", "status"]);
+    cmd.args(["--color=no", "status"]);
 
     // For now, color flag is handled by Julia itself, so we just check success
     // The simplified jlpkg may not fully honor --color=no since it's passed to Julia
@@ -172,7 +172,7 @@ fn test_project_flag_override() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["--project=@v1.11", "status"]);
+    cmd.args(["--project=@v1.11", "status"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -194,7 +194,7 @@ fn test_add_command_single_package() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -213,7 +213,7 @@ fn test_add_command_multiple_packages() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3", "DataFrames"]);
+    cmd.args(["add", "JSON3", "DataFrames"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -234,14 +234,14 @@ fn test_remove_command() {
     // First add a package
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then remove it
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["remove", "JSON3"]);
+    cmd.args(["remove", "JSON3"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -263,14 +263,14 @@ fn test_rm_alias() {
     // First add a package
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then remove it using 'rm' alias
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["rm", "JSON3"]);
+    cmd.args(["rm", "JSON3"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -328,7 +328,7 @@ fn test_develop_command() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["develop", "--local", "SomePackage"]);
+    cmd.args(["develop", "--local", "SomePackage"]);
 
     // This will likely fail but should fail gracefully
     let output = cmd.output().unwrap();
@@ -343,7 +343,7 @@ fn test_dev_alias() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["dev", "--local", "SomePackage"]);
+    cmd.args(["dev", "--local", "SomePackage"]);
 
     // This will likely fail but should fail gracefully
     let output = cmd.output().unwrap();
@@ -378,7 +378,7 @@ fn test_gc_with_all_flag() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["gc", "--all"]);
+    cmd.args(["gc", "--all"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -423,14 +423,14 @@ fn test_build_command() {
     // First add IJulia which has a deps/build.jl script
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "IJulia"]);
+    cmd.args(["add", "IJulia"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success(), "Failed to add IJulia package");
     
     // Now test the build command on a package with actual build script
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["build", "IJulia"]);
+    cmd.args(["build", "IJulia"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success(), "Build command failed for IJulia");
@@ -454,14 +454,14 @@ fn test_pin_command() {
     // First add a package
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then pin it
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["pin", "JSON3"]);
+    cmd.args(["pin", "JSON3"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -482,20 +482,20 @@ fn test_free_command() {
     // First add and pin a package
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["pin", "JSON3"]);
+    cmd.args(["pin", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then free it
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["free", "JSON3"]);
+    cmd.args(["free", "JSON3"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -535,7 +535,7 @@ fn test_generate_command() {
     let temp_dir = TempDir::new().unwrap();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["generate", "MyNewPackage"]);
+    cmd.args(["generate", "MyNewPackage"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -549,7 +549,7 @@ fn test_registry_add_command() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["registry", "add", "General"]);
+    cmd.args(["registry", "add", "General"]);
 
     // This may already be added, but should handle gracefully
     let output = cmd.output().unwrap();
@@ -571,7 +571,7 @@ fn test_registry_status_command() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["registry", "status"]);
+    cmd.args(["registry", "status"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -586,7 +586,7 @@ fn test_registry_st_alias() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["registry", "st"]);
+    cmd.args(["registry", "st"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -600,7 +600,7 @@ fn test_registry_update_command() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["registry", "update"]);
+    cmd.args(["registry", "update"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -622,7 +622,7 @@ fn test_registry_up_alias() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["registry", "up"]);
+    cmd.args(["registry", "up"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -645,14 +645,14 @@ fn test_compat_command() {
     // First add a package
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "JSON3"]);
+    cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then set compat
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["compat", "JSON3", "1"]);
+    cmd.args(["compat", "JSON3", "1"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -675,14 +675,14 @@ fn test_why_command() {
     // First add a package with dependencies
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["add", "DataFrames"]);
+    cmd.args(["add", "DataFrames"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then check why a dependency is included
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["why", "Tables"]);
+    cmd.args(["why", "Tables"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -705,21 +705,21 @@ fn test_status_with_flags() {
     // Test --diff flag
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["status", "--diff"]);
+    cmd.args(["status", "--diff"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Test --outdated flag
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["status", "--outdated"]);
+    cmd.args(["status", "--outdated"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Test --manifest flag
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["status", "--manifest"]);
+    cmd.args(["status", "--manifest"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 }
@@ -730,7 +730,7 @@ fn test_st_alias_with_flags() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["st", "--outdated"]);
+    cmd.args(["st", "--outdated"]);
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -760,7 +760,7 @@ fn test_julia_flags_passthrough() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["--threads=2", "status"]);
+    cmd.args(["--threads=2", "status"]);
 
     // Should not error on the threads flag
     let output = cmd.output().unwrap();
@@ -773,7 +773,7 @@ fn test_invalid_channel() {
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.args(&["+nonexistent", "status"]);
+    cmd.args(["+nonexistent", "status"]);
 
     cmd.assert()
         .failure()
@@ -836,7 +836,7 @@ fn test_complex_flag_combinations() {
     // These complex combinations should all parse correctly
     jlpkg()
         .current_dir(&temp_dir)
-        .args(&[
+        .args([
             "--project=/tmp",
             "--threads=4",
             "--color=no",
@@ -848,7 +848,7 @@ fn test_complex_flag_combinations() {
 
     // Help should work even with complex flag combinations
     jlpkg()
-        .args(&["--project=/tmp", "--threads=auto", "add", "--help"])
+        .args(["--project=/tmp", "--threads=auto", "add", "--help"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Add packages"));
@@ -862,14 +862,14 @@ fn test_help_with_julia_flags() {
     for cmd in commands {
         // Help with single Julia flag
         jlpkg()
-            .args(&["--project=/tmp", cmd, "--help"])
+            .args(["--project=/tmp", cmd, "--help"])
             .assert()
             .success()
             .stdout(predicate::str::contains("Usage:"));
 
         // Help with multiple Julia flags
         jlpkg()
-            .args(&["--threads=4", "--color=no", cmd, "--help"])
+            .args(["--threads=4", "--color=no", cmd, "--help"])
             .assert()
             .success()
             .stdout(predicate::str::contains("Usage:"));
