@@ -5,6 +5,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(name = "jlpkg")]
 #[command(about = "Julia package manager", long_about = None)]
 #[command(allow_external_subcommands = true)]
+#[command(override_usage = "jlpkg [OPTIONS] [COMMAND]
+       jlpkg [OPTIONS] [COMMAND] [ARGS]...
+
+    Julia options can be passed before the command:
+        +<channel>         Select Julia channel (e.g., +1.10, +release)
+        --project[=<path>] Set project directory
+        [...]              Other Julia flags are also supported")]
 struct Cli {
     #[command(subcommand)]
     command: Option<PkgCommand>,
