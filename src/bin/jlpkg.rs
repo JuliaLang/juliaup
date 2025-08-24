@@ -303,26 +303,15 @@ enum RegistryCommand {
     Status,
 }
 
-fn main() -> Result<std::process::ExitCode> {
-    // Collect all args
-    let args: Vec<String> = std::env::args().collect();
+/// Parsed arguments structure
+struct ParsedArgs {
+    julia_flags: Vec<String>,
+    channel: Option<String>,
+    pkg_args: Vec<String>,
+}
 
-    // Handle the case where only jlpkg is called
-    if args.len() == 1 {
-        // Show help by passing --help to clap
-        match Cli::try_parse_from(&["jlpkg", "--help"]) {
-            Ok(_) => {}
-            Err(e) => {
-                // Clap returns an error for --help but prints to stderr
-                // We print to stdout for consistency with other CLIs
-                println!("{}", e);
-                return Ok(std::process::ExitCode::from(0));
-            }
-        }
-        return Ok(std::process::ExitCode::from(0));
-    }
-
-    // Separate Julia flags from Pkg commands
+/// Parse command line arguments into Julia flags and Pkg commands
+fn parse_arguments(args: &[String]) -> ParsedArgs {
     let mut julia_flags = Vec::new();
     let mut pkg_cmd_start = None;
     let mut channel = None;
@@ -339,15 +328,9 @@ fn main() -> Result<std::process::ExitCode> {
         // Check for help flag
         else if arg == "--help" || arg == "-h" {
             if pkg_cmd_start.is_none() {
-                // Show jlpkg help
-                match Cli::try_parse_from(&["jlpkg", "--help"]) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        println!("{}", e);
-                        return Ok(std::process::ExitCode::from(0));
-                    }
-                }
-                return Ok(std::process::ExitCode::from(0));
+                // This is a help flag for jlpkg itself
+                pkg_cmd_start = Some(i);
+                break;
             }
             // Otherwise let it be part of pkg command
             pkg_cmd_start = Some(i);
@@ -374,51 +357,62 @@ fn main() -> Result<std::process::ExitCode> {
         }
     }
 
-    // If there are no pkg commands, show help
     let pkg_args = if let Some(start) = pkg_cmd_start {
         args[start..].to_vec()
     } else {
         vec![]
     };
 
-    if pkg_args.is_empty() {
-        // Show help
-        let _ = Cli::try_parse_from(&["jlpkg", "--help"]);
-        return Ok(std::process::ExitCode::from(0));
+    ParsedArgs {
+        julia_flags,
+        channel,
+        pkg_args,
     }
+}
 
-    // Parse pkg command with clap for validation
+/// Show help message and exit
+fn show_help() -> Result<std::process::ExitCode> {
+    match Cli::try_parse_from(&["jlpkg", "--help"]) {
+        Ok(_) => {}
+        Err(e) => {
+            // Clap returns an error for --help but prints to stderr
+            // We print to stdout for consistency with other CLIs
+            println!("{}", e);
+        }
+    }
+    Ok(std::process::ExitCode::from(0))
+}
+
+/// Validate Pkg command with clap
+fn validate_pkg_command(pkg_args: &[String]) -> Result<()> {
     let mut parse_args = vec!["jlpkg".to_string()];
-    parse_args.extend(pkg_args.clone());
+    parse_args.extend(pkg_args.iter().cloned());
 
     match Cli::try_parse_from(&parse_args) {
-        Ok(_) => {
-            // Command is valid, continue
-        }
+        Ok(_) => Ok(()),
         Err(e) => {
             // Check if this is a help request
             if e.kind() == clap::error::ErrorKind::DisplayHelp
                 || e.kind() == clap::error::ErrorKind::DisplayVersion
             {
                 println!("{}", e);
-                return Ok(std::process::ExitCode::from(0));
+                std::process::exit(0);
             }
             eprintln!("{}", e);
-            return Ok(std::process::ExitCode::from(1));
+            std::process::exit(1);
         }
-    };
+    }
+}
 
-    // Use the original pkg arguments as-is
-    let pkg_cmd_str = pkg_args.join(" ");
-
-    // Build Julia arguments
+/// Build the final Julia command arguments
+fn build_julia_args(args: &[String], parsed: &ParsedArgs) -> Vec<String> {
     let mut new_args = Vec::new();
 
     // Add the executable name
     new_args.push(args[0].clone());
 
     // Add channel if specified
-    if let Some(ch) = channel {
+    if let Some(ch) = &parsed.channel {
         new_args.push(format!("+{}", ch));
     }
 
@@ -430,18 +424,19 @@ fn main() -> Result<std::process::ExitCode> {
     ];
 
     // Add Julia flags
-    new_args.extend(julia_flags.clone());
+    new_args.extend(parsed.julia_flags.clone());
 
     // Add default flags if not already specified
     for (flag, value) in defaults {
         // Check if this flag is already specified
         let already_specified = if flag == "--threads" {
             // Check for both --threads and -t
-            julia_flags
+            parsed
+                .julia_flags
                 .iter()
                 .any(|f| f.starts_with("--threads") || f.starts_with("-t"))
         } else {
-            julia_flags.iter().any(|f| f.starts_with(flag))
+            parsed.julia_flags.iter().any(|f| f.starts_with(flag))
         };
 
         if !already_specified {
@@ -450,8 +445,41 @@ fn main() -> Result<std::process::ExitCode> {
     }
 
     // Add the Pkg command execution
+    let pkg_cmd_str = parsed.pkg_args.join(" ");
     new_args.push("-e".to_string());
     new_args.push(format!("using Pkg; isdefined(Pkg.REPLMode, :PRINTED_REPL_WARNING) && (Pkg.REPLMode.PRINTED_REPL_WARNING[] = true); Pkg.REPLMode.pkgstr(\"{}\")", pkg_cmd_str));
+
+    new_args
+}
+
+fn main() -> Result<std::process::ExitCode> {
+    let args: Vec<String> = std::env::args().collect();
+
+    // Handle the case where only jlpkg is called
+    if args.len() == 1 {
+        return show_help();
+    }
+
+    // Parse arguments
+    let parsed = parse_arguments(&args);
+
+    // Handle help flag in arguments
+    if parsed.pkg_args.first().map(|s| s.as_str()) == Some("--help")
+        || parsed.pkg_args.first().map(|s| s.as_str()) == Some("-h")
+    {
+        return show_help();
+    }
+
+    // If there are no pkg commands, show help
+    if parsed.pkg_args.is_empty() {
+        return show_help();
+    }
+
+    // Validate the Pkg command
+    validate_pkg_command(&parsed.pkg_args)?;
+
+    // Build the final Julia command arguments
+    let new_args = build_julia_args(&args, &parsed);
 
     // Replace the current process args and call the shared launcher
     std::env::set_var("JULIA_PROGRAM_OVERRIDE", "jlpkg");
