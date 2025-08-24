@@ -1,6 +1,23 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 
+// IMPORTANT: This CLI wrapper for Julia's Pkg does NOT include the following REPL-only commands:
+// 
+// 1. `activate` - This command changes the active environment within a REPL session.
+//    In a CLI context, each invocation is stateless. Users should use Julia's --project
+//    flag or JULIA_PROJECT environment variable to specify the project instead.
+//
+// 2. `undo` - This command undoes the last change within a REPL session.
+//    In a CLI context, there is no session state to undo. Each command invocation
+//    is independent and stateless.
+//
+// 3. `redo` - This command redoes an undone change within a REPL session.
+//    In a CLI context, there is no session state to redo. Each command invocation
+//    is independent and stateless.
+//
+// These commands are fundamentally REPL-specific as they rely on persistent session state
+// that doesn't exist in one-time CLI invocations. DO NOT add these commands to this CLI.
+
 #[derive(Parser)]
 #[command(name = "jlpkg")]
 #[command(about = "Julia package manager", long_about = None)]
@@ -26,6 +43,13 @@ enum PreserveLevel {
     None,
     TieredInstalled,
     Tiered,
+}
+
+#[derive(Clone, ValueEnum)]
+enum UpdatePreserveLevel {
+    All,
+    Direct,
+    None,
 }
 
 #[derive(Subcommand)]
@@ -73,12 +97,12 @@ enum PkgCommand {
         /// Package specifications or paths to develop
         packages: Vec<String>,
 
-        /// Only download the package
+        /// Clone package to local project dev folder
         #[arg(short = 'l', long)]
         local: bool,
 
-        /// Install the dependencies of the package
-        #[arg(short = 'd', long)]
+        /// Clone package to shared dev folder (default)
+        #[arg(long)]
         shared: bool,
 
         /// Preserve level for existing dependencies
@@ -90,27 +114,27 @@ enum PkgCommand {
     Free {
         /// Packages to free (all if empty)
         packages: Vec<String>,
+
+        /// Free all packages
+        #[arg(long)]
+        all: bool,
     },
 
     /// Generate files for packages
     Generate {
         /// Package name
         package: String,
-
-        /// Generate package in its own directory
-        #[arg(short = 't', long)]
-        template: bool,
     },
 
     /// Garbage collect packages not used for a significant time
     Gc {
+        /// Show verbose output
+        #[arg(short = 'v', long)]
+        verbose: bool,
+
         /// Delete all packages that cannot be reached from any existing environment
         #[arg(long)]
         all: bool,
-
-        /// Only log packages that would be garbage collected
-        #[arg(long)]
-        dry_run: bool,
     },
 
     /// Download and install all artifacts in the manifest
@@ -119,13 +143,13 @@ enum PkgCommand {
         #[arg(short = 'v', long)]
         verbose: bool,
 
-        /// Manifest file to instantiate
-        #[arg(short = 'm', long, value_name = "PATH")]
-        manifest: Option<String>,
+        /// Use manifest mode
+        #[arg(short = 'm', long)]
+        manifest: bool,
 
-        /// Project directory
-        #[arg(short = 'p', long, value_name = "PATH", id = "proj")]
-        project: Option<String>,
+        /// Use project mode
+        #[arg(short = 'p', long)]
+        project: bool,
     },
 
     /// Pin packages
@@ -142,38 +166,6 @@ enum PkgCommand {
     Precompile {
         /// Packages to precompile (all if empty)
         packages: Vec<String>,
-
-        /// Force recompilation
-        #[arg(long)]
-        force: bool,
-
-        /// Precompile for different configuration
-        #[arg(long)]
-        check_bounds: Option<String>,
-
-        /// Precompile for inlining or not
-        #[arg(long)]
-        inline: Option<bool>,
-
-        /// Precompile package dependencies in parallel
-        #[arg(short = 'j', long)]
-        jobs: Option<usize>,
-
-        /// Precompile all configurations
-        #[arg(long)]
-        all: bool,
-
-        /// Precompile in strict mode
-        #[arg(long)]
-        strict: bool,
-
-        /// Warn when precompiling
-        #[arg(long)]
-        warn_loaded: bool,
-
-        /// Only check if packages need precompilation
-        #[arg(long)]
-        already_instantiated: bool,
     },
 
     /// Remove packages from project
@@ -182,16 +174,16 @@ enum PkgCommand {
         /// Packages to remove
         packages: Vec<String>,
 
-        /// Update manifest
-        #[arg(short = 'u', long)]
-        update: bool,
+        /// Use project mode
+        #[arg(short = 'p', long)]
+        project: bool,
 
-        /// Remove mode
-        #[arg(short = 'm', long, value_name = "manifest|project|deps|all")]
-        mode: Option<String>,
+        /// Use manifest mode
+        #[arg(short = 'm', long)]
+        manifest: bool,
 
         /// Remove all packages
-        #[arg(short = 'a', long)]
+        #[arg(long)]
         all: bool,
     },
 
@@ -202,10 +194,7 @@ enum PkgCommand {
     },
 
     /// Resolve versions in the manifest
-    Resolve {
-        /// Packages to resolve
-        packages: Vec<String>,
-    },
+    Resolve,
 
     /// Show project status
     #[command(visible_alias = "st")]
@@ -217,8 +206,8 @@ enum PkgCommand {
         #[arg(short = 'c', long)]
         compat: bool,
 
-        /// Show test dependency compatibility status
-        #[arg(short = 't', long)]
+        /// Show extension dependencies
+        #[arg(short = 'e', long)]
         extensions: bool,
 
         /// Show manifest status instead of project status
@@ -232,10 +221,6 @@ enum PkgCommand {
         /// Show status of outdated packages
         #[arg(short = 'o', long)]
         outdated: bool,
-
-        /// Show status as a table
-        #[arg(long)]
-        as_table: bool,
     },
 
     /// Run tests for packages
@@ -243,9 +228,9 @@ enum PkgCommand {
         /// Packages to test (all if empty)
         packages: Vec<String>,
 
-        /// Set code coverage to track
-        #[arg(long, value_name = "none|user|all")]
-        coverage: Option<String>,
+        /// Run tests with coverage enabled
+        #[arg(long)]
+        coverage: bool,
     },
 
     /// Update packages in manifest
@@ -254,13 +239,33 @@ enum PkgCommand {
         /// Packages to update (all if empty)
         packages: Vec<String>,
 
-        /// Preserve level for existing dependencies
-        #[arg(long, value_enum)]
-        preserve: Option<PreserveLevel>,
+        /// Use project mode
+        #[arg(short = 'p', long)]
+        project: bool,
 
-        /// Update manifest
+        /// Use manifest mode
         #[arg(short = 'm', long)]
         manifest: bool,
+
+        /// Only update within major version
+        #[arg(long)]
+        major: bool,
+
+        /// Only update within minor version
+        #[arg(long)]
+        minor: bool,
+
+        /// Only update within patch version
+        #[arg(long)]
+        patch: bool,
+
+        /// Do not update
+        #[arg(long)]
+        fixed: bool,
+
+        /// Preserve level for existing dependencies
+        #[arg(long, value_enum)]
+        preserve: Option<UpdatePreserveLevel>,
     },
 
     /// Explains why a package is in the dependency graph

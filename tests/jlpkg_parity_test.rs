@@ -84,9 +84,7 @@ fn test_help_subcommands() {
         "status",
         "test",
         "update",
-        "preview",
         "why",
-        "clean",
     ];
 
     for cmd in subcommands {
