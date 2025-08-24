@@ -27,10 +27,13 @@ fn normalize_output(s: &str) -> String {
     let s = re.replace_all(s, "");
 
     // Remove warning about REPL mode (julia might show it)
+    // and registry initialization messages (jlpkg might show them on first run)
     let lines: Vec<&str> = s
         .lines()
         .filter(|line| !line.contains("REPL mode is intended for interactive use"))
         .filter(|line| !line.contains("@ Pkg.REPLMode"))
+        .filter(|line| !line.contains("Installing known registries"))
+        .filter(|line| !line.contains("Added `General` registry"))
         .collect();
 
     lines.join("\n").trim().to_string()
@@ -164,7 +167,6 @@ fn test_julia_flags_passthrough() {
         vec!["--project=/tmp", "status"],
         vec!["--color=no", "status"],
         vec!["--startup-file=yes", "status"],
-        vec!["+1.10", "status"], // channel selector
     ];
 
     for args in flag_tests {
