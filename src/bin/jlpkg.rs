@@ -110,7 +110,7 @@ enum PkgCommand {
         preserve: Option<PreserveLevel>,
     },
 
-    /// Free packages from being developed
+    /// Free pinned or developed packages
     Free {
         /// Packages to free (all if empty)
         packages: Vec<String>,
