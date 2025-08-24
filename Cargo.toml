@@ -89,6 +89,8 @@ assert_cmd = "2.0"
 assert_fs = "1.1"
 indoc = "2.0"
 predicates = "3.1"
+regex = "1.10"
+tempfile = "3.8"
 
 [features]
 selfupdate = []
