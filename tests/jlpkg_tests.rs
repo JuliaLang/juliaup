@@ -419,12 +419,21 @@ fn test_precompile_command() {
 #[test]
 fn test_build_command() {
     let temp_dir = setup_test_project();
+    
+    // First add IJulia which has a deps/build.jl script
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.arg("build");
+    cmd.args(&["add", "IJulia"]);
+    let output = cmd.output().unwrap();
+    assert!(output.status.success(), "Failed to add IJulia package");
+    
+    // Now test the build command on a package with actual build script
+    let mut cmd = jlpkg();
+    cmd.current_dir(&temp_dir);
+    cmd.args(&["build", "IJulia"]);
 
     let output = cmd.output().unwrap();
-    assert!(output.status.success());
+    assert!(output.status.success(), "Build command failed for IJulia");
 }
 
 #[test]
