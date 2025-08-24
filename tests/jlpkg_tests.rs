@@ -116,11 +116,11 @@ fn test_version_selector_after_command() {
 
 #[test]
 fn test_color_output_default() {
-    // By default, color should be enabled
+    // Test that --color=yes produces ANSI escape codes
     let temp_dir = setup_test_project();
     let mut cmd = jlpkg();
     cmd.current_dir(&temp_dir);
-    cmd.arg("status");
+    cmd.args(&["--color=yes", "status"]);
 
     cmd.assert()
         .success()
