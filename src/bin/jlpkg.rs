@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 
 // IMPORTANT: This CLI wrapper for Julia's Pkg does NOT include the following REPL-only commands:
-// 
+//
 // 1. `activate` - This command changes the active environment within a REPL session.
 //    In a CLI context, each invocation is stateless. Users should use Julia's --project
 //    flag or JULIA_PROJECT environment variable to specify the project instead.
@@ -327,10 +327,14 @@ fn main() -> Result<std::process::ExitCode> {
     let mut pkg_cmd_start = None;
     let mut channel = None;
 
-    for (i, arg) in args[1..].iter().enumerate() {
+    let mut i = 1;
+    while i < args.len() {
+        let arg = &args[i];
+
         // Check for channel specifier
         if arg.starts_with('+') && arg.len() > 1 && channel.is_none() && pkg_cmd_start.is_none() {
             channel = Some(arg[1..].to_string());
+            i += 1;
         }
         // Check for help flag
         else if arg == "--help" || arg == "-h" {
@@ -346,6 +350,7 @@ fn main() -> Result<std::process::ExitCode> {
                 return Ok(std::process::ExitCode::from(0));
             }
             // Otherwise let it be part of pkg command
+            pkg_cmd_start = Some(i);
             break;
         }
         // Check if this is a flag
@@ -353,16 +358,18 @@ fn main() -> Result<std::process::ExitCode> {
             julia_flags.push(arg.clone());
             // If it's a flag with a value (e.g., --project=...), it's already included
             // If it's a flag that expects a value next (e.g., --project ...), get the next arg
-            if !arg.contains('=') && i + 1 < args.len() - 1 {
-                let next_arg = &args[i + 2];
-                if !next_arg.starts_with('-') {
+            if !arg.contains('=') && i + 1 < args.len() {
+                let next_arg = &args[i + 1];
+                if !next_arg.starts_with('-') && !next_arg.starts_with('+') {
                     julia_flags.push(next_arg.clone());
+                    i += 1; // Skip the next arg since we've consumed it
                 }
             }
+            i += 1;
         }
         // This is the start of pkg commands
-        else if pkg_cmd_start.is_none() {
-            pkg_cmd_start = Some(i + 1);
+        else {
+            pkg_cmd_start = Some(i);
             break;
         }
     }
@@ -417,9 +424,9 @@ fn main() -> Result<std::process::ExitCode> {
 
     // Define default flags for jlpkg
     let defaults = [
-        ("--color", "yes"),
         ("--startup-file", "no"),
         ("--project", "."),
+        ("--threads", "auto"),
     ];
 
     // Add Julia flags
@@ -428,7 +435,16 @@ fn main() -> Result<std::process::ExitCode> {
     // Add default flags if not already specified
     for (flag, value) in defaults {
         // Check if this flag is already specified
-        if !julia_flags.iter().any(|f| f.starts_with(flag)) {
+        let already_specified = if flag == "--threads" {
+            // Check for both --threads and -t
+            julia_flags
+                .iter()
+                .any(|f| f.starts_with("--threads") || f.starts_with("-t"))
+        } else {
+            julia_flags.iter().any(|f| f.starts_with(flag))
+        };
+
+        if !already_specified {
             new_args.push(format!("{}={}", flag, value));
         }
     }

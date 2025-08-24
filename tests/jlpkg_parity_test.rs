@@ -53,7 +53,7 @@ fn test_status_parity() {
     // Run with julia
     let julia_output = julia()
         .current_dir(&temp_dir)
-        .args(&["--project=.", "--color=yes", "--startup-file=no", "-e"])
+        .args(&["--project=.", "--startup-file=no", "--threads=auto", "-e"])
         .arg("using Pkg; isdefined(Pkg.REPLMode, :PRINTED_REPL_WARNING) && (Pkg.REPLMode.PRINTED_REPL_WARNING[] = true); Pkg.REPLMode.pkgstr(\"status\")")
         .output()
         .unwrap();
@@ -133,7 +133,7 @@ fn test_command_parity_with_flags() {
         // Run with julia
         let julia_output = julia()
             .current_dir(&temp_dir)
-            .args(&["--project=.", "--color=yes", "--startup-file=no", "-e"])
+            .args(&["--project=.", "--startup-file=no", "--threads=auto", "-e"])
             .arg(format!("using Pkg; isdefined(Pkg.REPLMode, :PRINTED_REPL_WARNING) && (Pkg.REPLMode.PRINTED_REPL_WARNING[] = true); Pkg.REPLMode.pkgstr(\"{}\")", pkg_cmd))
             .output()
             .unwrap();
