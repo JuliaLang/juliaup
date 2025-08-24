@@ -201,7 +201,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      run: cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+      run: cargo test --target ${{matrix.target}} --features ${{matrix.features}} --lib
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
@@ -220,4 +220,33 @@ jobs:
         run: |
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
-          cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+          cargo test --target ${{matrix.target}} --features ${{matrix.features}} --lib
+
+  test-jlpkg:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        julia-channel: [release, lts]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+    - name: Build juliaup with jlpkg
+      run: cargo build --release --features dummy,binjulialauncher
+    - name: Install Julia ${{ matrix.julia-channel }} via juliaup
+      run: |
+        ./target/release/juliaup add ${{ matrix.julia-channel }}
+        ./target/release/juliaup default ${{ matrix.julia-channel }}
+      shell: bash
+    - name: Run jlpkg tests with Julia ${{ matrix.julia-channel }}
+      run: cargo test --release --features dummy,binjulialauncher --test jlpkg_tests -- --nocapture
+      env:
+        RUST_BACKTRACE: 1
+    - name: Run jlpkg parity tests with Julia ${{ matrix.julia-channel }} (Linux only)
+      if: runner.os == 'Linux'
+      run: cargo test --release --features dummy,binjulialauncher --test jlpkg_parity_test -- --nocapture
+      env:
+        RUST_BACKTRACE: 1
