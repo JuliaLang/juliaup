@@ -1,5 +1,6 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use juliaup::cli::CompletionShell;
 
 // IMPORTANT: This CLI wrapper for Julia's Pkg does NOT include the following REPL-only commands:
 //
@@ -274,6 +275,13 @@ enum PkgCommand {
         /// Package name to explain
         package: String,
     },
+
+    /// Generate shell completion scripts
+    #[command(name = "completions")]
+    Completions {
+        #[arg(value_enum, value_name = "SHELL")]
+        shell: CompletionShell,
+    },
 }
 
 #[derive(Subcommand)]
@@ -473,6 +481,31 @@ fn main() -> Result<std::process::ExitCode> {
     // If there are no pkg commands, show help
     if parsed.pkg_args.is_empty() {
         return show_help();
+    }
+
+    // Check if this is the completions command
+    if parsed.pkg_args.first().map(|s| s.as_str()) == Some("completions") {
+        // Parse the completions command
+        let mut parse_args = vec!["jlpkg".to_string()];
+        parse_args.extend(parsed.pkg_args.iter().cloned());
+
+        match Cli::try_parse_from(&parse_args) {
+            Ok(cli) => {
+                if let Some(PkgCommand::Completions { shell }) = cli.command {
+                    if let Err(e) =
+                        juliaup::command_completions::generate_jlpkg_completions::<Cli>(shell)
+                    {
+                        eprintln!("Error generating completions: {}", e);
+                        return Ok(std::process::ExitCode::from(1));
+                    }
+                    return Ok(std::process::ExitCode::from(0));
+                }
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                return Ok(std::process::ExitCode::from(1));
+            }
+        }
     }
 
     // Validate the Pkg command
