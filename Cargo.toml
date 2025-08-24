@@ -89,8 +89,6 @@ assert_cmd = "2.0"
 assert_fs = "1.1"
 indoc = "2.0"
 predicates = "3.1"
-regex = "1.10"
-tempfile = "3.8"
 
 [features]
 selfupdate = []
@@ -100,6 +98,7 @@ dummy = []
 binjuliainstaller = []
 binjulialauncher = []
 winpkgidentityext = []
+jlpkg = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [
@@ -139,3 +138,4 @@ required-features = ["binjuliainstaller"]
 [[bin]]
 name = "jlpkg"
 path = "src/bin/jlpkg.rs"
+required-features = ["jlpkg"]
