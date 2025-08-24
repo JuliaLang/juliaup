@@ -239,9 +239,6 @@ enum PkgCommand {
         /// Set code coverage to track
         #[arg(long, value_name = "none|user|all")]
         coverage: Option<String>,
-        
-        /// Arguments to pass to test process
-        test_args: Vec<String>,
     },
     
     /// Update packages in manifest
