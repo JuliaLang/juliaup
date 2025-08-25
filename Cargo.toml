@@ -28,6 +28,7 @@ codegen-units = 1
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
+clap_complete_nushell = "4.5"
 dirs = "6.0.0"
 dunce = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -98,6 +99,7 @@ dummy = []
 binjuliainstaller = []
 binjulialauncher = []
 winpkgidentityext = []
+juliapkg = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [
@@ -133,3 +135,8 @@ path = "src/bin/juliaup.rs"
 name = "juliainstaller"
 path = "src/bin/juliainstaller.rs"
 required-features = ["binjuliainstaller"]
+
+[[bin]]
+name = "juliapkg"
+path = "src/bin/juliapkg.rs"
+required-features = ["juliapkg"]
