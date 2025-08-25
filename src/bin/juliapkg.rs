@@ -20,11 +20,11 @@ use juliaup::cli::CompletionShell;
 // that doesn't exist in one-time CLI invocations. DO NOT add these commands to this CLI.
 
 #[derive(Parser)]
-#[command(name = "jlpkg")]
+#[command(name = "juliapkg")]
 #[command(about = "Julia package manager", long_about = None)]
 #[command(allow_external_subcommands = true)]
-#[command(override_usage = "jlpkg [OPTIONS] [COMMAND]
-       jlpkg [OPTIONS] [COMMAND] [ARGS]...
+#[command(override_usage = "juliapkg [OPTIONS] [COMMAND]
+       juliapkg [OPTIONS] [COMMAND] [ARGS]...
 
     Julia options can be passed before the command:
         +<channel>         Select Julia channel (e.g., +1.10, +release)
@@ -336,7 +336,7 @@ fn parse_arguments(args: &[String]) -> ParsedArgs {
         // Check for help flag
         else if arg == "--help" || arg == "-h" {
             if pkg_cmd_start.is_none() {
-                // This is a help flag for jlpkg itself
+                // This is a help flag for juliapkg itself
                 pkg_cmd_start = Some(i);
                 break;
             }
@@ -380,7 +380,7 @@ fn parse_arguments(args: &[String]) -> ParsedArgs {
 
 /// Show help message and exit
 fn show_help() -> Result<std::process::ExitCode> {
-    match Cli::try_parse_from(["jlpkg", "--help"]) {
+    match Cli::try_parse_from(["juliapkg", "--help"]) {
         Ok(_) => {}
         Err(e) => {
             // Clap returns an error for --help but prints to stderr
@@ -393,7 +393,7 @@ fn show_help() -> Result<std::process::ExitCode> {
 
 /// Validate Pkg command with clap
 fn validate_pkg_command(pkg_args: &[String]) -> Result<()> {
-    let mut parse_args = vec!["jlpkg".to_string()];
+    let mut parse_args = vec!["juliapkg".to_string()];
     parse_args.extend(pkg_args.iter().cloned());
 
     match Cli::try_parse_from(&parse_args) {
@@ -424,7 +424,7 @@ fn build_julia_args(args: &[String], parsed: &ParsedArgs) -> Vec<String> {
         new_args.push(format!("+{}", ch));
     }
 
-    // Define default flags for jlpkg
+    // Define default flags for juliapkg
     let defaults = [
         ("--startup-file", "no"),
         ("--project", "."),
@@ -463,7 +463,7 @@ fn build_julia_args(args: &[String], parsed: &ParsedArgs) -> Vec<String> {
 fn main() -> Result<std::process::ExitCode> {
     let args: Vec<String> = std::env::args().collect();
 
-    // Handle the case where only jlpkg is called
+    // Handle the case where only juliapkg is called
     if args.len() == 1 {
         return show_help();
     }
@@ -486,14 +486,14 @@ fn main() -> Result<std::process::ExitCode> {
     // Check if this is the completions command
     if parsed.pkg_args.first().map(|s| s.as_str()) == Some("completions") {
         // Parse the completions command
-        let mut parse_args = vec!["jlpkg".to_string()];
+        let mut parse_args = vec!["juliapkg".to_string()];
         parse_args.extend(parsed.pkg_args.iter().cloned());
 
         match Cli::try_parse_from(&parse_args) {
             Ok(cli) => {
                 if let Some(PkgCommand::Completions { shell }) = cli.command {
                     if let Err(e) =
-                        juliaup::command_completions::generate_jlpkg_completions::<Cli>(shell)
+                        juliaup::command_completions::generate_juliapkg_completions::<Cli>(shell)
                     {
                         eprintln!("Error generating completions: {}", e);
                         return Ok(std::process::ExitCode::from(1));
@@ -515,7 +515,7 @@ fn main() -> Result<std::process::ExitCode> {
     let new_args = build_julia_args(&args, &parsed);
 
     // Replace the current process args and call the shared launcher
-    std::env::set_var("JULIA_PROGRAM_OVERRIDE", "jlpkg");
+    std::env::set_var("JULIA_PROGRAM_OVERRIDE", "juliapkg");
     let exit_code = juliaup::julia_launcher::run_julia_launcher(new_args, None)?;
     Ok(std::process::ExitCode::from(exit_code as u8))
 }

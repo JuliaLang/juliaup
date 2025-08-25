@@ -21,9 +21,9 @@ pub fn run_command_completions(shell: CompletionShell) -> Result<()> {
     generate_completion_for_command::<Juliaup>(shell_to_string(shell), "juliaup")
 }
 
-/// Generate completions for jlpkg using the same shell enum as juliaup
-pub fn generate_jlpkg_completions<T: CommandFactory>(shell: CompletionShell) -> Result<()> {
-    generate_completion_for_command::<T>(shell_to_string(shell), "jlpkg")
+/// Generate completions for juliapkg using the same shell enum as juliaup
+pub fn generate_juliapkg_completions<T: CommandFactory>(shell: CompletionShell) -> Result<()> {
+    generate_completion_for_command::<T>(shell_to_string(shell), "juliapkg")
 }
 
 /// Generic completion generator that supports both standard shells and nushell

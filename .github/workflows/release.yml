@@ -40,23 +40,23 @@ jobs:
         include:
           - label: x86_64-pc-windows-msvc-windowsstore
             target: x86_64-pc-windows-msvc
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: windowsstore,binjulialauncher,jlpkg
+            features: windowsstore,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: windowsappinstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: binjulialauncher,jlpkg
+            features: binjulialauncher,juliapkg
             rustflags:
             toolchain: stable-gnu
           - label: x86_64-pc-windows-gnu-portable
@@ -68,9 +68,9 @@ jobs:
             toolchain: stable-gnu
           - label: i686-pc-windows-gnu-msi
             target: i686-pc-windows-gnu
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: binjulialauncher,jlpkg
+            features: binjulialauncher,juliapkg
             rustflags:
             toolchain: stable-i686-gnu
           - label: i686-pc-windows-gnu-portable
@@ -82,9 +82,9 @@ jobs:
             toolchain: stable-i686-gnu
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: x86_64-apple-darwin-portable
@@ -96,16 +96,16 @@ jobs:
             toolchain: stable
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
             toolchain: stable
           - label: x86_64-unknown-linux-musl-portable
@@ -117,37 +117,37 @@ jobs:
             toolchain: stable
           - label: x86_64-unknown-freebsd
             target: x86_64-unknown-freebsd
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: windowsstore,binjulialauncher,jlpkg
+            features: windowsstore,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
-            bins: --bin juliaup --bin julialauncher --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliapkg
             os: windows
-            features: windowsappinstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
             toolchain: stable
           - label: i686-unknown-linux-musl-portable
@@ -159,16 +159,16 @@ jobs:
             toolchain: stable
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
             toolchain: stable
           - label: aarch64-unknown-linux-musl-portable
@@ -180,9 +180,9 @@ jobs:
             toolchain: stable
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
-            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin jlpkg
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller --bin juliapkg
             os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
             toolchain: stable
           - label: aarch64-apple-darwin-portable

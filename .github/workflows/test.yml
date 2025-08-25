@@ -39,77 +39,77 @@ jobs:
           - label: x86_64-pc-windows-msvc-windowsstore
             target: x86_64-pc-windows-msvc
             os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsstore,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: i686-pc-windows-gnu-msi
             target: i686-pc-windows-gnu
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
           - label: x86_64-unknown-freebsd
             target: x86_64-unknown-freebsd
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
-            features: windowsstore,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsstore,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher,jlpkg
+            features: windowsappinstaller,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
-            features: selfupdate,binjuliainstaller,binjulialauncher,jlpkg
+            features: selfupdate,binjuliainstaller,binjulialauncher,juliapkg
             rustflags:
     steps:
     - uses: actions/checkout@v4
@@ -222,7 +222,7 @@ jobs:
           export RUST_BACKTRACE=full
           cargo test --target ${{matrix.target}} --features ${{matrix.features}} --lib
 
-  test-jlpkg:
+  test-juliapkg:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -234,19 +234,19 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
-    - name: Build juliaup with jlpkg
-      run: cargo build --release --features dummy,binjulialauncher,jlpkg
+    - name: Build juliaup with juliapkg
+      run: cargo build --release --features dummy,binjulialauncher,juliapkg
     - name: Install Julia ${{ matrix.julia-channel }} via juliaup
       run: |
         ./target/release/juliaup add ${{ matrix.julia-channel }}
         ./target/release/juliaup default ${{ matrix.julia-channel }}
       shell: bash
-    - name: Run jlpkg tests with Julia ${{ matrix.julia-channel }}
-      run: cargo test --release --features dummy,binjulialauncher,jlpkg --test jlpkg_tests -- --nocapture
+    - name: Run juliapkg tests with Julia ${{ matrix.julia-channel }}
+      run: cargo test --release --features dummy,binjulialauncher,juliapkg --test juliapkg_tests -- --nocapture
       env:
         RUST_BACKTRACE: 1
-    - name: Run jlpkg parity tests with Julia ${{ matrix.julia-channel }} (Linux only)
+    - name: Run juliapkg parity tests with Julia ${{ matrix.julia-channel }} (Linux only)
       if: runner.os == 'Linux'
-      run: cargo test --release --features dummy,binjulialauncher,jlpkg --test jlpkg_parity_test -- --nocapture
+      run: cargo test --release --features dummy,binjulialauncher,juliapkg --test juliapkg_parity_test -- --nocapture
       env:
         RUST_BACKTRACE: 1

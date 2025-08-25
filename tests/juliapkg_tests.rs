@@ -4,9 +4,9 @@ use std::env;
 use std::fs;
 use tempfile::TempDir;
 
-/// Helper to create a jlpkg command
-fn jlpkg() -> Command {
-    let mut cmd = Command::cargo_bin("jlpkg").unwrap();
+/// Helper to create a juliapkg command
+fn juliapkg() -> Command {
+    let mut cmd = Command::cargo_bin("juliapkg").unwrap();
     // Ensure we're using test environment
     cmd.env("JULIA_DEPOT_PATH", env::temp_dir());
     cmd
@@ -22,7 +22,7 @@ fn setup_test_project() -> TempDir {
 
 #[test]
 fn test_help_command() {
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.arg("--help");
     cmd.assert()
         .success()
@@ -34,7 +34,7 @@ fn test_help_command() {
 
 #[test]
 fn test_subcommand_help() {
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.args(["add", "--help"]);
     cmd.assert()
         .success()
@@ -44,7 +44,7 @@ fn test_subcommand_help() {
 
 #[test]
 fn test_registry_subcommand_help() {
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.args(["registry", "--help"]);
     cmd.assert()
         .success()
@@ -60,7 +60,7 @@ fn test_registry_subcommand_help() {
 #[test]
 fn test_status_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("status");
 
@@ -74,7 +74,7 @@ fn test_status_command() {
 fn test_status_with_version_selector() {
     // Test with +1.11 version selector (if available)
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["+1.11", "status"]);
 
@@ -95,7 +95,7 @@ fn test_version_selector_after_command() {
     // In the new implementation, version selector must come before the command
     // This test now expects the command to be interpreted differently
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["status", "+1.11"]);
 
@@ -118,7 +118,7 @@ fn test_version_selector_after_command() {
 fn test_color_output_default() {
     // Test that --color=yes produces ANSI escape codes
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["--color=yes", "status"]);
 
@@ -132,12 +132,12 @@ fn test_color_output_default() {
 fn test_color_output_disabled() {
     // Test --color=no flag
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["--color=no", "status"]);
 
     // For now, color flag is handled by Julia itself, so we just check success
-    // The simplified jlpkg may not fully honor --color=no since it's passed to Julia
+    // The simplified juliapkg may not fully honor --color=no since it's passed to Julia
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("Status"));
@@ -147,7 +147,7 @@ fn test_color_output_disabled() {
 fn test_project_flag_default() {
     // Default should use current directory project
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("status");
 
@@ -170,7 +170,7 @@ fn test_project_flag_default() {
 fn test_project_flag_override() {
     // Test overriding the project flag
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["--project=@v1.11", "status"]);
 
@@ -192,7 +192,7 @@ fn test_project_flag_override() {
 #[test]
 fn test_add_command_single_package() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
 
@@ -211,7 +211,7 @@ fn test_add_command_single_package() {
 #[test]
 fn test_add_command_multiple_packages() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3", "DataFrames"]);
 
@@ -232,14 +232,14 @@ fn test_remove_command() {
     let temp_dir = setup_test_project();
 
     // First add a package
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then remove it
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["remove", "JSON3"]);
 
@@ -261,14 +261,14 @@ fn test_rm_alias() {
     let temp_dir = setup_test_project();
 
     // First add a package
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then remove it using 'rm' alias
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["rm", "JSON3"]);
 
@@ -287,7 +287,7 @@ fn test_rm_alias() {
 #[test]
 fn test_update_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("update");
 
@@ -307,7 +307,7 @@ fn test_update_command() {
 fn test_up_alias() {
     // Test that 'up' works as an alias for 'update'
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("up");
 
@@ -326,7 +326,7 @@ fn test_up_alias() {
 #[test]
 fn test_develop_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["develop", "--local", "SomePackage"]);
 
@@ -341,7 +341,7 @@ fn test_develop_command() {
 fn test_dev_alias() {
     // Test that 'dev' works as an alias for 'develop'
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["dev", "--local", "SomePackage"]);
 
@@ -355,7 +355,7 @@ fn test_dev_alias() {
 #[test]
 fn test_gc_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("gc");
 
@@ -376,7 +376,7 @@ fn test_gc_command() {
 #[test]
 fn test_gc_with_all_flag() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["gc", "--all"]);
 
@@ -397,7 +397,7 @@ fn test_gc_with_all_flag() {
 #[test]
 fn test_instantiate_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("instantiate");
 
@@ -408,7 +408,7 @@ fn test_instantiate_command() {
 #[test]
 fn test_precompile_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("precompile");
 
@@ -421,14 +421,14 @@ fn test_build_command() {
     let temp_dir = setup_test_project();
     
     // First add IJulia which has a deps/build.jl script
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "IJulia"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success(), "Failed to add IJulia package");
     
     // Now test the build command on a package with actual build script
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["build", "IJulia"]);
 
@@ -439,7 +439,7 @@ fn test_build_command() {
 #[test]
 fn test_test_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("test");
 
@@ -452,14 +452,14 @@ fn test_pin_command() {
     let temp_dir = setup_test_project();
 
     // First add a package
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then pin it
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["pin", "JSON3"]);
 
@@ -480,20 +480,20 @@ fn test_free_command() {
     let temp_dir = setup_test_project();
 
     // First add and pin a package
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["pin", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then free it
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["free", "JSON3"]);
 
@@ -514,7 +514,7 @@ fn test_free_command() {
 #[test]
 fn test_resolve_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("resolve");
 
@@ -533,7 +533,7 @@ fn test_resolve_command() {
 #[test]
 fn test_generate_command() {
     let temp_dir = TempDir::new().unwrap();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["generate", "MyNewPackage"]);
 
@@ -547,7 +547,7 @@ fn test_generate_command() {
 #[test]
 fn test_registry_add_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["registry", "add", "General"]);
 
@@ -569,7 +569,7 @@ fn test_registry_add_command() {
 #[test]
 fn test_registry_status_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["registry", "status"]);
 
@@ -584,7 +584,7 @@ fn test_registry_status_command() {
 fn test_registry_st_alias() {
     // Test that 'st' works as an alias for 'status' in registry subcommand
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["registry", "st"]);
 
@@ -598,7 +598,7 @@ fn test_registry_st_alias() {
 #[test]
 fn test_registry_update_command() {
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["registry", "update"]);
 
@@ -620,7 +620,7 @@ fn test_registry_update_command() {
 fn test_registry_up_alias() {
     // Test that 'up' works as an alias for 'update' in registry subcommand
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["registry", "up"]);
 
@@ -643,14 +643,14 @@ fn test_compat_command() {
     let temp_dir = setup_test_project();
 
     // First add a package
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "JSON3"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then set compat
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["compat", "JSON3", "1"]);
 
@@ -673,14 +673,14 @@ fn test_why_command() {
     let temp_dir = setup_test_project();
 
     // First add a package with dependencies
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["add", "DataFrames"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Then check why a dependency is included
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["why", "Tables"]);
 
@@ -703,21 +703,21 @@ fn test_status_with_flags() {
     let temp_dir = setup_test_project();
 
     // Test --diff flag
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["status", "--diff"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Test --outdated flag
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["status", "--outdated"]);
     let output = cmd.output().unwrap();
     assert!(output.status.success());
 
     // Test --manifest flag
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["status", "--manifest"]);
     let output = cmd.output().unwrap();
@@ -728,7 +728,7 @@ fn test_status_with_flags() {
 fn test_st_alias_with_flags() {
     // Test that 'st' alias works with flags
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["st", "--outdated"]);
 
@@ -743,7 +743,7 @@ fn test_st_alias_with_flags() {
 fn test_startup_file_default() {
     // Default should have --startup-file=no
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     // Add a command that would show if startup file is loaded
     cmd.arg("status");
@@ -758,7 +758,7 @@ fn test_startup_file_default() {
 fn test_julia_flags_passthrough() {
     // Test that Julia flags are properly passed through
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["--threads=2", "status"]);
 
@@ -771,7 +771,7 @@ fn test_julia_flags_passthrough() {
 fn test_invalid_channel() {
     // Test with an invalid channel selector
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.args(["+nonexistent", "status"]);
 
@@ -784,7 +784,7 @@ fn test_invalid_channel() {
 fn test_no_warning_message() {
     // Ensure the REPL mode warning is suppressed
     let temp_dir = setup_test_project();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("status");
 
@@ -798,7 +798,7 @@ fn test_no_warning_message() {
 fn test_empty_project() {
     // Test with a completely empty project
     let temp_dir = TempDir::new().unwrap();
-    let mut cmd = jlpkg();
+    let mut cmd = juliapkg();
     cmd.current_dir(&temp_dir);
     cmd.arg("status");
 
@@ -820,7 +820,7 @@ fn test_help_priority() {
     ];
 
     for cmd in help_priority {
-        jlpkg()
+        juliapkg()
             .args(&cmd)
             .assert()
             .success()
@@ -834,7 +834,7 @@ fn test_complex_flag_combinations() {
     let temp_dir = setup_test_project();
 
     // These complex combinations should all parse correctly
-    jlpkg()
+    juliapkg()
         .current_dir(&temp_dir)
         .args([
             "--project=/tmp",
@@ -847,7 +847,7 @@ fn test_complex_flag_combinations() {
         .success();
 
     // Help should work even with complex flag combinations
-    jlpkg()
+    juliapkg()
         .args(["--project=/tmp", "--threads=auto", "add", "--help"])
         .assert()
         .success()
@@ -861,14 +861,14 @@ fn test_help_with_julia_flags() {
 
     for cmd in commands {
         // Help with single Julia flag
-        jlpkg()
+        juliapkg()
             .args(["--project=/tmp", cmd, "--help"])
             .assert()
             .success()
             .stdout(predicate::str::contains("Usage:"));
 
         // Help with multiple Julia flags
-        jlpkg()
+        juliapkg()
             .args(["--threads=4", "--color=no", cmd, "--help"])
             .assert()
             .success()
