@@ -2,9 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
+use juliaup::cli::CompletionShell;
+use juliaup::command_completions::generate_completion_for_command;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::julia_completions::julia_cli;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -308,6 +311,23 @@ fn get_override_channel(
     }
 }
 
+struct JuliaCommand;
+
+impl clap::CommandFactory for JuliaCommand {
+    fn command() -> clap::Command {
+        julia_cli()
+    }
+
+    fn command_for_update() -> clap::Command {
+        julia_cli()
+    }
+}
+
+fn generate_julia_completions(shell: CompletionShell) -> Result<()> {
+    generate_completion_for_command::<JuliaCommand>(shell, "julia")?;
+    Ok(())
+}
+
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -329,6 +349,29 @@ fn run_app() -> Result<i32> {
     // Parse command line
     let mut channel_from_cmd_line: Option<String> = None;
     let args: Vec<String> = std::env::args().collect();
+
+    // Check for completion generation request
+    if args.len() > 1 && args[1] == "--generate-completions" {
+        if args.len() > 2 {
+            let shell_str = &args[2];
+            let shell = match shell_str.as_str() {
+                "bash" => CompletionShell::Bash,
+                "zsh" => CompletionShell::Zsh,
+                "fish" => CompletionShell::Fish,
+                "elvish" => CompletionShell::Elvish,
+                "powershell" => CompletionShell::PowerShell,
+                "nushell" => CompletionShell::Nushell,
+                _ => return Err(anyhow!("Invalid shell: {}. Valid options are: bash, zsh, fish, elvish, powershell, nushell", shell_str))
+            };
+            generate_julia_completions(shell)?;
+            return Ok(0);
+        } else {
+            eprintln!("Usage: julia --generate-completions <shell>");
+            eprintln!("Available shells: bash, zsh, fish, elvish, powershell, nushell");
+            return Ok(1);
+        }
+    }
+
     if args.len() > 1 {
         let first_arg = &args[1];
 
