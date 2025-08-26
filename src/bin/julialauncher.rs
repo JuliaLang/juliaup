@@ -348,7 +348,7 @@ fn run_app() -> Result<i32> {
 
     // Parse command line
     let mut channel_from_cmd_line: Option<String> = None;
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
 
     // Check for help request - show our colored help
     if args.len() > 1 && (args[1] == "--help" || args[1] == "-h") {
@@ -360,6 +360,26 @@ fn run_app() -> Result<i32> {
     if args.len() > 1 && args[1] == "--help-hidden" {
         julia_cli_with_hidden().print_help()?;
         return Ok(0);
+    }
+    
+    // Check for raw help request - pass through to Julia's native help
+    if args.len() > 1 && args[1] == "--help-raw" {
+        // Replace --help-raw with --help and pass through to Julia
+        let mut julia_args = args.clone();
+        julia_args[1] = String::from("--help");
+        // Continue with normal Julia execution with --help flag
+        args = julia_args;
+        // Don't return here - let it fall through to normal Julia execution
+    }
+    
+    // Check for hidden raw help request - pass through to Julia's native hidden help
+    if args.len() > 1 && args[1] == "--help-hidden-raw" {
+        // Replace --help-hidden-raw with --help-hidden and pass through to Julia
+        let mut julia_args = args.clone();
+        julia_args[1] = String::from("--help-hidden");
+        // Continue with normal Julia execution with --help-hidden flag
+        args = julia_args;
+        // Don't return here - let it fall through to normal Julia execution
     }
     
     // Check for version request - for now pass through to Julia
