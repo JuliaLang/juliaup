@@ -99,6 +99,7 @@ dummy = []
 binjuliainstaller = []
 binjulialauncher = []
 winpkgidentityext = []
+juliapkg = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [
@@ -134,3 +135,8 @@ path = "src/bin/juliaup.rs"
 name = "juliainstaller"
 path = "src/bin/juliainstaller.rs"
 required-features = ["binjuliainstaller"]
+
+[[bin]]
+name = "juliapkg"
+path = "src/bin/juliapkg.rs"
+required-features = ["juliapkg"]
