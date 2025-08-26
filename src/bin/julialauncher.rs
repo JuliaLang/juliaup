@@ -101,11 +101,7 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
         let should_run = if let Some(last_selfupdate) = config_file.self_data.last_selfupdate {
             let update_time = last_selfupdate + chrono::Duration::minutes(val);
 
-            if Utc::now() >= update_time {
-                true
-            } else {
-                false
-            }
+            Utc::now() >= update_time
         } else {
             true
         };
@@ -183,36 +179,36 @@ fn get_julia_path_from_channel(
                 JuliaupChannelSource::CmdLine => {
                     if channel_valid {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(&channel.to_string()) {
+                    } else if is_pr_channel(channel) {
                         UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
-                }.into(),
+                },
                 JuliaupChannelSource::EnvVar=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(&channel.to_string()) {
+                    } else if is_pr_channel(channel) {
                         UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
-                }.into(),
+                },
                 JuliaupChannelSource::Override=> {
                     if channel_valid {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(&channel.to_string()){
+                    } else if is_pr_channel(channel) {
                         UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
                     } else {
                         UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
                     }
-                }.into(),
+                },
                 JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
             })?;
 
     match channel_info {
         JuliaupConfigChannel::LinkedChannel { command, args } => {
-            return Ok((
+            Ok((
                 PathBuf::from(command),
                 args.as_ref().map_or_else(Vec::new, |v| v.clone()),
             ))
@@ -241,7 +237,7 @@ fn get_julia_path_from_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            return Ok((absolute_path.into_path_buf(), Vec::new()));
+            Ok((absolute_path.into_path_buf(), Vec::new()))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
@@ -284,7 +280,7 @@ fn get_julia_path_from_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            return Ok((absolute_path.into_path_buf(), Vec::new()));
+            Ok((absolute_path.into_path_buf(), Vec::new()))
         }
     }
 }
@@ -300,7 +296,7 @@ fn get_override_channel(
         .iter()
         .filter(|i| curr_dir.starts_with(&i.path))
         .sorted_by_key(|i| i.path.len())
-        .last();
+        .next_back();
 
     match juliaup_override {
         Some(val) => Ok(Some(val.channel.clone())),

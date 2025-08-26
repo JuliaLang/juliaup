@@ -28,19 +28,19 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
     };
 
     eprint!("Removing startup self update configuration.");
-    match run_command_config_startupselfupdate(Some(0), true, &paths) {
+    match run_command_config_startupselfupdate(Some(0), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
 
     eprint!("Removing PATH modifications in startup scripts.");
-    match run_command_config_modifypath(Some(false), true, &paths) {
+    match run_command_config_modifypath(Some(false), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
 
     eprint!("Removing symlinks.");
-    match run_command_config_symlinks(Some(false), true, &paths) {
+    match run_command_config_symlinks(Some(false), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };

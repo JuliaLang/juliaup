@@ -390,7 +390,7 @@ pub fn install_version(
     );
 
     #[cfg(target_os = "macos")]
-    if semver::Version::parse(&fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap()
+    if semver::Version::parse(fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap()
     {
         use normpath::PathExt;
 
@@ -412,7 +412,7 @@ pub fn install_version(
         eprint!("Checking standard library notarization");
         let _ = std::io::stdout().flush();
 
-        let exit_status = std::process::Command::new(&julia_path)
+        let exit_status = std::process::Command::new(julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
@@ -498,8 +498,8 @@ pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Res
     Ok(regular || nightly)
 }
 
-pub fn is_pr_channel(channel: &String) -> bool {
-    return Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel);
+pub fn is_pr_channel(channel: &str) -> bool {
+    Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel)
 }
 
 fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
@@ -515,7 +515,7 @@ fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
 }
 
 // Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
-pub fn channel_to_name(channel: &String) -> Result<String> {
+pub fn channel_to_name(channel: &str) -> Result<String> {
     let mut parts = channel.splitn(2, '~');
 
     let channel = parts.next().expect("Failed to parse channel name.");
@@ -586,7 +586,7 @@ pub fn install_from_url(
         .tempdir_in(&paths.juliauphome)
         .expect("Failed to create temporary directory");
 
-    let download_result = download_extract_sans_parent(url.as_ref(), &temp_dir.path(), 1);
+    let download_result = download_extract_sans_parent(url.as_ref(), temp_dir.path(), 1);
 
     let server_etag = match download_result {
         Ok(last_updated) => last_updated,
@@ -615,7 +615,7 @@ pub fn install_from_url(
     let julia_version = String::from_utf8(julia_process.stdout)?;
 
     // Move into the final location
-    let target_path = paths.juliauphome.join(&path);
+    let target_path = paths.juliauphome.join(path);
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
@@ -625,7 +625,7 @@ pub fn install_from_url(
         path: path.to_string_lossy().into_owned(),
         url: url.to_string().to_owned(), // TODO Use proper URL
         local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
-        server_etag: server_etag,
+        server_etag,
         version: julia_version,
     })
 }
@@ -651,7 +651,7 @@ pub fn install_non_db_version(
     if arch.starts_with("latest") {
         let mut parts = arch.splitn(2, '-');
         let nightly = parts.next().expect("Failed to parse channel name.");
-        id.push_str("-");
+        id.push('-');
         id.push_str(nightly);
         arch = parts.next().expect("Failed to parse channel name.");
     }
@@ -820,7 +820,7 @@ fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
     std::fs::create_dir_all(symlink_path.parent().unwrap())?;
 
     if symlink_path.exists() {
-        let prev_target = std::fs::read_link(&symlink_path)?;
+        let prev_target = std::fs::read_link(symlink_path)?;
         std::fs::remove_file(symlink_path)?;
         return Ok(Some(prev_target));
     }
@@ -1210,7 +1210,7 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         )
     })?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, &path).with_context(|| {
+    let new_content = get_shell_script_juliaup_content(bin_path, path).with_context(|| {
         format!(
             "Error occured while generating juliaup shell startup script section for {}",
             path.display()
@@ -1449,11 +1449,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             if let Ok(versiondb) =
                 serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
             {
-                if let Ok(version) = semver::Version::parse(&versiondb.version) {
-                    Some(version)
-                } else {
-                    None
-                }
+                semver::Version::parse(&versiondb.version).ok()
             } else {
                 None
             }
@@ -1499,7 +1495,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             )
         })?;
 
-    let online_dbversion = download_juliaup_version(&dbversion_url.to_string())
+    let online_dbversion = download_juliaup_version(dbversion_url.as_ref())
         .with_context(|| "Failed to download current version db version.")?;
 
     let bundled_dbversion = get_bundled_dbversion()
@@ -1515,11 +1511,11 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            let temp_path = tempfile::NamedTempFile::new_in(&paths.versiondb.parent().unwrap())
+            let temp_path = tempfile::NamedTempFile::new_in(paths.versiondb.parent().unwrap())
                 .unwrap()
                 .into_temp_path();
 
-            download_versiondb(&onlineversiondburl.to_string(), &temp_path).with_context(|| {
+            download_versiondb(onlineversiondburl.as_ref(), &temp_path).with_context(|| {
                 format!(
                     "Failed to download new version db from {}.",
                     onlineversiondburl
@@ -1533,7 +1529,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         delete_old_version_db = true;
     }
 
-    let direct_download_etags = download_direct_download_etags(&channel, &old_config_file.data)?;
+    let direct_download_etags = download_direct_download_etags(channel, &old_config_file.data)?;
 
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
@@ -1626,8 +1622,8 @@ where
             eprintln!("{}", message);
 
             // Now wait for the function to complete
-            let result = rx.recv().unwrap();
-            result
+            
+            rx.recv().unwrap()
         }
         Err(e) => panic!("Error receiving result: {:?}", e),
     }
@@ -1754,9 +1750,9 @@ fn download_direct_download_etags(
                             .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
                             .to_string();
 
-                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                        Ok::<Option<String>, anyhow::Error>(Some(etag))
                     } else {
-                        return Ok::<Option<String>, anyhow::Error>(None);
+                        Ok::<Option<String>, anyhow::Error>(None)
                     }
                 },
                 3, // Timeout in seconds

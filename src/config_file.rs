@@ -167,7 +167,7 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
         }
     };
 
-    return Ok(file_lock);
+    Ok(file_lock)
 }
 
 pub fn load_config_db(
@@ -354,9 +354,9 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         lock: file_lock,
         data,
         #[cfg(feature = "selfupdate")]
-        self_file: self_file,
+        self_file,
         #[cfg(feature = "selfupdate")]
-        self_data: self_data,
+        self_data,
     };
 
     Ok(result)
@@ -396,7 +396,7 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
             &juliaup_config_file.self_file,
             &juliaup_config_file.self_data,
         )
-        .with_context(|| format!("Failed to write self configuration file."))?;
+        .with_context(|| "Failed to write self configuration file.".to_string())?;
 
         juliaup_config_file
             .self_file
