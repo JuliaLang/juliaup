@@ -7,7 +7,7 @@ use juliaup::command_completions::generate_completion_for_command;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::julia_completions::julia_cli;
+use juliaup::julia_completions::{julia_cli, julia_cli_with_hidden};
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -358,7 +358,7 @@ fn run_app() -> Result<i32> {
     
     // Check for hidden help request - show all options including hidden ones
     if args.len() > 1 && args[1] == "--help-hidden" {
-        julia_cli().print_long_help()?;
+        julia_cli_with_hidden().print_help()?;
         return Ok(0);
     }
     
