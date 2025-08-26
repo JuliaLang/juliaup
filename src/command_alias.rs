@@ -45,7 +45,7 @@ pub fn run_command_alias(alias: &str, channel: &str, paths: &GlobalPaths) -> Res
             &JuliaupConfigChannel::AliasedChannel {
                 channel: channel.to_string(),
             },
-            &format!("julia-{}", channel),
+            &format!("julia-{}", alias),
             paths,
         )?;
     }
