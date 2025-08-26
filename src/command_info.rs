@@ -67,11 +67,7 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
             if let Ok(versiondb) =
                 serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
             {
-                if let Ok(version) = semver::Version::parse(&versiondb.version) {
-                    Some(version)
-                } else {
-                    None
-                }
+                semver::Version::parse(&versiondb.version).ok()
             } else {
                 None
             }

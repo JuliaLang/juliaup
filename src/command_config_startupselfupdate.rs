@@ -36,18 +36,12 @@ pub fn run_command_config_startupselfupdate(
                 if value_changed {
                     eprintln!(
                         "Property 'startupselfupdateinterval' set to '{}'",
-                        match value {
-                            Some(value) => value,
-                            None => 0,
-                        }
+                        value.unwrap_or(0)
                     );
                 } else {
                     eprintln!(
                         "Property 'startupselfupdateinterval' is already set to '{}'",
-                        match value {
-                            Some(value) => value,
-                            None => 0,
-                        }
+                        value.unwrap_or(0)
                     );
                 }
             }
@@ -59,10 +53,7 @@ pub fn run_command_config_startupselfupdate(
             if !quiet {
                 eprintln!(
                     "Property 'startupselfupdateinterval' set to '{}'",
-                    match config_file.self_data.startup_selfupdate_interval {
-                        Some(value) => value,
-                        None => 0,
-                    }
+                    config_file.self_data.startup_selfupdate_interval.unwrap_or(0)
                 );
             }
         }
