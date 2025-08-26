@@ -795,16 +795,13 @@ pub fn garbage_collect_versions(
     if prune_linked {
         let mut channels_to_uninstall: Vec<String> = Vec::new();
         for (installed_channel, detail) in &config_data.installed_channels {
-            match &detail {
-                JuliaupConfigChannel::LinkedChannel {
+            if let JuliaupConfigChannel::LinkedChannel {
                     command: cmd,
                     args: _,
-                } => {
-                    if !is_valid_julia_path(&PathBuf::from(cmd)) {
-                        channels_to_uninstall.push(installed_channel.clone());
-                    }
+                } = &detail {
+                if !is_valid_julia_path(&PathBuf::from(cmd)) {
+                    channels_to_uninstall.push(installed_channel.clone());
                 }
-                _ => (),
             }
         }
         for channel in channels_to_uninstall {
@@ -1553,34 +1550,31 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             .get(&channel)
             .unwrap();
 
-        match channel_data {
-            JuliaupConfigChannel::DirectDownloadChannel {
+        if let JuliaupConfigChannel::DirectDownloadChannel {
                 path,
                 url,
                 local_etag,
                 server_etag: _,
                 version,
-            } => {
-                if let Some(etag) = etag {
-                    new_config_file.data.installed_channels.insert(
-                        channel,
-                        JuliaupConfigChannel::DirectDownloadChannel {
-                            path: path.clone(),
-                            url: url.clone(),
-                            local_etag: local_etag.clone(),
-                            server_etag: etag,
-                            version: version.clone(),
-                        },
-                    );
-                } else {
-                    eprintln!(
-                        "{} to update {}. This can happen if a build is no longer available.",
-                        style("Failed").red().bold(),
-                        channel
-                    );
-                }
+            } = channel_data {
+            if let Some(etag) = etag {
+                new_config_file.data.installed_channels.insert(
+                    channel,
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        path: path.clone(),
+                        url: url.clone(),
+                        local_etag: local_etag.clone(),
+                        server_etag: etag,
+                        version: version.clone(),
+                    },
+                );
+            } else {
+                eprintln!(
+                    "{} to update {}. This can happen if a build is no longer available.",
+                    style("Failed").red().bold(),
+                    channel
+                );
             }
-            _ => {}
         }
     }
 
