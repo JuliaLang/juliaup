@@ -2,9 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
 use is_terminal::IsTerminal;
 use itertools::Itertools;
+use juliaup::cli::CompletionShell;
+use juliaup::command_completions::generate_completion_for_command;
 use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::julia_completions::{julia_cli, julia_cli_with_hidden};
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -304,6 +307,80 @@ fn get_override_channel(
     }
 }
 
+struct JuliaCommand;
+
+impl clap::CommandFactory for JuliaCommand {
+    fn command() -> clap::Command {
+        julia_cli()
+    }
+
+    fn command_for_update() -> clap::Command {
+        julia_cli()
+    }
+}
+
+fn generate_julia_completions(shell: CompletionShell) -> Result<()> {
+    generate_completion_for_command::<JuliaCommand>(shell, "julia")?;
+    Ok(())
+}
+
+fn handle_help_and_completion_args(
+    args: &mut [String],
+    arg_index: usize,
+) -> Result<Option<i32>> {
+    // Check for help request - show our colored help
+    if args[arg_index] == "--help" || args[arg_index] == "-h" {
+        julia_cli().print_help()?;
+        return Ok(Some(0));
+    }
+
+    // Check for hidden help request - show all options including hidden ones
+    if args[arg_index] == "--help-hidden" {
+        julia_cli_with_hidden().print_help()?;
+        return Ok(Some(0));
+    }
+
+    // Check for raw help request - pass through to Julia's native help
+    if args[arg_index] == "--help-raw" {
+        // Replace --help-raw with --help and pass through to Julia
+        args[arg_index] = String::from("--help");
+        // Continue with normal Julia execution with --help flag
+        return Ok(None);
+    }
+
+    // Check for hidden raw help request - pass through to Julia's native hidden help
+    if args[arg_index] == "--help-hidden-raw" {
+        // Replace --help-hidden-raw with --help-hidden and pass through to Julia
+        args[arg_index] = String::from("--help-hidden");
+        // Continue with normal Julia execution with --help-hidden flag
+        return Ok(None);
+    }
+
+    // Check for completion generation request
+    if args[arg_index] == "--generate-completions" {
+        if args.len() > arg_index + 1 {
+            let shell_str = &args[arg_index + 1];
+            let shell = match shell_str.as_str() {
+                "bash" => CompletionShell::Bash,
+                "zsh" => CompletionShell::Zsh,
+                "fish" => CompletionShell::Fish,
+                "elvish" => CompletionShell::Elvish,
+                "power-shell" => CompletionShell::PowerShell,
+                "nushell" => CompletionShell::Nushell,
+                _ => return Err(anyhow!("Invalid shell: {}. Valid options are: bash, zsh, fish, elvish, power-shell, nushell", shell_str))
+            };
+            generate_julia_completions(shell)?;
+            return Ok(Some(0));
+        } else {
+            eprintln!("Usage: julia --generate-completions <shell>");
+            eprintln!("Available shells: bash, zsh, fish, elvish, power-shell, nushell");
+            return Ok(Some(1));
+        }
+    }
+
+    Ok(None)
+}
+
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -324,12 +401,27 @@ fn run_app() -> Result<i32> {
 
     // Parse command line
     let mut channel_from_cmd_line: Option<String> = None;
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+
+    // Check for help and completion args at position 1 (no channel prefix)
+    if args.len() > 1 {
+        if let Some(exit_code) = handle_help_and_completion_args(&mut args, 1)? {
+            return Ok(exit_code);
+        }
+    }
+
     if args.len() > 1 {
         let first_arg = &args[1];
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
             channel_from_cmd_line = Some(stripped.to_string());
+
+            // After parsing channel, check if next arg is a help/completion flag
+            if args.len() > 2 {
+                if let Some(exit_code) = handle_help_and_completion_args(&mut args, 2)? {
+                    return Ok(exit_code);
+                }
+            }
         }
     }
 
