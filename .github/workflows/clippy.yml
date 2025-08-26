@@ -23,9 +23,7 @@ jobs:
           - os: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
           - os: windows-latest
-            features: windowsstore,binjuliainstaller,binjulialauncher
-          - os: windows-latest
-            features: windowsappinstaller,binjuliainstaller,binjulialauncher
+            features: windowsstore,windowsappinstaller,binjuliainstaller,binjulialauncher
           - os: macos-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
     steps:
