@@ -619,7 +619,7 @@ pub fn install_from_url(
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
-    std::fs::rename(temp_dir.path(), &target_path)?;
+    std::fs::rename(temp_dir.keep(), &target_path)?;
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
