@@ -1,52 +1,42 @@
 use crate::cli;
 use anyhow::Result;
 use clap::CommandFactory;
-use clap_complete::Shell;
-use clap_complete_nushell::Nushell;
-use cli::{CompletionShell, Juliaup};
+use clap_complete::{generate, Shell};
+use cli::CompletionShell;
 use std::io;
 
-fn shell_to_string(shell: CompletionShell) -> &'static str {
-    match shell {
-        CompletionShell::Bash => "bash",
-        CompletionShell::Elvish => "elvish",
-        CompletionShell::Fish => "fish",
-        CompletionShell::Nushell => "nushell",
-        CompletionShell::PowerShell => "powershell",
-        CompletionShell::Zsh => "zsh",
-    }
-}
-
-pub fn run_command_completions(shell: CompletionShell) -> Result<()> {
-    generate_completion_for_command::<Juliaup>(shell_to_string(shell), "juliaup")
+/// Type of completion generator to use
+enum GeneratorType {
+    Standard(Shell),
+    Nushell,
 }
 
 /// Generic completion generator that supports both standard shells and nushell
 pub fn generate_completion_for_command<T: CommandFactory>(
-    shell: &str,
+    shell: CompletionShell,
     app_name: &str,
 ) -> Result<()> {
     let mut cmd = T::command();
-    
-    // Try to parse as standard clap shell first
-    if let Ok(clap_shell) = shell.parse::<Shell>() {
-        clap_complete::generate(
-            clap_shell,
+    let mut stdout = io::stdout().lock();
+
+    let generator_type = match shell {
+        CompletionShell::Bash => GeneratorType::Standard(Shell::Bash),
+        CompletionShell::Elvish => GeneratorType::Standard(Shell::Elvish),
+        CompletionShell::Fish => GeneratorType::Standard(Shell::Fish),
+        CompletionShell::PowerShell => GeneratorType::Standard(Shell::PowerShell),
+        CompletionShell::Zsh => GeneratorType::Standard(Shell::Zsh),
+        CompletionShell::Nushell => GeneratorType::Nushell,
+    };
+
+    match generator_type {
+        GeneratorType::Standard(s) => generate(s, &mut cmd, app_name, &mut stdout),
+        GeneratorType::Nushell => generate(
+            clap_complete_nushell::Nushell,
             &mut cmd,
             app_name,
-            &mut io::stdout().lock(),
-        );
-    } else if shell.eq_ignore_ascii_case("nushell") {
-        // Handle nushell separately
-        clap_complete::generate(
-            Nushell,
-            &mut cmd,
-            app_name,
-            &mut io::stdout().lock(),
-        );
-    } else {
-        anyhow::bail!("Unsupported shell: {}", shell);
+            &mut stdout,
+        ),
     }
-    
+
     Ok(())
 }
