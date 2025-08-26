@@ -1,5 +1,16 @@
 use clap::{Parser, ValueEnum};
 
+/// Shell options for completions
+#[derive(Clone, ValueEnum)]
+pub enum CompletionShell {
+    Bash,
+    Elvish, 
+    Fish,
+    Nushell,
+    PowerShell,
+    Zsh,
+}
+
 #[derive(Parser)]
 #[clap(name = "Juliaup", version)]
 #[command(
@@ -51,7 +62,10 @@ pub enum Juliaup {
     #[clap(subcommand, name = "self")]
     SelfSubCmd(SelfSubCmd),
     /// Generate tab-completion scripts for your shell
-    Completions { shell: clap_complete::Shell },
+    Completions { 
+        #[arg(value_enum, value_name = "SHELL")]
+        shell: CompletionShell 
+    },
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
