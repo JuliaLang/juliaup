@@ -1,9 +1,11 @@
 use clap::{Arg, ArgAction, Command};
+use crate::cli_styles::get_styles;
 
 pub fn julia_cli() -> Command {
     Command::new("julia")
         .about("The Julia Programming Language")
         .version("1.11.0") // This is a placeholder version
+        .styles(get_styles())
         .arg(
             Arg::new("channel")
                 .help("Select a Julia channel/version")
