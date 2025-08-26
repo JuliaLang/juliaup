@@ -165,7 +165,7 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
             .short('p')
             .long("procs")
             .value_name("{N|auto}")
-            .help("Integer value N launches N additional local worker processes `auto` launches as many workers as the number of local CPU threads (logical cores).")
+            .help("Integer value N launches N additional local worker processes 'auto' launches as many workers as the number of local CPU threads (logical cores).")
             .action(ArgAction::Set),
         // Machine file
         Arg::new("machine-file")
@@ -263,7 +263,7 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
         Arg::new("debug-info")
             .short('g')
             .long("debug-info")
-            .value_name("0|1*|2")
+            .value_name("[{0|1*|2}]")
             .help("Set the level of debug info generation (level 2 if `-g` is used without a level) ($)")
             .action(ArgAction::Set)
             .num_args(0..=1)
