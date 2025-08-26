@@ -30,9 +30,9 @@ use juliaup::cli::CompletionShell;
         +<channel>         Select Julia channel (e.g., +1.10, +release)
         --project[=<path>] Set project directory
         [...]              Other Julia flags are also supported")]
-struct Cli {
+struct Juliapkg {
     #[command(subcommand)]
-    command: Option<PkgCommand>,
+    command: Option<JuliapkgCommand>,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -54,7 +54,7 @@ enum UpdatePreserveLevel {
 }
 
 #[derive(Subcommand)]
-enum PkgCommand {
+enum JuliapkgCommand {
     /// Add packages to project
     Add {
         /// Package specifications to add
@@ -380,7 +380,7 @@ fn parse_arguments(args: &[String]) -> ParsedArgs {
 
 /// Show help message and exit
 fn show_help() -> Result<std::process::ExitCode> {
-    match Cli::try_parse_from(["juliapkg", "--help"]) {
+    match Juliapkg::try_parse_from(["juliapkg", "--help"]) {
         Ok(_) => {}
         Err(e) => {
             // Clap returns an error for --help but prints to stderr
@@ -396,7 +396,7 @@ fn validate_pkg_command(pkg_args: &[String]) -> Result<()> {
     let mut parse_args = vec!["juliapkg".to_string()];
     parse_args.extend(pkg_args.iter().cloned());
 
-    match Cli::try_parse_from(&parse_args) {
+    match Juliapkg::try_parse_from(&parse_args) {
         Ok(_) => Ok(()),
         Err(e) => {
             // Check if this is a help request
@@ -489,11 +489,12 @@ fn main() -> Result<std::process::ExitCode> {
         let mut parse_args = vec!["juliapkg".to_string()];
         parse_args.extend(parsed.pkg_args.iter().cloned());
 
-        match Cli::try_parse_from(&parse_args) {
+        match Juliapkg::try_parse_from(&parse_args) {
             Ok(cli) => {
-                if let Some(PkgCommand::Completions { shell }) = cli.command {
-                    if let Err(e) =
-                        juliaup::command_completions::generate_juliapkg_completions::<Cli>(shell)
+                if let Some(JuliapkgCommand::Completions { shell }) = cli.command {
+                    if let Err(e) = juliaup::command_completions::generate_completion_for_command::<
+                        Juliapkg,
+                    >(shell, "juliapkg")
                     {
                         eprintln!("Error generating completions: {}", e);
                         return Ok(std::process::ExitCode::from(1));
