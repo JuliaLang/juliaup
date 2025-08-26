@@ -33,4 +33,16 @@ pub fn get_styles() -> Styles {
                 .fg_color(Some(AnsiColor::Yellow.into()))
                 .effects(Effects::BOLD),
         )
+        // Style the context (e.g., [default: ...], [possible values: ...])
+        .context(
+            Style::new()
+                .fg_color(Some(AnsiColor::BrightBlack.into()))
+                .effects(Effects::DIMMED),
+        )
+        // Style the values within context (e.g., the "yes" in [default: yes])
+        .context_value(
+            Style::new()
+                .fg_color(Some(AnsiColor::Yellow.into()))
+                .effects(Effects::BOLD),
+        )
 }
