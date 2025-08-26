@@ -5,8 +5,8 @@ use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
-use numeric_sort::cmp;
 use itertools::Itertools;
+use numeric_sort::cmp;
 
 #[derive(Table)]
 struct ChannelRow {
