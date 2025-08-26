@@ -307,7 +307,7 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .write(true)
         .create(true)
         .truncate(true)
-        .open(&path)
+        .open(path)
         .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
 
     file.write_all(response.as_bytes())
@@ -1575,9 +1575,9 @@ fn download_direct_download_etags(
                             .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
                             .to_string();
 
-                        return Ok::<Option<String>, anyhow::Error>(Some(etag));
+                        Ok::<Option<String>, anyhow::Error>(Some(etag))
                     } else {
-                        return Ok::<Option<String>, anyhow::Error>(None);
+                        Ok::<Option<String>, anyhow::Error>(None)
                     }
                 },
                 3, // Timeout in seconds
