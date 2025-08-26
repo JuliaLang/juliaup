@@ -328,6 +328,63 @@ fn generate_julia_completions(shell: CompletionShell) -> Result<()> {
     Ok(())
 }
 
+fn handle_help_and_completion_args(
+    args: &mut Vec<String>,
+    arg_index: usize,
+) -> Result<Option<i32>> {
+    // Check for help request - show our colored help
+    if args[arg_index] == "--help" || args[arg_index] == "-h" {
+        julia_cli().print_help()?;
+        return Ok(Some(0));
+    }
+
+    // Check for hidden help request - show all options including hidden ones
+    if args[arg_index] == "--help-hidden" {
+        julia_cli_with_hidden().print_help()?;
+        return Ok(Some(0));
+    }
+
+    // Check for raw help request - pass through to Julia's native help
+    if args[arg_index] == "--help-raw" {
+        // Replace --help-raw with --help and pass through to Julia
+        args[arg_index] = String::from("--help");
+        // Continue with normal Julia execution with --help flag
+        return Ok(None);
+    }
+
+    // Check for hidden raw help request - pass through to Julia's native hidden help
+    if args[arg_index] == "--help-hidden-raw" {
+        // Replace --help-hidden-raw with --help-hidden and pass through to Julia
+        args[arg_index] = String::from("--help-hidden");
+        // Continue with normal Julia execution with --help-hidden flag
+        return Ok(None);
+    }
+
+    // Check for completion generation request
+    if args[arg_index] == "--generate-completions" {
+        if args.len() > arg_index + 1 {
+            let shell_str = &args[arg_index + 1];
+            let shell = match shell_str.as_str() {
+                "bash" => CompletionShell::Bash,
+                "zsh" => CompletionShell::Zsh,
+                "fish" => CompletionShell::Fish,
+                "elvish" => CompletionShell::Elvish,
+                "power-shell" => CompletionShell::PowerShell,
+                "nushell" => CompletionShell::Nushell,
+                _ => return Err(anyhow!("Invalid shell: {}. Valid options are: bash, zsh, fish, elvish, power-shell, nushell", shell_str))
+            };
+            generate_julia_completions(shell)?;
+            return Ok(Some(0));
+        } else {
+            eprintln!("Usage: julia --generate-completions <shell>");
+            eprintln!("Available shells: bash, zsh, fish, elvish, power-shell, nushell");
+            return Ok(Some(1));
+        }
+    }
+
+    Ok(None)
+}
+
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -350,60 +407,10 @@ fn run_app() -> Result<i32> {
     let mut channel_from_cmd_line: Option<String> = None;
     let mut args: Vec<String> = std::env::args().collect();
 
-    // Check for help request - show our colored help
-    if args.len() > 1 && (args[1] == "--help" || args[1] == "-h") {
-        julia_cli().print_help()?;
-        return Ok(0);
-    }
-    
-    // Check for hidden help request - show all options including hidden ones
-    if args.len() > 1 && args[1] == "--help-hidden" {
-        julia_cli_with_hidden().print_help()?;
-        return Ok(0);
-    }
-    
-    // Check for raw help request - pass through to Julia's native help
-    if args.len() > 1 && args[1] == "--help-raw" {
-        // Replace --help-raw with --help and pass through to Julia
-        let mut julia_args = args.clone();
-        julia_args[1] = String::from("--help");
-        // Continue with normal Julia execution with --help flag
-        args = julia_args;
-        // Don't return here - let it fall through to normal Julia execution
-    }
-    
-    // Check for hidden raw help request - pass through to Julia's native hidden help
-    if args.len() > 1 && args[1] == "--help-hidden-raw" {
-        // Replace --help-hidden-raw with --help-hidden and pass through to Julia
-        let mut julia_args = args.clone();
-        julia_args[1] = String::from("--help-hidden");
-        // Continue with normal Julia execution with --help-hidden flag
-        args = julia_args;
-        // Don't return here - let it fall through to normal Julia execution
-    }
-    
-    // Check for version request - for now pass through to Julia
-    // TODO: We could show our own version info here if desired
-    
-    // Check for completion generation request
-    if args.len() > 1 && args[1] == "--generate-completions" {
-        if args.len() > 2 {
-            let shell_str = &args[2];
-            let shell = match shell_str.as_str() {
-                "bash" => CompletionShell::Bash,
-                "zsh" => CompletionShell::Zsh,
-                "fish" => CompletionShell::Fish,
-                "elvish" => CompletionShell::Elvish,
-                "powershell" => CompletionShell::PowerShell,
-                "nushell" => CompletionShell::Nushell,
-                _ => return Err(anyhow!("Invalid shell: {}. Valid options are: bash, zsh, fish, elvish, powershell, nushell", shell_str))
-            };
-            generate_julia_completions(shell)?;
-            return Ok(0);
-        } else {
-            eprintln!("Usage: julia --generate-completions <shell>");
-            eprintln!("Available shells: bash, zsh, fish, elvish, powershell, nushell");
-            return Ok(1);
+    // Check for help and completion args at position 1 (no channel prefix)
+    if args.len() > 1 {
+        if let Some(exit_code) = handle_help_and_completion_args(&mut args, 1)? {
+            return Ok(exit_code);
         }
     }
 
@@ -412,6 +419,13 @@ fn run_app() -> Result<i32> {
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
             channel_from_cmd_line = Some(stripped.to_string());
+
+            // After parsing channel, check if next arg is a help/completion flag
+            if args.len() > 2 {
+                if let Some(exit_code) = handle_help_and_completion_args(&mut args, 2)? {
+                    return Ok(exit_code);
+                }
+            }
         }
     }
 

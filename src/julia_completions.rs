@@ -311,10 +311,10 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
         // Generate completions
         Arg::new("generate-completions")
             .long("generate-completions")
-            .value_name("bash|zsh|fish|elvish|powershell|nushell")
+            .value_name("bash|zsh|fish|elvish|power-shell|nushell")
             .help("Generate shell completions for the specified shell")
             .action(ArgAction::Set)
-            .value_parser(["bash", "zsh", "fish", "elvish", "powershell", "nushell"])
+            .value_parser(["bash", "zsh", "fish", "elvish", "power-shell", "nushell"])
             .hide_possible_values(true),
         // Heap size hint
         Arg::new("heap-size-hint")
