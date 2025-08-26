@@ -1,6 +1,7 @@
 use anyhow::Context;
 
 pub mod cli;
+pub mod cli_styles;
 pub mod command_add;
 pub mod command_api;
 pub mod command_completions;
