@@ -22,18 +22,18 @@ fn get_juliaup_home_path() -> Result<PathBuf> {
             let val = val.trim();
 
             if val.is_empty() {
-                return get_default_juliaup_home_path();
+                get_default_juliaup_home_path()
             } else {
                 let path = PathBuf::from(val);
 
                 if !path.is_absolute() {
-                    return Err(anyhow!("The current value of '{}' for the environment variable JULIAUP_DEPOT_PATH is not an absolute path.", val));
+                    Err(anyhow!("The current value of '{}' for the environment variable JULIAUP_DEPOT_PATH is not an absolute path.", val))
                 } else {
-                    return Ok(PathBuf::from(val).join("juliaup"));
+                    Ok(PathBuf::from(val).join("juliaup"))
                 }
             }
         }
-        Err(_) => return get_default_juliaup_home_path(),
+        Err(_) => get_default_juliaup_home_path(),
     }
 }
 
