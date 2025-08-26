@@ -195,7 +195,10 @@ fn get_julia_path_from_channel_impl(
 ) -> Result<(PathBuf, Vec<String>)> {
     // Check for circular references
     if visited.contains(channel) {
-        return Err(anyhow!("Circular alias detected: alias chain contains a cycle involving '{}'", channel));
+        return Err(anyhow!(
+            "Circular alias detected: alias chain contains a cycle involving '{}'",
+            channel
+        ));
     }
     visited.insert(channel.to_string());
     let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;

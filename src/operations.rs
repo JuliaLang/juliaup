@@ -1663,7 +1663,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;
@@ -1734,7 +1734,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;

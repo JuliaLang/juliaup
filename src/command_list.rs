@@ -1,13 +1,13 @@
+use crate::config_file::{load_config_db, JuliaupConfigChannel};
 use crate::operations::{channel_to_name, get_channel_variations};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
-use crate::config_file::{load_config_db, JuliaupConfigChannel};
 use anyhow::{Context, Result};
 use cli_table::{
     format::{Border, HorizontalLine, Separator},
     print_stdout, ColorChoice, Table, WithTitle,
 };
-use numeric_sort::cmp;
 use itertools::Itertools;
+use numeric_sort::cmp;
 
 #[derive(Table)]
 struct ChannelRow {

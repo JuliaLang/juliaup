@@ -10,7 +10,7 @@ fn command_alias_basic_functionality() {
         .unwrap()
         .arg("alias")
         .arg("testalias")
-        .arg("release")  // 'release' is always available in the version db
+        .arg("release") // 'release' is always available in the version db
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
@@ -55,7 +55,7 @@ fn command_alias_circular_reference_simple() {
     // Read the config file directly and modify it to create circular reference
     let config_path = depot_path.join("config.toml");
     let mut config_content = std::fs::read_to_string(&config_path).unwrap_or_default();
-    
+
     // Replace the alias1 target to create circular reference
     config_content = config_content.replace("alias1 = \"release\"", "alias1 = \"alias2\"");
     std::fs::write(&config_path, config_content).unwrap();
