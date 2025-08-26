@@ -350,6 +350,21 @@ fn run_app() -> Result<i32> {
     let mut channel_from_cmd_line: Option<String> = None;
     let args: Vec<String> = std::env::args().collect();
 
+    // Check for help request - show our colored help
+    if args.len() > 1 && (args[1] == "--help" || args[1] == "-h") {
+        julia_cli().print_help()?;
+        return Ok(0);
+    }
+    
+    // Check for hidden help request - show all options including hidden ones
+    if args.len() > 1 && args[1] == "--help-hidden" {
+        julia_cli().print_long_help()?;
+        return Ok(0);
+    }
+    
+    // Check for version request - for now pass through to Julia
+    // TODO: We could show our own version info here if desired
+    
     // Check for completion generation request
     if args.len() > 1 && args[1] == "--generate-completions" {
         if args.len() > 2 {
