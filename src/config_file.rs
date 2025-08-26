@@ -150,6 +150,7 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&paths.lockfile)
     {
         Ok(file) => file,
@@ -263,6 +264,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&paths.lockfile)
     {
         Ok(file) => file,
@@ -284,6 +286,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&paths.juliaupconfig)
         .with_context(|| "Failed to open juliaup config file.")?;
 

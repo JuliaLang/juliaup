@@ -477,6 +477,7 @@ pub fn main() -> Result<()> {
         let mut self_file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(&self_config_path)
             .with_context(|| "Failed to open juliaup config file.")?;
 

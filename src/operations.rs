@@ -1195,6 +1195,7 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(path)
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
