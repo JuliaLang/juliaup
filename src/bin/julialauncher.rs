@@ -175,6 +175,29 @@ fn get_julia_path_from_channel(
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
 ) -> Result<(PathBuf, Vec<String>)> {
+    get_julia_path_from_channel_impl(
+        versions_db,
+        config_data,
+        channel,
+        juliaupconfig_path,
+        juliaup_channel_source,
+        &mut std::collections::HashSet::new(),
+    )
+}
+
+fn get_julia_path_from_channel_impl(
+    versions_db: &JuliaupVersionDB,
+    config_data: &JuliaupConfig,
+    channel: &str,
+    juliaupconfig_path: &Path,
+    juliaup_channel_source: JuliaupChannelSource,
+    visited: &mut std::collections::HashSet<String>,
+) -> Result<(PathBuf, Vec<String>)> {
+    // Check for circular references
+    if visited.contains(channel) {
+        return Err(anyhow!("Circular alias detected: alias chain contains a cycle involving '{}'", channel));
+    }
+    visited.insert(channel.to_string());
     let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
     let channel_info = config_data
             .installed_channels
@@ -220,12 +243,13 @@ fn get_julia_path_from_channel(
         JuliaupConfigChannel::AliasedChannel {
             channel: newchannel,
         } => {
-            return get_julia_path_from_channel(
+            return get_julia_path_from_channel_impl(
                 versions_db,
                 config_data,
                 newchannel,
                 juliaupconfig_path,
                 juliaup_channel_source,
+                visited,
             )
         }
         JuliaupConfigChannel::SystemChannel { version } => {
