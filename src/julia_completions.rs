@@ -1,5 +1,5 @@
-use clap::{Arg, ArgAction, Command};
 use crate::cli_styles::get_styles;
+use clap::{Arg, ArgAction, Command};
 
 pub fn julia_cli() -> Command {
     julia_cli_impl(false)
@@ -455,24 +455,24 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
             .value_parser(["no", "safe", "unsafe", "unsafe-warn"])
             .hide_possible_values(true),
     ];
-    
+
     // Add normal args (hide them if only_hidden is true)
     for arg in normal_args {
         cmd = cmd.arg(arg.hide(only_hidden));
     }
-    
+
     // Add hidden args (hide them if only_hidden is false, i.e., show when true)
     for arg in hidden_args {
         cmd = cmd.arg(arg.hide(!only_hidden));
     }
-    
+
     // Add positional arguments
     cmd = cmd
         .arg(
             Arg::new("programfile")
                 .help("Julia script to execute")
                 .action(ArgAction::Set)
-                .index(1)
+                .index(1),
         )
         .arg(
             Arg::new("args")
@@ -480,8 +480,8 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
                 .action(ArgAction::Append)
                 .index(2)
                 .trailing_var_arg(true)
-                .allow_hyphen_values(true)
+                .allow_hyphen_values(true),
         );
-    
+
     cmd
 }
