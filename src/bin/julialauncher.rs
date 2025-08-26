@@ -325,7 +325,7 @@ fn generate_julia_completions(shell: CompletionShell) -> Result<()> {
 }
 
 fn handle_help_and_completion_args(
-    args: &mut Vec<String>,
+    args: &mut [String],
     arg_index: usize,
 ) -> Result<Option<i32>> {
     // Check for help request - show our colored help

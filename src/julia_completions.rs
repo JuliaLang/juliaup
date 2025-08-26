@@ -339,7 +339,7 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
             .value_name("tracefile.info")
             .help("Append coverage information to the LCOV tracefile (filename supports format tokens)")
             .action(ArgAction::Set)
-            .conflicts_with_all(&["code-coverage", "code-coverage-path"]),
+            .conflicts_with_all(["code-coverage", "code-coverage-path"]),
         // Track allocation with path
         Arg::new("track-allocation-path")
             .long("track-allocation")
