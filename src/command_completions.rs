@@ -11,6 +11,19 @@ enum GeneratorType {
     Nushell,
 }
 
+impl From<CompletionShell> for GeneratorType {
+    fn from(shell: CompletionShell) -> Self {
+        match shell {
+            CompletionShell::Bash => GeneratorType::Standard(Shell::Bash),
+            CompletionShell::Elvish => GeneratorType::Standard(Shell::Elvish),
+            CompletionShell::Fish => GeneratorType::Standard(Shell::Fish),
+            CompletionShell::PowerShell => GeneratorType::Standard(Shell::PowerShell),
+            CompletionShell::Zsh => GeneratorType::Standard(Shell::Zsh),
+            CompletionShell::Nushell => GeneratorType::Nushell,
+        }
+    }
+}
+
 /// Generic completion generator that supports both standard shells and nushell
 pub fn generate_completion_for_command<T: CommandFactory>(
     shell: CompletionShell,
@@ -19,16 +32,7 @@ pub fn generate_completion_for_command<T: CommandFactory>(
     let mut cmd = T::command();
     let mut stdout = io::stdout().lock();
 
-    let generator_type = match shell {
-        CompletionShell::Bash => GeneratorType::Standard(Shell::Bash),
-        CompletionShell::Elvish => GeneratorType::Standard(Shell::Elvish),
-        CompletionShell::Fish => GeneratorType::Standard(Shell::Fish),
-        CompletionShell::PowerShell => GeneratorType::Standard(Shell::PowerShell),
-        CompletionShell::Zsh => GeneratorType::Standard(Shell::Zsh),
-        CompletionShell::Nushell => GeneratorType::Nushell,
-    };
-
-    match generator_type {
+    match GeneratorType::from(shell) {
         GeneratorType::Standard(s) => generate(s, &mut cmd, app_name, &mut stdout),
         GeneratorType::Nushell => generate(
             clap_complete_nushell::Nushell,
