@@ -37,24 +37,6 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
             .long("help-hidden")
             .help("Print uncommon options not shown by `-h`")
             .action(ArgAction::SetTrue),
-        // Help raw (pass through to Julia's native help)
-        Arg::new("help-raw")
-            .long("help-raw")
-            .help("Print Julia's native help menu (bypasses this formatted help)")
-            .action(ArgAction::SetTrue),
-        // Help hidden raw (pass through to Julia's native hidden help)
-        Arg::new("help-hidden-raw")
-            .long("help-hidden-raw")
-            .help("Print Julia's native hidden help menu (bypasses this formatted help)")
-            .action(ArgAction::SetTrue),
-        // Generate completions
-        Arg::new("generate-completions")
-            .long("generate-completions")
-            .value_name("bash|zsh|fish|elvish|powershell|nushell")
-            .help("Generate shell completions for the specified shell")
-            .action(ArgAction::Set)
-            .value_parser(["bash", "zsh", "fish", "elvish", "powershell", "nushell"])
-            .hide_possible_values(true),
         // Project
         Arg::new("project")
             .long("project")
@@ -316,6 +298,24 @@ fn julia_cli_impl(only_hidden: bool) -> Command {
             .value_name("KIND")
             .help("Launch a bug report session. It can be used to start a REPL, run a script, or evaluate expressions. It first tries to use BugReporting.jl installed in current environment and fallbacks to the latest compatible BugReporting.jl if not. For more information, see --bug-report=help.")
             .action(ArgAction::Set),
+        // Help raw (pass through to Julia's native help)
+        Arg::new("help-raw")
+            .long("help-raw")
+            .help("Print Julia's native help menu (bypasses this formatted help)")
+            .action(ArgAction::SetTrue),
+        // Help hidden raw (pass through to Julia's native hidden help)
+        Arg::new("help-hidden-raw")
+            .long("help-hidden-raw")
+            .help("Print Julia's native hidden help menu (bypasses this formatted help)")
+            .action(ArgAction::SetTrue),
+        // Generate completions
+        Arg::new("generate-completions")
+            .long("generate-completions")
+            .value_name("bash|zsh|fish|elvish|powershell|nushell")
+            .help("Generate shell completions for the specified shell")
+            .action(ArgAction::Set)
+            .value_parser(["bash", "zsh", "fish", "elvish", "powershell", "nushell"])
+            .hide_possible_values(true),
         // Heap size hint
         Arg::new("heap-size-hint")
             .long("heap-size-hint")
