@@ -1,5 +1,6 @@
 use crate::operations::{channel_to_name, get_channel_variations};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
+use crate::config_file::{load_config_db, JuliaupConfigChannel};
 use anyhow::{Context, Result};
 use cli_table::{
     format::{Border, HorizontalLine, Separator},
@@ -20,6 +21,9 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
+    let config_data = load_config_db(paths, None)
+        .with_context(|| "`list` command failed to load configuration data.")?;
+
     let non_db_channels: Vec<String> = (get_channel_variations("nightly")?)
         .into_iter()
         .chain(get_channel_variations("x.y-nightly")?)
@@ -36,6 +40,23 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         })
         .collect();
 
+    // Add user-created aliases
+    let alias_rows: Vec<ChannelRow> = config_data
+        .data
+        .installed_channels
+        .iter()
+        .filter_map(|(alias_name, channel_config)| {
+            if let JuliaupConfigChannel::AliasedChannel { channel } = channel_config {
+                Some(ChannelRow {
+                    name: alias_name.clone(),
+                    version: format!("alias -> {}", channel),
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
     let rows_in_table: Vec<_> = versiondb_data
         .available_channels
         .iter()
@@ -47,6 +68,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         })
         .sorted_by(|a, b| cmp(&a.name, &b.name))
         .chain(non_db_rows)
+        .chain(alias_rows)
         .collect();
 
     print_stdout(
