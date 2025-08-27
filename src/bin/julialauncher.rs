@@ -200,7 +200,7 @@ fn get_julia_path_from_channel_impl(
             channel
         ));
     }
-    let channel_valid = is_valid_channel(versions_db, channel)?;
+    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
     let channel_info = config_data
             .installed_channels
             .get(channel)
