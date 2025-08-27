@@ -101,7 +101,6 @@ fn get_channel_info(
                 Err(_) => Ok(None),
             }
         }
-        // TODO: fix
         JuliaupConfigChannel::AliasedChannel { channel } => {
             match config_file.data.installed_channels.get(channel) {
                 Some(target_channel) => {
