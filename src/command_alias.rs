@@ -33,21 +33,20 @@ pub fn run_command_alias(alias: &str, channel: &str, paths: &GlobalPaths) -> Res
         },
     );
 
-    #[cfg(not(windows))]
-    let create_symlinks = config_file.data.settings.create_channel_symlinks;
-
     save_config_db(&mut config_file)
         .with_context(|| "`alias` command failed to save configuration db.")?;
 
     #[cfg(not(windows))]
-    if create_symlinks {
-        create_symlink(
-            &JuliaupConfigChannel::AliasedChannel {
-                channel: channel.to_string(),
-            },
-            &format!("julia-{}", alias),
-            paths,
-        )?;
+    {
+        if config_file.data.settings.create_channel_symlinks {
+            create_symlink(
+                &JuliaupConfigChannel::AliasedChannel {
+                    channel: channel.to_string(),
+                },
+                &format!("julia-{}", alias),
+                paths,
+            )?;
+        }
     }
 
     Ok(())
