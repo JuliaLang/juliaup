@@ -785,7 +785,7 @@ pub fn garbage_collect_versions(
     }
 
     if versions_to_uninstall.is_empty() {
-        eprintln!("Nothing to remove.");
+        eprintln!("{} No unused Julia installations to clean up.", style("GC").cyan().bold());
     } else {
         for i in versions_to_uninstall {
             eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
