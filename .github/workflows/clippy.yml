@@ -1,0 +1,37 @@
+name: Clippy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  clippy:
+    name: Clippy Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            features: selfupdate,binjuliainstaller,binjulialauncher
+          - os: windows-latest
+            features: windowsstore,windowsappinstaller,binjuliainstaller,binjulialauncher
+          - os: macos-latest
+            features: selfupdate,binjuliainstaller,binjulialauncher
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy
+      - name: Run clippy
+        run: cargo clippy --all-targets --features ${{ matrix.features }} -- -D warnings

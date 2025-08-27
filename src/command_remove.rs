@@ -49,7 +49,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         version: _,
     } = x
     {
-        let path_to_delete = paths.juliauphome.join(&path);
+        let path_to_delete = paths.juliauphome.join(path);
 
         let display = path_to_delete.display();
 

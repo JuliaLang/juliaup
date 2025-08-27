@@ -46,18 +46,12 @@ pub fn run_command_config_backgroundselfupdate(
                 if value_changed {
                     eprintln!(
                         "Property 'backgroundselfupdateinterval' set to '{}'",
-                        match value {
-                            Some(value) => value,
-                            None => 0,
-                        }
+                        value.unwrap_or(0)
                     );
                 } else {
                     eprintln!(
                         "Property 'backgroundselfupdateinterval' is already set to '{}'",
-                        match value {
-                            Some(value) => value,
-                            None => 0,
-                        }
+                        value.unwrap_or(0)
                     );
                 }
             }
@@ -69,10 +63,7 @@ pub fn run_command_config_backgroundselfupdate(
             if !quiet {
                 eprintln!(
                     "Property 'backgroundselfupdateinterval' set to '{}'",
-                    match config_file.self_data.background_selfupdate_interval {
-                        Some(value) => value,
-                        None => 0,
-                    }
+                    config_file.self_data.background_selfupdate_interval.unwrap_or(0)
                 );
             }
         }
