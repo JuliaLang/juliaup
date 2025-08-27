@@ -194,14 +194,13 @@ fn get_julia_path_from_channel_impl(
     visited: &mut std::collections::HashSet<String>,
 ) -> Result<(PathBuf, Vec<String>)> {
     // Check for circular references
-    if visited.contains(channel) {
+    if !visited.insert(channel.to_string()) {
         return Err(anyhow!(
             "Circular alias detected: alias chain contains a cycle involving '{}'",
             channel
         ));
     }
-    visited.insert(channel.to_string());
-    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
+    let channel_valid = is_valid_channel(versions_db, channel)?;
     let channel_info = config_data
             .installed_channels
             .get(channel)
