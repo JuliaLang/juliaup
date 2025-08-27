@@ -39,7 +39,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         );
     }
 
-    let x = config_file.data.installed_channels.get(channel).unwrap();
+    let channel_type = config_file.data.installed_channels.get(channel).unwrap().clone();
 
     if let JuliaupConfigChannel::DirectDownloadChannel {
         path,
@@ -47,7 +47,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         local_etag: _,
         server_etag: _,
         version: _,
-    } = x
+    } = &channel_type
     {
         let path_to_delete = paths.juliauphome.join(path);
 
@@ -72,7 +72,15 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         )
     })?;
 
-    eprintln!("Julia '{}' successfully removed.", channel);
+    // Provide specific message based on channel type
+    match channel_type {
+        JuliaupConfigChannel::AliasedChannel { channel: target } => {
+            eprintln!("Alias '{}' (pointing to '{}') successfully removed.", channel, target);
+        }
+        _ => {
+            eprintln!("Julia '{}' successfully removed.", channel);
+        }
+    }
 
     Ok(())
 }
