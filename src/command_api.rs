@@ -40,13 +40,13 @@ fn get_channel_info(
         JuliaupConfigChannel::SystemChannel {
             version: fullversion,
         } => {
-            let (platform, mut version) = parse_versionstring(&fullversion)
+            let (platform, mut version) = parse_versionstring(fullversion)
                 .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
             version.build = semver::BuildMetadata::EMPTY;
 
             match config_file.data.installed_versions.get(&fullversion.clone()) {
-                Some(channel) => return Ok(Some(JuliaupChannelInfo {
+                Some(channel) => Ok(Some(JuliaupChannelInfo {
                     name: name.clone(),
                     file: paths.juliauphome
                         .join(&channel.path)
@@ -73,7 +73,7 @@ fn get_channel_info(
 
             new_args.push("--version".to_string());
 
-            let res = std::process::Command::new(&command)
+            let res = std::process::Command::new(command)
                 .args(&new_args)
                 .output();
 
@@ -98,7 +98,7 @@ fn get_channel_info(
                         arch: "".to_string(),
                     }))
                 }
-                Err(_) => return Ok(None),
+                Err(_) => Ok(None),
             }
         }
         // TODO: fix
@@ -108,7 +108,7 @@ fn get_channel_info(
                     let real_channel_info = get_channel_info(name, target_channel, config_file, paths)?;
                     match real_channel_info {
                         Some(info) => {
-                            return Ok(Some(JuliaupChannelInfo {
+                            Ok(Some(JuliaupChannelInfo {
                                 name: name.clone(),
                                 file: info.file,
                                 args: info.args,
@@ -116,14 +116,14 @@ fn get_channel_info(
                                 arch: info.arch,
                             }))
                         }
-                        None => return Ok(None),
+                        None => Ok(None),
                     }
                 }
-                None => return Ok(None),
+                None => Ok(None),
             }
         }
         JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
-            return Ok(Some(JuliaupChannelInfo {
+            Ok(Some(JuliaupChannelInfo {
                 name: name.clone(),
                 file: paths.juliauphome
                     .join(path)

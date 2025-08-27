@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     let db_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
         .join("versiondb")
-        .join(format!("versiondb-{}.json", target_platform));
+        .join(format!("versiondb-{target_platform}.json"));
 
     let version_db_path = out_path.join("versionsdb.json");
     std::fs::copy(&db_path, &version_db_path).unwrap();
@@ -35,8 +35,7 @@ fn main() -> Result<()> {
     std::fs::write(
         &bundled_version_path,
         format!(
-            "pub const BUNDLED_JULIA_VERSION: &str = {}; pub const BUNDLED_DB_VERSION: &str = {};",
-            bundled_version_as_string, bundled_dbversion_as_string
+            "pub const BUNDLED_JULIA_VERSION: &str = {bundled_version_as_string}; pub const BUNDLED_DB_VERSION: &str = {bundled_dbversion_as_string};"
         ),
     )
     .unwrap();
