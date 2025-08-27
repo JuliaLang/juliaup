@@ -975,9 +975,9 @@ pub fn create_symlink(
         } => {
             let config_file = load_config_db(paths, None)
         .with_context(|| "Configuration file loading failed while trying to create symlink for aliased channel.")?;
-            if config_file.data.installed_channels.contains_key(newchannel) {
+            if let Some(channel_config) = config_file.data.installed_channels.get(newchannel) {
                 return create_symlink(
-                    config_file.data.installed_channels.get(newchannel).unwrap(),
+                    channel_config,
                     symlink_name,
                     paths,
                 );
