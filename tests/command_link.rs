@@ -462,7 +462,7 @@ fn alias_deep_chain_limit() {
             .unwrap()
             .arg("link")
             .arg(alias_names[i])
-            .arg(&format!("+{}", alias_names[i - 1]))
+            .arg(format!("+{}", alias_names[i - 1]))
             .env("JULIA_DEPOT_PATH", depot_dir.path())
             .env("JULIAUP_DEPOT_PATH", depot_dir.path())
             .assert()
@@ -472,7 +472,7 @@ fn alias_deep_chain_limit() {
     // Using the deep alias should fail due to depth limit
     Command::cargo_bin("julia")
         .unwrap()
-        .arg(&format!("+{}", alias_names[alias_names.len() - 1]))
+        .arg(format!("+{}", alias_names[alias_names.len() - 1]))
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
