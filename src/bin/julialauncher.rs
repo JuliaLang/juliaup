@@ -241,7 +241,7 @@ fn get_julia_path_from_channel_impl(
         JuliaupConfigChannel::AliasedChannel {
             channel: newchannel,
         } => {
-            return get_julia_path_from_channel_impl(
+            get_julia_path_from_channel_impl(
                 versions_db,
                 config_data,
                 newchannel,
