@@ -43,17 +43,41 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         "Failed to load configuration file while running the getconfig1 API command."
     })?;
 
-    for (key, value) in config_file.data.installed_channels {
-        let curr = match value {
-            JuliaupConfigChannel::SystemChannel {
-                version: fullversion,
-            } => {
-                let (platform, mut version) = parse_versionstring(&fullversion)
+    for (key, value) in &config_file.data.installed_channels {
+        let curr = match &value {
+            JuliaupConfigChannel::AliasChannel { target } => {
+                // For aliases, we need to resolve to the target and get its info
+                // Skip if the target doesn't exist to avoid infinite recursion
+                if let Some(target_channel) = config_file.data.installed_channels.get(target) {
+                    match target_channel {
+                        JuliaupConfigChannel::AliasChannel { .. } => {
+                            // Avoid infinite recursion for alias-to-alias
+                            continue;
+                        }
+                        _ => {
+                            // Recursively get info for the target
+                            // For now, just indicate it's an alias
+                            JuliaupChannelInfo {
+                                name: key.clone(),
+                                file: format!("alias-to-{}", target),
+                                args: Vec::new(),
+                                version: format!("alias to {}", target),
+                                arch: "".to_string(),
+                            }
+                        }
+                    }
+                } else {
+                    // Target doesn't exist, skip this alias
+                    continue;
+                }
+            }
+            JuliaupConfigChannel::SystemChannel { version: fullversion } => {
+                let (platform, mut version) = parse_versionstring(fullversion)
                     .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
                 version.build = semver::BuildMetadata::EMPTY;
 
-                match config_file.data.installed_versions.get(&fullversion) {
+                match config_file.data.installed_versions.get(fullversion) {
                     Some(channel) => JuliaupChannelInfo {
                         name: key.clone(),
                         file: paths.juliauphome
@@ -75,13 +99,13 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
             JuliaupConfigChannel::LinkedChannel { command, args } => {
                 let mut new_args: Vec<String> = Vec::new();
 
-                for i in args.as_ref().unwrap() {
+                for i in args.as_ref().unwrap_or(&Vec::new()) {
                     new_args.push(i.to_string());
                 }
 
                 new_args.push("--version".to_string());
 
-                let res = std::process::Command::new(&command)
+                let res = std::process::Command::new(command)
                     .args(&new_args)
                     .output();
 
@@ -101,7 +125,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.unwrap_or_default(),
+                            args: args.as_ref().unwrap_or(&Vec::new()).clone(),
                             version: version.to_string(),
                             arch: "".to_string(),
                         }
@@ -130,7 +154,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
 
         match config_file.data.default {
             Some(ref default_value) => {
-                if &key == default_value {
+                if key == default_value {
                     ret_value.default = Some(curr.clone());
                 } else {
                     ret_value.other_versions.push(curr);
@@ -146,7 +170,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     let j = serde_json::to_string(&ret_value)?;
 
     // Print, write to a file, or send to an HTTP server.
-    println!("{}", j);
+    println!("{j}");
 
     Ok(())
 }

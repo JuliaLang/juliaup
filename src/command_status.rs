@@ -59,7 +59,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         server_etag: _,
                         version,
                     } => {
-                        format!("Development version {}", version)
+                        format!("Development version {version}")
                     }
                     JuliaupConfigChannel::LinkedChannel { command, args } => {
                         let mut combined_command = String::new();
@@ -84,7 +84,10 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                                 }
                             }
                         }
-                        format!("Linked to `{}`", combined_command)
+                        format!("Linked to `{combined_command}`")
+                    }
+                    JuliaupConfigChannel::AliasChannel { target } => {
+                        format!("Alias to `{target}`")
                     }
                 },
                 update: match i.1 {
@@ -104,6 +107,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         command: _,
                         args: _,
                     } => "".to_string(),
+                    JuliaupConfigChannel::AliasChannel { target: _ } => "".to_string(),
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: _,
                         url: _,

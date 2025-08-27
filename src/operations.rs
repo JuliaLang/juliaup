@@ -759,6 +759,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
+            JuliaupConfigChannel::AliasChannel { target: _ } => true,
             JuliaupConfigChannel::DirectDownloadChannel {
                 path: _,
                 url: _,
@@ -855,6 +856,10 @@ pub fn create_symlink(
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
+        JuliaupConfigChannel::AliasChannel { target: _ } => {
+            // Aliases don't create symlinks directly, they are resolved at runtime
+            return Ok(());
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             let child_target_foldername = format!("julia-{}", version);
             let target_path = paths.juliauphome.join(&child_target_foldername);
@@ -1509,7 +1514,7 @@ where
             eprintln!("{}", message);
 
             // Now wait for the function to complete
-            
+
             rx.recv().unwrap()
         }
         Err(e) => panic!("Error receiving result: {:?}", e),

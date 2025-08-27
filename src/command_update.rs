@@ -11,6 +11,30 @@ use anyhow::{anyhow, bail, Context, Result};
 use console::style;
 use std::path::PathBuf;
 
+fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
+    let mut current_channel = channel_name;
+    let mut visited = std::collections::HashSet::new();
+
+    loop {
+        if visited.contains(current_channel) {
+            bail!("Channel alias chain contains a cycle: {}", channel_name);
+        }
+        visited.insert(current_channel.to_string());
+
+        if visited.len() > 10 {
+            bail!("Channel alias chain too deep: {}", channel_name);
+        }
+
+        match config_db.installed_channels.get(current_channel) {
+            Some(JuliaupConfigChannel::AliasChannel { target }) => {
+                current_channel = target;
+            }
+            Some(_) => return Ok(current_channel.to_string()),
+            None => bail!("Channel '{}' not found", current_channel),
+        }
+    }
+}
+
 fn update_channel(
     config_db: &mut JuliaupConfig,
     channel: &String,
@@ -74,6 +98,13 @@ fn update_channel(
                     channel
                 );
             }
+        }
+        JuliaupConfigChannel::AliasChannel { target: _ } => {
+            // This should never happen since we resolve aliases before calling this function
+            bail!(
+                "Internal error: Tried to update an alias channel '{}' directly.",
+                channel
+            );
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
@@ -143,7 +174,11 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
                 );
             }
 
-            update_channel(&mut config_file.data, channel, &version_db, false, paths)?;
+            // Resolve any aliases to get the actual target channel
+            let resolved_channel = resolve_channel_alias(&config_file.data, channel)
+                .with_context(|| format!("Failed to resolve channel '{}'", channel))?;
+
+            update_channel(&mut config_file.data, &resolved_channel, &version_db, false, paths)?;
         }
     };
 
