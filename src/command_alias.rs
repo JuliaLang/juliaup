@@ -22,7 +22,7 @@ pub fn run_command_alias(alias: &str, channel: &str, paths: &GlobalPaths) -> Res
         eprintln!("WARNING: The channel `{}` does not currently exist. If this was a mistake, run `juliaup remove {}` and try again.", channel, alias);
     }
 
-    if is_valid_channel(&versiondb_data, &alias.to_string())? {
+    if is_valid_channel(&versiondb_data, alias)? {
         eprintln!("WARNING: The channel name `{}` is also a system channel. By creating an alias to this channel you are hiding this system channel.", alias);
     }
 

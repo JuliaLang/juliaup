@@ -103,17 +103,21 @@ fn get_channel_info(
         }
         // TODO: fix
         JuliaupConfigChannel::AliasedChannel { channel } => {
-            let real_channel_info = get_channel_info(name, config_file.data.installed_channels.get(channel).unwrap(), config_file, paths)?;
-
-            match real_channel_info {
-                Some(info) => {
-                    return Ok(Some(JuliaupChannelInfo {
-                        name: name.clone(),
-                        file: info.file,
-                        args: info.args,
-                        version: info.version,
-                        arch: info.arch,
-                    }))
+            match config_file.data.installed_channels.get(channel) {
+                Some(target_channel) => {
+                    let real_channel_info = get_channel_info(name, target_channel, config_file, paths)?;
+                    match real_channel_info {
+                        Some(info) => {
+                            return Ok(Some(JuliaupChannelInfo {
+                                name: name.clone(),
+                                file: info.file,
+                                args: info.args,
+                                version: info.version,
+                                arch: info.arch,
+                            }))
+                        }
+                        None => return Ok(None),
+                    }
                 }
                 None => return Ok(None),
             }

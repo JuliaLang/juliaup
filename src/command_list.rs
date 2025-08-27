@@ -45,15 +45,12 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         .data
         .installed_channels
         .iter()
-        .filter_map(|(alias_name, channel_config)| {
-            if let JuliaupConfigChannel::AliasedChannel { channel } = channel_config {
-                Some(ChannelRow {
-                    name: alias_name.clone(),
-                    version: format!("alias -> {}", channel),
-                })
-            } else {
-                None
-            }
+        .filter_map(|(alias_name, channel_config)| match channel_config {
+            JuliaupConfigChannel::AliasedChannel { channel } => Some(ChannelRow {
+                name: alias_name.clone(),
+                version: format!("alias -> {}", channel),
+            }),
+            _ => None,
         })
         .collect();
 
