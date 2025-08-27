@@ -41,7 +41,7 @@ fn command_link_binary() {
 fn command_link_alias() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
-        // First install a Julia version to create an alias to
+    // First install a Julia version to create an alias to
     Command::cargo_bin("juliaup")
         .unwrap()
         .arg("add")
@@ -61,7 +61,9 @@ fn command_link_alias() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stderr(predicate::str::contains("Channel alias `stable` created, pointing to `1.10.10`."));
+        .stderr(predicate::str::contains(
+            "Channel alias `stable` created, pointing to `1.10.10`.",
+        ));
 
     // Verify the alias shows up in status
     Command::cargo_bin("juliaup")
@@ -72,7 +74,7 @@ fn command_link_alias() {
         .assert()
         .success()
         .stdout(
-            predicate::str::contains("stable").and(predicate::str::contains("Alias to `1.10.10`"))
+            predicate::str::contains("stable").and(predicate::str::contains("Alias to `1.10.10`")),
         );
 }
 
@@ -90,7 +92,9 @@ fn command_link_alias_to_system_channel() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stderr(predicate::str::contains("Channel alias `r` created, pointing to `release`."));
+        .stderr(predicate::str::contains(
+            "Channel alias `r` created, pointing to `release`.",
+        ));
 
     // Verify the alias shows up in status
     Command::cargo_bin("juliaup")
@@ -117,7 +121,9 @@ fn command_link_alias_invalid_target() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Target channel `nonexistent` is not installed"));
+        .stderr(predicate::str::contains(
+            "Target channel `nonexistent` is not installed",
+        ));
 }
 
 #[test]
@@ -162,7 +168,9 @@ fn command_link_duplicate_channel() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Channel name `1.10.10` is already used"));
+        .stderr(predicate::str::contains(
+            "Channel name `1.10.10` is already used",
+        ));
 }
 
 #[test]
@@ -189,7 +197,9 @@ fn command_remove_alias() {
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
-        .stderr(predicate::str::contains("Julia alias (pointing to 'release') 'r' successfully removed."));
+        .stderr(predicate::str::contains(
+            "Julia alias (pointing to 'release') 'r' successfully removed.",
+        ));
 
     // Verify the alias is gone from status (check for empty list or no mention of the alias)
     Command::cargo_bin("juliaup")
@@ -363,7 +373,7 @@ fn alias_chain() {
             predicate::str::contains("stable")
                 .and(predicate::str::contains("Alias to `1.10.10`"))
                 .and(predicate::str::contains("prod"))
-                .and(predicate::str::contains("Alias to `stable`"))
+                .and(predicate::str::contains("Alias to `stable`")),
         );
 }
 
@@ -431,7 +441,9 @@ fn alias_deep_chain_limit() {
     let depot_dir = assert_fs::TempDir::new().unwrap();
 
     // Create a very deep chain of aliases to test the depth limit
-    let alias_names = ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12"];
+    let alias_names = [
+        "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10", "a11", "a12",
+    ];
 
     // Start with a system channel
     Command::cargo_bin("juliaup")
@@ -450,7 +462,7 @@ fn alias_deep_chain_limit() {
             .unwrap()
             .arg("link")
             .arg(alias_names[i])
-            .arg(&format!("+{}", alias_names[i-1]))
+            .arg(&format!("+{}", alias_names[i - 1]))
             .env("JULIA_DEPOT_PATH", depot_dir.path())
             .env("JULIAUP_DEPOT_PATH", depot_dir.path())
             .assert()
@@ -460,7 +472,7 @@ fn alias_deep_chain_limit() {
     // Using the deep alias should fail due to depth limit
     Command::cargo_bin("julia")
         .unwrap()
-        .arg(&format!("+{}", alias_names[alias_names.len()-1]))
+        .arg(&format!("+{}", alias_names[alias_names.len() - 1]))
         .arg("-e")
         .arg("print(VERSION)")
         .env("JULIA_DEPOT_PATH", depot_dir.path())

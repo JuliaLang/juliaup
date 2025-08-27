@@ -28,7 +28,10 @@ pub enum Juliaup {
         /// Name of the new channel to create
         channel: String,
         /// Path to Julia binary, or +CHANNEL to create an alias
-        #[clap(help = "Path to Julia binary, or +CHANNEL to create an alias (e.g. +release)", value_name = "TARGET")]
+        #[clap(
+            help = "Path to Julia binary, or +CHANNEL to create an alias (e.g. +release)",
+            value_name = "TARGET"
+        )]
         file: String,
         /// Additional arguments for the Julia binary (not used for aliases)
         args: Vec<String>,
@@ -68,7 +71,7 @@ pub enum Juliaup {
     /// Generate tab-completion scripts for your shell
     Completions {
         #[arg(value_enum, value_name = "SHELL")]
-        shell: CompletionShell
+        shell: CompletionShell,
     },
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes

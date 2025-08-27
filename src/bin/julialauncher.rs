@@ -170,7 +170,10 @@ fn resolve_channel_alias(
     max_depth: usize,
 ) -> Result<String> {
     if max_depth == 0 {
-        bail!("Channel alias chain too deep for `{}`. There might be a circular reference.", channel);
+        bail!(
+            "Channel alias chain too deep for `{}`. There might be a circular reference.",
+            channel
+        );
     }
 
     match config_data.installed_channels.get(channel) {
@@ -229,14 +232,15 @@ fn get_julia_path_from_channel(
     match channel_info {
         JuliaupConfigChannel::AliasChannel { target: _ } => {
             // This should not happen after alias resolution, but just in case
-            bail!("Unexpected alias channel after resolution: {}", resolved_channel);
+            bail!(
+                "Unexpected alias channel after resolution: {}",
+                resolved_channel
+            );
         }
-        JuliaupConfigChannel::LinkedChannel { command, args } => {
-            Ok((
-                PathBuf::from(command),
-                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-            ))
-        }
+        JuliaupConfigChannel::LinkedChannel { command, args } => Ok((
+            PathBuf::from(command),
+            args.as_ref().map_or_else(Vec::new, |v| v.clone()),
+        )),
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
@@ -287,7 +291,10 @@ fn get_julia_path_from_channel(
                     eprintln!();
                     eprintln!("  juliaup update");
                     eprintln!();
-                    eprintln!("to install the latest Julia for the `{}` channel.", resolved_channel);
+                    eprintln!(
+                        "to install the latest Julia for the `{}` channel.",
+                        resolved_channel
+                    );
                 }
             }
 

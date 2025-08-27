@@ -10,8 +10,8 @@ use cli_table::{
     format::{Border, Justify},
     print_stdout, Table, WithTitle,
 };
-use numeric_sort::cmp;
 use itertools::Itertools;
+use numeric_sort::cmp;
 
 #[derive(Table)]
 struct ChannelRow {

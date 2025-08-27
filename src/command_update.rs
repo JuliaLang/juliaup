@@ -178,7 +178,13 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
             let resolved_channel = resolve_channel_alias(&config_file.data, channel)
                 .with_context(|| format!("Failed to resolve channel '{}'", channel))?;
 
-            update_channel(&mut config_file.data, &resolved_channel, &version_db, false, paths)?;
+            update_channel(
+                &mut config_file.data,
+                &resolved_channel,
+                &version_db,
+                false,
+                paths,
+            )?;
         }
     };
 

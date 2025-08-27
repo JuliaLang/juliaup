@@ -35,8 +35,12 @@ pub fn run_command_link(
         // Remove the + prefix
 
         // Validate that the target channel exists or is valid
-        if !config_file.data.installed_channels.contains_key(target_channel)
-            && !is_valid_channel(&versiondb_data, &target_channel.to_string())? {
+        if !config_file
+            .data
+            .installed_channels
+            .contains_key(target_channel)
+            && !is_valid_channel(&versiondb_data, &target_channel.to_string())?
+        {
             bail!("Target channel `{}` is not installed and is not a valid system channel. Please run `juliaup add {}` first or check `juliaup list` for available channels.", target_channel, target_channel);
         }
 
@@ -70,7 +74,11 @@ pub fn run_command_link(
             },
         );
 
-        eprintln!("Channel `{}` linked to `{}`.", channel, absolute_file_path.to_string_lossy());
+        eprintln!(
+            "Channel `{}` linked to `{}`.",
+            channel,
+            absolute_file_path.to_string_lossy()
+        );
     }
 
     #[cfg(not(windows))]
