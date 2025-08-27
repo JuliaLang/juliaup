@@ -120,7 +120,7 @@ fn update_channel(
                             server_etag: server_etag.clone(),
                             version: version.clone(),
                         },
-                        &channel,
+                        channel,
                         paths,
                     )?;
                 }
@@ -154,7 +154,7 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
                 );
             }
 
-            update_channel(&mut config_file.data, &channel, &version_db, false, paths)?;
+            update_channel(&mut config_file.data, channel, &version_db, false, paths)?;
         }
     };
 

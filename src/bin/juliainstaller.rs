@@ -411,7 +411,7 @@ pub fn main() -> Result<()> {
             }
         }
 
-        if failed_paths.len() > 0 {
+        if !failed_paths.is_empty() {
             println!("Juliaup needs to modify a number of existing files on your");
             println!("system, but is unable to edit some of these files. Most likely");
             println!("this is caused by incorrect permissions on these files. The");
@@ -461,7 +461,7 @@ pub fn main() -> Result<()> {
             )
         })?;
 
-    download_extract_sans_parent(&new_juliaup_url.to_string(), &juliaupselfbin, 0)?;
+    download_extract_sans_parent(new_juliaup_url.as_ref(), &juliaupselfbin, 0)?;
 
     {
         let new_selfconfig_data = JuliaupSelfConfig {
@@ -477,6 +477,7 @@ pub fn main() -> Result<()> {
         let mut self_file = std::fs::OpenOptions::new()
             .create(true)
             .write(true)
+            .truncate(true)
             .open(&self_config_path)
             .with_context(|| "Failed to open juliaup config file.")?;
 
@@ -489,7 +490,7 @@ pub fn main() -> Result<()> {
         })?;
 
         serde_json::to_writer_pretty(&self_file, &new_selfconfig_data)
-            .with_context(|| format!("Failed to write self configuration file."))?;
+            .with_context(|| "Failed to write self configuration file.".to_string())?;
 
         self_file
             .sync_all()

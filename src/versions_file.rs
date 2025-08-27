@@ -25,13 +25,7 @@ pub fn load_versions_db(paths: &GlobalPaths) -> Result<JuliaupVersionDB> {
         Ok(file) => {
             let reader = BufReader::new(&file);
 
-            if let Ok(versiondb) =
-                serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader)
-            {
-                Some(versiondb)
-            } else {
-                None
-            }
+            serde_json::from_reader::<BufReader<&std::fs::File>, JuliaupVersionDB>(reader).ok()
         }
         Err(_) => None,
     };

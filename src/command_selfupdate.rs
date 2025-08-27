@@ -42,7 +42,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         )
     })?;
 
-    let version = download_juliaup_version(&version_url.to_string())?;
+    let version = download_juliaup_version(version_url.as_ref())?;
 
     config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
@@ -83,7 +83,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
             version, juliaup_channel
         );
 
-        download_extract_sans_parent(&new_juliaup_url.to_string(), &my_own_folder, 0)?;
+        download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
         eprintln!("Updated Juliaup to version {}.", version);
     }
 
