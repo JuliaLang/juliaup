@@ -1,10 +1,11 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Utc};
-use cluFlock::{ExclusiveFlock, FlockLock, SharedFlock};
+use cluFlock::{ExclusiveFlock, FlockLock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
+use std::io::{BufReader, ErrorKind, Seek};
+use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
 
@@ -127,11 +128,11 @@ pub struct JuliaupSelfConfig {
 }
 
 pub struct JuliaupConfigFile {
-    pub file: File,
+    pub config_path: std::path::PathBuf,
     pub lock: FlockLock<File>,
     pub data: JuliaupConfig,
     #[cfg(feature = "selfupdate")]
-    pub self_file: File,
+    pub self_config_path: std::path::PathBuf,
     #[cfg(feature = "selfupdate")]
     pub self_data: JuliaupSelfConfig,
 }
@@ -142,45 +143,8 @@ pub struct JuliaupReadonlyConfigFile {
     pub self_data: JuliaupSelfConfig,
 }
 
-pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
-    std::fs::create_dir_all(&paths.juliauphome)
-        .with_context(|| "Could not create juliaup home folder.")?;
 
-    let lock_file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.lockfile)
-    {
-        Ok(file) => file,
-        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e)),
-    };
-
-    let file_lock = match SharedFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            SharedFlock::wait_lock(e.into()).unwrap()
-        }
-    };
-
-    Ok(file_lock)
-}
-
-pub fn load_config_db(
-    paths: &GlobalPaths,
-    existing_lock: Option<&FlockLock<File>>,
-) -> Result<JuliaupReadonlyConfigFile> {
-    let mut file_lock: Option<FlockLock<File>> = None;
-
-    if existing_lock.is_none() {
-        file_lock = Some(get_read_lock(paths)?);
-    }
-
+pub fn load_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
     let v = match std::fs::OpenOptions::new()
         .read(true)
         .open(&paths.juliaupconfig)
@@ -243,12 +207,6 @@ pub fn load_config_db(
         };
     }
 
-    if let Some(file_lock) = file_lock {
-        file_lock
-            .unlock()
-            .with_context(|| "Failed to unlock configuration file.")?;
-    }
-
     Ok(JuliaupReadonlyConfigFile {
         data: v,
         #[cfg(feature = "selfupdate")]
@@ -260,43 +218,40 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     std::fs::create_dir_all(&paths.juliauphome)
         .with_context(|| "Could not create juliaup home folder.")?;
 
-    let lock_file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.lockfile)
-    {
-        Ok(file) => file,
-        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e)),
-    };
-
-    let file_lock = match ExclusiveFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            ExclusiveFlock::wait_lock(e.into()).unwrap()
-        }
-    };
-
-    let mut file = std::fs::OpenOptions::new()
+    // Open or create the config file and acquire an exclusive lock
+    let config_file = match OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .truncate(false)
         .open(&paths.juliaupconfig)
-        .with_context(|| "Failed to open juliaup config file.")?;
+    {
+        Ok(file) => file,
+        Err(e) => return Err(anyhow!("Could not open config file: {}.", e)),
+    };
 
-    let stream_len = file
-        .seek(SeekFrom::End(0))
-        .with_context(|| "Failed to determine the length of the configuration file.")?;
+    // Acquire exclusive lock on the config file
+    let mut file_lock = match ExclusiveFlock::try_lock(config_file) {
+        Ok(lock) => lock,
+        Err(e) => {
+            eprintln!(
+                "Juliaup configuration is locked by another process, waiting for it to unlock."
+            );
+            ExclusiveFlock::wait_lock(e.into()).unwrap()
+        }
+    };
 
-    let data = match stream_len {
-        0 => {
-            let new_config = JuliaupConfig {
+    // Read the configuration
+    let data = {
+        file_lock.rewind()
+            .with_context(|| "Failed to rewind config file for reading.")?;
+        
+        let metadata = file_lock.metadata()
+            .with_context(|| "Failed to get config file metadata.")?;
+        
+        if metadata.len() == 0 {
+            // File is empty, create default config
+            JuliaupConfig {
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
@@ -306,43 +261,25 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                     versionsdb_update_interval: default_versionsdb_update_interval(),
                 },
                 last_version_db_update: None,
-            };
-
-            serde_json::to_writer_pretty(&file, &new_config)
-                .with_context(|| "Failed to write configuration file.")?;
-
-            file.sync_all()
-                .with_context(|| "Failed to write configuration data to disc.")?;
-
-            file.rewind()
-                .with_context(|| "Failed to rewind config file after initial write of data.")?;
-
-            new_config
-        }
-        _ => {
-            file.rewind()
-                .with_context(|| "Failed to rewind existing config file.")?;
-
-            let reader = BufReader::new(&file);
-
+            }
+        } else {
+            // Read existing config
+            let reader = BufReader::new(&*file_lock);
             serde_json::from_reader(reader)
                 .with_context(|| "Failed to parse configuration file.")?
         }
     };
 
     #[cfg(feature = "selfupdate")]
-    let self_file: File;
-    #[cfg(feature = "selfupdate")]
     let self_data: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        self_file = std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .read(true)
-            .write(true)
             .open(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to open juliaup config file.")?;
+            .with_context(|| "Failed to open juliaup self config file.")?;
 
-        let reader = BufReader::new(&self_file);
+        let reader = BufReader::new(&file);
 
         self_data = serde_json::from_reader(reader).with_context(|| {
             format!(
@@ -353,11 +290,11 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     }
 
     let result = JuliaupConfigFile {
-        file,
+        config_path: paths.juliaupconfig.clone(),
         lock: file_lock,
         data,
         #[cfg(feature = "selfupdate")]
-        self_file,
+        self_config_path: paths.juliaupselfconfig.clone(),
         #[cfg(feature = "selfupdate")]
         self_data,
     };
@@ -366,45 +303,32 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
 }
 
 pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()> {
-    juliaup_config_file
-        .file
-        .rewind()
-        .with_context(|| "Failed to rewind config file for write.")?;
-
-    juliaup_config_file
-        .file
-        .set_len(0)
-        .with_context(|| "Failed to set len to 0 for config file before writing new content.")?;
-
-    serde_json::to_writer_pretty(&juliaup_config_file.file, &juliaup_config_file.data)
-        .with_context(|| "Failed to write configuration file.")?;
-
-    juliaup_config_file
-        .file
-        .sync_all()
-        .with_context(|| "Failed to write config data to disc.")?;
+    // Write main config file atomically
+    let parent_dir = juliaup_config_file.config_path.parent()
+        .ok_or_else(|| anyhow!("Config path has no parent directory"))?;
+    
+    let temp_file = NamedTempFile::new_in(parent_dir)
+        .with_context(|| "Failed to create temp file for config.")?;
+    
+    serde_json::to_writer_pretty(&temp_file, &juliaup_config_file.data)
+        .with_context(|| "Failed to write configuration to temp file.")?;
+    
+    temp_file.persist(&juliaup_config_file.config_path)
+        .with_context(|| "Failed to atomically replace configuration file.")?;
 
     #[cfg(feature = "selfupdate")]
     {
-        juliaup_config_file
-            .self_file
-            .rewind()
-            .with_context(|| "Failed to rewind self config file for write.")?;
-
-        juliaup_config_file.self_file.set_len(0).with_context(|| {
-            "Failed to set len to 0 for self config file before writing new content."
-        })?;
-
-        serde_json::to_writer_pretty(
-            &juliaup_config_file.self_file,
-            &juliaup_config_file.self_data,
-        )
-        .with_context(|| "Failed to write self configuration file.".to_string())?;
-
-        juliaup_config_file
-            .self_file
-            .sync_all()
-            .with_context(|| "Failed to write config data to disc.")?;
+        let self_parent_dir = juliaup_config_file.self_config_path.parent()
+            .ok_or_else(|| anyhow!("Self config path has no parent directory"))?;
+        
+        let self_temp_file = NamedTempFile::new_in(self_parent_dir)
+            .with_context(|| "Failed to create temp file for self config.")?;
+        
+        serde_json::to_writer_pretty(&self_temp_file, &juliaup_config_file.self_data)
+            .with_context(|| "Failed to write self configuration to temp file.")?;
+        
+        self_temp_file.persist(&juliaup_config_file.self_config_path)
+            .with_context(|| "Failed to atomically replace self configuration file.")?;
     }
 
     Ok(())

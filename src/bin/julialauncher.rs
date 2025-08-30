@@ -316,7 +316,7 @@ fn run_app() -> Result<i32> {
     do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_file = load_config_db(&paths, None)
+    let config_file = load_config_db(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data = load_versions_db(&paths)

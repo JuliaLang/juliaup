@@ -39,7 +39,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         other_versions: Vec::new(),
     };
 
-    let config_file = load_config_db(paths, None).with_context(|| {
+    let config_file = load_config_db(paths).with_context(|| {
         "Failed to load configuration file while running the getconfig1 API command."
     })?;
 
