@@ -84,7 +84,7 @@ fn update_channel(
             }
         }
         JuliaupConfigChannel::AliasChannel { .. } => {
-            bail!("Internal error: Tried to update an alias channel '{channel}' directly.");
+            unreachable!("Alias channels should be resolved before calling update_channel. This is a programming error.");
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
