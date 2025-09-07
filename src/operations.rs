@@ -848,11 +848,13 @@ pub fn remove_symlink(symlink_name: &String) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(windows))]
 fn create_alias_symlink() -> Result<()> {
     // Aliases don't create symlinks directly, they are resolved at runtime
     Ok(())
 }
 
+#[cfg(not(windows))]
 fn create_system_channel_symlink(
     version: &str,
     symlink_name: &str,
@@ -890,6 +892,7 @@ fn create_system_channel_symlink(
     )
 }
 
+#[cfg(not(windows))]
 fn create_direct_download_symlink(
     path: &str,
     version: &str,
@@ -927,6 +930,7 @@ fn create_direct_download_symlink(
     )
 }
 
+#[cfg(not(windows))]
 fn create_linked_channel_shim(
     command: &str,
     args: &Option<Vec<String>>,

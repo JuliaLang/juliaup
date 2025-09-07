@@ -81,7 +81,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => {
-                let mut new_args = args.as_ref().unwrap_or(&Vec::new()).clone();
+                let mut new_args = args.as_deref().unwrap_or_default().to_vec();
                 new_args.push("--version".to_string());
 
                 let res = std::process::Command::new(command)
@@ -104,7 +104,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.as_ref().unwrap_or(&Vec::new()).clone(),
+                            args: args.as_deref().unwrap_or_default().to_vec(),
                             version: version.to_string(),
                             arch: String::new(),
                         }
