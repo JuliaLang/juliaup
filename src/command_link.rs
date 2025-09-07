@@ -67,7 +67,7 @@ pub fn run_command_link(
         config_file.data.installed_channels.insert(
             channel.to_string(),
             JuliaupConfigChannel::LinkedChannel {
-                command: absolute_file_path.to_string_lossy().to_string(),
+                command: absolute_file_path.to_string_lossy().into_owned(),
                 args: Some(args.to_vec()),
             },
         );
@@ -88,9 +88,14 @@ pub fn run_command_link(
     #[cfg(not(windows))]
     if create_symlinks && !target.starts_with('+') {
         // Only create symlinks for binary links, not channel aliases
+        // We need to recreate the absolute path since it goes out of scope
+        let absolute_file_path = Path::new(target)
+            .absolutize()
+            .with_context(|| format!("Failed to convert path `{target}` to absolute path."))?;
+
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
-                command: target.to_string(),
+                command: absolute_file_path.to_string_lossy().into_owned(),
                 args: Some(args.to_vec()),
             },
             &format!("julia-{channel}"),
