@@ -29,7 +29,7 @@ pub enum Juliaup {
     Link {
         /// Name of the new channel to create
         channel: String,
-        /// Path to Julia binary, or +CHANNEL to create an alias (e.g. +release)
+        /// Path to Julia binary, or +{channel} to create an alias
         target: String,
         /// Additional arguments for the Julia binary (not used for aliases)
         args: Vec<String>,
