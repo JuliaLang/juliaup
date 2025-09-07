@@ -7,11 +7,7 @@ use utils::TestEnv;
 fn command_gc() {
     let env = TestEnv::new();
 
-    env.juliaup()
-        .arg("add")
-        .arg("1.6.7")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.6.7").assert().success();
 
     env.juliaup()
         .arg("link")
@@ -27,32 +23,21 @@ fn command_gc() {
         .assert()
         .success();
 
-    env.juliaup()
-        .arg("status")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("\n")
-                .count(5)
-                .and(predicate::str::contains("julic"))
-                .and(predicate::str::contains("julib")),
-        );
+    env.juliaup().arg("status").assert().success().stdout(
+        predicate::str::contains("\n")
+            .count(5)
+            .and(predicate::str::contains("julic"))
+            .and(predicate::str::contains("julib")),
+    );
 
-    env.juliaup()
-        .arg("gc")
-        .assert()
-        .success();
+    env.juliaup().arg("gc").assert().success();
 
-    env.juliaup()
-        .arg("status")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("\n")
-                .count(5)
-                .and(predicate::str::contains("julic"))
-                .and(predicate::str::contains("julib")),
-        );
+    env.juliaup().arg("status").assert().success().stdout(
+        predicate::str::contains("\n")
+            .count(5)
+            .and(predicate::str::contains("julic"))
+            .and(predicate::str::contains("julib")),
+    );
 
     env.juliaup()
         .arg("gc")
@@ -60,14 +45,10 @@ fn command_gc() {
         .assert()
         .success();
 
-    env.juliaup()
-        .arg("status")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("\n")
-                .count(3)
-                .and(predicate::str::contains("julic").not())
-                .and(predicate::str::contains("julib").not()),
-        );
+    env.juliaup().arg("status").assert().success().stdout(
+        predicate::str::contains("\n")
+            .count(3)
+            .and(predicate::str::contains("julic").not())
+            .and(predicate::str::contains("julib").not()),
+    );
 }
