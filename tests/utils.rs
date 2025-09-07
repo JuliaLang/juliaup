@@ -7,12 +7,6 @@ pub struct TestEnv {
     depot_dir: TempDir,
 }
 
-impl Default for TestEnv {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[allow(dead_code)] // May not be used in all test configurations
 impl TestEnv {
     /// Create a new test environment with an isolated temporary depot directory
