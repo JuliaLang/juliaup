@@ -3,6 +3,7 @@ use clap::Parser;
 use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
 use juliaup::command_api::run_command_api;
 use juliaup::command_completions::generate_completion_for_command;
+use juliaup::command_config_autoinstall::run_command_config_autoinstall;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
@@ -123,6 +124,9 @@ fn main() -> Result<()> {
             ConfigSubCmd::VersionsDbUpdateInterval { value } => {
                 run_command_config_versionsdbupdate(value, false, &paths)
             }
+            ConfigSubCmd::AutoInstallChannels { value } => {
+                run_command_config_autoinstall(value, false, &paths)
+            }
         },
         Juliaup::Api { command } => run_command_api(&command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
@@ -148,6 +152,8 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
-        Juliaup::Completions { shell } => generate_completion_for_command::<Juliaup>(shell, "juliaup"),
+        Juliaup::Completions { shell } => {
+            generate_completion_for_command::<Juliaup>(shell, "juliaup")
+        }
     }
 }

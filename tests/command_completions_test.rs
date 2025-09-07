@@ -50,6 +50,10 @@ fn completions_elvish() {
 fn completions_nushell() {
     test_shell_completion(
         "nushell",
-        &["module completions", "export extern juliaup", "export use completions"],
+        &[
+            "module completions",
+            "export extern juliaup",
+            "export use completions",
+        ],
     );
 }
