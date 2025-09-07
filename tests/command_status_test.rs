@@ -1,26 +1,18 @@
-use assert_cmd::Command;
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_status() {
-    let depot_dir = tempfile::Builder::new()
-        .prefix("juliauptest")
-        .tempdir()
-        .unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("st")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(" Default  Channel  Version  Update \n-----------------------------------\n");

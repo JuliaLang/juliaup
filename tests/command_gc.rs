@@ -1,44 +1,34 @@
-use assert_cmd::Command;
 use predicates::prelude::*;
+
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_gc() {
-    let depot_dir = assert_fs::TempDir::new().unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("1.6.7")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("link")
         .arg("julib")
         .arg("julib")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("link")
         .arg("julic")
         .arg("julic")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(
@@ -48,19 +38,13 @@ fn command_gc() {
                 .and(predicate::str::contains("julib")),
         );
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("gc")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(
@@ -70,20 +54,14 @@ fn command_gc() {
                 .and(predicate::str::contains("julib")),
         );
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("gc")
         .arg("--prune-linked")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(
