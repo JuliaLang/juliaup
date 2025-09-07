@@ -95,19 +95,19 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         match versiondb_data.available_channels.get(i.0) {
                             Some(channel) => {
                                 if &channel.version != version {
-                                    format!("Update to {} available", channel.version)
+                                    Some(format!("Update to {} available", channel.version))
                                 } else {
-                                    "".to_string()
+                                    None
                                 }
                             }
-                            None => "".to_string(),
+                            None => None,
                         }
                     }
                     JuliaupConfigChannel::LinkedChannel {
                         command: _,
                         args: _,
-                    } => "".to_string(),
-                    JuliaupConfigChannel::AliasChannel { target: _ } => "".to_string(),
+                    } => None,
+                    JuliaupConfigChannel::AliasChannel { target: _ } => None,
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: _,
                         url: _,
@@ -116,9 +116,9 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         version: _,
                     } => {
                         if local_etag != server_etag {
-                            "Update available".to_string()
+                            Some("Update available".to_string())
                         } else {
-                            "".to_string()
+                            None
                         }
                     }
                 },
