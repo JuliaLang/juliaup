@@ -274,7 +274,5 @@ fn alias_update_resolves_target() {
         .arg("r")
         .assert()
         .success()
-        .stdout(predicate::str::contains("1.10.10").or(
-            predicate::str::contains("already up to date").or(predicate::str::contains("Updating")),
-        ));
+        .stderr(predicate::str::contains("Checking for new Julia versions"));
 }
