@@ -1,3 +1,4 @@
+use crate::cli_styles;
 use clap::{Parser, ValueEnum};
 
 /// Shell options for completions
@@ -14,6 +15,7 @@ pub enum CompletionShell {
 #[derive(Parser)]
 #[clap(name = "Juliaup", version)]
 #[command(
+    styles = cli_styles::get_styles(),
     after_help = "To launch a specific Julia version, use `julia +{channel}` e.g. `julia +1.6`.
 Entering just `julia` uses the default channel set via `juliaup default`."
 )]
@@ -78,6 +80,7 @@ pub enum Juliaup {
 }
 
 #[derive(Parser)]
+#[command(styles = cli_styles::get_styles())]
 /// Manage directory overrides
 pub enum OverrideSubCmd {
     Status {},
@@ -115,6 +118,7 @@ impl JuliaupChannel {
 }
 
 #[derive(Parser)]
+#[command(styles = cli_styles::get_styles())]
 /// Manage this juliaup installation
 pub enum SelfSubCmd {
     #[cfg(not(feature = "selfupdate"))]
@@ -140,6 +144,7 @@ pub enum SelfSubCmd {
 }
 
 #[derive(Parser)]
+#[command(styles = cli_styles::get_styles())]
 pub enum ConfigSubCmd {
     #[cfg(not(windows))]
     #[clap(name = "channelsymlinks")]
