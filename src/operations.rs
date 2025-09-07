@@ -849,12 +849,6 @@ pub fn remove_symlink(symlink_name: &String) -> Result<()> {
 }
 
 #[cfg(not(windows))]
-fn create_alias_symlink() -> Result<()> {
-    // Aliases don't create symlinks directly, they are resolved at runtime
-    Ok(())
-}
-
-#[cfg(not(windows))]
 fn create_system_channel_symlink(
     version: &str,
     symlink_name: &str,
@@ -999,7 +993,10 @@ pub fn create_symlink(
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
-        JuliaupConfigChannel::AliasChannel { target: _ } => create_alias_symlink(),
+        JuliaupConfigChannel::AliasChannel { target: _ } => {
+            // Aliases don't create symlinks directly, they are resolved at runtime
+            Ok(())
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             create_system_channel_symlink(version, symlink_name, &symlink_path, paths, &updating)
         }
