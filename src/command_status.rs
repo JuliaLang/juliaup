@@ -36,11 +36,7 @@ fn get_alias_update_info(
                 server_etag,
                 version: _,
             } => {
-                if local_etag != server_etag {
-                    Some("Update available".to_string())
-                } else {
-                    None
-                }
+                (local_etag != server_etag).then(|| "Update available".to_string())
             }
             // LinkedChannels and nested aliases don't have updates
             _ => None,
