@@ -108,7 +108,44 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             command: _,
                             args: _,
                         } => None,
-                        JuliaupConfigChannel::AliasChannel { target: _ } => None,
+                        JuliaupConfigChannel::AliasChannel { target } => {
+                            // Check if the target channel has updates available
+                            match config_file.data.installed_channels.get(target) {
+                                Some(target_channel) => match target_channel {
+                                    JuliaupConfigChannel::SystemChannel { version } => {
+                                        match versiondb_data.available_channels.get(target) {
+                                            Some(channel) => {
+                                                if &channel.version != version {
+                                                    Some(format!(
+                                                        "Update to {} available",
+                                                        channel.version
+                                                    ))
+                                                } else {
+                                                    None
+                                                }
+                                            }
+                                            None => None,
+                                        }
+                                    }
+                                    JuliaupConfigChannel::DirectDownloadChannel {
+                                        path: _,
+                                        url: _,
+                                        local_etag,
+                                        server_etag,
+                                        version: _,
+                                    } => {
+                                        if local_etag != server_etag {
+                                            Some("Update available".to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    // LinkedChannels and nested aliases don't have updates
+                                    _ => None,
+                                },
+                                None => None, // Target channel doesn't exist
+                            }
+                        }
                         JuliaupConfigChannel::DirectDownloadChannel {
                             path: _,
                             url: _,
