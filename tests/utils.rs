@@ -13,6 +13,7 @@ impl Default for TestEnv {
     }
 }
 
+#[allow(dead_code)] // May not be used in all test configurations
 impl TestEnv {
     /// Create a new test environment with an isolated temporary depot directory
     pub fn new() -> Self {
