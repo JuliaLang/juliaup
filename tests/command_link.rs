@@ -2,32 +2,8 @@ use assert_cmd::Command;
 use assert_fs::TempDir;
 use predicates::prelude::*;
 
-struct TestEnv {
-    depot_dir: TempDir,
-}
-
-impl TestEnv {
-    fn new() -> Self {
-        Self {
-            depot_dir: TempDir::new().unwrap(),
-        }
-    }
-
-    fn juliaup(&self) -> Command {
-        self.command("juliaup")
-    }
-
-    fn julia(&self) -> Command {
-        self.command("julia")
-    }
-
-    fn command(&self, bin: &str) -> Command {
-        let mut cmd = Command::cargo_bin(bin).unwrap();
-        cmd.env("JULIA_DEPOT_PATH", self.depot_dir.path());
-        cmd.env("JULIAUP_DEPOT_PATH", self.depot_dir.path());
-        cmd
-    }
-}
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_link_binary() {

@@ -1,11 +1,7 @@
 use assert_cmd::Command;
 
-fn juliaup_command(depot_dir: &tempfile::TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("juliaup").unwrap();
-    cmd.env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path());
-    cmd
-}
+mod utils;
+use utils::juliaup_command_tempfile as juliaup_command;
 
 #[test]
 fn command_update() {
