@@ -34,11 +34,7 @@ fn command_link_binary() {
     let env = TestEnv::new();
 
     // First add a regular channel for testing
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Test linking to a binary file (existing functionality)
     env.juliaup()
@@ -61,11 +57,7 @@ fn command_link_alias() {
     let env = TestEnv::new();
 
     // First install a Julia version to create an alias to
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Create an alias to the installed version
     env.juliaup()
@@ -79,13 +71,9 @@ fn command_link_alias() {
         ));
 
     // Verify the alias shows up in status
-    env.juliaup()
-        .arg("status")
-        .assert()
-        .success()
-        .stdout(
-            predicate::str::contains("stable").and(predicate::str::contains("Alias to `1.10.10`")),
-        );
+    env.juliaup().arg("status").assert().success().stdout(
+        predicate::str::contains("stable").and(predicate::str::contains("Alias to `1.10.10`")),
+    );
 }
 
 #[test]
@@ -147,11 +135,7 @@ fn command_link_duplicate_channel() {
     let env = TestEnv::new();
 
     // First add a regular channel
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Try to create an alias with the same name as an existing channel
     env.juliaup()
@@ -213,11 +197,7 @@ fn alias_resolution_julia_launcher() {
     let env = TestEnv::new();
 
     // Add a channel first
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Create an alias to it
     env.juliaup()
@@ -242,11 +222,7 @@ fn alias_as_default() {
     let env = TestEnv::new();
 
     // Add a channel first
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Create an alias
     env.juliaup()
@@ -277,11 +253,7 @@ fn alias_to_alias_prevented() {
     let env = TestEnv::new();
 
     // Add a channel first
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Create first alias
     env.juliaup()
@@ -311,11 +283,7 @@ fn alias_update_resolves_target() {
     let env = TestEnv::new();
 
     // First install a Julia version to create an alias to
-    env.juliaup()
-        .arg("add")
-        .arg("1.10.10")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
 
     // Create an alias to the installed version
     env.juliaup()
@@ -326,9 +294,5 @@ fn alias_update_resolves_target() {
         .success();
 
     // Update through the alias - should work and update the target
-    env.juliaup()
-        .arg("update")
-        .arg("r")
-        .assert()
-        .success();
+    env.juliaup().arg("update").arg("r").assert().success();
 }
