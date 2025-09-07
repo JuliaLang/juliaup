@@ -880,13 +880,14 @@ fn create_system_channel_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path)
-        .with_context(|| {
+    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
+        || {
             format!(
                 "failed to create symlink `{}`.",
                 symlink_path.to_string_lossy()
             )
-        })
+        },
+    )
 }
 
 fn create_direct_download_symlink(
@@ -916,13 +917,14 @@ fn create_direct_download_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path)
-        .with_context(|| {
+    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
+        || {
             format!(
                 "failed to create symlink `{}`.",
                 symlink_path.to_string_lossy()
             )
-        })
+        },
+    )
 }
 
 fn create_linked_channel_shim(
@@ -993,9 +995,7 @@ pub fn create_symlink(
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
-        JuliaupConfigChannel::AliasChannel { target: _ } => {
-            create_alias_symlink()
-        }
+        JuliaupConfigChannel::AliasChannel { target: _ } => create_alias_symlink(),
         JuliaupConfigChannel::SystemChannel { version } => {
             create_system_channel_symlink(version, symlink_name, &symlink_path, paths, &updating)
         }
@@ -1005,9 +1005,14 @@ pub fn create_symlink(
             local_etag: _,
             server_etag: _,
             version,
-        } => {
-            create_direct_download_symlink(path, version, symlink_name, &symlink_path, paths, &updating)
-        }
+        } => create_direct_download_symlink(
+            path,
+            version,
+            symlink_name,
+            &symlink_path,
+            paths,
+            &updating,
+        ),
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             create_linked_channel_shim(command, args, symlink_name, &symlink_path, &updating)
         }
