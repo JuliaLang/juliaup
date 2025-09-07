@@ -40,13 +40,3 @@ impl TestEnv {
         self.depot_dir.path()
     }
 }
-
-/// Legacy function for backward compatibility with existing tests using tempfile::TempDir.
-/// Consider using TestEnv instead for new tests.
-#[allow(dead_code)] // May not be used in all test configurations
-pub fn juliaup_command_tempfile(depot_dir: &tempfile::TempDir) -> Command {
-    let mut cmd = Command::cargo_bin("juliaup").unwrap();
-    cmd.env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path());
-    cmd
-}
