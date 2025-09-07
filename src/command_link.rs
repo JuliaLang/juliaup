@@ -55,7 +55,8 @@ pub fn run_command_link(
 
         eprintln!("Channel alias `{channel}` created, pointing to `{target_channel}`.");
     } else {
-        let absolute_file_path = std::fs::canonicalize(target)
+        let absolute_file_path = Path::new(target)
+            .absolutize()
             .with_context(|| format!("Failed to convert path `{target}` to absolute path."))?;
 
         if !is_valid_julia_path(&absolute_file_path.to_path_buf()) {
@@ -85,12 +86,13 @@ pub fn run_command_link(
 
     #[cfg(not(windows))]
     if create_symlinks && !target.starts_with('+') {
-        let absolute_file_path = std::fs::canonicalize(target)
+        let absolute_file_path = Path::new(target)
+            .absolutize()
             .with_context(|| format!("Failed to convert path `{target}` to absolute path."))?;
 
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
-                command: absolute_file_path.to_string_lossy().into_owned(),
+                command: absolute_file_path.to_string_lossy().to_string(),
                 args: Some(args.to_vec()),
             },
             &format!("julia-{channel}"),
