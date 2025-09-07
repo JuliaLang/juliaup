@@ -1,5 +1,5 @@
 use crate::config_file::load_config_db;
-use crate::config_file::JuliaupConfigChannel;
+use crate::config_file::{JuliaupConfigChannel, JuliaupReadonlyConfigFile};
 use crate::global_paths::GlobalPaths;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
@@ -15,7 +15,7 @@ use numeric_sort::cmp;
 
 fn get_alias_update_info(
     target: &str,
-    config_file: &crate::config_file::JuliaupReadonlyConfigFile,
+    config_file: &JuliaupReadonlyConfigFile,
     versiondb_data: &crate::jsonstructs_versionsdb::JuliaupVersionDB,
 ) -> Option<String> {
     // Check if the target channel has updates available
@@ -23,14 +23,10 @@ fn get_alias_update_info(
         Some(target_channel) => match target_channel {
             JuliaupConfigChannel::SystemChannel { version } => {
                 match versiondb_data.available_channels.get(target) {
-                    Some(channel) => {
-                        if channel.version != *version {
-                            Some(format!("Update to {} available", channel.version))
-                        } else {
-                            None
-                        }
+                    Some(channel) if channel.version != *version => {
+                        Some(format!("Update to {} available", channel.version))
                     }
-                    None => None,
+                    _ => None,
                 }
             }
             JuliaupConfigChannel::DirectDownloadChannel {
