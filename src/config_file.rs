@@ -71,6 +71,12 @@ pub struct JuliaupConfigSettings {
         skip_serializing_if = "is_default_versionsdb_update_interval"
     )]
     pub versionsdb_update_interval: i64,
+    #[serde(
+        rename = "AutoInstallChannels",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub auto_install_channels: Option<bool>,
 }
 
 impl Default for JuliaupConfigSettings {
@@ -78,6 +84,7 @@ impl Default for JuliaupConfigSettings {
         JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
+            auto_install_channels: None,
         }
     }
 }
@@ -208,6 +215,7 @@ pub fn load_config_db(
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
+                    auto_install_channels: None,
                 },
                 last_version_db_update: None,
             },
@@ -308,6 +316,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 settings: JuliaupConfigSettings {
                     create_channel_symlinks: false,
                     versionsdb_update_interval: default_versionsdb_update_interval(),
+                    auto_install_channels: None,
                 },
                 last_version_db_update: None,
             };
