@@ -13,6 +13,46 @@ use cli_table::{
 use itertools::Itertools;
 use numeric_sort::cmp;
 
+fn get_alias_update_info(
+    target: &str,
+    config_file: &crate::config_file::JuliaupReadonlyConfigFile,
+    versiondb_data: &crate::jsonstructs_versionsdb::JuliaupVersionDB,
+) -> Option<String> {
+    // Check if the target channel has updates available
+    match config_file.data.installed_channels.get(target) {
+        Some(target_channel) => match target_channel {
+            JuliaupConfigChannel::SystemChannel { version } => {
+                match versiondb_data.available_channels.get(target) {
+                    Some(channel) => {
+                        if channel.version != *version {
+                            Some(format!("Update to {} available", channel.version))
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }
+            }
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path: _,
+                url: _,
+                local_etag,
+                server_etag,
+                version: _,
+            } => {
+                if local_etag != server_etag {
+                    Some("Update available".to_string())
+                } else {
+                    None
+                }
+            }
+            // LinkedChannels and nested aliases don't have updates
+            _ => None,
+        },
+        None => None, // Target channel doesn't exist
+    }
+}
+
 #[derive(Table)]
 struct ChannelRow {
     #[table(title = "Default", justify = "Justify::Right")]
@@ -109,42 +149,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             args: _,
                         } => None,
                         JuliaupConfigChannel::AliasChannel { target } => {
-                            // Check if the target channel has updates available
-                            match config_file.data.installed_channels.get(target) {
-                                Some(target_channel) => match target_channel {
-                                    JuliaupConfigChannel::SystemChannel { version } => {
-                                        match versiondb_data.available_channels.get(target) {
-                                            Some(channel) => {
-                                                if &channel.version != version {
-                                                    Some(format!(
-                                                        "Update to {} available",
-                                                        channel.version
-                                                    ))
-                                                } else {
-                                                    None
-                                                }
-                                            }
-                                            None => None,
-                                        }
-                                    }
-                                    JuliaupConfigChannel::DirectDownloadChannel {
-                                        path: _,
-                                        url: _,
-                                        local_etag,
-                                        server_etag,
-                                        version: _,
-                                    } => {
-                                        if local_etag != server_etag {
-                                            Some("Update available".to_string())
-                                        } else {
-                                            None
-                                        }
-                                    }
-                                    // LinkedChannels and nested aliases don't have updates
-                                    _ => None,
-                                },
-                                None => None, // Target channel doesn't exist
-                            }
+                            get_alias_update_info(target, &config_file, &versiondb_data)
                         }
                         JuliaupConfigChannel::DirectDownloadChannel {
                             path: _,
