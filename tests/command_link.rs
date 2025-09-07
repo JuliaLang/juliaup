@@ -269,5 +269,12 @@ fn alias_update_resolves_target() {
         .success();
 
     // Update through the alias - should work and update the target
-    env.juliaup().arg("update").arg("r").assert().success();
+    env.juliaup()
+        .arg("update")
+        .arg("r")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("1.10.10").or(
+            predicate::str::contains("already up to date").or(predicate::str::contains("Updating")),
+        ));
 }
