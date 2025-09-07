@@ -12,26 +12,10 @@ use console::style;
 use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
-    let mut current_channel = channel_name;
-    let mut visited = std::collections::HashSet::new();
-
-    loop {
-        if visited.contains(current_channel) {
-            bail!("Channel alias chain contains a cycle: {}", channel_name);
-        }
-        visited.insert(current_channel.to_string());
-
-        if visited.len() > 10 {
-            bail!("Channel alias chain too deep: {}", channel_name);
-        }
-
-        match config_db.installed_channels.get(current_channel) {
-            Some(JuliaupConfigChannel::AliasChannel { target }) => {
-                current_channel = target;
-            }
-            Some(_) => return Ok(current_channel.to_string()),
-            None => bail!("Channel '{}' not found", current_channel),
-        }
+    match config_db.installed_channels.get(channel_name) {
+        Some(JuliaupConfigChannel::AliasChannel { target }) => Ok(target.to_string()),
+        Some(_) => Ok(channel_name.to_string()),
+        None => bail!("Channel '{}' not found", channel_name),
     }
 }
 
@@ -99,12 +83,8 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::AliasChannel { target: _ } => {
-            // This should never happen since we resolve aliases before calling this function
-            bail!(
-                "Internal error: Tried to update an alias channel '{}' directly.",
-                channel
-            );
+        JuliaupConfigChannel::AliasChannel { .. } => {
+            bail!("Internal error: Tried to update an alias channel '{channel}' directly.");
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
@@ -117,11 +97,10 @@ fn update_channel(
                 // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
                 if version.is_empty() {
                     eprintln!(
-                        "Channel {} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request.",
-                        channel
+                        "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
                     );
                 }
-                eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+                eprintln!("{} channel {channel}", style("Updating").green().bold());
 
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
@@ -175,8 +154,7 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
             }
 
             // Resolve any aliases to get the actual target channel
-            let resolved_channel = resolve_channel_alias(&config_file.data, channel)
-                .with_context(|| format!("Failed to resolve channel '{}'", channel))?;
+            let resolved_channel = resolve_channel_alias(&config_file.data, channel)?;
 
             update_channel(
                 &mut config_file.data,

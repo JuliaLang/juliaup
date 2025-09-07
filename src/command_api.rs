@@ -46,29 +46,13 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     for (key, value) in &config_file.data.installed_channels {
         let curr = match &value {
             JuliaupConfigChannel::AliasChannel { target } => {
-                // For aliases, we need to resolve to the target and get its info
-                // Skip if the target doesn't exist to avoid infinite recursion
-                if let Some(target_channel) = config_file.data.installed_channels.get(target) {
-                    match target_channel {
-                        JuliaupConfigChannel::AliasChannel { .. } => {
-                            // Avoid infinite recursion for alias-to-alias
-                            continue;
-                        }
-                        _ => {
-                            // Recursively get info for the target
-                            // For now, just indicate it's an alias
-                            JuliaupChannelInfo {
-                                name: key.clone(),
-                                file: format!("alias-to-{}", target),
-                                args: Vec::new(),
-                                version: format!("alias to {}", target),
-                                arch: "".to_string(),
-                            }
-                        }
-                    }
-                } else {
-                    // Target doesn't exist, skip this alias
-                    continue;
+                // Since we no longer support alias-to-alias chains, this is simpler
+                JuliaupChannelInfo {
+                    name: key.clone(),
+                    file: format!("alias-to-{target}"),
+                    args: Vec::new(),
+                    version: format!("alias to {target}"),
+                    arch: String::new(),
                 }
             }
             JuliaupConfigChannel::SystemChannel { version: fullversion } => {
@@ -97,12 +81,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => {
-                let mut new_args: Vec<String> = Vec::new();
-
-                for i in args.as_ref().unwrap_or(&Vec::new()) {
-                    new_args.push(i.to_string());
-                }
-
+                let mut new_args = args.as_ref().unwrap_or(&Vec::new()).clone();
                 new_args.push("--version".to_string());
 
                 let res = std::process::Command::new(command)
@@ -127,7 +106,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                             file: command.clone(),
                             args: args.as_ref().unwrap_or(&Vec::new()).clone(),
                             version: version.to_string(),
-                            arch: "".to_string(),
+                            arch: String::new(),
                         }
                     }
                     Err(_) => continue,

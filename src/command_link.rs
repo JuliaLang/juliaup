@@ -12,7 +12,7 @@ use std::path::Path;
 
 pub fn run_command_link(
     channel: &str,
-    file: &str,
+    target: &str,
     args: &[String],
     paths: &GlobalPaths,
 ) -> Result<()> {
@@ -31,16 +31,14 @@ pub fn run_command_link(
     }
 
     // Check if this is a channel alias (starts with +)
-    if let Some(target_channel) = file.strip_prefix('+') {
-        // Remove the + prefix
-
-        // Validate that the target channel exists or is valid
-        if !config_file
-            .data
-            .installed_channels
-            .contains_key(target_channel)
-            && !is_valid_channel(&versiondb_data, &target_channel.to_string())?
-        {
+    if let Some(target_channel) = target.strip_prefix('+') {
+        // Validate that the target channel exists and is not an alias
+        if let Some(target_info) = config_file.data.installed_channels.get(target_channel) {
+            // Prevent alias-to-alias chains for simplicity and maintainability
+            if let JuliaupConfigChannel::AliasChannel { .. } = target_info {
+                bail!("Cannot create an alias to another alias `{}`. Please create an alias directly to the target channel instead.", target_channel);
+            }
+        } else if !is_valid_channel(&versiondb_data, &target_channel.to_string())? {
             bail!("Target channel `{}` is not installed and is not a valid system channel. Please run `juliaup add {}` first or check `juliaup list` for available channels.", target_channel, target_channel);
         }
 
@@ -58,9 +56,9 @@ pub fn run_command_link(
         eprintln!("Channel alias `{channel}` created, pointing to `{target_channel}`.");
     } else {
         // Original behavior for linking to binary files
-        let absolute_file_path = Path::new(file)
+        let absolute_file_path = Path::new(target)
             .absolutize()
-            .with_context(|| format!("Failed to convert path `{file}` to absolute path."))?;
+            .with_context(|| format!("Failed to convert path `{target}` to absolute path."))?;
 
         if !is_valid_julia_path(&absolute_file_path.to_path_buf()) {
             eprintln!("WARNING: There is no julia binary at {}. If this was a mistake, run `juliaup remove {}` and try again.", absolute_file_path.to_string_lossy(), channel);
@@ -88,11 +86,11 @@ pub fn run_command_link(
         .with_context(|| "`link` command failed to save configuration db.")?;
 
     #[cfg(not(windows))]
-    if create_symlinks && !file.starts_with('+') {
+    if create_symlinks && !target.starts_with('+') {
         // Only create symlinks for binary links, not channel aliases
         create_symlink(
             &JuliaupConfigChannel::LinkedChannel {
-                command: file.to_string(),
+                command: target.to_string(),
                 args: Some(args.to_vec()),
             },
             &format!("julia-{channel}"),
