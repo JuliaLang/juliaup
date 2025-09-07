@@ -33,10 +33,4 @@ impl TestEnv {
         cmd.env("JULIAUP_DEPOT_PATH", self.depot_dir.path());
         cmd
     }
-
-    /// Get the path to the depot directory for this test environment
-    #[allow(dead_code)] // May not be used in all test configurations
-    pub fn depot_path(&self) -> &std::path::Path {
-        self.depot_dir.path()
-    }
 }
