@@ -7,6 +7,12 @@ pub struct TestEnv {
     depot_dir: TempDir,
 }
 
+impl Default for TestEnv {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestEnv {
     /// Create a new test environment with an isolated temporary depot directory
     pub fn new() -> Self {
