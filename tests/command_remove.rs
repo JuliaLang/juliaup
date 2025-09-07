@@ -1,109 +1,79 @@
-use assert_cmd::Command;
 use predicates::boolean::PredicateBooleanExt;
 
 mod utils;
-use utils::juliaup_command_tempfile as juliaup_command;
+use utils::TestEnv;
 
 #[test]
 fn command_remove() {
-    let depot_dir = tempfile::Builder::new()
-        .prefix("juliauptest")
-        .tempdir()
-        .unwrap();
+    let env = TestEnv::new();
 
-    juliaup_command(&depot_dir)
+    env.juliaup()
         .arg("status")
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").not());
 
-    juliaup_command(&depot_dir)
+    env.juliaup()
         .arg("add")
         .arg("1.6.4")
         .assert()
         .success()
         .stdout("");
 
-    juliaup_command(&depot_dir)
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4"));
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("release")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release")));
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("remove")
         .arg("release")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("release").not()));
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("nightly")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("-DEV")));
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("remove")
         .arg("nightly")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("status")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicates::str::contains("1.6.4").and(predicates::str::contains("-DEV").not()));
