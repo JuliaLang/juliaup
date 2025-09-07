@@ -63,7 +63,10 @@ pub fn run_command_config_backgroundselfupdate(
             if !quiet {
                 eprintln!(
                     "Property 'backgroundselfupdateinterval' set to '{}'",
-                    config_file.self_data.background_selfupdate_interval.unwrap_or(0)
+                    config_file
+                        .self_data
+                        .background_selfupdate_interval
+                        .unwrap_or(0)
                 );
             }
         }

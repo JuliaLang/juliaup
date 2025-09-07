@@ -798,9 +798,10 @@ pub fn garbage_collect_versions(
         let mut channels_to_uninstall: Vec<String> = Vec::new();
         for (installed_channel, detail) in &config_data.installed_channels {
             if let JuliaupConfigChannel::LinkedChannel {
-                    command: cmd,
-                    args: _,
-                } = &detail {
+                command: cmd,
+                args: _,
+            } = &detail
+            {
                 if !is_valid_julia_path(&PathBuf::from(cmd)) {
                     channels_to_uninstall.push(installed_channel.clone());
                 }
@@ -1445,12 +1446,13 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             .unwrap();
 
         if let JuliaupConfigChannel::DirectDownloadChannel {
-                path,
-                url,
-                local_etag,
-                server_etag: _,
-                version,
-            } = channel_data {
+            path,
+            url,
+            local_etag,
+            server_etag: _,
+            version,
+        } = channel_data
+        {
             if let Some(etag) = etag {
                 new_config_file.data.installed_channels.insert(
                     channel,
@@ -1511,7 +1513,7 @@ where
             eprintln!("{}", message);
 
             // Now wait for the function to complete
-            
+
             rx.recv().unwrap()
         }
         Err(e) => panic!("Error receiving result: {:?}", e),
@@ -1534,7 +1536,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;
@@ -1605,7 +1607,7 @@ fn download_direct_download_etags(
     let mut requests = Vec::new();
 
     for (channel_name, installed_channel) in &config_data.installed_channels {
-        if let Some(chan) = channel{
+        if let Some(chan) = channel {
             // TODO: convert to an if-let chain once stabilized https://github.com/rust-lang/rust/pull/132833
             if chan != channel_name {
                 continue;

@@ -435,12 +435,10 @@ fn get_julia_path_from_installed_channel(
     channel_info: &JuliaupConfigChannel,
 ) -> Result<(PathBuf, Vec<String>)> {
     match channel_info {
-        JuliaupConfigChannel::LinkedChannel { command, args } => {
-            Ok((
-                PathBuf::from(command),
-                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-            ))
-        }
+        JuliaupConfigChannel::LinkedChannel { command, args } => Ok((
+            PathBuf::from(command),
+            args.as_ref().map_or_else(Vec::new, |v| v.clone()),
+        )),
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
