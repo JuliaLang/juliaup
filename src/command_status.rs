@@ -124,14 +124,9 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                     let update_option = match i.1 {
                         JuliaupConfigChannel::SystemChannel { version } => {
                             match versiondb_data.available_channels.get(i.0) {
-                                Some(channel) => {
-                                    if &channel.version != version {
-                                        Some(format!("Update to {} available", channel.version))
-                                    } else {
-                                        None
-                                    }
-                                }
-                                None => None,
+                                Some(channel) if &channel.version != version =>
+                                    Some(format!("Update to {} available", channel.version)),
+                                _ => None,
                             }
                         }
                         JuliaupConfigChannel::LinkedChannel {
@@ -148,11 +143,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             server_etag,
                             version: _,
                         } => {
-                            if local_etag != server_etag {
-                                Some("Update available".to_string())
-                            } else {
-                                None
-                            }
+                            (local_etag != server_etag).then(|| "Update available".to_string())
                         }
                     };
                     update_option.unwrap_or_default()
