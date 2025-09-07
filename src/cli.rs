@@ -176,4 +176,13 @@ pub enum ConfigSubCmd {
         /// New value
         value: Option<i64>,
     },
+    /// Whether to automatically install Julia channels requested from the command line.
+    /// When set to true, 'julia +channel' will automatically install missing channels.
+    /// When false, users will not be prompted and shown an error.
+    /// When default (unset), users will be prompted interactively or shown an error in non-interactive mode.
+    #[clap(name = "autoinstallchannels")]
+    AutoInstallChannels {
+        /// New value: true, false, or default
+        value: Option<String>,
+    },
 }
