@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use assert_fs::TempDir;
 use predicates::prelude::*;
 
 fn juliaup_command(depot_dir: &assert_fs::TempDir) -> Command {

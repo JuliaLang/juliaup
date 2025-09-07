@@ -30,7 +30,6 @@ pub enum Juliaup {
         /// Name of the new channel to create
         channel: String,
         /// Path to Julia binary, or +CHANNEL to create an alias (e.g. +release)
-        #[clap(value_name = "TARGET")]
         target: String,
         /// Additional arguments for the Julia binary (not used for aliases)
         args: Vec<String>,

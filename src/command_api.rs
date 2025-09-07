@@ -46,7 +46,6 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     for (key, value) in &config_file.data.installed_channels {
         let curr = match &value {
             JuliaupConfigChannel::AliasChannel { target } => {
-                // Since we no longer support alias-to-alias chains, this is simpler
                 JuliaupChannelInfo {
                     name: key.clone(),
                     file: format!("alias-to-{target}"),
@@ -81,7 +80,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => {
-                let mut new_args = args.as_deref().unwrap_or_default().to_vec();
+                let mut new_args = args.clone().unwrap_or_default();
                 new_args.push("--version".to_string());
 
                 let res = std::process::Command::new(command)
@@ -104,7 +103,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.as_deref().unwrap_or_default().to_vec(),
+                            args: args.clone().unwrap_or_default(),
                             version: version.to_string(),
                             arch: String::new(),
                         }
