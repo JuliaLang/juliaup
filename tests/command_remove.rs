@@ -25,7 +25,6 @@ fn command_remove() {
         .stdout("");
 
     juliaup_command(&depot_dir)
-        .unwrap()
         .arg("status")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())

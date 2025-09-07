@@ -1,5 +1,3 @@
-use assert_cmd::Command;
-
 mod utils;
 use utils::TestEnv;
 

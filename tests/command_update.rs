@@ -1,5 +1,3 @@
-use assert_cmd::Command;
-
 mod utils;
 use utils::juliaup_command_tempfile as juliaup_command;
 
