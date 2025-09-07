@@ -21,15 +21,20 @@ fn get_alias_update_info(
 ) -> Option<String> {
     // Check if the target channel has updates available
     match config_file.data.installed_channels.get(target) {
-        Some(JuliaupConfigChannel::SystemChannel { version }) =>
+        Some(JuliaupConfigChannel::SystemChannel { version }) => {
             match versiondb_data.available_channels.get(target) {
-                Some(channel) if channel.version != *version =>
-                    Some(format!("Update to {} available", channel.version)),
+                Some(channel) if channel.version != *version => {
+                    Some(format!("Update to {} available", channel.version))
+                }
                 _ => None,
-            },
-        Some(JuliaupConfigChannel::DirectDownloadChannel { local_etag, server_etag, .. }) =>
-            (local_etag != server_etag).then(|| "Update available".to_string()),
-        _ => None,  // Target channel doesn't exist or not updatable
+            }
+        }
+        Some(JuliaupConfigChannel::DirectDownloadChannel {
+            local_etag,
+            server_etag,
+            ..
+        }) => (local_etag != server_etag).then(|| "Update available".to_string()),
+        _ => None, // Target channel doesn't exist or not updatable
     }
 }
 
@@ -124,8 +129,11 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         JuliaupConfigChannel::AliasChannel { target } => {
                             get_alias_update_info(target, &config_file, &versiondb_data)
                         }
-                        JuliaupConfigChannel::DirectDownloadChannel { local_etag, server_etag, .. } =>
-                            (local_etag != server_etag).then(|| "Update available".to_string()),
+                        JuliaupConfigChannel::DirectDownloadChannel {
+                            local_etag,
+                            server_etag,
+                            ..
+                        } => (local_etag != server_etag).then(|| "Update available".to_string()),
                     };
                     update_option.unwrap_or_default()
                 },
