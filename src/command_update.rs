@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
     match config_db.installed_channels.get(channel_name) {
-        Some(JuliaupConfigChannel::AliasChannel { target }) => Ok(target.to_string()),
+        Some(JuliaupConfigChannel::AliasChannel { target, args: _ }) => Ok(target.to_string()),
         Some(_) => Ok(channel_name.to_string()),
         None => bail!("Channel '{}' not found", channel_name),
     }

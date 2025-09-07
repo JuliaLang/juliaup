@@ -111,9 +111,12 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                         }
                         format!("Linked to `{combined_command}`")
                     }
-                    JuliaupConfigChannel::AliasChannel { target } => {
-                        format!("Alias to `{target}`")
-                    }
+                    JuliaupConfigChannel::AliasChannel { target, args } => match args {
+                        Some(args) if !args.is_empty() => {
+                            format!("Alias to `{target}` with args: {:?}", args)
+                        }
+                        _ => format!("Alias to `{target}`"),
+                    },
                 },
                 update: {
                     let update_option = match i.1 {
@@ -126,7 +129,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             }
                         }
                         JuliaupConfigChannel::LinkedChannel { .. } => None,
-                        JuliaupConfigChannel::AliasChannel { target } => {
+                        JuliaupConfigChannel::AliasChannel { target, args: _ } => {
                             get_alias_update_info(target, &config_file, &versiondb_data)
                         }
                         JuliaupConfigChannel::DirectDownloadChannel {

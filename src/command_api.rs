@@ -45,7 +45,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
 
     for (key, value) in &config_file.data.installed_channels {
         let curr = match &value {
-            JuliaupConfigChannel::AliasChannel { target } => {
+            JuliaupConfigChannel::AliasChannel { target, args: _ } => {
                 JuliaupChannelInfo {
                     name: key.clone(),
                     file: format!("alias-to-{target}"),

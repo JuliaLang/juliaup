@@ -761,7 +761,7 @@ pub fn garbage_collect_versions(
                 command: _,
                 args: _,
             } => true,
-            JuliaupConfigChannel::AliasChannel { target: _ } => true,
+            JuliaupConfigChannel::AliasChannel { target: _, args: _ } => true,
             JuliaupConfigChannel::DirectDownloadChannel {
                 path: _,
                 url: _,
@@ -993,7 +993,7 @@ pub fn create_symlink(
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
-        JuliaupConfigChannel::AliasChannel { target: _ } => {
+        JuliaupConfigChannel::AliasChannel { target: _, args: _ } => {
             // Aliases don't create symlinks directly, they are resolved at runtime
             Ok(())
         }

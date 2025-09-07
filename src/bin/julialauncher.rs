@@ -327,7 +327,7 @@ enum JuliaupChannelSource {
 
 fn resolve_channel_alias(config_data: &JuliaupConfig, channel: &str) -> Result<String> {
     match config_data.installed_channels.get(channel) {
-        Some(JuliaupConfigChannel::AliasChannel { target }) => Ok(target.to_string()),
+        Some(JuliaupConfigChannel::AliasChannel { target, args: _ }) => Ok(target.to_string()),
         _ => Ok(channel.to_string()),
     }
 }

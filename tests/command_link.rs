@@ -90,18 +90,19 @@ fn command_link_alias_invalid_target() {
 }
 
 #[test]
-fn command_link_alias_with_args_fails() {
+fn command_link_alias_with_args_works() {
     let env = TestEnv::new();
 
-    // Test that creating an alias with extra arguments fails (the argument parser should reject this)
-    env.command("juliaup")
+    // Test that creating an alias with extra arguments works and shows them in the output
+    env.juliaup()
         .arg("link")
         .arg("alias_with_args")
         .arg("+release")
+        .arg("--")
         .arg("--some-arg")
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("unexpected argument"));
+        .success()
+        .stderr(predicate::str::contains("args: [\"--some-arg\"]"));
 }
 
 #[test]

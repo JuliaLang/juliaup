@@ -42,18 +42,23 @@ pub fn run_command_link(
             bail!("Target channel `{}` is not installed and is not a valid system channel. Please run `juliaup add {}` first or check `juliaup list` for available channels.", target_channel, target_channel);
         }
 
-        if !args.is_empty() {
-            bail!("Arguments are not supported when creating channel aliases. Remove the extra arguments: {:?}", args);
-        }
-
         config_file.data.installed_channels.insert(
             channel.to_string(),
             JuliaupConfigChannel::AliasChannel {
                 target: target_channel.to_string(),
+                args: if args.is_empty() {
+                    None
+                } else {
+                    Some(args.to_vec())
+                },
             },
         );
 
-        eprintln!("Channel alias `{channel}` created, pointing to `{target_channel}`.");
+        if args.is_empty() {
+            eprintln!("Channel alias `{channel}` created, pointing to `{target_channel}`.");
+        } else {
+            eprintln!("Channel alias `{channel}` created, pointing to `{target_channel}` with args: {:?}.", args);
+        }
     } else {
         let absolute_file_path = Path::new(target)
             .absolutize()

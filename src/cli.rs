@@ -31,7 +31,7 @@ pub enum Juliaup {
         channel: String,
         /// Path to Julia binary, or +{channel} to create an alias
         target: String,
-        /// Additional arguments for the Julia binary (not used for aliases)
+        /// Additional arguments for the Julia binary
         args: Vec<String>,
     },
     /// List all available channels
