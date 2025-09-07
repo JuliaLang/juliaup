@@ -88,7 +88,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
         return Ok(());
     }
 
-    let name = channel_to_name(&channel.to_string())?;
+    let name = channel_to_name(channel)?;
     let config_channel = install_non_db_version(channel, &name, paths)?;
 
     config_file
