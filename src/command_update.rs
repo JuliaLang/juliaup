@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
     match config_db.installed_channels.get(channel_name) {
-        Some(JuliaupConfigChannel::AliasChannel { target, args: _ }) => Ok(target.to_string()),
+        Some(JuliaupConfigChannel::AliasChannel { target, .. }) => Ok(target.to_string()),
         Some(_) => Ok(channel_name.to_string()),
         None => bail!("Channel '{}' not found", channel_name),
     }
@@ -72,20 +72,6 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::LinkedChannel {
-            command: _,
-            args: _,
-        } => {
-            if !ignore_non_updatable_channel {
-                bail!(
-                    "Failed to update '{}' because it is a linked channel.",
-                    channel
-                );
-            }
-        }
-        JuliaupConfigChannel::AliasChannel { .. } => {
-            unreachable!("Alias channels should be resolved before calling update_channel. This is a programming error.");
-        }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
             url,
@@ -124,6 +110,20 @@ fn update_channel(
                     )?;
                 }
             }
+        }
+        JuliaupConfigChannel::LinkedChannel {
+            command: _,
+            args: _,
+        } => {
+            if !ignore_non_updatable_channel {
+                bail!(
+                    "Failed to update '{}' because it is a linked channel.",
+                    channel
+                );
+            }
+        }
+        JuliaupConfigChannel::AliasChannel { .. } => {
+            unreachable!("Alias channels should be resolved before calling update_channel. This is a programming error.");
         }
     }
 

@@ -757,18 +757,7 @@ pub fn garbage_collect_versions(
     for (installed_version, detail) in &config_data.installed_versions {
         if config_data.installed_channels.iter().all(|j| match &j.1 {
             JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
-            JuliaupConfigChannel::LinkedChannel {
-                command: _,
-                args: _,
-            } => true,
-            JuliaupConfigChannel::AliasChannel { target: _, args: _ } => true,
-            JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url: _,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } => true,
+            _ => true,
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
             let display = path_to_delete.display();
@@ -993,30 +982,23 @@ pub fn create_symlink(
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
-        JuliaupConfigChannel::AliasChannel { target: _, args: _ } => {
-            // Aliases don't create symlinks directly, they are resolved at runtime
-            Ok(())
-        }
         JuliaupConfigChannel::SystemChannel { version } => {
             create_system_channel_symlink(version, symlink_name, &symlink_path, paths, &updating)
         }
-        JuliaupConfigChannel::DirectDownloadChannel {
-            path,
-            url: _,
-            local_etag: _,
-            server_etag: _,
-            version,
-        } => create_direct_download_symlink(
-            path,
-            version,
-            symlink_name,
-            &symlink_path,
-            paths,
-            &updating,
-        ),
+        JuliaupConfigChannel::DirectDownloadChannel { path, version, .. } => {
+            create_direct_download_symlink(
+                path,
+                version,
+                symlink_name,
+                &symlink_path,
+                paths,
+                &updating,
+            )
+        }
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             create_linked_channel_shim(command, args, symlink_name, &symlink_path, &updating)
         }
+        JuliaupConfigChannel::AliasChannel { .. } => Ok(()), // Aliases have their symlinks resolved at runtime
     }?;
 
     if updating.is_none() {

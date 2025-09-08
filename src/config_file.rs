@@ -54,7 +54,7 @@ pub enum JuliaupConfigChannel {
     AliasChannel {
         #[serde(rename = "Target")]
         target: String,
-        #[serde(rename = "Args", skip_serializing_if = "Option::is_none")]
+        #[serde(rename = "Args")]
         args: Option<Vec<String>>,
     },
 }
