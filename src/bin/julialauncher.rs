@@ -325,13 +325,6 @@ enum JuliaupChannelSource {
     Default,
 }
 
-fn resolve_channel_alias(config_data: &JuliaupConfig, channel: &str) -> Result<String> {
-    match config_data.installed_channels.get(channel) {
-        Some(JuliaupConfigChannel::AliasChannel { target, args: _ }) => Ok(target.to_string()),
-        _ => Ok(channel.to_string()),
-    }
-}
-
 fn get_julia_path_from_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
@@ -340,8 +333,13 @@ fn get_julia_path_from_channel(
     juliaup_channel_source: JuliaupChannelSource,
     paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<(PathBuf, Vec<String>)> {
-    // First resolve any aliases
-    let resolved_channel = resolve_channel_alias(config_data, channel)?;
+    // First check if the channel is an alias and extract its args
+    let (resolved_channel, alias_args) = match config_data.installed_channels.get(channel) {
+        Some(JuliaupConfigChannel::AliasChannel { target, args }) => {
+            (target.to_string(), args.clone().unwrap_or_default())
+        }
+        _ => (channel.to_string(), Vec::new()),
+    };
 
     let channel_valid = is_valid_channel(versions_db, &resolved_channel)?;
 
@@ -353,6 +351,7 @@ fn get_julia_path_from_channel(
             &resolved_channel,
             juliaupconfig_path,
             channel_info,
+            alias_args.clone(),
         );
     }
 
@@ -393,6 +392,7 @@ fn get_julia_path_from_channel(
                         &resolved_channel,
                         juliaupconfig_path,
                         channel_info,
+                        alias_args,
                     );
                 } else {
                     return Err(anyhow!(
@@ -445,15 +445,17 @@ fn get_julia_path_from_installed_channel(
     channel: &str,
     juliaupconfig_path: &Path,
     channel_info: &JuliaupConfigChannel,
+    alias_args: Vec<String>,
 ) -> Result<(PathBuf, Vec<String>)> {
     match channel_info {
         JuliaupConfigChannel::AliasChannel { .. } => {
             bail!("Unexpected alias channel after resolution: {channel}");
         }
-        JuliaupConfigChannel::LinkedChannel { command, args } => Ok((
-            PathBuf::from(command),
-            args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-        )),
+        JuliaupConfigChannel::LinkedChannel { command, args } => {
+            let mut combined_args = alias_args;
+            combined_args.extend(args.as_ref().map_or_else(Vec::new, |v| v.clone()));
+            Ok((PathBuf::from(command), combined_args))
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
@@ -475,7 +477,7 @@ fn get_julia_path_from_installed_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            Ok((absolute_path.into_path_buf(), Vec::new()))
+            Ok((absolute_path.into_path_buf(), alias_args))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
@@ -518,7 +520,7 @@ fn get_julia_path_from_installed_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            Ok((absolute_path.into_path_buf(), Vec::new()))
+            Ok((absolute_path.into_path_buf(), alias_args))
         }
     }
 }

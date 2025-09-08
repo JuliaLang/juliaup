@@ -106,6 +106,38 @@ fn command_link_alias_with_args_works() {
 }
 
 #[test]
+fn alias_with_args_passes_through() {
+    let env = TestEnv::new();
+
+    // First install a Julia version
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
+
+    // Create an alias with args that will be passed to Julia
+    env.juliaup()
+        .arg("link")
+        .arg("julia_with_threads")
+        .arg("+1.10.10")
+        .arg("--")
+        .arg("--threads=4")
+        .arg("--startup-file=no")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains(
+            "args: [\"--threads=4\", \"--startup-file=no\"]",
+        ));
+
+    // Test that the args are actually passed through when running Julia
+    // Julia with --threads=4 should report 4 threads
+    env.julia()
+        .arg("+julia_with_threads")
+        .arg("-e")
+        .arg("println(Threads.nthreads())")
+        .assert()
+        .success()
+        .stdout("4\n");
+}
+
+#[test]
 fn command_link_duplicate_channel() {
     let env = TestEnv::new();
 
