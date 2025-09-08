@@ -1,8 +1,11 @@
 use anyhow::{anyhow, Context, Result};
 use console::{style, Term};
+use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
-use juliaup::config_file::{load_config_db, JuliaupConfig, JuliaupConfigChannel};
+use juliaup::config_file::{
+    load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
+};
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
@@ -128,6 +131,164 @@ fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile
     Ok(())
 }
 
+fn is_interactive() -> bool {
+    // First check if we have TTY access - this is a prerequisite for interactivity
+    if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        return false;
+    }
+
+    // Even with TTY available, check if Julia is being invoked in a non-interactive way
+    let args: Vec<String> = std::env::args().collect();
+
+    // Skip the first argument (program name) and any channel specification (+channel)
+    let mut julia_args = args.iter().skip(1);
+
+    // Skip channel specification if present
+    if let Some(first_arg) = julia_args.clone().next() {
+        if first_arg.starts_with('+') {
+            julia_args.next(); // consume the +channel argument
+        }
+    }
+
+    // Check for non-interactive usage patterns
+    for arg in julia_args {
+        match arg.as_str() {
+            // Expression evaluation is non-interactive
+            "-e" | "--eval" => return false,
+            // Reading from stdin pipe is non-interactive
+            "-" => return false,
+            // Print options are typically non-interactive
+            "-p" | "--print" => return false,
+            // License/version display is non-interactive
+            "-L" | "--license" => return false,
+            "-v" | "--version" => return false,
+            // Help is non-interactive
+            "-h" | "--help" => return false,
+            // Check if this looks like a Julia file (ends with .jl)
+            filename if filename.ends_with(".jl") && !filename.starts_with('-') => {
+                return false;
+            }
+            // Any other non-flag argument that doesn't start with '-' could be a script
+            filename if !filename.starts_with('-') && !filename.is_empty() => {
+                // This could be a script file, check if it exists as a file
+                if std::path::Path::new(filename).exists() {
+                    return false;
+                }
+            }
+            _ => {} // Continue checking other arguments
+        }
+    }
+
+    true
+}
+
+fn handle_auto_install_prompt(
+    channel: &str,
+    paths: &juliaup::global_paths::GlobalPaths,
+) -> Result<bool> {
+    // Check if we're in interactive mode
+    if !is_interactive() {
+        // Non-interactive mode, don't auto-install
+        return Ok(false);
+    }
+
+    // Use dialoguer for a consistent UI experience
+    let selection = Select::new()
+        .with_prompt(format!(
+            "{} The Juliaup channel '{}' is not installed. Would you like to install it?",
+            style("Question:").yellow().bold(),
+            channel
+        ))
+        .item("Yes (install this time only)")
+        .item("Yes and remember my choice (always auto-install)")
+        .item("No")
+        .default(0) // Default to "Yes"
+        .interact()?;
+
+    match selection {
+        0 => {
+            // Just install for this time
+            Ok(true)
+        }
+        1 => {
+            // Install and remember the preference
+            set_auto_install_preference(true, paths)?;
+            Ok(true)
+        }
+        2 => {
+            // Don't install
+            Ok(false)
+        }
+        _ => {
+            // Should not happen with dialoguer, but default to no
+            Ok(false)
+        }
+    }
+}
+
+fn set_auto_install_preference(
+    auto_install: bool,
+    paths: &juliaup::global_paths::GlobalPaths,
+) -> Result<()> {
+    let mut config_file = load_mut_config_db(paths)
+        .with_context(|| "Failed to load configuration for setting auto-install preference.")?;
+
+    config_file.data.settings.auto_install_channels = Some(auto_install);
+
+    save_config_db(&mut config_file)
+        .with_context(|| "Failed to save auto-install preference to configuration.")?;
+
+    eprintln!(
+        "{} Auto-install preference set to '{}'.",
+        style("Info:").cyan().bold(),
+        auto_install
+    );
+
+    Ok(())
+}
+
+fn spawn_juliaup_add(
+    channel: &str,
+    _paths: &juliaup::global_paths::GlobalPaths,
+    is_automatic: bool,
+) -> Result<()> {
+    if is_automatic {
+        eprintln!(
+            "{} Installing Julia {} automatically per juliaup settings...",
+            style("Info:").cyan().bold(),
+            channel
+        );
+    } else {
+        eprintln!(
+            "{} Installing Julia {} as requested...",
+            style("Info:").cyan().bold(),
+            channel
+        );
+    }
+
+    let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
+
+    let status = std::process::Command::new(juliaup_path)
+        .args(["add", channel])
+        .status()
+        .with_context(|| format!("Failed to spawn juliaup to install channel '{}'", channel))?;
+
+    if status.success() {
+        eprintln!(
+            "{} Successfully installed Julia {}.",
+            style("Info:").cyan().bold(),
+            channel
+        );
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "Failed to install channel '{}'. juliaup add command failed with exit code: {:?}",
+            channel,
+            status.code()
+        ))
+    }
+}
+
 fn check_channel_uptodate(
     channel: &str,
     current_version: &str,
@@ -170,49 +331,113 @@ fn get_julia_path_from_channel(
     channel: &str,
     juliaupconfig_path: &Path,
     juliaup_channel_source: JuliaupChannelSource,
+    paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<(PathBuf, Vec<String>)> {
     let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
-    let channel_info = config_data
-            .installed_channels
-            .get(channel)
-            .ok_or_else(|| match juliaup_channel_source {
-                JuliaupChannelSource::CmdLine => {
-                    if channel_valid {
-                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(channel) {
-                        UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
-                    } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
-                    }
-                },
-                JuliaupChannelSource::EnvVar=> {
-                    if channel_valid {
-                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(channel) {
-                        UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
-                    } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
-                    }
-                },
-                JuliaupChannelSource::Override=> {
-                    if channel_valid {
-                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-                    } else if is_pr_channel(channel) {
-                        UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
-                    } else {
-                        UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
-                    }
-                },
-                JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
-            })?;
 
-    match channel_info {
-        JuliaupConfigChannel::LinkedChannel { command, args } => {
-            Ok((
-                PathBuf::from(command),
-                args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-            ))
+    // First check if the channel is already installed
+    if let Some(channel_info) = config_data.installed_channels.get(channel) {
+        return get_julia_path_from_installed_channel(
+            versions_db,
+            config_data,
+            channel,
+            juliaupconfig_path,
+            channel_info,
+        );
+    }
+
+    // Handle auto-installation for command line channel selection
+    if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
+        if channel_valid || is_pr_channel(channel) {
+            // Check the user's auto-install preference
+            let should_auto_install = match config_data.settings.auto_install_channels {
+                Some(auto_install) => auto_install, // User has explicitly set a preference
+                None => {
+                    // User hasn't set a preference - prompt in interactive mode, default to false in non-interactive
+                    if is_interactive() {
+                        handle_auto_install_prompt(channel, paths)?
+                    } else {
+                        false
+                    }
+                }
+            };
+
+            if should_auto_install {
+                // Install the channel using juliaup
+                let is_automatic = config_data.settings.auto_install_channels == Some(true);
+                spawn_juliaup_add(channel, paths, is_automatic)?;
+
+                // Reload the config to get the newly installed channel
+                let updated_config_file = load_config_db(paths, None)
+                    .with_context(|| "Failed to reload configuration after installing channel.")?;
+
+                if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel)
+                {
+                    return get_julia_path_from_installed_channel(
+                        versions_db,
+                        &updated_config_file.data,
+                        channel,
+                        juliaupconfig_path,
+                        channel_info,
+                    );
+                } else {
+                    return Err(anyhow!(
+                        "Channel '{}' was installed but could not be found in configuration.",
+                        channel
+                    ));
+                }
+            }
+            // If we reach here, either installation failed or user declined
         }
+    }
+
+    // Original error handling for non-command-line sources or invalid channels
+    let error = match juliaup_channel_source {
+        JuliaupChannelSource::CmdLine => {
+            if channel_valid {
+                UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+            } else if is_pr_channel(channel) {
+                UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+            } else {
+                UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+            }
+        },
+        JuliaupChannelSource::EnvVar=> {
+            if channel_valid {
+                UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+            } else if is_pr_channel(channel) {
+                UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+            } else {
+                UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+            }
+        },
+        JuliaupChannelSource::Override=> {
+            if channel_valid {
+                UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
+            } else if is_pr_channel(channel){
+                UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+            } else {
+                UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+            }
+        },
+        JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
+    };
+
+    Err(error.into())
+}
+
+fn get_julia_path_from_installed_channel(
+    versions_db: &JuliaupVersionDB,
+    config_data: &JuliaupConfig,
+    channel: &str,
+    juliaupconfig_path: &Path,
+    channel_info: &JuliaupConfigChannel,
+) -> Result<(PathBuf, Vec<String>)> {
+    match channel_info {
+        JuliaupConfigChannel::LinkedChannel { command, args } => Ok((
+            PathBuf::from(command),
+            args.as_ref().map_or_else(Vec::new, |v| v.clone()),
+        )),
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
@@ -354,6 +579,7 @@ fn run_app() -> Result<i32> {
         &julia_channel_to_use,
         &paths.juliaupconfig,
         juliaup_channel_source,
+        &paths,
     )
     .with_context(|| {
         format!(

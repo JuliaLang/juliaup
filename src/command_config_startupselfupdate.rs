@@ -53,7 +53,10 @@ pub fn run_command_config_startupselfupdate(
             if !quiet {
                 eprintln!(
                     "Property 'startupselfupdateinterval' set to '{}'",
-                    config_file.self_data.startup_selfupdate_interval.unwrap_or(0)
+                    config_file
+                        .self_data
+                        .startup_selfupdate_interval
+                        .unwrap_or(0)
                 );
             }
         }
