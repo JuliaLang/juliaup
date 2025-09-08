@@ -21,6 +21,11 @@ fn get_alias_update_info(
 ) -> Option<String> {
     // Check if the target channel has updates available
     match config_file.data.installed_channels.get(target) {
+        Some(JuliaupConfigChannel::DirectDownloadChannel {
+            local_etag,
+            server_etag,
+            ..
+        }) => (local_etag != server_etag).then(|| "Update available".to_string()),
         Some(JuliaupConfigChannel::SystemChannel { version }) => {
             match versiondb_data.available_channels.get(target) {
                 Some(channel) if channel.version != *version => {
@@ -29,11 +34,6 @@ fn get_alias_update_info(
                 _ => None,
             }
         }
-        Some(JuliaupConfigChannel::DirectDownloadChannel {
-            local_etag,
-            server_etag,
-            ..
-        }) => (local_etag != server_etag).then(|| "Update available".to_string()),
         _ => None, // Target channel doesn't exist or not updatable
     }
 }
@@ -75,7 +75,6 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
             },
             name: i.0.to_string(),
             version: match i.1 {
-                JuliaupConfigChannel::SystemChannel { version } => version.clone(),
                 JuliaupConfigChannel::DirectDownloadChannel {
                     path: _,
                     url: _,
@@ -85,6 +84,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                 } => {
                     format!("Development version {version}")
                 }
+                JuliaupConfigChannel::SystemChannel { version } => version.clone(),
                 JuliaupConfigChannel::LinkedChannel { command, args } => {
                     let mut combined_command = String::new();
 
@@ -119,6 +119,11 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
             },
             update: {
                 let update_option = match i.1 {
+                    JuliaupConfigChannel::DirectDownloadChannel {
+                        local_etag,
+                        server_etag,
+                        ..
+                    } => (local_etag != server_etag).then(|| "Update available".to_string()),
                     JuliaupConfigChannel::SystemChannel { version } => {
                         match versiondb_data.available_channels.get(i.0) {
                             Some(channel) if &channel.version != version => {
@@ -127,11 +132,6 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                             _ => None,
                         }
                     }
-                    JuliaupConfigChannel::DirectDownloadChannel {
-                        local_etag,
-                        server_etag,
-                        ..
-                    } => (local_etag != server_etag).then(|| "Update available".to_string()),
                     JuliaupConfigChannel::LinkedChannel { .. } => None,
                     JuliaupConfigChannel::AliasChannel { target, .. } => {
                         get_alias_update_info(target, &config_file, &versiondb_data)

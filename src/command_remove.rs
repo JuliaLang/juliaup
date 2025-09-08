@@ -43,12 +43,12 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     // Determine what type of channel is being removed for better messaging
     let channel_type = match channel_info {
+        JuliaupConfigChannel::DirectDownloadChannel { .. } => "channel".to_string(),
+        JuliaupConfigChannel::SystemChannel { .. } => "channel".to_string(),
+        JuliaupConfigChannel::LinkedChannel { .. } => "linked channel".to_string(),
         JuliaupConfigChannel::AliasChannel { target, .. } => {
             format!("alias (pointing to '{target}')")
         }
-        JuliaupConfigChannel::LinkedChannel { .. } => "linked channel".to_string(),
-        JuliaupConfigChannel::SystemChannel { .. } => "channel".to_string(),
-        JuliaupConfigChannel::DirectDownloadChannel { .. } => "channel".to_string(),
     };
 
     if let JuliaupConfigChannel::DirectDownloadChannel {

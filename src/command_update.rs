@@ -30,6 +30,45 @@ fn update_channel(
         &config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?.clone();
 
     match current_version {
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url,
+            local_etag,
+            server_etag,
+            version,
+        } => {
+            if local_etag != server_etag {
+                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+                if version.is_empty() {
+                    eprintln!(
+                        "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
+                    );
+                }
+                eprintln!("{} channel {channel}", style("Updating").green().bold());
+
+                let channel_data =
+                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
+
+                config_db
+                    .installed_channels
+                    .insert(channel.clone(), channel_data);
+
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(
+                        &JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: server_etag.clone(),
+                            version: version.clone(),
+                        },
+                        channel,
+                        paths,
+                    )?;
+                }
+            }
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             let should_version = version_db.available_channels.get(channel);
 
@@ -70,45 +109,6 @@ fn update_channel(
                     "Failed to update '{}' because it no longer exists in the version database.",
                     channel
                 );
-            }
-        }
-        JuliaupConfigChannel::DirectDownloadChannel {
-            path,
-            url,
-            local_etag,
-            server_etag,
-            version,
-        } => {
-            if local_etag != server_etag {
-                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
-                if version.is_empty() {
-                    eprintln!(
-                        "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
-                    );
-                }
-                eprintln!("{} channel {channel}", style("Updating").green().bold());
-
-                let channel_data =
-                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
-
-                config_db
-                    .installed_channels
-                    .insert(channel.clone(), channel_data);
-
-                #[cfg(not(windows))]
-                if config_db.settings.create_channel_symlinks {
-                    create_symlink(
-                        &JuliaupConfigChannel::DirectDownloadChannel {
-                            path: path.clone(),
-                            url: url.clone(),
-                            local_etag: local_etag.clone(),
-                            server_etag: server_etag.clone(),
-                            version: version.clone(),
-                        },
-                        channel,
-                        paths,
-                    )?;
-                }
             }
         }
         JuliaupConfigChannel::LinkedChannel {
