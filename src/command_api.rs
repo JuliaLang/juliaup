@@ -45,13 +45,21 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
 
     for (key, value) in &config_file.data.installed_channels {
         let curr = match &value {
-            JuliaupConfigChannel::AliasChannel { target, args: _ } => {
+            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
                 JuliaupChannelInfo {
                     name: key.clone(),
-                    file: format!("alias-to-{target}"),
+                    file: paths.juliauphome
+                        .join(path)
+                        .join("bin")
+                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                        .normalize()
+                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
+                        .into_path_buf()
+                        .to_string_lossy()
+                        .to_string(),
                     args: Vec::new(),
-                    version: format!("alias to {target}"),
-                    arch: String::new(),
+                    version: version.clone(),
+                    arch: "".to_string(),
                 }
             }
             JuliaupConfigChannel::SystemChannel { version: fullversion } => {
@@ -111,21 +119,13 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Err(_) => continue,
                 }
             }
-            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
+            JuliaupConfigChannel::AliasChannel { target, args } => {
                 JuliaupChannelInfo {
                     name: key.clone(),
-                    file: paths.juliauphome
-                        .join(path)
-                        .join("bin")
-                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                        .normalize()
-                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                        .into_path_buf()
-                        .to_string_lossy()
-                        .to_string(),
-                    args: Vec::new(),
-                    version: version.clone(),
-                    arch: "".to_string(),
+                    file: format!("alias-to-{target}"),
+                    args: args.clone().unwrap_or_default(),
+                    version: format!("alias to {target}"),
+                    arch: String::new(),
                 }
             }
         };

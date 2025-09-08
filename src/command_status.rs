@@ -14,28 +14,93 @@ use cli_table::{
 use itertools::Itertools;
 use numeric_sort::cmp;
 
-fn get_alias_update_info(
-    target: &str,
+fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
+    let mut combined_command = String::new();
+
+    if command.contains(' ') {
+        combined_command.push('\"');
+        combined_command.push_str(command);
+        combined_command.push('\"');
+    } else {
+        combined_command.push_str(command);
+    }
+
+    if let Some(args) = args {
+        for arg in args {
+            combined_command.push(' ');
+            if arg.contains(' ') {
+                combined_command.push('\"');
+                combined_command.push_str(arg);
+                combined_command.push('\"');
+            } else {
+                combined_command.push_str(arg);
+            }
+        }
+    }
+
+    format!("Linked to `{combined_command}`")
+}
+
+fn format_version(channel: &JuliaupConfigChannel) -> String {
+    match channel {
+        JuliaupConfigChannel::DirectDownloadChannel { version, .. } => {
+            format!("Development version {version}")
+        }
+        JuliaupConfigChannel::SystemChannel { version } => version.clone(),
+        JuliaupConfigChannel::LinkedChannel { command, args } => {
+            format_linked_command(command, args)
+        }
+        JuliaupConfigChannel::AliasChannel { target, args } => match args {
+            Some(args) if !args.is_empty() => {
+                format!("Alias to `{target}` with args: {:?}", args)
+            }
+            _ => format!("Alias to `{target}`"),
+        },
+    }
+}
+
+fn get_update_info(
+    channel_name: &str,
+    channel: &JuliaupConfigChannel,
     config_file: &JuliaupReadonlyConfigFile,
     versiondb_data: &JuliaupVersionDB,
-) -> Option<String> {
-    // Check if the target channel has updates available
-    match config_file.data.installed_channels.get(target) {
-        Some(JuliaupConfigChannel::SystemChannel { version }) => {
-            match versiondb_data.available_channels.get(target) {
-                Some(channel) if channel.version != *version => {
+) -> String {
+    match channel {
+        JuliaupConfigChannel::DirectDownloadChannel {
+            local_etag,
+            server_etag,
+            ..
+        } => (local_etag != server_etag).then(|| "Update available".to_string()),
+        JuliaupConfigChannel::SystemChannel { version } => {
+            match versiondb_data.available_channels.get(channel_name) {
+                Some(channel) if &channel.version != version => {
                     Some(format!("Update to {} available", channel.version))
                 }
                 _ => None,
             }
         }
-        Some(JuliaupConfigChannel::DirectDownloadChannel {
-            local_etag,
-            server_etag,
-            ..
-        }) => (local_etag != server_etag).then(|| "Update available".to_string()),
-        _ => None, // Target channel doesn't exist or not updatable
+        JuliaupConfigChannel::LinkedChannel { .. } => None,
+        JuliaupConfigChannel::AliasChannel { target, .. } => {
+            // Check if the target channel has updates available
+            match config_file.data.installed_channels.get(target) {
+                Some(JuliaupConfigChannel::DirectDownloadChannel {
+                    local_etag,
+                    server_etag,
+                    ..
+                }) => (local_etag != server_etag).then(|| "Update available".to_string()),
+                Some(JuliaupConfigChannel::SystemChannel { version }) => {
+                    match versiondb_data.available_channels.get(target) {
+                        Some(channel) if channel.version != *version => {
+                            Some(format!("Update to {} available", channel.version))
+                        }
+                        _ => None,
+                    }
+                }
+                _ => None, // Target channel doesn't exist or not updatable
+            }
+        }
     }
+    .unwrap_or_default()
 }
 
 #[derive(Table)]
@@ -57,90 +122,19 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`status` command failed to load versions db.")?;
 
-    let rows_in_table: Vec<_> = config_file
+    let rows_in_table: Vec<ChannelRow> = config_file
         .data
         .installed_channels
         .iter()
-        .sorted_by(|a, b| cmp(&a.0.to_string(), &b.0.to_string()))
-        .map(|i| -> ChannelRow {
-            ChannelRow {
-                default: match config_file.data.default {
-                    Some(ref default_value) => {
-                        if i.0 == default_value {
-                            "*"
-                        } else {
-                            ""
-                        }
-                    }
-                    None => "",
-                },
-                name: i.0.to_string(),
-                version: match i.1 {
-                    JuliaupConfigChannel::SystemChannel { version } => version.clone(),
-                    JuliaupConfigChannel::DirectDownloadChannel {
-                        path: _,
-                        url: _,
-                        local_etag: _,
-                        server_etag: _,
-                        version,
-                    } => {
-                        format!("Development version {version}")
-                    }
-                    JuliaupConfigChannel::LinkedChannel { command, args } => {
-                        let mut combined_command = String::new();
-
-                        if command.contains(' ') {
-                            combined_command.push('\"');
-                            combined_command.push_str(command);
-                            combined_command.push('\"');
-                        } else {
-                            combined_command.push_str(command);
-                        }
-
-                        if let Some(args) = args {
-                            for i in args {
-                                combined_command.push(' ');
-                                if i.contains(' ') {
-                                    combined_command.push('\"');
-                                    combined_command.push_str(i);
-                                    combined_command.push('\"');
-                                } else {
-                                    combined_command.push_str(i);
-                                }
-                            }
-                        }
-                        format!("Linked to `{combined_command}`")
-                    }
-                    JuliaupConfigChannel::AliasChannel { target, args } => match args {
-                        Some(args) if !args.is_empty() => {
-                            format!("Alias to `{target}` with args: {:?}", args)
-                        }
-                        _ => format!("Alias to `{target}`"),
-                    },
-                },
-                update: {
-                    let update_option = match i.1 {
-                        JuliaupConfigChannel::SystemChannel { version } => {
-                            match versiondb_data.available_channels.get(i.0) {
-                                Some(channel) if &channel.version != version => {
-                                    Some(format!("Update to {} available", channel.version))
-                                }
-                                _ => None,
-                            }
-                        }
-                        JuliaupConfigChannel::LinkedChannel { .. } => None,
-                        JuliaupConfigChannel::AliasChannel { target, args: _ } => {
-                            get_alias_update_info(target, &config_file, &versiondb_data)
-                        }
-                        JuliaupConfigChannel::DirectDownloadChannel {
-                            local_etag,
-                            server_etag,
-                            ..
-                        } => (local_etag != server_etag).then(|| "Update available".to_string()),
-                    };
-                    update_option.unwrap_or_default()
-                },
-            }
+        .sorted_by(|(channel_name_a, _), (channel_name_b, _)| cmp(channel_name_a, channel_name_b))
+        .map(|(channel_name, channel)| ChannelRow {
+            default: match &config_file.data.default {
+                Some(ref default_value) if channel_name == default_value => "*",
+                _ => "",
+            },
+            name: channel_name.to_string(),
+            version: format_version(channel),
+            update: get_update_info(channel_name, channel, &config_file, &versiondb_data),
         })
         .collect();
 
