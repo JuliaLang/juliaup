@@ -359,6 +359,9 @@
         },
         "1.12.0-rc1+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.12/julia-1.12.0-rc1-linux-aarch64.tar.gz"
+        },
+        "1.12.0-rc2+0.aarch64.linux.gnu": {
+            "UrlPath": "bin/linux/aarch64/1.12/julia-1.12.0-rc2-linux-aarch64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -633,7 +636,7 @@
             "Version": "1.11.6+0.aarch64.linux.gnu"
         },
         "1.12": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "1.12.0-beta1": {
             "Version": "1.12.0-beta1+0.aarch64.linux.gnu"
@@ -665,8 +668,14 @@
         "1.12.0-rc1~aarch64": {
             "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
         },
+        "1.12.0-rc2": {
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
+        },
+        "1.12.0-rc2~aarch64": {
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
+        },
         "1.12~aarch64": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "1.1~aarch64": {
             "Version": "1.1.1+0.aarch64.linux.gnu"
@@ -1167,16 +1176,16 @@
             "Version": "1.11.6+0.aarch64.linux.gnu"
         },
         "alpha": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "alpha~aarch64": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "beta": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "beta~aarch64": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "lts": {
             "Version": "1.10.10+0.aarch64.linux.gnu"
@@ -1185,10 +1194,10 @@
             "Version": "1.10.10+0.aarch64.linux.gnu"
         },
         "rc": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "rc~aarch64": {
-            "Version": "1.12.0-rc1+0.aarch64.linux.gnu"
+            "Version": "1.12.0-rc2+0.aarch64.linux.gnu"
         },
         "release": {
             "Version": "1.11.6+0.aarch64.linux.gnu"
@@ -1197,5 +1206,5 @@
             "Version": "1.11.6+0.aarch64.linux.gnu"
         }
     },
-    "Version": "1.0.69"
+    "Version": "1.0.70"
 }
