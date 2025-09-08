@@ -122,7 +122,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`status` command failed to load versions db.")?;
 
-    let rows_in_table: Vec<_> = config_file
+    let rows_in_table: Vec<ChannelRow> = config_file
         .data
         .installed_channels
         .iter()
