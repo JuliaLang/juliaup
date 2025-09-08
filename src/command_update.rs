@@ -111,10 +111,7 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::LinkedChannel {
-            command: _,
-            args: _,
-        } => {
+        JuliaupConfigChannel::LinkedChannel { .. } => {
             if !ignore_non_updatable_channel {
                 bail!(
                     "Failed to update '{}' because it is a linked channel.",
