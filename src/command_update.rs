@@ -97,21 +97,11 @@ fn update_channel(
 
                 config_db
                     .installed_channels
-                    .insert(channel.clone(), channel_data);
+                    .insert(channel.clone(), channel_data.clone());
 
                 #[cfg(not(windows))]
                 if config_db.settings.create_channel_symlinks {
-                    create_symlink(
-                        &JuliaupConfigChannel::DirectDownloadChannel {
-                            path: path.clone(),
-                            url: url.clone(),
-                            local_etag: local_etag.clone(),
-                            server_etag: server_etag.clone(),
-                            version: version.clone(),
-                        },
-                        channel,
-                        paths,
-                    )?;
+                    create_symlink(&channel_data, channel, paths)?;
                 }
             }
         }
