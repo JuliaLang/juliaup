@@ -126,7 +126,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
         .data
         .installed_channels
         .iter()
-        .sorted_by(|a, b| cmp(&a.0.to_string(), &b.0.to_string()))
+        .sorted_by(|(channel_name_a, _), (channel_name_b, _)| cmp(&channel_name_a, &channel_name_b))
         .map(|(channel_name, channel)| ChannelRow {
             default: match &config_file.data.default {
                 Some(ref default_value) if channel_name == default_value => "*",
