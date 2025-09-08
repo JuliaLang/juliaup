@@ -123,7 +123,7 @@ fn update_channel(
             }
         }
         JuliaupConfigChannel::AliasChannel { .. } => {
-            unreachable!("Alias channels should be resolved before calling update_channel. This is a programming error.");
+            unreachable!("Alias channels should be resolved before calling update_channel. Please submit a bug report.");
         }
     }
 
