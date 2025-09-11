@@ -52,6 +52,7 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
 - `--path` (or `-p`): Install `juliaup` in a custom location.
+- For example, if you want to install `juliaup` into `~/my/desired/juliaup/path`, you would run the following command: `curl -fsSL https://install.julialang.org | sh -s -- --path ~/my/desired/juliaup/path`
 
 ### Software Repositories
 
