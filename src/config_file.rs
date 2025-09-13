@@ -51,6 +51,12 @@ pub enum JuliaupConfigChannel {
         #[serde(rename = "Args")]
         args: Option<Vec<String>>,
     },
+    AliasChannel {
+        #[serde(rename = "Target")]
+        target: String,
+        #[serde(rename = "Args")]
+        args: Option<Vec<String>>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]

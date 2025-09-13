@@ -100,9 +100,9 @@ fn main() -> Result<()> {
         Juliaup::Gc { prune_linked } => run_command_gc(prune_linked, &paths),
         Juliaup::Link {
             channel,
-            file,
+            target,
             args,
-        } => run_command_link(&channel, &file, &args, &paths),
+        } => run_command_link(&channel, &target, &args, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]

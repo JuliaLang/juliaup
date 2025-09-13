@@ -43,17 +43,32 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         "Failed to load configuration file while running the getconfig1 API command."
     })?;
 
-    for (key, value) in config_file.data.installed_channels {
-        let curr = match value {
-            JuliaupConfigChannel::SystemChannel {
-                version: fullversion,
-            } => {
-                let (platform, mut version) = parse_versionstring(&fullversion)
+    for (key, value) in &config_file.data.installed_channels {
+        let curr = match &value {
+            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
+                JuliaupChannelInfo {
+                    name: key.clone(),
+                    file: paths.juliauphome
+                        .join(path)
+                        .join("bin")
+                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                        .normalize()
+                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
+                        .into_path_buf()
+                        .to_string_lossy()
+                        .to_string(),
+                    args: Vec::new(),
+                    version: version.clone(),
+                    arch: "".to_string(),
+                }
+            }
+            JuliaupConfigChannel::SystemChannel { version: fullversion } => {
+                let (platform, mut version) = parse_versionstring(fullversion)
                     .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
                 version.build = semver::BuildMetadata::EMPTY;
 
-                match config_file.data.installed_versions.get(&fullversion) {
+                match config_file.data.installed_versions.get(fullversion) {
                     Some(channel) => JuliaupChannelInfo {
                         name: key.clone(),
                         file: paths.juliauphome
@@ -73,15 +88,10 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => {
-                let mut new_args: Vec<String> = Vec::new();
-
-                for i in args.as_ref().unwrap() {
-                    new_args.push(i.to_string());
-                }
-
+                let mut new_args = args.clone().unwrap_or_default();
                 new_args.push("--version".to_string());
 
-                let res = std::process::Command::new(&command)
+                let res = std::process::Command::new(command)
                     .args(&new_args)
                     .output();
 
@@ -101,36 +111,28 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.unwrap_or_default(),
+                            args: args.clone().unwrap_or_default(),
                             version: version.to_string(),
-                            arch: "".to_string(),
+                            arch: String::new(),
                         }
                     }
                     Err(_) => continue,
                 }
             }
-            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
+            JuliaupConfigChannel::AliasChannel { target, args } => {
                 JuliaupChannelInfo {
                     name: key.clone(),
-                    file: paths.juliauphome
-                        .join(path)
-                        .join("bin")
-                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                        .normalize()
-                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                        .into_path_buf()
-                        .to_string_lossy()
-                        .to_string(),
-                    args: Vec::new(),
-                    version: version.clone(),
-                    arch: "".to_string(),
+                    file: format!("alias-to-{target}"),
+                    args: args.clone().unwrap_or_default(),
+                    version: format!("alias to {target}"),
+                    arch: String::new(),
                 }
             }
         };
 
         match config_file.data.default {
             Some(ref default_value) => {
-                if &key == default_value {
+                if key == default_value {
                     ret_value.default = Some(curr.clone());
                 } else {
                     ret_value.other_versions.push(curr);
@@ -146,7 +148,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
     let j = serde_json::to_string(&ret_value)?;
 
     // Print, write to a file, or send to an HTTP server.
-    println!("{}", j);
+    println!("{j}");
 
     Ok(())
 }

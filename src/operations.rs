@@ -757,17 +757,7 @@ pub fn garbage_collect_versions(
     for (installed_version, detail) in &config_data.installed_versions {
         if config_data.installed_channels.iter().all(|j| match &j.1 {
             JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
-            JuliaupConfigChannel::LinkedChannel {
-                command: _,
-                args: _,
-            } => true,
-            JuliaupConfigChannel::DirectDownloadChannel {
-                path: _,
-                url: _,
-                local_etag: _,
-                server_etag: _,
-                version: _,
-            } => true,
+            _ => true,
         }) {
             let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
             let display = path_to_delete.display();
@@ -786,7 +776,10 @@ pub fn garbage_collect_versions(
     }
 
     if versions_to_uninstall.is_empty() {
-        eprintln!("Nothing to remove.");
+        eprintln!(
+            "{}: No unused Julia installations to clean up.",
+            style("GC").cyan().bold()
+        );
     } else {
         for i in versions_to_uninstall {
             eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
@@ -845,6 +838,138 @@ pub fn remove_symlink(symlink_name: &String) -> Result<()> {
 }
 
 #[cfg(not(windows))]
+fn create_system_channel_symlink(
+    version: &str,
+    symlink_name: &str,
+    symlink_path: &Path,
+    paths: &GlobalPaths,
+    updating: &Option<PathBuf>,
+) -> Result<()> {
+    let child_target_foldername = format!("julia-{}", version);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
+
+    if let Some(ref prev_target) = updating {
+        eprintln!(
+            "{} symlink {} ( {} -> {} )",
+            style("Updating").cyan().bold(),
+            symlink_name,
+            prev_target.to_string_lossy(),
+            version
+        );
+    } else {
+        eprintln!(
+            "{} {} for Julia {}.",
+            style("Creating symlink").cyan().bold(),
+            symlink_name,
+            version
+        );
+    }
+
+    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
+        || {
+            format!(
+                "failed to create symlink `{}`.",
+                symlink_path.to_string_lossy()
+            )
+        },
+    )
+}
+
+#[cfg(not(windows))]
+fn create_direct_download_symlink(
+    path: &str,
+    version: &str,
+    symlink_name: &str,
+    symlink_path: &Path,
+    paths: &GlobalPaths,
+    updating: &Option<PathBuf>,
+) -> Result<()> {
+    let target_path = paths.juliauphome.join(path);
+
+    if let Some(ref prev_target) = updating {
+        eprintln!(
+            "{} symlink {} ( {} -> {} )",
+            style("Updating").cyan().bold(),
+            symlink_name,
+            prev_target.to_string_lossy(),
+            version
+        );
+    } else {
+        eprintln!(
+            "{} {} for Julia {}.",
+            style("Creating symlink").cyan().bold(),
+            symlink_name,
+            version
+        );
+    }
+
+    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
+        || {
+            format!(
+                "failed to create symlink `{}`.",
+                symlink_path.to_string_lossy()
+            )
+        },
+    )
+}
+
+#[cfg(not(windows))]
+fn create_linked_channel_shim(
+    command: &str,
+    args: &Option<Vec<String>>,
+    symlink_name: &str,
+    symlink_path: &Path,
+    updating: &Option<PathBuf>,
+) -> Result<()> {
+    let formatted_command = match args {
+        Some(x) => format!("{} {}", command, x.join(" ")),
+        None => command.to_string(),
+    };
+
+    if let Some(ref prev_target) = updating {
+        eprintln!(
+            "{} shim {} ( {} -> {} )",
+            style("Updating").cyan().bold(),
+            symlink_name,
+            prev_target.to_string_lossy(),
+            formatted_command
+        );
+    } else {
+        eprintln!(
+            "{} {} for {}.",
+            style("Creating shim").cyan().bold(),
+            symlink_name,
+            formatted_command
+        );
+    }
+
+    std::fs::write(
+        symlink_path,
+        format!(
+            r#"#!/bin/sh
+{} "$@"
+"#,
+            formatted_command,
+        ),
+    )
+    .with_context(|| {
+        format!(
+            "failed to create shim `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })?;
+
+    // set as executable
+    let perms = std::fs::Permissions::from_mode(0o755);
+    std::fs::set_permissions(symlink_path, perms).with_context(|| {
+        format!(
+            "failed to change permissions for shim `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })
+}
+
+#[cfg(not(windows))]
 pub fn create_symlink(
     channel: &JuliaupConfigChannel,
     symlink_name: &String,
@@ -854,122 +979,27 @@ pub fn create_symlink(
         .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?;
 
     let symlink_path = symlink_folder.join(symlink_name);
-
     let updating = _remove_symlink(&symlink_path)?;
 
     match channel {
         JuliaupConfigChannel::SystemChannel { version } => {
-            let child_target_foldername = format!("julia-{}", version);
-            let target_path = paths.juliauphome.join(&child_target_foldername);
-
-            if let Some(ref prev_target) = updating {
-                eprintln!(
-                    "{} symlink {} ( {} -> {} )",
-                    style("Updating").cyan().bold(),
-                    symlink_name,
-                    prev_target.to_string_lossy(),
-                    version
-                );
-            } else {
-                eprintln!(
-                    "{} {} for Julia {}.",
-                    style("Creating symlink").cyan().bold(),
-                    symlink_name,
-                    version
-                );
-            }
-
-            std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
-                .with_context(|| {
-                    format!(
-                        "failed to create symlink `{}`.",
-                        symlink_path.to_string_lossy()
-                    )
-                })?;
+            create_system_channel_symlink(version, symlink_name, &symlink_path, paths, &updating)
         }
-        JuliaupConfigChannel::DirectDownloadChannel {
-            path,
-            url: _,
-            local_etag: _,
-            server_etag: _,
-            version,
-        } => {
-            let target_path = paths.juliauphome.join(path);
-
-            if let Some(ref prev_target) = updating {
-                eprintln!(
-                    "{} symlink {} ( {} -> {} )",
-                    style("Updating").cyan().bold(),
-                    symlink_name,
-                    prev_target.to_string_lossy(),
-                    version
-                );
-            } else {
-                eprintln!(
-                    "{} {} for Julia {}.",
-                    style("Creating symlink").cyan().bold(),
-                    symlink_name,
-                    version
-                );
-            }
-
-            std::os::unix::fs::symlink(target_path.join("bin").join("julia"), &symlink_path)
-                .with_context(|| {
-                    format!(
-                        "failed to create symlink `{}`.",
-                        symlink_path.to_string_lossy()
-                    )
-                })?;
+        JuliaupConfigChannel::DirectDownloadChannel { path, version, .. } => {
+            create_direct_download_symlink(
+                path,
+                version,
+                symlink_name,
+                &symlink_path,
+                paths,
+                &updating,
+            )
         }
         JuliaupConfigChannel::LinkedChannel { command, args } => {
-            let formatted_command = match args {
-                Some(x) => format!("{} {}", command, x.join(" ")),
-                None => command.clone(),
-            };
-
-            if let Some(ref prev_target) = updating {
-                eprintln!(
-                    "{} shim {} ( {} -> {} )",
-                    style("Updating").cyan().bold(),
-                    symlink_name,
-                    prev_target.to_string_lossy(),
-                    formatted_command
-                );
-            } else {
-                eprintln!(
-                    "{} {} for {}.",
-                    style("Creating shim").cyan().bold(),
-                    symlink_name,
-                    formatted_command
-                );
-            }
-
-            std::fs::write(
-                &symlink_path,
-                format!(
-                    r#"#!/bin/sh
-{} "$@"
-"#,
-                    formatted_command,
-                ),
-            )
-            .with_context(|| {
-                format!(
-                    "failed to create shim `{}`.",
-                    symlink_path.to_string_lossy()
-                )
-            })?;
-
-            // set as executable
-            let perms = std::fs::Permissions::from_mode(0o755);
-            std::fs::set_permissions(&symlink_path, perms).with_context(|| {
-                format!(
-                    "failed to change permissions for shim `{}`.",
-                    symlink_path.to_string_lossy()
-                )
-            })?;
+            create_linked_channel_shim(command, args, symlink_name, &symlink_path, &updating)
         }
-    };
+        JuliaupConfigChannel::AliasChannel { .. } => Ok(()), // Aliases have their symlinks resolved at runtime
+    }?;
 
     if updating.is_none() {
         if let Ok(path) = std::env::var("PATH") {

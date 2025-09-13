@@ -13,7 +13,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     if !config_file.data.installed_channels.contains_key(channel) {
         bail!(
-            "'{}' cannot be removed because it is currently not installed.",
+            "'{}' cannot be removed because it is not currently installed. Please run `juliaup list` to see available channels.",
             channel
         );
     }
@@ -39,7 +39,17 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         );
     }
 
-    let x = config_file.data.installed_channels.get(channel).unwrap();
+    let channel_info = config_file.data.installed_channels.get(channel).unwrap();
+
+    // Determine what type of channel is being removed for better messaging
+    let channel_type = match channel_info {
+        JuliaupConfigChannel::DirectDownloadChannel { .. } => "channel".to_string(),
+        JuliaupConfigChannel::SystemChannel { .. } => "channel".to_string(),
+        JuliaupConfigChannel::LinkedChannel { .. } => "linked channel".to_string(),
+        JuliaupConfigChannel::AliasChannel { target, .. } => {
+            format!("alias (pointing to '{target}')")
+        }
+    };
 
     if let JuliaupConfigChannel::DirectDownloadChannel {
         path,
@@ -47,32 +57,31 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         local_etag: _,
         server_etag: _,
         version: _,
-    } = x
+    } = channel_info
     {
         let path_to_delete = paths.juliauphome.join(path);
 
         let display = path_to_delete.display();
 
         if std::fs::remove_dir_all(&path_to_delete).is_err() {
-            eprintln!("WARNING: Failed to delete {}. You can try to delete at a later point by running `juliaup gc`.", display)
+            eprintln!("WARNING: Failed to delete {display}. You can try to delete at a later point by running `juliaup gc`.")
         }
     };
 
     config_file.data.installed_channels.remove(channel);
 
     #[cfg(not(windows))]
-    remove_symlink(&format!("julia-{}", channel))?;
+    remove_symlink(&format!("julia-{channel}"))?;
 
     garbage_collect_versions(false, &mut config_file.data, paths)?;
 
     save_config_db(&mut config_file).with_context(|| {
         format!(
-            "Failed to save configuration file from `remove` command after '{}' was installed.",
-            channel
+            "Failed to save configuration file from `remove` command after '{channel}' was removed."
         )
     })?;
 
-    eprintln!("Julia '{}' successfully removed.", channel);
+    eprintln!("Julia {channel_type} '{channel}' successfully removed.");
 
     Ok(())
 }

@@ -11,6 +11,14 @@ use anyhow::{anyhow, bail, Context, Result};
 use console::style;
 use std::path::PathBuf;
 
+fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
+    match config_db.installed_channels.get(channel_name) {
+        Some(JuliaupConfigChannel::AliasChannel { target, .. }) => Ok(target.to_string()),
+        Some(_) => Ok(channel_name.to_string()),
+        None => bail!("Channel '{}' not found", channel_name),
+    }
+}
+
 fn update_channel(
     config_db: &mut JuliaupConfig,
     channel: &String,
@@ -22,6 +30,45 @@ fn update_channel(
         &config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?.clone();
 
     match current_version {
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path,
+            url,
+            local_etag,
+            server_etag,
+            version,
+        } => {
+            if local_etag != server_etag {
+                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
+                if version.is_empty() {
+                    eprintln!(
+                        "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
+                    );
+                }
+                eprintln!("{} channel {channel}", style("Updating").green().bold());
+
+                let channel_data =
+                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
+
+                config_db
+                    .installed_channels
+                    .insert(channel.clone(), channel_data);
+
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(
+                        &JuliaupConfigChannel::DirectDownloadChannel {
+                            path: path.clone(),
+                            url: url.clone(),
+                            local_etag: local_etag.clone(),
+                            server_etag: server_etag.clone(),
+                            version: version.clone(),
+                        },
+                        channel,
+                        paths,
+                    )?;
+                }
+            }
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             let should_version = version_db.available_channels.get(channel);
 
@@ -64,10 +111,7 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::LinkedChannel {
-            command: _,
-            args: _,
-        } => {
+        JuliaupConfigChannel::LinkedChannel { .. } => {
             if !ignore_non_updatable_channel {
                 bail!(
                     "Failed to update '{}' because it is a linked channel.",
@@ -75,45 +119,8 @@ fn update_channel(
                 );
             }
         }
-        JuliaupConfigChannel::DirectDownloadChannel {
-            path,
-            url,
-            local_etag,
-            server_etag,
-            version,
-        } => {
-            if local_etag != server_etag {
-                // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
-                if version.is_empty() {
-                    eprintln!(
-                        "Channel {} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request.",
-                        channel
-                    );
-                }
-                eprintln!("{} channel {}", style("Updating").green().bold(), channel);
-
-                let channel_data =
-                    install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
-
-                config_db
-                    .installed_channels
-                    .insert(channel.clone(), channel_data);
-
-                #[cfg(not(windows))]
-                if config_db.settings.create_channel_symlinks {
-                    create_symlink(
-                        &JuliaupConfigChannel::DirectDownloadChannel {
-                            path: path.clone(),
-                            url: url.clone(),
-                            local_etag: local_etag.clone(),
-                            server_etag: server_etag.clone(),
-                            version: version.clone(),
-                        },
-                        channel,
-                        paths,
-                    )?;
-                }
-            }
+        JuliaupConfigChannel::AliasChannel { .. } => {
+            unreachable!("Alias channels should be resolved before calling update_channel. Please submit a bug report.");
         }
     }
 
@@ -131,7 +138,12 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
 
     match channel {
         None => {
-            for (k, _) in config_file.data.installed_channels.clone() {
+            for (k, v) in config_file.data.installed_channels.clone() {
+                // Skip alias channels - they don't need to be updated directly
+                // since they point to other channels that will be updated
+                if let JuliaupConfigChannel::AliasChannel { .. } = v {
+                    continue;
+                }
                 update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
             }
         }
@@ -143,7 +155,16 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
                 );
             }
 
-            update_channel(&mut config_file.data, channel, &version_db, false, paths)?;
+            // Resolve any aliases to get the actual target channel
+            let resolved_channel = resolve_channel_alias(&config_file.data, channel)?;
+
+            update_channel(
+                &mut config_file.data,
+                &resolved_channel,
+                &version_db,
+                false,
+                paths,
+            )?;
         }
     };
 

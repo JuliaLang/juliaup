@@ -1,27 +1,48 @@
-use assert_cmd::Command;
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_update() {
-    let depot_dir = tempfile::Builder::new()
-        .prefix("juliauptest")
-        .tempdir()
-        .unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
-        .arg("update")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
-        .assert()
-        .success()
-        .stdout("");
+    env.juliaup().arg("update").assert().success().stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
-        .arg("up")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+    env.juliaup().arg("up").assert().success().stdout("");
+}
+
+#[test]
+fn command_update_alias_works() {
+    let env = TestEnv::new();
+
+    // First install a Julia version to create an alias to
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
+
+    // Create an alias to the installed version
+    env.juliaup()
+        .arg("link")
+        .arg("r")
+        .arg("+1.10.10")
         .assert()
-        .success()
-        .stdout("");
+        .success();
+
+    // Update the alias - should succeed and update the target
+    env.juliaup().arg("update").arg("r").assert().success();
+}
+
+#[test]
+fn command_update_all_with_alias() {
+    let env = TestEnv::new();
+
+    // First install a Julia version to create an alias to
+    env.juliaup().arg("add").arg("1.10.10").assert().success();
+
+    // Create an alias to the installed version - this reproduces the original bug scenario
+    env.juliaup()
+        .arg("link")
+        .arg("r")
+        .arg("+1.10.10")
+        .assert()
+        .success();
+
+    env.juliaup().arg("update").assert().success();
 }

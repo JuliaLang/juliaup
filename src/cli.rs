@@ -25,10 +25,13 @@ pub enum Juliaup {
     Default { channel: String },
     /// Add a specific Julia version or channel to your system. Access via `julia +{channel}` e.g. `julia +1.6`
     Add { channel: String },
-    /// Link an existing Julia binary to a custom channel name
+    /// Link an existing Julia binary or channel to a custom channel name
     Link {
+        /// Name of the new channel to create
         channel: String,
-        file: String,
+        /// Path to Julia binary, or +{channel} to create an alias
+        target: String,
+        /// Additional arguments for the Julia binary
         args: Vec<String>,
     },
     /// List all available channels

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use console::{style, Term};
 use dialoguer::Select;
 use is_terminal::IsTerminal;
@@ -333,29 +333,38 @@ fn get_julia_path_from_channel(
     juliaup_channel_source: JuliaupChannelSource,
     paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let channel_valid = is_valid_channel(versions_db, &channel.to_string())?;
+    // First check if the channel is an alias and extract its args
+    let (resolved_channel, alias_args) = match config_data.installed_channels.get(channel) {
+        Some(JuliaupConfigChannel::AliasChannel { target, args }) => {
+            (target.to_string(), args.clone().unwrap_or_default())
+        }
+        _ => (channel.to_string(), Vec::new()),
+    };
+
+    let channel_valid = is_valid_channel(versions_db, &resolved_channel)?;
 
     // First check if the channel is already installed
-    if let Some(channel_info) = config_data.installed_channels.get(channel) {
+    if let Some(channel_info) = config_data.installed_channels.get(&resolved_channel) {
         return get_julia_path_from_installed_channel(
             versions_db,
             config_data,
-            channel,
+            &resolved_channel,
             juliaupconfig_path,
             channel_info,
+            alias_args.clone(),
         );
     }
 
     // Handle auto-installation for command line channel selection
     if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
-        if channel_valid || is_pr_channel(channel) {
+        if channel_valid || is_pr_channel(&resolved_channel) {
             // Check the user's auto-install preference
             let should_auto_install = match config_data.settings.auto_install_channels {
                 Some(auto_install) => auto_install, // User has explicitly set a preference
                 None => {
                     // User hasn't set a preference - prompt in interactive mode, default to false in non-interactive
                     if is_interactive() {
-                        handle_auto_install_prompt(channel, paths)?
+                        handle_auto_install_prompt(&resolved_channel, paths)?
                     } else {
                         false
                     }
@@ -365,25 +374,29 @@ fn get_julia_path_from_channel(
             if should_auto_install {
                 // Install the channel using juliaup
                 let is_automatic = config_data.settings.auto_install_channels == Some(true);
-                spawn_juliaup_add(channel, paths, is_automatic)?;
+                spawn_juliaup_add(&resolved_channel, paths, is_automatic)?;
 
                 // Reload the config to get the newly installed channel
                 let updated_config_file = load_config_db(paths, None)
                     .with_context(|| "Failed to reload configuration after installing channel.")?;
 
-                if let Some(channel_info) = updated_config_file.data.installed_channels.get(channel)
-                {
+                let updated_channel_info = updated_config_file
+                    .data
+                    .installed_channels
+                    .get(&resolved_channel);
+
+                if let Some(channel_info) = updated_channel_info {
                     return get_julia_path_from_installed_channel(
                         versions_db,
                         &updated_config_file.data,
-                        channel,
+                        &resolved_channel,
                         juliaupconfig_path,
                         channel_info,
+                        alias_args,
                     );
                 } else {
                     return Err(anyhow!(
-                        "Channel '{}' was installed but could not be found in configuration.",
-                        channel
+                        "Channel '{resolved_channel}' was installed but could not be found in configuration."
                     ));
                 }
             }
@@ -395,32 +408,32 @@ fn get_julia_path_from_channel(
     let error = match juliaup_channel_source {
         JuliaupChannelSource::CmdLine => {
             if channel_valid {
-                UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-            } else if is_pr_channel(channel) {
-                UserError { msg: format!("`{}` is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+                UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
+            } else if is_pr_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else {
-                UserError { msg: format!("Invalid Juliaup channel `{}`. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}`. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::EnvVar=> {
             if channel_valid {
-                UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-            } else if is_pr_channel(channel) {
-                UserError { msg: format!("`{}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+                UserError { msg: format!("`{resolved_channel}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
+            } else if is_pr_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else {
-                UserError { msg: format!("Invalid Juliaup channel `{}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::Override=> {
             if channel_valid {
-                UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install channel or version.", channel, channel) }
-            } else if is_pr_channel(channel){
-                UserError { msg: format!("`{}` from directory override is not installed. Please run `juliaup add {}` to install pull request channel if available.", channel, channel) }
+                UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
+            } else if is_pr_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else {
-                UserError { msg: format!("Invalid Juliaup channel `{}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.",  channel) }
+                UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
-        JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{}` is not installed.", channel) }
+        JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{resolved_channel}` is not installed.") }
     };
 
     Err(error.into())
@@ -432,22 +445,24 @@ fn get_julia_path_from_installed_channel(
     channel: &str,
     juliaupconfig_path: &Path,
     channel_info: &JuliaupConfigChannel,
+    alias_args: Vec<String>,
 ) -> Result<(PathBuf, Vec<String>)> {
     match channel_info {
-        JuliaupConfigChannel::LinkedChannel { command, args } => Ok((
-            PathBuf::from(command),
-            args.as_ref().map_or_else(Vec::new, |v| v.clone()),
-        )),
+        JuliaupConfigChannel::AliasChannel { .. } => {
+            bail!("Unexpected alias channel after resolution: {channel}");
+        }
+        JuliaupConfigChannel::LinkedChannel { command, args } => {
+            let mut combined_args = alias_args;
+            combined_args.extend(args.as_ref().map_or_else(Vec::new, |v| v.clone()));
+            Ok((PathBuf::from(command), combined_args))
+        }
         JuliaupConfigChannel::SystemChannel { version } => {
             let path = &config_data
                 .installed_versions.get(version)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {} is pointing to Julia version {}, which is not installed.", channel, version))?.path;
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?.path;
 
             check_channel_uptodate(channel, version, versions_db).with_context(|| {
-                format!(
-                    "The Julia launcher failed while checking whether the channel {} is up-to-date.",
-                    channel
-                )
+                format!("The Julia launcher failed while checking whether the channel {channel} is up-to-date.")
             })?;
             let absolute_path = juliaupconfig_path
                 .parent()
@@ -462,7 +477,7 @@ fn get_julia_path_from_installed_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            Ok((absolute_path.into_path_buf(), Vec::new()))
+            Ok((absolute_path.into_path_buf(), alias_args))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,
@@ -505,7 +520,7 @@ fn get_julia_path_from_installed_channel(
                         juliaupconfig_path.display()
                     )
                 })?;
-            Ok((absolute_path.into_path_buf(), Vec::new()))
+            Ok((absolute_path.into_path_buf(), alias_args))
         }
     }
 }

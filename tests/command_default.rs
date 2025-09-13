@@ -1,35 +1,27 @@
-use assert_cmd::Command;
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_default() {
-    let depot_dir = assert_fs::TempDir::new().unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("1.6.0")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("default")
         .arg("1.6.0")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("julia")
-        .unwrap()
+    env.julia()
         .arg("-e")
         .arg("print(VERSION)")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.6.0");

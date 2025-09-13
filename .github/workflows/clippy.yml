@@ -34,4 +34,4 @@ jobs:
         with:
           components: clippy
       - name: Run clippy
-        run: cargo clippy --all-targets --features ${{ matrix.features }} -- -D warnings
+        run: cargo clippy --workspace --features ${{ matrix.features }} -- -D warnings

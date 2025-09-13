@@ -1,58 +1,45 @@
-use assert_cmd::Command;
 use predicates::prelude::predicate;
+
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_add() {
-    let depot_dir = assert_fs::TempDir::new().unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("1.6.4")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("nightly")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("add")
         .arg("1.11-nightly")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("");
 
-    Command::cargo_bin("julia")
-        .unwrap()
+    env.julia()
         .arg("+1.6.4")
         .arg("-e")
         .arg("print(VERSION)")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout("1.6.4");
 
-    Command::cargo_bin("julia")
-        .unwrap()
+    env.julia()
         .arg("+nightly")
         .arg("-e")
         .arg("print(VERSION)")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(

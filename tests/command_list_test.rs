@@ -1,18 +1,14 @@
-use assert_cmd::Command;
 use predicates::prelude::*;
+
+mod utils;
+use utils::TestEnv;
 
 #[test]
 fn command_list() {
-    let depot_dir = tempfile::Builder::new()
-        .prefix("juliauptest")
-        .tempdir()
-        .unwrap();
+    let env = TestEnv::new();
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("list")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")))
@@ -20,11 +16,8 @@ fn command_list() {
         .stdout(predicate::str::contains("x.y-nightly"))
         .stdout(predicate::str::contains("pr{number}"));
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    env.juliaup()
         .arg("ls")
-        .env("JULIA_DEPOT_PATH", depot_dir.path())
-        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")));
