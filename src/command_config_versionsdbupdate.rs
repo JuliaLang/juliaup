@@ -38,7 +38,7 @@ pub fn run_command_config_versionsdbupdate(
             }
         }
         None => {
-            let config_file = load_config_db(paths, None)
+            let config_file = load_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
