@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.17.21"
+version = "1.18.0"
 description = "Julia installer and version multiplexer"
 repository = "https://github.com/julialang/juliaup"
 license = "MIT"
