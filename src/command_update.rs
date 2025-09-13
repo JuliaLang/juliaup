@@ -138,7 +138,12 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
 
     match channel {
         None => {
-            for (k, _) in config_file.data.installed_channels.clone() {
+            for (k, v) in config_file.data.installed_channels.clone() {
+                // Skip alias channels - they don't need to be updated directly
+                // since they point to other channels that will be updated
+                if let JuliaupConfigChannel::AliasChannel { .. } = v {
+                    continue;
+                }
                 update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
             }
         }
