@@ -30,6 +30,8 @@ If neither the Windows Store nor the App Installer version work on your Windows 
 msiexec /i <PATH_TO_JULIA_MSI> ALLUSERS=1
 ```
 
+Also, you can install Juliaup through [`scoop`](#scoop).
+
 ### Mac, Linux, and FreeBSD
 
 Juliaup can be installed on Unix-like platforms (currently Linux, Mac, or FreeBSD) by executing
@@ -93,6 +95,14 @@ To install via Rust's cargo, run:
 
 ```sh
 cargo install juliaup
+```
+
+##### [scoop](https://scoop.sh)
+
+On Windows, to install via scoop, run:
+
+```sh
+scoop install main/juliaup
 ```
 
 ## Continuous Integration (CI)
