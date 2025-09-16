@@ -24,7 +24,7 @@ struct OverrideRow {
 }
 
 pub fn run_command_override_status(paths: &GlobalPaths) -> Result<()> {
-    let config_file = load_config_db(paths, None)
+    let config_file = load_config_db(paths)
         .with_context(|| "`override status` command failed to load configuration file.")?;
 
     let rows_in_table: Vec<_> = config_file
