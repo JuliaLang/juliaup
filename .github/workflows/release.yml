@@ -1213,7 +1213,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
         allowUpdates: true
-        omitBody: true
+        omitBodyDuringUpdate: true
 
   deploy-release-channel-crates:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
