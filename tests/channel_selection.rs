@@ -1,4 +1,5 @@
 use predicates::str::contains;
+use predicates::boolean::PredicateBooleanExt;
 
 mod utils;
 use utils::TestEnv;
@@ -183,4 +184,45 @@ fn auto_install_valid_channel() {
         .stderr(contains(
             "Info: Installing Julia 1.10.10 automatically per juliaup settings...",
         ));
+}
+
+#[test]
+fn no_update_messages_in_non_interactive_mode() {
+    let env = TestEnv::new();
+
+    // Set up julia installation
+    env.juliaup()
+        .arg("add")
+        .arg("1.11")
+        .assert()
+        .success();
+
+    env.juliaup()
+        .arg("default")
+        .arg("1.11")
+        .assert()
+        .success();
+
+    // Test that update messages are not shown when using -e flag (non-interactive)
+    env.julia()
+        .arg("-e")
+        .arg("println(\"test\")")
+        .assert()
+        .success()
+        .stderr(
+            contains("new version").not()
+                .and(contains("juliaup update").not())
+                .and(contains("available").not())
+        );
+
+    // Test that update messages are not shown when using --version flag (non-interactive)
+    env.julia()
+        .arg("--version")
+        .assert()
+        .success()
+        .stderr(
+            contains("new version").not()
+                .and(contains("juliaup update").not())
+                .and(contains("available").not())
+        );
 }
