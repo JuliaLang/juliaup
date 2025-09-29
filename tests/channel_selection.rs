@@ -1,5 +1,5 @@
-use predicates::str::contains;
 use predicates::boolean::PredicateBooleanExt;
+use predicates::str::contains;
 
 mod utils;
 use utils::TestEnv;
@@ -191,17 +191,9 @@ fn no_update_messages_in_non_interactive_mode() {
     let env = TestEnv::new();
 
     // Set up julia installation
-    env.juliaup()
-        .arg("add")
-        .arg("1.11")
-        .assert()
-        .success();
+    env.juliaup().arg("add").arg("1.11").assert().success();
 
-    env.juliaup()
-        .arg("default")
-        .arg("1.11")
-        .assert()
-        .success();
+    env.juliaup().arg("default").arg("1.11").assert().success();
 
     // Test that update messages are not shown when using -e flag (non-interactive)
     env.julia()
@@ -210,19 +202,17 @@ fn no_update_messages_in_non_interactive_mode() {
         .assert()
         .success()
         .stderr(
-            contains("new version").not()
+            contains("new version")
+                .not()
                 .and(contains("juliaup update").not())
-                .and(contains("available").not())
+                .and(contains("available").not()),
         );
 
     // Test that update messages are not shown when using --version flag (non-interactive)
-    env.julia()
-        .arg("--version")
-        .assert()
-        .success()
-        .stderr(
-            contains("new version").not()
-                .and(contains("juliaup update").not())
-                .and(contains("available").not())
-        );
+    env.julia().arg("--version").assert().success().stderr(
+        contains("new version")
+            .not()
+            .and(contains("juliaup update").not())
+            .and(contains("available").not()),
+    );
 }
