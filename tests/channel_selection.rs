@@ -1,4 +1,3 @@
-use predicates::boolean::PredicateBooleanExt;
 use predicates::str::contains;
 
 mod utils;
