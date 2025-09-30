@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use assert_fs::TempDir;
+use std::path::{Path, PathBuf};
 
 /// A test environment that provides convenient methods for running juliaup and julia commands
 /// with isolated depot directories.
@@ -32,5 +33,15 @@ impl TestEnv {
         cmd.env("JULIA_DEPOT_PATH", self.depot_dir.path());
         cmd.env("JULIAUP_DEPOT_PATH", self.depot_dir.path());
         cmd
+    }
+
+    /// Get the path to the juliaup config file
+    pub fn config_path(&self) -> PathBuf {
+        self.depot_dir.path().join("juliaup").join("juliaup.json")
+    }
+
+    /// Get the depot directory path
+    pub fn depot_path(&self) -> &Path {
+        self.depot_dir.path()
     }
 }
