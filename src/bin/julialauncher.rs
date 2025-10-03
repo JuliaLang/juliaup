@@ -305,7 +305,7 @@ fn check_channel_uptodate(
         })?
         .version;
 
-    if latest_version != current_version {
+    if latest_version != current_version && is_interactive() {
         eprintln!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
         eprintln!();
         eprintln!("  juliaup update");
@@ -486,7 +486,7 @@ fn get_julia_path_from_installed_channel(
             server_etag,
             version: _,
         } => {
-            if local_etag != server_etag {
+            if local_etag != server_etag && is_interactive() {
                 if channel.starts_with("nightly") {
                     // Nightly is updateable several times per day so this message will show
                     // more often than not unless folks update a couple of times a day.
