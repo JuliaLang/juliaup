@@ -123,6 +123,19 @@ fn command_update_outdated_channel() {
                 .and(contains("You currently have").not()),
         );
 
+    env.julia()
+        .arg("+1.10")
+        .arg("-E")
+        .arg("1+1")
+        .assert()
+        .success()
+        .stderr(
+            contains("latest version")
+                .not()
+                .and(contains("juliaup update").not())
+                .and(contains("You currently have").not()),
+        );
+
     env.juliaup().arg("update").arg("1.10").assert().success();
 
     let updated_config_content =
