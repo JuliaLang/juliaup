@@ -154,16 +154,13 @@ fn is_interactive() -> bool {
     for arg in julia_args {
         match arg.as_str() {
             // Expression evaluation is non-interactive
-            "-e" | "--eval" => return false,
+            "-e" | "--eval" | "-E" | "--print" => return false,
             // Reading from stdin pipe is non-interactive
             "-" => return false,
-            // Print options are typically non-interactive
-            "-p" | "--print" => return false,
-            // License/version display is non-interactive
-            "-L" | "--license" => return false,
+            // Version display is non-interactive
             "-v" | "--version" => return false,
             // Help is non-interactive
-            "-h" | "--help" => return false,
+            "-h" | "--help" | "--help-hidden" => return false,
             // Check if this looks like a Julia file (ends with .jl)
             filename if filename.ends_with(".jl") && !filename.starts_with('-') => {
                 return false;
