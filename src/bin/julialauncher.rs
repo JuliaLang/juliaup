@@ -302,7 +302,7 @@ fn check_channel_uptodate(
         })?
         .version;
 
-    if latest_version != current_version && is_interactive() {
+    if latest_version != current_version {
         eprintln!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
         eprintln!();
         eprintln!("  juliaup update");
@@ -458,9 +458,12 @@ fn get_julia_path_from_installed_channel(
                 .installed_versions.get(version)
                 .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?.path;
 
-            check_channel_uptodate(channel, version, versions_db).with_context(|| {
-                format!("The Julia launcher failed while checking whether the channel {channel} is up-to-date.")
-            })?;
+            if is_interactive() {
+                check_channel_uptodate(channel, version, versions_db).with_context(|| {
+                    format!("The Julia launcher failed while checking whether the channel {channel} is up-to-date.")
+                })?;
+            }
+
             let absolute_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
@@ -483,7 +486,7 @@ fn get_julia_path_from_installed_channel(
             server_etag,
             version: _,
         } => {
-            if local_etag != server_etag && is_interactive() {
+            if is_interactive() && local_etag != server_etag {
                 if channel.starts_with("nightly") {
                     // Nightly is updateable several times per day so this message will show
                     // more often than not unless folks update a couple of times a day.
