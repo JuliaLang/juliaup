@@ -4,8 +4,6 @@ extern crate serde;
 extern crate serde_json;
 #[cfg(windows)]
 extern crate winres;
-#[path = "src/jsonstructs_versionsdb.rs"]
-mod jsonstructs_versionsdb;
 
 use anyhow::Result;
 use serde_json::Value;
