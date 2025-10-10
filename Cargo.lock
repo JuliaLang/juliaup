@@ -1203,7 +1203,7 @@ dependencies = [
  "clap_complete_nushell",
  "cli-table",
  "cluFlock",
- "console 0.15.11",
+ "console 0.16.1",
  "ctrlc",
  "dialoguer",
  "dirs",
