@@ -54,7 +54,7 @@
       </uap:VisualElements>
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias>
+          <uap3:AppExecutionAlias desktop4:Subsystem="console">
             <desktop:ExecutionAlias Alias="julia.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
@@ -87,7 +87,7 @@
       </uap:VisualElements>
       <Extensions>
         <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias>
+          <uap3:AppExecutionAlias desktop4:Subsystem="console">
             <desktop:ExecutionAlias Alias="juliaup.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
