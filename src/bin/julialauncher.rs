@@ -23,6 +23,8 @@ use std::os::windows::io::{AsRawHandle, RawHandle};
 use std::path::Path;
 use std::path::PathBuf;
 #[cfg(windows)]
+use std::process::Stdio;
+#[cfg(windows)]
 use windows::Win32::System::{
     JobObjects::{AssignProcessToJobObject, SetInformationJobObject},
     Threading::GetCurrentProcess,
@@ -718,6 +720,9 @@ fn run_app() -> Result<i32> {
 
         let mut child_process = std::process::Command::new(julia_path)
             .args(&new_args)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 
