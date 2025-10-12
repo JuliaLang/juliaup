@@ -232,6 +232,13 @@ jobs:
         target: x86_64-pc-windows-msvc
     - name: Install cargo-msix
       run: cargo install cargo-msix
+    - name: Create dummy bundled Julia directories
+      run: |
+        New-Item -ItemType Directory -Force -Path target\bundledjulia\extracted\x64
+        New-Item -ItemType Directory -Force -Path target\bundledjulia\extracted\x86
+        # Create a dummy file so the directory isn't empty
+        New-Item -ItemType File -Force -Path target\bundledjulia\extracted\x64\dummy.txt
+        New-Item -ItemType File -Force -Path target\bundledjulia\extracted\x86\dummy.txt
     - name: Build for Windows Store
       run: cargo build --release --bin juliaup --bin julialauncher --target x86_64-pc-windows-msvc --features windowsstore,binjulialauncher
     - name: Copy binaries to expected location for Windows Store
