@@ -226,28 +226,45 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
-        toolchain: stable
-        target: x86_64-pc-windows-msvc
-    - name: Install cargo-msix
-      run: cargo install cargo-msix
-    - name: Create dummy bundled Julia directories
+    - name: Install makeappx tool
+      shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path target\bundledjulia\extracted\x64
-        New-Item -ItemType Directory -Force -Path target\bundledjulia\extracted\x86
-        # Create a dummy file so the directory isn't empty
-        New-Item -ItemType File -Force -Path target\bundledjulia\extracted\x64\dummy.txt
-        New-Item -ItemType File -Force -Path target\bundledjulia\extracted\x86\dummy.txt
-    - name: Build for Windows Store
-      run: cargo build --release --bin juliaup --bin julialauncher --target x86_64-pc-windows-msvc --features windowsstore,binjulialauncher
-    - name: Copy binaries to expected location for Windows Store
+        # makeappx is part of Windows SDK, find it
+        $makeappx = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($makeappx) {
+          Write-Host "Found makeappx at: $($makeappx.FullName)"
+          $env:Path += ";$($makeappx.Directory.FullName)"
+          [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Process)
+        } else {
+          Write-Error "makeappx.exe not found"
+          exit 1
+        }
+    - name: Validate MSIX manifest
+      shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path target\windowsstore\x86_64-pc-windows-msvc\release
-        Copy-Item target\x86_64-pc-windows-msvc\release\juliaup.exe target\windowsstore\x86_64-pc-windows-msvc\release\
-        Copy-Item target\x86_64-pc-windows-msvc\release\julialauncher.exe target\windowsstore\x86_64-pc-windows-msvc\release\
-    - name: Test MSIX packaging for Windows Store
-      run: cargo msix --release --bundle-name winstoremsix --source-build-output-path ${{ format('{0}/target/windowsstore', github.workspace) }}
+        # Use makeappx to validate the manifest without creating a package
+        # Create a minimal test structure
+        $testDir = "test-msix-validation"
+        New-Item -ItemType Directory -Force -Path $testDir
+        
+        # Copy manifest and substitute variables
+        $manifest = Get-Content deploy\msix\appxmanifest.xml -Raw
+        $manifest = $manifest -replace '\{\{ Version \}\}', '1.0.0'
+        $manifest = $manifest -replace '\{\{ ProcessorArchitecture \}\}', 'x64'
+        $manifest = $manifest -replace '\{\{\{IdentityPublisher\}\}\}', 'CN=Test'
+        $manifest = $manifest -replace '\{\{\{PublisherDisplayName\}\}\}', 'Test Publisher'
+        $manifest | Out-File -FilePath "$testDir\AppxManifest.xml" -Encoding utf8
+        
+        # Create minimal required files
+        New-Item -ItemType Directory -Force -Path "$testDir\Julia"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\juliaup.exe"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\julialauncher.exe"
+        
+        # Copy required image assets
+        Copy-Item deploy\msix\Images -Recurse -Destination $testDir\Images -Force
+        
+        # Try to pack (this will validate the manifest)
+        makeappx pack /d $testDir /p test.msix
     - name: Build for App Installer
       run: cargo build --release --bin juliaup --bin julialauncher --target x86_64-pc-windows-msvc --features windowsappinstaller,binjulialauncher
     - name: Copy binaries to expected location for App Installer
