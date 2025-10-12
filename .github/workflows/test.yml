@@ -229,10 +229,13 @@ jobs:
     - name: Validate MSIX manifest
       shell: pwsh
       run: |
-        # Find makeappx.exe from Windows SDK
-        $makeappx = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        # Find makeappx.exe from Windows SDK (x64 version)
+        $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin"
+        $makeappx = Get-ChildItem -Path $sdkPath -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue | 
+          Where-Object { $_.FullName -match "\\x64\\" } | 
+          Select-Object -First 1
         if (-not $makeappx) {
-          Write-Error "makeappx.exe not found in Windows SDK"
+          Write-Error "makeappx.exe (x64) not found in Windows SDK"
           exit 1
         }
         Write-Host "Found makeappx at: $($makeappx.FullName)"
