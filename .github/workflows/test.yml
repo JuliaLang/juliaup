@@ -226,23 +226,17 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install makeappx tool
-      shell: pwsh
-      run: |
-        # makeappx is part of Windows SDK, find it
-        $makeappx = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($makeappx) {
-          Write-Host "Found makeappx at: $($makeappx.FullName)"
-          $env:Path += ";$($makeappx.Directory.FullName)"
-          [System.Environment]::SetEnvironmentVariable('Path', $env:Path, [System.EnvironmentVariableTarget]::Process)
-        } else {
-          Write-Error "makeappx.exe not found"
-          exit 1
-        }
     - name: Validate MSIX manifest
       shell: pwsh
       run: |
-        # Use makeappx to validate the manifest without creating a package
+        # Find makeappx.exe from Windows SDK
+        $makeappx = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $makeappx) {
+          Write-Error "makeappx.exe not found in Windows SDK"
+          exit 1
+        }
+        Write-Host "Found makeappx at: $($makeappx.FullName)"
+        
         # Create a minimal test structure
         $testDir = "test-msix-validation"
         New-Item -ItemType Directory -Force -Path $testDir
@@ -264,7 +258,7 @@ jobs:
         Copy-Item deploy\msix\Images -Recurse -Destination $testDir\Images -Force
         
         # Try to pack (this will validate the manifest)
-        makeappx pack /d $testDir /p test.msix
+        & $makeappx.FullName pack /d $testDir /p test.msix
     - name: Build for App Installer
       run: cargo build --release --bin juliaup --bin julialauncher --target x86_64-pc-windows-msvc --features windowsappinstaller,binjulialauncher
     - name: Copy binaries to expected location for App Installer
