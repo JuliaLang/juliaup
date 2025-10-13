@@ -32,7 +32,7 @@
   </Resources>
 
   <Applications>
-    <Application Id="Julia" Executable="Julia\julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Julia" Executable="Julia\julialauncher.exe" EntryPoint="Windows.FullTrustApplication" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Julia"
         Description="Julia is a high-level, high-performance, dynamic programming language"
@@ -53,18 +53,18 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias desktop4:Subsystem="console">
-            <desktop:ExecutionAlias Alias="julia.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="Julia/julialauncher.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias desktop4:Subsystem="console">
+            <uap5:ExecutionAlias Alias="julia.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
         <uap3:Extension Category="windows.appExtension">
           <uap3:AppExtension Name="com.microsoft.windows.terminal.settings" Id="Julia" PublicFolder="Public" DisplayName="Julia">
           </uap3:AppExtension>
         </uap3:Extension>
       </Extensions>
     </Application>
-    <Application Id="Juliaup" Executable="Julia\juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Juliaup" Executable="Julia\juliaup.exe" EntryPoint="Windows.FullTrustApplication" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Juliaup"
         Description="Julia version management"
@@ -86,11 +86,11 @@
         <uap:SplashScreen Image="Images\SplashScreen.png" />
       </uap:VisualElements>
       <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias desktop4:Subsystem="console">
-            <desktop:ExecutionAlias Alias="juliaup.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="Julia/juliaup.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias desktop4:Subsystem="console">
+            <uap5:ExecutionAlias Alias="juliaup.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
       </Extensions>
     </Application>
   </Applications>

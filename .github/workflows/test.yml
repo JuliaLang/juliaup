@@ -222,59 +222,43 @@ jobs:
           export RUST_BACKTRACE=full
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
 
-  # MSIX manifest validation is disabled because the Windows SDK's MakeAppx tool
-  # does not yet support the desktop4:Subsystem attribute on uap3:AppExecutionAlias
-  # even though it's documented by Microsoft and required for Windows 10 v1903+.
-  # The manifest is correct, but the SDK schema is out of date (as of SDK 10.0.26100.0).
-  # Error: "The attribute 'Subsystem' on the element 'AppExecutionAlias' is not defined in the DTD/Schema"
-  # This will be re-enabled once Microsoft updates the Windows SDK to support this attribute.
-  # Tracked in PR #1271
-  # test-msix-packaging:
-  #   runs-on: windows-latest
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Validate MSIX manifest
-  #     shell: pwsh
-  #     run: |
-  #       # Find makeappx.exe from Windows SDK (x64 version)
-  #       $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin"
-  #       $makeappx = Get-ChildItem -Path $sdkPath -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue |
-  #         Where-Object { $_.FullName -match "\\x64\\" } |
-  #         Select-Object -First 1
-  #       if (-not $makeappx) {
-  #         Write-Error "makeappx.exe (x64) not found in Windows SDK"
-  #         exit 1
-  #       }
-  #       Write-Host "Found makeappx at: $($makeappx.FullName)"
-  #
-  #       # Create a minimal test structure
-  #       $testDir = "test-msix-validation"
-  #       New-Item -ItemType Directory -Force -Path $testDir
-  #
-  #       # Copy manifest and substitute variables
-  #       $manifest = Get-Content deploy\msix\appxmanifest.xml -Raw
-  #       $manifest = $manifest -replace '\{\{ Version \}\}', '1.0.0'
-  #       $manifest = $manifest -replace '\{\{ ProcessorArchitecture \}\}', 'x64'
-  #       $manifest = $manifest -replace '\{\{\{IdentityPublisher\}\}\}', 'CN=Test'
-  #       $manifest = $manifest -replace '\{\{\{PublisherDisplayName\}\}\}', 'Test Publisher'
-  #       $manifest | Out-File -FilePath "$testDir\AppxManifest.xml" -Encoding utf8
-  #
-  #       # Create minimal required files
-  #       New-Item -ItemType Directory -Force -Path "$testDir\Julia"
-  #       New-Item -ItemType File -Force -Path "$testDir\Julia\juliaup.exe"
-  #       New-Item -ItemType File -Force -Path "$testDir\Julia\julialauncher.exe"
-  #
-  #       # Copy required image assets
-  #       Copy-Item deploy\msix\Images -Recurse -Destination $testDir\Images -Force
-  #
-  #       # Try to pack (this will validate the manifest)
-  #       & $makeappx.FullName pack /d $testDir /p test.msix
-  #   - name: Build for App Installer
-  #     run: cargo build --release --bin juliaup --bin julialauncher --target x86_64-pc-windows-msvc --features windowsappinstaller,binjulialauncher
-  #   - name: Copy binaries to expected location for App Installer
-  #     run: |
-  #       New-Item -ItemType Directory -Force -Path target\winappinstaller\x86_64-pc-windows-msvc\release
-  #       Copy-Item target\x86_64-pc-windows-msvc\release\juliaup.exe target\winappinstaller\x86_64-pc-windows-msvc\release\
-  #       Copy-Item target\x86_64-pc-windows-msvc\release\julialauncher.exe target\winappinstaller\x86_64-pc-windows-msvc\release\
-  #   - name: Test MSIX packaging for App Installer
-  #     run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
+  test-msix-packaging:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Validate MSIX manifest
+      shell: pwsh
+      run: |
+        # Find makeappx.exe from Windows SDK (x64 version)
+        $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin"
+        $makeappx = Get-ChildItem -Path $sdkPath -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -match "\\x64\\" } |
+          Select-Object -First 1
+        if (-not $makeappx) {
+          Write-Error "makeappx.exe (x64) not found in Windows SDK"
+          exit 1
+        }
+        Write-Host "Found makeappx at: $($makeappx.FullName)"
+
+        # Create a minimal test structure
+        $testDir = "test-msix-validation"
+        New-Item -ItemType Directory -Force -Path $testDir
+
+        # Copy manifest and substitute variables
+        $manifest = Get-Content deploy\msix\appxmanifest.xml -Raw
+        $manifest = $manifest -replace '\{\{ Version \}\}', '1.0.0'
+        $manifest = $manifest -replace '\{\{ ProcessorArchitecture \}\}', 'x64'
+        $manifest = $manifest -replace '\{\{\{IdentityPublisher\}\}\}', 'CN=Test'
+        $manifest = $manifest -replace '\{\{\{PublisherDisplayName\}\}\}', 'Test Publisher'
+        $manifest | Out-File -FilePath "$testDir\AppxManifest.xml" -Encoding utf8
+
+        # Create minimal required files
+        New-Item -ItemType Directory -Force -Path "$testDir\Julia"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\juliaup.exe"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\julialauncher.exe"
+
+        # Copy required image assets
+        Copy-Item deploy\msix\Images -Recurse -Destination $testDir\Images -Force
+
+        # Try to pack (this will validate the manifest)
+        & $makeappx.FullName pack /d $testDir /p test.msix
