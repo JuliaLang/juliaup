@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.head_ref || github.ref_name || github.run_id }} 
+  group: ${{ github.head_ref || github.ref_name || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -221,3 +221,44 @@ jobs:
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+
+  test-msix-packaging:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Validate MSIX manifest
+      shell: pwsh
+      run: |
+        # Find makeappx.exe from Windows SDK (x64 version)
+        $sdkPath = "C:\Program Files (x86)\Windows Kits\10\bin"
+        $makeappx = Get-ChildItem -Path $sdkPath -Recurse -Filter "makeappx.exe" -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -match "\\x64\\" } |
+          Select-Object -First 1
+        if (-not $makeappx) {
+          Write-Error "makeappx.exe (x64) not found in Windows SDK"
+          exit 1
+        }
+        Write-Host "Found makeappx at: $($makeappx.FullName)"
+
+        # Create a minimal test structure
+        $testDir = "test-msix-validation"
+        New-Item -ItemType Directory -Force -Path $testDir
+
+        # Copy manifest and substitute variables
+        $manifest = Get-Content deploy\msix\appxmanifest.xml -Raw
+        $manifest = $manifest -replace '\{\{ Version \}\}', '1.0.0'
+        $manifest = $manifest -replace '\{\{ ProcessorArchitecture \}\}', 'x64'
+        $manifest = $manifest -replace '\{\{\{IdentityPublisher\}\}\}', 'CN=Test'
+        $manifest = $manifest -replace '\{\{\{PublisherDisplayName\}\}\}', 'Test Publisher'
+        $manifest | Out-File -FilePath "$testDir\AppxManifest.xml" -Encoding utf8
+
+        # Create minimal required files
+        New-Item -ItemType Directory -Force -Path "$testDir\Julia"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\juliaup.exe"
+        New-Item -ItemType File -Force -Path "$testDir\Julia\julialauncher.exe"
+
+        # Copy required image assets
+        Copy-Item deploy\msix\Images -Recurse -Destination $testDir\Images -Force
+
+        # Try to pack (this will validate the manifest)
+        & $makeappx.FullName pack /d $testDir /p test.msix
