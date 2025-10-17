@@ -18,6 +18,11 @@ jobs:
           x86_64-pc-windows-msvc-windowsappinstaller,
           x86_64-pc-windows-gnu-msi,
           x86_64-pc-windows-gnu-portable,
+          aarch64-pc-windows-msvc-windowsstore,
+          aarch64-pc-windows-msvc-windowsappinstaller,
+          aarch64-pc-windows-gnu-msi,
+          x86_64-pc-windows-gnu-portable,
+          x86_64-pc-windows-gnu-portable,          
           x86_64-apple-darwin,
           x86_64-apple-darwin-portable,
           x86_64-unknown-linux-gnu,
@@ -61,6 +66,34 @@ jobs:
             toolchain: stable-gnu
           - label: x86_64-pc-windows-gnu-portable
             target: x86_64-pc-windows-gnu
+            bins: --bin juliaup --bin julia
+            os: windows
+            features: dummy
+            rustflags:
+            toolchain: stable-gnu
+          - label: aarch64-pc-windows-msvc-windowsstore
+            target: aarch64-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
+            os: windows
+            features: windowsstore,binjulialauncher
+            rustflags:
+            toolchain: stable
+          - label: aarch64-pc-windows-msvc-windowsappinstaller
+            target: aarch64-pc-windows-msvc
+            bins: --bin juliaup --bin julialauncher
+            os: windows
+            features: windowsappinstaller,binjulialauncher
+            rustflags:
+            toolchain: stable
+          - label: aarch64-pc-windows-gnu-msi
+            target: aarch64-pc-windows-gnu
+            bins: --bin juliaup --bin julialauncher
+            os: windows
+            features: binjulialauncher
+            rustflags:
+            toolchain: stable-gnu
+          - label: aarch64-pc-windows-gnu-portable
+            target: aarch64-pc-windows-gnu
             bins: --bin juliaup --bin julia
             os: windows
             features: dummy
@@ -272,6 +305,16 @@ jobs:
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-gnu
+          - target: aarch64-pc-windows-msvc
+            os: windows
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable
+          - target: aarch64-pc-windows-gnu
+            os: windows
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable-gnu            
           - target: x86_64-apple-darwin
             os: macos
             features: dummy,binjulialauncher
@@ -602,6 +645,11 @@ jobs:
       with:
         name: juliaup-x86_64-pc-windows-gnu-portable
         path: target/x86_64-pc-windows-gnu-portable
+    - name: Download aarch64-pc-windows-gnu-portable artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: juliaup-aarch64-pc-windows-gnu-portable
+        path: target/aarch64-pc-windows-gnu-portable
     - name: Download i686-pc-windows-gnu-portable artifact
       uses: actions/download-artifact@v4
       with:
@@ -627,6 +675,17 @@ jobs:
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
         files-folder: ${{ github.workspace }}\target\x86_64-pc-windows-gnu-portable
+        files-folder-filter: exe
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+    - name: Sign Windows aarch64 files
+      uses: azure/trusted-signing-action@v0.5.1
+      with:
+        endpoint: https://eus.codesigning.azure.net/
+        trusted-signing-account-name: juliahubwincertsaccount
+        certificate-profile-name: JuliaHubWinCert
+        files-folder: ${{ github.workspace }}\target\aarch64-pc-windows-gnu-portable
         files-folder-filter: exe
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
