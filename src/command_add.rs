@@ -110,5 +110,76 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
     if config_file.data.settings.create_channel_symlinks {
         create_symlink(&config_channel, &format!("julia-{}", channel), paths)?;
     }
+
+    // Handle codesigning for PR builds on macOS
+    #[cfg(target_os = "macos")]
+    if Regex::new(r"^pr\d+").unwrap().is_match(channel) {
+        if let Err(e) = codesign_pr_build_if_needed(channel, paths) {
+            eprintln!("\nWarning: Codesigning failed: {}", e);
+            eprintln!("The Julia binary may not run without manual codesigning.");
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn codesign_pr_build_if_needed(channel: &str, paths: &GlobalPaths) -> Result<()> {
+    use std::io::{self, Write};
+
+    eprintln!("\nWARNING: PR builds are not code-signed for macOS.");
+    eprintln!("The Julia binary will fail to run unless you codesign it locally.");
+    eprint!("\nWould you like to automatically codesign this PR build now? [Y/n]: ");
+    io::stderr().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let input = input.trim().to_lowercase();
+
+    if input == "n" || input == "no" {
+        let dir_name = format!("julia-{}", channel);
+        eprintln!("\nSkipping codesigning. You can manually codesign later with:");
+        eprintln!("  codesign --force --sign - ~/.julia/juliaup/{}/bin/julia", dir_name);
+        eprintln!("  codesign --force --sign - ~/.julia/juliaup/{}/lib/libjulia.*.dylib", dir_name);
+        return Ok(());
+    }
+
+    let julia_dir = paths.juliauphome.join(format!("julia-{}", channel));
+    let julia_bin = julia_dir.join("bin").join("julia");
+
+    eprintln!("\nCodesigning Julia binary...");
+    codesign_file(&julia_bin)?;
+
+    // Find and codesign libjulia dylib
+    eprintln!("Codesigning Julia library...");
+    let lib_dir = julia_dir.join("lib");
+    if lib_dir.exists() {
+        for entry in std::fs::read_dir(&lib_dir)? {
+            let path = entry?.path();
+            if let Some(name) = path.file_name().and_then(|f| f.to_str()) {
+                if name.starts_with("libjulia.") && name.ends_with(".dylib") {
+                    codesign_file(&path)?;
+                }
+            }
+        }
+    }
+
+    eprintln!("✓ Codesigning completed successfully.");
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn codesign_file(path: &std::path::Path) -> Result<()> {
+    use std::process::Command;
+
+    let status = Command::new("codesign")
+        .args(["--force", "--sign", "-"])
+        .arg(path)
+        .status()
+        .with_context(|| format!("Failed to execute codesign on {}", path.display()))?;
+
+    if !status.success() {
+        return Err(anyhow!("Failed to codesign {}", path.display()));
+    }
     Ok(())
 }
