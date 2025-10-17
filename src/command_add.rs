@@ -88,6 +88,18 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
         return Ok(());
     }
 
+    // Warn about security implications of PR builds
+    if let Some(caps) = Regex::new(r"^pr(\d+)").unwrap().captures(channel) {
+        let pr_number = &caps[1];
+        eprintln!(
+            "\nWARNING: Note that unmerged PRs may not have been reviewed for security issues etc."
+        );
+        eprintln!(
+            "Review code at https://github.com/JuliaLang/julia/pull/{}\n",
+            pr_number
+        );
+    }
+
     let name = channel_to_name(channel)?;
     let config_channel = install_non_db_version(channel, &name, paths)?;
 
