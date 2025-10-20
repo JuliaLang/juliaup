@@ -151,8 +151,16 @@ fn codesign_pr_build_if_needed(channel: &str, paths: &GlobalPaths) -> Result<()>
     if input == "n" || input == "no" {
         let dir_name = format!("julia-{}", channel);
         eprintln!("\nSkipping codesigning. You can manually codesign later with:");
-        eprintln!("  codesign --force --sign - {}/{}/bin/julia", paths.juliauphome.display(), dir_name);
-        eprintln!("  codesign --force --sign - {}/{}/lib/libjulia.*.dylib", paths.juliauphome.display(), dir_name);
+        eprintln!(
+            "  codesign --force --sign - {}/{}/bin/julia",
+            paths.juliauphome.display(),
+            dir_name
+        );
+        eprintln!(
+            "  codesign --force --sign - {}/{}/lib/libjulia.*.dylib",
+            paths.juliauphome.display(),
+            dir_name
+        );
         return Ok(());
     }
 
