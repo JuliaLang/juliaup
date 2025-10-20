@@ -143,6 +143,7 @@ jobs:
           x86_64-unknown-freebsd,
           i686-pc-windows-msvc,
           i686-pc-windows-gnu,
+          aarch64-apple-darwin,
           ]
         include:
           - target: x86_64-pc-windows-msvc
@@ -185,6 +186,11 @@ jobs:
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-i686-gnu
+          - target: aarch64-apple-darwin
+            os: macos
+            features: dummy,binjulialauncher
+            rustflags:
+            toolchain: stable
     steps:
     - uses: actions/checkout@v4
     - if: ${{ contains(matrix.target, '-musl') }}
