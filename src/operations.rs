@@ -410,23 +410,32 @@ pub fn install_version(
                 )
             })?;
 
-        eprint!("Checking standard library notarization");
-        let _ = std::io::stdout().flush();
-
         let exit_status = std::process::Command::new(julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
-            .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
+            .arg(
+                r#"
+                let
+                    pkgs = filter!(x -> isfile(joinpath(Sys.STDLIB, x, "src", "$(x).jl")), readdir(Sys.STDLIB))
+                    total = length(pkgs)
+                    foreach(enumerate(pkgs)) do (i, p)
+                        print(stderr, "\r\x1b[KChecking standard library notarization [$i/$total]")
+                        flush(stderr)
+                        @eval(import $(Symbol(p)))
+                        flush(stderr)
+                    end
+                    println(stderr)
+                end
+                "#
+            )
             // .stdout(std::process::Stdio::null())
             // .stderr(std::process::Stdio::null())
             // .stdin(std::process::Stdio::null())
             .status()
             .unwrap();
 
-        if exit_status.success() {
-            eprintln!("done.")
-        } else {
+        if !exit_status.success() {
             eprintln!("failed with {}.", exit_status);
         }
     }
