@@ -17,7 +17,7 @@ use crate::utils::is_valid_julia_path;
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
-use console::{colors_enabled, style};
+use console::style;
 #[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
