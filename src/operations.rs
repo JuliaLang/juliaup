@@ -111,7 +111,6 @@ fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::W
     let max_progress_width = width;
     let n_filled = ((max_progress_width as f64 * perc / 100.0).floor() as usize).min(width);
     let partial_filled = (max_progress_width as f64 * perc / 100.0) - n_filled as f64;
-    let n_left = if n_filled < width { width - n_filled - 1 } else { 0 };
 
     let cyan = Style::new().cyan();
     let dim = Style::new().black().bright();
@@ -120,8 +119,10 @@ fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::W
     let filled_str = "━".repeat(n_filled);
     let _ = write!(w, "{}", cyan.apply_to(filled_str));
 
-    // Draw partial character based on fractional progress
-    if n_left > 0 {
+    // Draw partial character and empty portion to always maintain width
+    if n_filled < width {
+        let n_left = width - n_filled - 1;
+
         if partial_filled > 0.5 {
             // More filled, use ╸ in cyan
             let _ = write!(w, "{}", cyan.apply_to("╸"));
