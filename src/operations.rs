@@ -96,30 +96,30 @@ fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::W
     // Mimics Pkg.jl's smooth progress bar implementation:
     // https://github.com/JuliaLang/Pkg.jl/commit/e099a62e572c7f868857374688affc1fa1da0e88
     use console::Style;
-    
+
     let width = 25; // Progress bar width in characters
     let pos = state.pos();
     let len = state.len().unwrap_or(pos);
-    
+
     let perc = if len > 0 {
         (pos as f64 / len as f64) * 100.0
     } else {
         0.0
     };
-    
+
     // Use floor instead of ceil for smoother progress
     let max_progress_width = width;
     let n_filled = ((max_progress_width as f64 * perc / 100.0).floor() as usize).min(width);
     let partial_filled = (max_progress_width as f64 * perc / 100.0) - n_filled as f64;
     let n_left = if n_filled < width { width - n_filled - 1 } else { 0 };
-    
+
     let cyan = Style::new().cyan();
     let dim = Style::new().black().bright();
-    
+
     // Draw filled portion (cyan)
     let filled_str = "━".repeat(n_filled);
     let _ = write!(w, "{}", cyan.apply_to(filled_str));
-    
+
     // Draw partial character based on fractional progress
     if n_left > 0 {
         if partial_filled > 0.5 {
@@ -129,7 +129,7 @@ fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::W
             // Less filled, use ╺ in dim color
             let _ = write!(w, "{}", dim.apply_to("╺"));
         }
-        
+
         // Draw empty portion (dim)
         let empty_str = "━".repeat(n_left);
         let _ = write!(w, "{}", dim.apply_to(empty_str));
