@@ -6,9 +6,9 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::operations::create_symlink;
 use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
+use crate::utils::{print_juliaup_style, JuliaupStyleColor};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
-use console::style;
 use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
@@ -44,7 +44,11 @@ fn update_channel(
                         "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
                     );
                 }
-                eprintln!("{} channel {channel}", style("Updating").green().bold());
+                print_juliaup_style(
+                    "Updating",
+                    &format!("channel {channel}"),
+                    JuliaupStyleColor::Green,
+                );
 
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
@@ -74,7 +78,11 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
-                    eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+                    print_juliaup_style(
+                        "Updating",
+                        &format!("channel {}", channel),
+                        JuliaupStyleColor::Green,
+                    );
 
                     install_version(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {

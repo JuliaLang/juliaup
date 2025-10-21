@@ -1,4 +1,5 @@
 use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+use crate::utils::{print_juliaup_style, JuliaupStyleColor};
 use anyhow::{bail, Context, Result};
 
 pub fn run_command_config_versionsdbupdate(
@@ -28,11 +29,19 @@ pub fn run_command_config_versionsdbupdate(
 
             if !quiet {
                 if value_changed {
-                    eprintln!("Property 'versionsdbupdateinterval' set to '{}'", value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("property 'versionsdbupdateinterval' set to '{}'", value),
+                        JuliaupStyleColor::Green,
+                    );
                 } else {
-                    eprintln!(
-                        "Property 'versionsdbupdateinterval' is already set to '{}'",
-                        value
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "property 'versionsdbupdateinterval' is already set to '{}'",
+                            value
+                        ),
+                        JuliaupStyleColor::Green,
                     );
                 }
             }

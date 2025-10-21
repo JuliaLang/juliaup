@@ -9,6 +9,7 @@ pub fn run_command_config_symlinks(
 ) -> Result<()> {
     use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
     use crate::operations::{create_symlink, remove_symlink};
+    use crate::utils::{print_juliaup_style, JuliaupStyleColor};
     use anyhow::Context;
 
     match value {
@@ -36,9 +37,17 @@ pub fn run_command_config_symlinks(
 
             if !quiet {
                 if value_changed {
-                    eprintln!("Property 'channelsymlinks' set to '{}'", value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("property 'channelsymlinks' set to '{}'", value),
+                        JuliaupStyleColor::Green,
+                    );
                 } else {
-                    eprintln!("Property 'channelsymlinks' is already set to '{}'", value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("property 'channelsymlinks' is already set to '{}'", value),
+                        JuliaupStyleColor::Green,
+                    );
                 }
             }
         }
@@ -47,9 +56,13 @@ pub fn run_command_config_symlinks(
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!(
-                    "Property 'channelsymlinks' set to '{}'",
-                    config_file.data.settings.create_channel_symlinks
+                print_juliaup_style(
+                    "Configure",
+                    &format!(
+                        "property 'channelsymlinks' set to '{}'",
+                        config_file.data.settings.create_channel_symlinks
+                    ),
+                    JuliaupStyleColor::Green,
                 );
             }
         }

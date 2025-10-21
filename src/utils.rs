@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
+use console::style;
 use semver::{BuildMetadata, Version};
 use std::path::PathBuf;
 use url::Url;
@@ -153,4 +154,46 @@ mod tests {
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
     }
+}
+
+// Message formatting constants and functions
+// Match the indent of Pkg.jl style messages
+const JULIAUP_STYLE_INDENT: usize = 12; // Width of "Precompiling" in Pkg
+
+/// Color options for styled messages
+#[derive(Clone, Copy)]
+pub enum JuliaupStyleColor {
+    Green,
+    Red,
+    Yellow,
+    Cyan,
+}
+
+/// Print a styled message with Pkg.jl-like formatting (right-aligned prefix)
+/// Format: "     [action] message"
+pub fn print_juliaup_style(action: &str, message: &str, color: JuliaupStyleColor) {
+    let styled_action = match color {
+        JuliaupStyleColor::Green => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .green()
+                .bold()
+        }
+        JuliaupStyleColor::Red => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .red()
+                .bold()
+        }
+        JuliaupStyleColor::Yellow => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .yellow()
+                .bold()
+        }
+        JuliaupStyleColor::Cyan => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .cyan()
+                .bold()
+        }
+    };
+
+    eprintln!("{} {}", styled_action, message);
 }

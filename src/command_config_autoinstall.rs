@@ -6,6 +6,7 @@ pub fn run_command_config_autoinstall(
     paths: &crate::global_paths::GlobalPaths,
 ) -> Result<()> {
     use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+    use crate::utils::{print_juliaup_style, JuliaupStyleColor};
     use anyhow::Context;
 
     match value {
@@ -40,11 +41,19 @@ pub fn run_command_config_autoinstall(
                     .unwrap_or_else(|| "default (not set)".to_string());
 
                 if value_changed {
-                    eprintln!("Property 'autoinstallchannels' set to '{}'", display_value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("property 'autoinstallchannels' set to '{}'", display_value),
+                        JuliaupStyleColor::Green,
+                    );
                 } else {
-                    eprintln!(
-                        "Property 'autoinstallchannels' is already set to '{}'",
-                        display_value
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "property 'autoinstallchannels' is already set to '{}'",
+                            display_value
+                        ),
+                        JuliaupStyleColor::Green,
                     );
                 }
             }
@@ -54,14 +63,18 @@ pub fn run_command_config_autoinstall(
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!(
-                    "Property 'autoinstallchannels' set to '{}'",
-                    config_file
-                        .data
-                        .settings
-                        .auto_install_channels
-                        .map(|b| b.to_string())
-                        .unwrap_or_else(|| "default (not set)".to_string())
+                print_juliaup_style(
+                    "Configure",
+                    &format!(
+                        "property 'autoinstallchannels' set to '{}'",
+                        config_file
+                            .data
+                            .settings
+                            .auto_install_channels
+                            .map(|b| b.to_string())
+                            .unwrap_or_else(|| "default (not set)".to_string())
+                    ),
+                    JuliaupStyleColor::Green,
                 );
             }
         }
