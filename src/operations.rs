@@ -92,6 +92,58 @@ where
     Ok(())
 }
 
+fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::Write) {
+    // Mimics Pkg.jl's smooth progress bar implementation:
+    // https://github.com/JuliaLang/Pkg.jl/commit/e099a62e572c7f868857374688affc1fa1da0e88
+    use console::Style;
+
+    let width = 25; // Progress bar width in characters
+    let pos = state.pos();
+    let len = state.len().unwrap_or(pos);
+
+    let perc = if len > 0 {
+        (pos as f64 / len as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    // Use floor instead of ceil for smoother progress
+    let max_progress_width = width;
+    let n_filled = ((max_progress_width as f64 * perc / 100.0).floor() as usize).min(width);
+    let partial_filled = (max_progress_width as f64 * perc / 100.0) - n_filled as f64;
+
+    let cyan = Style::new().cyan();
+    let dim = Style::new().black().bright();
+
+    // Draw filled portion (cyan)
+    let filled_str = "━".repeat(n_filled);
+    let _ = write!(w, "{}", cyan.apply_to(filled_str));
+
+    // Draw partial character and empty portion to always maintain width
+    if n_filled < width {
+        let n_left = width - n_filled - 1;
+
+        if partial_filled > 0.5 {
+            // More filled, use ╸ in cyan
+            let _ = write!(w, "{}", cyan.apply_to("╸"));
+        } else {
+            // Less filled, use ╺ in dim color
+            let _ = write!(w, "{}", dim.apply_to("╺"));
+        }
+
+        // Draw empty portion (dim)
+        let empty_str = "━".repeat(n_left);
+        let _ = write!(w, "{}", dim.apply_to(empty_str));
+    }
+}
+
+fn bar_style() -> ProgressStyle {
+    ProgressStyle::default_bar()
+        .template("{prefix:.cyan.bold}: {bar} {bytes}/{total_bytes} eta: {eta}")
+        .unwrap()
+        .with_key("bar", format_progress_bar)
+}
+
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
@@ -109,13 +161,8 @@ pub fn download_extract_sans_parent(
         None => ProgressBar::new_spinner(),
     };
 
-    pb.set_prefix("  Downloading:");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-            .unwrap()
-            .progress_chars("=> "),
-    );
+    pb.set_prefix("  Downloading");
+    pb.set_style(bar_style());
 
     let last_modified = match response
         .headers()
@@ -209,13 +256,8 @@ pub fn download_extract_sans_parent(
         ProgressBar::new_spinner()
     };
 
-    pb.set_prefix("  Downloading:");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-            .unwrap()
-            .progress_chars("=> "),
-    );
+    pb.set_prefix("  Downloading");
+    pb.set_style(bar_style());
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
