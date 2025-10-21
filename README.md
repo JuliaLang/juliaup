@@ -30,7 +30,7 @@ If neither the Windows Store nor the App Installer version work on your Windows 
 msiexec /i <PATH_TO_JULIA_MSI> ALLUSERS=1
 ```
 
-Note that juliaup [requires the `Windows.Web.Http` API to be present](https://github.com/JuliaLang/juliaup/pull/365), which is true for Windows, and Windows Server, but not for Windows Server Core, Windows Nano Server.
+Note that juliaup [requires the `Windows.Web.Http` API to be present](https://github.com/JuliaLang/juliaup/pull/365), which is true for Windows, and Windows Server, but not for Windows Server Core, and Windows Nano Server.
 
 ### Mac, Linux, and FreeBSD
 
