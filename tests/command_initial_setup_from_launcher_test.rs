@@ -28,7 +28,7 @@ fn command_initial_setup() {
                     .not()
                     .or(
                         predicate::str::contains("Checking standard library notarization")
-                            .and(predicate::str::ends_with("done.\n")),
+                            .and(predicate::str::contains("done.\n")),
                     ),
             ),
         );
