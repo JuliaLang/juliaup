@@ -14,7 +14,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
@@ -419,7 +419,7 @@ pub fn install_version(
         print_juliaup_style(
             "Installing",
             &format!("Julia {}", fullversion),
-            JuliaupStyleColor::Green,
+            JuliaupMessageType::Progress,
         );
 
         download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
@@ -790,7 +790,7 @@ pub fn install_non_db_version(
     print_juliaup_style(
         "Installing",
         &format!("Julia {}", name),
-        JuliaupStyleColor::Green,
+        JuliaupMessageType::Progress,
     );
 
     let res = install_from_url(&download_url, &rel_path, paths)?;
@@ -822,7 +822,7 @@ pub fn garbage_collect_versions(
                     You can try to delete at a later point by running `juliaup gc`.",
                         display
                     ),
-                    JuliaupStyleColor::Yellow,
+                    JuliaupMessageType::Warning,
                 ),
             }
         }
@@ -830,16 +830,16 @@ pub fn garbage_collect_versions(
 
     if versions_to_uninstall.is_empty() {
         print_juliaup_style(
-            "Tidying",
+            "Tidyup",
             "No unused Julia installations to clean up.",
-            JuliaupStyleColor::Green,
+            JuliaupMessageType::Success,
         );
     } else {
         for i in versions_to_uninstall {
             print_juliaup_style(
-                "Tidying",
+                "Tidyup",
                 &format!("Removed Julia {}", &i),
-                JuliaupStyleColor::Green,
+                JuliaupMessageType::Success,
             );
             config_data.installed_versions.remove(&i);
         }
@@ -887,7 +887,7 @@ pub fn remove_symlink(symlink_name: &String) -> Result<()> {
     print_juliaup_style(
         "Deleting",
         &format!("symlink {}.", symlink_name),
-        JuliaupStyleColor::Cyan,
+        JuliaupMessageType::Progress,
     );
 
     _remove_symlink(&symlink_path)?;
@@ -915,13 +915,13 @@ fn create_system_channel_symlink(
                 prev_target.to_string_lossy(),
                 version
             ),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Creating",
             &format!("symlink {} for Julia {}", symlink_name, version),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -955,13 +955,13 @@ fn create_direct_download_symlink(
                 prev_target.to_string_lossy(),
                 version
             ),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Creating",
             &format!("symlink {} for Julia {}", symlink_name, version),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -997,13 +997,13 @@ fn create_linked_channel_shim(
                 prev_target.to_string_lossy(),
                 formatted_command
             ),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Creating",
             &format!("shim {} for {}", symlink_name, formatted_command),
-            JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -1415,7 +1415,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
     print_juliaup_style(
         "Checking",
         "for new Julia versions",
-        JuliaupStyleColor::Green,
+        JuliaupMessageType::Progress,
     );
 
     let file_lock = get_read_lock(paths)?;
@@ -1566,7 +1566,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                         "to update {}. This can happen if a build is no longer available.",
                         channel
                     ),
-                    JuliaupStyleColor::Red,
+                    JuliaupMessageType::Error,
                 );
             }
         }
@@ -1647,7 +1647,7 @@ fn download_direct_download_etags(
             let channel_name_clone = channel_name.clone();
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("Checking").green().bold(),
+                style("    Checking").green().bold(),
                 channel_name
             );
 
@@ -1716,9 +1716,10 @@ fn download_direct_download_etags(
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
+
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("Checking").green().bold(),
+                style("    Checking").green().bold(),
                 channel_name
             );
 

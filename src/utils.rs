@@ -162,16 +162,42 @@ const JULIAUP_STYLE_INDENT: usize = 12; // Width of "Precompiling" in Pkg
 
 /// Color options for styled messages
 #[derive(Clone, Copy)]
-pub enum JuliaupStyleColor {
+pub enum JuliaupMessageType {
+    Success,
+    Error,
+    Warning,
+    Progress,
+}
+
+enum JuliaupStyleColor {
     Green,
     Red,
     Yellow,
     Cyan,
 }
 
+impl JuliaupMessageType {
+    fn color(&self) -> JuliaupStyleColor {
+        match self {
+            JuliaupMessageType::Success => JuliaupStyleColor::Green,
+            JuliaupMessageType::Progress => JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Warning => JuliaupStyleColor::Yellow,
+            JuliaupMessageType::Error => JuliaupStyleColor::Red,
+        }
+    }
+}
+
 /// Print a styled message with Pkg.jl-like formatting (right-aligned prefix)
 /// Format: "     [action] message"
-pub fn print_juliaup_style(action: &str, message: &str, color: JuliaupStyleColor) {
+///
+/// # Message Types
+/// - **Success**: Completion messages (Configure, Link, Remove, Tidyup) - Green
+/// - **Progress**: Active/in-progress operations (Updating, Installing, Creating, Deleting, Checking) - Cyan
+/// - **Warning**: Non-critical issues that need attention - Yellow
+/// - **Error**: Critical failures - Red
+///
+pub fn print_juliaup_style(action: &str, message: &str, message_type: JuliaupMessageType) {
+    let color = message_type.color();
     let styled_action = match color {
         JuliaupStyleColor::Green => {
             style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))

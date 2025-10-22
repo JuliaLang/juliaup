@@ -1,5 +1,5 @@
 #[cfg(feature = "selfupdate")]
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 #[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
@@ -49,19 +49,19 @@ pub fn run_command_config_backgroundselfupdate(
                     print_juliaup_style(
                         "Configure",
                         &format!(
-                            "property 'backgroundselfupdateinterval' set to '{}'",
+                            "Property 'backgroundselfupdateinterval' set to '{}'",
                             value.unwrap_or(0)
                         ),
-                        JuliaupStyleColor::Green,
+                        JuliaupMessageType::Success,
                     );
                 } else {
                     print_juliaup_style(
                         "Configure",
                         &format!(
-                            "property 'backgroundselfupdateinterval' is already set to '{}'",
+                            "Property 'backgroundselfupdateinterval' is already set to '{}'",
                             value.unwrap_or(0)
                         ),
-                        JuliaupStyleColor::Green,
+                        JuliaupMessageType::Success,
                     );
                 }
             }
@@ -74,13 +74,13 @@ pub fn run_command_config_backgroundselfupdate(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "property 'backgroundselfupdateinterval' set to '{}'",
+                        "Property 'backgroundselfupdateinterval' set to '{}'",
                         config_file
                             .self_data
                             .background_selfupdate_interval
                             .unwrap_or(0)
                     ),
-                    JuliaupStyleColor::Green,
+                    JuliaupMessageType::Success,
                 );
             }
         }

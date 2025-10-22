@@ -6,7 +6,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::operations::create_symlink;
 use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::PathBuf;
@@ -47,7 +47,7 @@ fn update_channel(
                 print_juliaup_style(
                     "Updating",
                     &format!("channel {channel}"),
-                    JuliaupStyleColor::Green,
+                    JuliaupMessageType::Progress,
                 );
 
                 let channel_data =
@@ -81,7 +81,7 @@ fn update_channel(
                     print_juliaup_style(
                         "Updating",
                         &format!("channel {}", channel),
-                        JuliaupStyleColor::Green,
+                        JuliaupMessageType::Progress,
                     );
 
                     install_version(&should_version.version, config_db, version_db, paths)

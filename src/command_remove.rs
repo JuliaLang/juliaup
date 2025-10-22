@@ -1,6 +1,6 @@
 #[cfg(not(windows))]
 use crate::operations::remove_symlink;
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::{
     config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel},
     global_paths::GlobalPaths,
@@ -85,7 +85,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
     print_juliaup_style(
         "Remove",
         &format!("Julia {channel_type} '{channel}' successfully removed."),
-        JuliaupStyleColor::Green,
+        JuliaupMessageType::Success,
     );
 
     Ok(())

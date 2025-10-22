@@ -5,7 +5,7 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::create_symlink;
 use crate::operations::is_valid_channel;
 use crate::utils::is_valid_julia_path;
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{bail, Context, Result};
 use path_absolutize::Absolutize;
@@ -59,10 +59,10 @@ pub fn run_command_link(
             print_juliaup_style(
                 "Link",
                 &format!("Channel alias `{channel}` created, pointing to `{target_channel}`."),
-                JuliaupStyleColor::Green,
+                JuliaupMessageType::Success,
             );
         } else {
-            print_juliaup_style("Link", &format!("Channel alias `{channel}` created, pointing to `{target_channel}` with args: {:?}.", args), JuliaupStyleColor::Green);
+            print_juliaup_style("Link", &format!("Channel alias `{channel}` created, pointing to `{target_channel}` with args: {:?}.", args), JuliaupMessageType::Success);
         }
     } else {
         let absolute_file_path = Path::new(target)
@@ -88,7 +88,7 @@ pub fn run_command_link(
                 channel,
                 absolute_file_path.to_string_lossy()
             ),
-            JuliaupStyleColor::Green,
+            JuliaupMessageType::Success,
         );
     }
 

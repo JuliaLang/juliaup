@@ -6,7 +6,7 @@ pub fn run_command_config_autoinstall(
     paths: &crate::global_paths::GlobalPaths,
 ) -> Result<()> {
     use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
-    use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+    use crate::utils::{print_juliaup_style, JuliaupMessageType};
     use anyhow::Context;
 
     match value {
@@ -43,17 +43,17 @@ pub fn run_command_config_autoinstall(
                 if value_changed {
                     print_juliaup_style(
                         "Configure",
-                        &format!("property 'autoinstallchannels' set to '{}'", display_value),
-                        JuliaupStyleColor::Green,
+                        &format!("Property 'autoinstallchannels' set to '{}'", display_value),
+                        JuliaupMessageType::Success,
                     );
                 } else {
                     print_juliaup_style(
                         "Configure",
                         &format!(
-                            "property 'autoinstallchannels' is already set to '{}'",
+                            "Property 'autoinstallchannels' is already set to '{}'",
                             display_value
                         ),
-                        JuliaupStyleColor::Green,
+                        JuliaupMessageType::Success,
                     );
                 }
             }
@@ -66,7 +66,7 @@ pub fn run_command_config_autoinstall(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "property 'autoinstallchannels' set to '{}'",
+                        "Property 'autoinstallchannels' set to '{}'",
                         config_file
                             .data
                             .settings
@@ -74,7 +74,7 @@ pub fn run_command_config_autoinstall(
                             .map(|b| b.to_string())
                             .unwrap_or_else(|| "default (not set)".to_string())
                     ),
-                    JuliaupStyleColor::Green,
+                    JuliaupMessageType::Success,
                 );
             }
         }

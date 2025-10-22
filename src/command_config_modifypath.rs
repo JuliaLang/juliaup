@@ -8,7 +8,7 @@ pub fn run_command_config_modifypath(
     use crate::operations::{
         add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts,
     };
-    use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+    use crate::utils::{print_juliaup_style, JuliaupMessageType};
     use anyhow::Context;
 
     match value {
@@ -37,14 +37,14 @@ pub fn run_command_config_modifypath(
                 if value_changed {
                     print_juliaup_style(
                         "Configure",
-                        &format!("property 'modifypath' set to '{}'", value),
-                        JuliaupStyleColor::Green,
+                        &format!("Property 'modifypath' set to '{}'", value),
+                        JuliaupMessageType::Success,
                     );
                 } else {
                     print_juliaup_style(
                         "Configure",
-                        &format!("property 'modifypath' is already set to '{}'", value),
-                        JuliaupStyleColor::Green,
+                        &format!("Property 'modifypath' is already set to '{}'", value),
+                        JuliaupMessageType::Success,
                     );
                 }
             }
@@ -57,10 +57,10 @@ pub fn run_command_config_modifypath(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "property 'modifypath' set to '{}'",
+                        "Property 'modifypath' set to '{}'",
                         config_file.self_data.modify_path
                     ),
-                    JuliaupStyleColor::Green,
+                    JuliaupMessageType::Success,
                 );
             }
         }

@@ -1,5 +1,5 @@
 use crate::operations::is_valid_channel;
-use crate::utils::{print_juliaup_style, JuliaupStyleColor};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use crate::{config_file::*, global_paths::GlobalPaths};
 use anyhow::{bail, Context, Result};
@@ -29,8 +29,8 @@ pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     print_juliaup_style(
         "Configure",
-        &format!("the default Julia version to be '{}'.", channel),
-        JuliaupStyleColor::Green,
+        &format!("Default Julia version set to '{}'.", channel),
+        JuliaupMessageType::Success,
     );
 
     Ok(())
