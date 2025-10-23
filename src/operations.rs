@@ -1647,7 +1647,7 @@ fn download_direct_download_etags(
             let channel_name_clone = channel_name.clone();
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("    Checking").green().bold(),
+                style("    Checking").cyan().bold(),
                 channel_name
             );
 
@@ -1719,7 +1719,7 @@ fn download_direct_download_etags(
 
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("    Checking").green().bold(),
+                style("    Checking").cyan().bold(),
                 channel_name
             );
 
