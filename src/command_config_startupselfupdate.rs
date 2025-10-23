@@ -1,4 +1,6 @@
 #[cfg(feature = "selfupdate")]
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
+#[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
@@ -34,14 +36,22 @@ pub fn run_command_config_startupselfupdate(
 
             if !quiet {
                 if value_changed {
-                    eprintln!(
-                        "Property 'startupselfupdateinterval' set to '{}'",
-                        value.unwrap_or(0)
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "Property 'startupselfupdateinterval' set to '{}'",
+                            value.unwrap_or(0)
+                        ),
+                        JuliaupMessageType::Success,
                     );
                 } else {
-                    eprintln!(
-                        "Property 'startupselfupdateinterval' is already set to '{}'",
-                        value.unwrap_or(0)
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "Property 'startupselfupdateinterval' is already set to '{}'",
+                            value.unwrap_or(0)
+                        ),
+                        JuliaupMessageType::Success,
                     );
                 }
             }
@@ -51,12 +61,16 @@ pub fn run_command_config_startupselfupdate(
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!(
-                    "Property 'startupselfupdateinterval' set to '{}'",
-                    config_file
-                        .self_data
-                        .startup_selfupdate_interval
-                        .unwrap_or(0)
+                print_juliaup_style(
+                    "Configure",
+                    &format!(
+                        "Property 'startupselfupdateinterval' set to '{}'",
+                        config_file
+                            .self_data
+                            .startup_selfupdate_interval
+                            .unwrap_or(0)
+                    ),
+                    JuliaupMessageType::Success,
                 );
             }
         }

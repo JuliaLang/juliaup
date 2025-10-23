@@ -8,6 +8,7 @@ pub fn run_command_config_modifypath(
     use crate::operations::{
         add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts,
     };
+    use crate::utils::{print_juliaup_style, JuliaupMessageType};
     use anyhow::Context;
 
     match value {
@@ -34,9 +35,17 @@ pub fn run_command_config_modifypath(
 
             if !quiet {
                 if value_changed {
-                    eprintln!("Property 'modifypath' set to '{}'", value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("Property 'modifypath' set to '{}'", value),
+                        JuliaupMessageType::Success,
+                    );
                 } else {
-                    eprintln!("Property 'modifypath' is already set to '{}'", value);
+                    print_juliaup_style(
+                        "Configure",
+                        &format!("Property 'modifypath' is already set to '{}'", value),
+                        JuliaupMessageType::Success,
+                    );
                 }
             }
         }
@@ -45,9 +54,13 @@ pub fn run_command_config_modifypath(
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!(
-                    "Property 'modifypath' set to '{}'",
-                    config_file.self_data.modify_path
+                print_juliaup_style(
+                    "Configure",
+                    &format!(
+                        "Property 'modifypath' set to '{}'",
+                        config_file.self_data.modify_path
+                    ),
+                    JuliaupMessageType::Success,
                 );
             }
         }

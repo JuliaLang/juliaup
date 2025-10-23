@@ -10,6 +10,7 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         command_config_modifypath::run_command_config_modifypath,
         command_config_startupselfupdate::run_command_config_startupselfupdate,
         command_config_symlinks::run_command_config_symlinks,
+        utils::{print_juliaup_style, JuliaupMessageType},
     };
 
     let choice = Confirm::new()
@@ -113,7 +114,11 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         }
     }
 
-    eprintln!("Successfully removed Juliaup.");
+    print_juliaup_style(
+        "Remove",
+        "Juliaup successfully removed.",
+        JuliaupMessageType::Success,
+    );
 
     Ok(())
 }
