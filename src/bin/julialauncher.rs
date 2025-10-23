@@ -272,11 +272,6 @@ fn spawn_juliaup_add(
         .with_context(|| format!("Failed to spawn juliaup to install channel '{}'", channel))?;
 
     if status.success() {
-        print_juliaup_style(
-            "Add",
-            &format!("Successfully installed Julia {}.", channel),
-            JuliaupMessageType::Success,
-        );
         Ok(())
     } else {
         Err(anyhow!(
