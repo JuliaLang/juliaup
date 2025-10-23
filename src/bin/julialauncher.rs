@@ -253,13 +253,13 @@ fn spawn_juliaup_add(
     if is_automatic {
         print_juliaup_style(
             "Installing",
-            &format!("Julia {} automatically per juliaup settings...", channel),
+            &format!("Julia {} automatically per juliaup settings", channel),
             JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Installing",
-            &format!("Julia {} as requested...", channel),
+            &format!("Julia {} as requested", channel),
             JuliaupMessageType::Progress,
         );
     }
