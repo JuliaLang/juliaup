@@ -1,4 +1,3 @@
-use crate::config_file::get_read_lock;
 use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
 use crate::config_file::save_config_db;
@@ -1418,12 +1417,10 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         JuliaupMessageType::Progress,
     );
 
-    let file_lock = get_read_lock(paths)?;
-
     let mut temp_versiondb_download_path: Option<TempPath> = None;
     let mut delete_old_version_db: bool = false;
 
-    let old_config_file = load_config_db(paths, Some(&file_lock)).with_context(|| {
+    let old_config_file = load_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
 
@@ -1445,11 +1442,6 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         Err(_) => None,
     };
 
-    // This scope makes sure the lock file gets closed after we release the lock
-    {
-        let (_, res) = file_lock.data_unlock();
-        res.with_context(|| "Failed to unlock configuration file.")?;
-    }
 
     #[cfg(feature = "selfupdate")]
     let juliaup_channel = match &old_config_file.self_data.juliaup_channel {
