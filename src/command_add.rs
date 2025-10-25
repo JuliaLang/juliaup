@@ -141,7 +141,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     print_juliaup_style(
         "Add",
-        &format!("InstalledJulia channel '{}'", channel),
+        &format!("Installed Julia channel '{}'", channel),
         JuliaupMessageType::Success,
     );
 
