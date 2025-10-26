@@ -1014,6 +1014,8 @@ jobs:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup
         force: true
+        tag: ${{ github.ref }}
+        revision: ${{ github.sha }}
 
   deploy-release-channel-aur:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
