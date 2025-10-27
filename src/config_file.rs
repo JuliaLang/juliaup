@@ -413,17 +413,25 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
         .sync_all()
         .with_context(|| "Failed to sync configuration data to disc.")?;
 
+    // On Windows, we must close the file before replacing it
+    // On Unix, the file can remain open during atomic rename
+    #[cfg(target_os = "windows")]
+    drop(juliaup_config_file.file);
+
     // Atomically replace the old config file with the new one
     temp_file
         .persist(&paths.juliaupconfig)
         .with_context(|| "Failed to persist configuration file.")?;
 
-    // Reopen the file to update our file handle
-    juliaup_config_file.file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(&paths.juliaupconfig)
-        .with_context(|| "Failed to reopen configuration file after save.")?;
+    // Reopen the file to update our file handle (Windows only, since we closed it)
+    #[cfg(target_os = "windows")]
+    {
+        juliaup_config_file.file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&paths.juliaupconfig)
+            .with_context(|| "Failed to reopen configuration file after save.")?;
+    }
 
     #[cfg(feature = "selfupdate")]
     {
@@ -448,16 +456,23 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
             .sync_all()
             .with_context(|| "Failed to sync self configuration data to disc.")?;
 
+        // On Windows, we must close the file before replacing it
+        #[cfg(target_os = "windows")]
+        drop(juliaup_config_file.self_file);
+
         temp_self_file
             .persist(&paths.juliaupselfconfig)
             .with_context(|| "Failed to persist self configuration file.")?;
 
-        // Reopen the self config file
-        juliaup_config_file.self_file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to reopen self configuration file after save.")?;
+        // Reopen the self config file (Windows only, since we closed it)
+        #[cfg(target_os = "windows")]
+        {
+            juliaup_config_file.self_file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&paths.juliaupselfconfig)
+                .with_context(|| "Failed to reopen self configuration file after save.")?;
+        }
     }
 
     Ok(())
