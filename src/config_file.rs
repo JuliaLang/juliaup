@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
+use std::mem;
 use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
@@ -416,7 +417,19 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
     // On Windows, we must close the file before replacing it
     // On Unix, the file can remain open during atomic rename
     #[cfg(target_os = "windows")]
-    drop(juliaup_config_file.file);
+    {
+        // Create a dummy file to replace the handle we need to close
+        let dummy = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(config_dir.join(".dummy"))
+            .with_context(|| "Failed to create dummy file handle.")?;
+
+        // Replace the file handle with the dummy, dropping the old handle
+        let _ = mem::replace(&mut juliaup_config_file.file, dummy);
+    }
 
     // Atomically replace the old config file with the new one
     temp_file
@@ -458,7 +471,19 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
 
         // On Windows, we must close the file before replacing it
         #[cfg(target_os = "windows")]
-        drop(juliaup_config_file.self_file);
+        {
+            // Create a dummy file to replace the handle we need to close
+            let dummy = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(self_config_dir.join(".dummy_self"))
+                .with_context(|| "Failed to create dummy self config file handle.")?;
+
+            // Replace the file handle with the dummy, dropping the old handle
+            let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
+        }
 
         temp_self_file
             .persist(&paths.juliaupselfconfig)
