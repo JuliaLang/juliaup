@@ -231,7 +231,7 @@ jobs:
         run: |
           . "${HOME}/.cargo/env"
           cargo build --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: juliaup-${{matrix.label}}
         path: |
@@ -241,7 +241,7 @@ jobs:
           target/${{matrix.target}}/release/juliaup.exe
           target/${{matrix.target}}/release/julialauncher.exe
           target/${{matrix.target}}/release/julia.exe
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       if: ${{ contains(matrix.bins, 'juliainstaller') }}
       with:
         name: juliainstaller-${{matrix.label}}
@@ -586,7 +586,7 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-apple-darwin-portable.tar.gz .
 
         cd ../..
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: portable-mac-linux
         path: public/*.*
@@ -654,7 +654,7 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
 
         cd ../..
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: portable-windows
         path: public/*.*
@@ -779,11 +779,11 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: storepackage
         path: storepackage\*.*
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: winappinstaller
         path: target\msix\winappinstaller\Julia.appinstaller
@@ -863,7 +863,7 @@ jobs:
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: msiinstallers
         path: target\msi\Julia*.msi
