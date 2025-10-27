@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
+#[cfg(target_os = "windows")]
 use std::mem;
 use tempfile::NamedTempFile;
 
