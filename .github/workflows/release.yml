@@ -193,7 +193,7 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@v2
@@ -303,7 +303,7 @@ jobs:
             rustflags:
             toolchain: stable-i686-gnu
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@v2
@@ -673,7 +673,7 @@ jobs:
     #     RMDIR "%extractPath%" /S /Q
     #     7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
     #     pwsh --version
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Install cargo-msix
       run: cargo install cargo-msix
@@ -794,7 +794,7 @@ jobs:
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Wix
       run: dotnet tool install --global wix --version 4.0.4
     - name: Install Wix UI extensions
@@ -1059,7 +1059,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Create output dirs
         run: |
           mkdir public
@@ -1108,7 +1108,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Create output dirs
         run: |
           mkdir public
@@ -1153,7 +1153,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Create output dirs
         run: |
           mkdir public
@@ -1222,7 +1222,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Publish to creates.io
         run: cargo publish
