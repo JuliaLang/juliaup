@@ -6,7 +6,6 @@ use std::path::PathBuf;
 pub struct GlobalPaths {
     pub juliauphome: PathBuf,
     pub juliaupconfig: PathBuf,
-    pub lockfile: PathBuf,
     pub versiondb: PathBuf,
     #[cfg(feature = "selfupdate")]
     pub juliaupselfhome: PathBuf,
@@ -70,8 +69,6 @@ pub fn get_paths() -> Result<GlobalPaths> {
 
     let versiondb = juliauphome.join(format!("versiondb-{}.json", get_juliaup_target()));
 
-    let lockfile = juliauphome.join(".juliaup-lock");
-
     #[cfg(feature = "selfupdate")]
     let juliaupselfhome = my_own_path
         .parent()
@@ -86,7 +83,6 @@ pub fn get_paths() -> Result<GlobalPaths> {
     Ok(GlobalPaths {
         juliauphome,
         juliaupconfig,
-        lockfile,
         versiondb,
         #[cfg(feature = "selfupdate")]
         juliaupselfhome,

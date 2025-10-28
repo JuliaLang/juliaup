@@ -10,7 +10,7 @@ use anyhow::{bail, Context, Result};
 
 pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
     #[cfg(feature = "selfupdate")]
-    let config_file = load_config_db(paths, None).with_context(|| {
+    let config_file = load_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
 
@@ -21,7 +21,7 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
     };
 
     #[cfg(not(feature = "selfupdate"))]
-    let _config_file = load_config_db(paths, None).with_context(|| {
+    let _config_file = load_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
     })?;
 
