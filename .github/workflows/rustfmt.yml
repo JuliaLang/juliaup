@@ -30,9 +30,9 @@ jobs:
         run: cargo fmt -- --check -v
       - name: Rustfmt PR
         if: ${{ github.event_name == 'pull_request' }}
-        run: cargo fmt -- -v
+        run: cargo fmt -- --check -v
       - name: Suggest format changes
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && failure() }}
         uses: reviewdog/action-suggester@v1
         with:
           tool_name: rustfmt
