@@ -152,7 +152,14 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
                 if let JuliaupConfigChannel::AliasChannel { .. } = v {
                     continue;
                 }
-                update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
+                if let Err(e) = update_channel(&mut config_file.data, &k, &version_db, true, paths)
+                {
+                    print_juliaup_style(
+                        "Failed",
+                        &format!("to update {k}. {e}"),
+                        JuliaupMessageType::Error,
+                    );
+                }
             }
         }
         Some(channel) => {
