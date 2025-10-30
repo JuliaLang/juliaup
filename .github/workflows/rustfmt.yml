@@ -36,4 +36,4 @@ jobs:
         uses: reviewdog/action-suggester@v1
         with:
           tool_name: rustfmt
-          fail_on_error: true
+          fail_level: error
