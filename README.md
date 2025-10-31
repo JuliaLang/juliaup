@@ -156,9 +156,17 @@ The Julia launcher `julia` automatically determines which specific version of Ju
 1. A command line Julia version specifier, such as `julia +release`.
 2. The `JULIAUP_CHANNEL` environment variable.
 3. A directory override, set with the `juliaup override set` command.
-3. The default Juliaup channel.
+4. Automatic version selection based on the active project.
+5. The default Juliaup channel.
 
 The channel is used in the order listed above, using the first available option.
+
+### Automatic Project-based Version Selection
+
+When no explicit channel is specified via command line, environment variable, or directory override, Juliaup will automatically attempt to select an appropriate Julia version based on the active project's requirements:
+
+- If a project is specified (via `--project` or `JULIA_PROJECT`), Juliaup reads the project's `Manifest.toml` file and uses the `julia_version` field to determine which Julia version to use.
+- If no suitable version is found or no project is specified, it falls back to the default channel.
 
 ## Path used by Juliaup
 
