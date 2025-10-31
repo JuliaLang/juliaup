@@ -192,6 +192,7 @@ fn is_interactive() -> bool {
 /// - `JULIA_PROJECT=path` → uses specified path
 /// - `JULIA_PROJECT=@name` → uses depot environment (e.g., @v1.10)
 /// - `JULIA_PROJECT=""` (empty) → searches upward from current directory (@.)
+/// - Portable script (`.jl` file argument with inline project/manifest)
 /// - `JULIA_LOAD_PATH` → searches entries in load path for first valid project
 ///
 /// Returns the version string from Manifest.toml's `julia_version`.
@@ -221,7 +222,8 @@ fn determine_project_version_spec(args: &[String]) -> Result<Option<String>> {
     // Determine project spec in priority order:
     // 1. --project flag (from command line)
     // 2. JULIA_PROJECT environment variable
-    // 3. JULIA_LOAD_PATH environment variable (search for first valid project)
+    // 3. Portable script (if a .jl file is passed as argument)
+    // 4. JULIA_LOAD_PATH environment variable (search for first valid project)
     let project_spec = if let Some(spec) = project_spec_cli {
         Some(spec.unwrap_or_else(|| "@.".to_string()))
     } else if let Ok(env_spec) = std::env::var("JULIA_PROJECT") {
@@ -229,6 +231,22 @@ fn determine_project_version_spec(args: &[String]) -> Result<Option<String>> {
             Some("@.".to_string())
         } else {
             Some(env_spec)
+        }
+    } else if let Some(script_path) = find_script_argument(args)? {
+        log::debug!("AutoVersionDetect::Found script argument: {}", script_path.display());
+        // Check if the script is a portable script
+        if is_portable_script(&script_path)? {
+            log::debug!("AutoVersionDetect::Script is a portable script with inline project/manifest");
+            // For portable scripts, use the script file itself as the project
+            Some(script_path.to_string_lossy().to_string())
+        } else {
+            log::debug!("AutoVersionDetect::Script is not a portable script, checking JULIA_LOAD_PATH");
+            // Not a portable script, continue to JULIA_LOAD_PATH
+            if let Ok(load_path) = std::env::var("JULIA_LOAD_PATH") {
+                find_project_from_load_path(&load_path)?
+            } else {
+                None
+            }
         }
     } else if let Ok(load_path) = std::env::var("JULIA_LOAD_PATH") {
         // Search through JULIA_LOAD_PATH for the first valid project
@@ -257,6 +275,45 @@ fn determine_project_version_spec(args: &[String]) -> Result<Option<String>> {
         return Ok(None);
     };
 
+    // Check if this is a portable script (.jl file)
+    if project_file.extension().and_then(|s| s.to_str()) == Some("jl") {
+        // For portable scripts, check for external manifest first, then inline
+
+        // Extract inline project to check for manifest = "path" field
+        let project_toml = extract_inline_section(&project_file, "project")?;
+        if !project_toml.is_empty() {
+            log::debug!("AutoVersionDetect::PortableScript: Extracting inline project section");
+            let parsed_project: Value = toml::from_str(&project_toml).with_context(|| {
+                format!(
+                    "Failed to parse inline project from portable script `{}`.",
+                    project_file.display()
+                )
+            })?;
+
+            // Check if the inline project EXPLICITLY specifies an external manifest
+            // Only use external manifest if manifest = "path" is set
+            if parsed_project.get("manifest").is_some() {
+                if let Some(manifest_path) = determine_manifest_path(&project_file, &parsed_project) {
+                    log::debug!("AutoVersionDetect::PortableScript: Using external manifest specified in inline project: {}", manifest_path.display());
+                    if let Some(version) = read_manifest_julia_version(&manifest_path)? {
+                        log::debug!("AutoVersionDetect::PortableScript: Read Julia version from external manifest: {}", version);
+                        return Ok(Some(version));
+                    }
+                }
+            }
+        }
+
+        // No external manifest, try inline manifest
+        if let Some(version) = read_portable_script_julia_version(&project_file)? {
+            return Ok(Some(version));
+        }
+
+        // Portable script doesn't have a manifest or julia_version, fall back
+        log::debug!("AutoVersionDetect::PortableScript: No julia_version found in portable script");
+        return Ok(None);
+    }
+
+    // Regular Project.toml handling
     let project_toml = match fs::read_to_string(&project_file) {
         Ok(contents) => contents,
         Err(err) => {
@@ -300,6 +357,72 @@ fn determine_project_version_spec(args: &[String]) -> Result<Option<String>> {
     }
 
     // No manifest with julia_version found, fall back to release
+    Ok(None)
+}
+
+/// Finds a script file in the command line arguments
+/// Returns the path to the script if found
+/// Mimics Julia's behavior: the first non-flag argument is the script
+fn find_script_argument(args: &[String]) -> Result<Option<PathBuf>> {
+    let mut skip_next = false;
+    let mut seen_double_dash = false;
+
+    for (i, arg) in args.iter().enumerate().skip(1) {
+        // Skip the first arg (program name)
+
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+
+        // Skip channel specification (+channel)
+        if i == 1 && arg.starts_with('+') {
+            continue;
+        }
+
+        // Handle -- (end of options marker)
+        if arg == "--" {
+            seen_double_dash = true;
+            continue;
+        }
+
+        // After --, everything is treated as arguments (not flags)
+        if seen_double_dash {
+            return Ok(Some(PathBuf::from(arg)));
+        }
+
+        // Skip flags and their arguments
+        if arg.starts_with('-') {
+            // Check for short flags that take a separate argument (-e "code", -t 4, etc.)
+            if arg.len() == 2 {
+                let flag_char = arg.chars().nth(1).unwrap();
+                // These single-char flags consume the next argument
+                if "eELJCptO".contains(flag_char) {
+                    skip_next = true;
+                    continue;
+                }
+            }
+
+            // Check for long flags that take a separate argument
+            match arg.as_str() {
+                "--eval" | "--print" | "--load" | "--sysimage" |
+                "--cpu-target" | "--procs" | "--threads" => {
+                    skip_next = true;
+                    continue;
+                }
+                _ => {
+                    // For flags with = (like --project=foo), don't skip next
+                    // For other flags (like --version, --help, etc.), continue
+                    continue;
+                }
+            }
+        }
+
+        // First non-flag argument is the script (Julia's behavior)
+        // Whether it exists or is portable is the caller's problem
+        return Ok(Some(PathBuf::from(arg)));
+    }
+
     Ok(None)
 }
 
@@ -401,7 +524,7 @@ fn resolve_path_to_project(path: &Path) -> Result<Option<PathBuf>> {
             .join(path)
     };
 
-    // If the path is a file, use it directly
+    // If the path is a file, use it directly (including .jl files for portable scripts)
     if base_path.is_file() {
         log::debug!(
             "AutoVersionDetect::Using project file directly: {}",
@@ -594,6 +717,172 @@ fn read_manifest_julia_version(path: &Path) -> Result<Option<String>> {
         .get("julia_version")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string()))
+}
+
+/// Checks if a .jl file is a portable script by looking for inline project/manifest markers
+fn is_portable_script(path: &Path) -> Result<bool> {
+    if !path.exists() {
+        log::debug!("AutoVersionDetect::PortableScript: File does not exist: {}", path.display());
+        return Ok(false);
+    }
+
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read file `{}` to check for portable script markers.", path.display()))?;
+
+    // Look for either #!project begin or #!manifest begin markers
+    for line in content.lines() {
+        let stripped = line.trim_start();
+        if stripped.starts_with("#!project begin") || stripped.starts_with("#!manifest begin") {
+            log::debug!("AutoVersionDetect::PortableScript: Detected portable script markers in: {}", path.display());
+            return Ok(true);
+        }
+    }
+
+    log::debug!("AutoVersionDetect::PortableScript: No portable script markers found in: {}", path.display());
+    Ok(false)
+}
+
+/// Extracts inline TOML section from a portable script
+/// The section_type should be either "project" or "manifest"
+fn extract_inline_section(path: &Path, section_type: &str) -> Result<String> {
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read portable script `{}`.", path.display()))?;
+
+    let start_fence = format!("#!{} begin", section_type);
+    let end_fence = format!("#!{} end", section_type);
+
+    let mut state = ParseState::None;
+    let mut multiline_mode = false;
+    let mut in_multiline = false;
+    let mut result = String::new();
+
+    for line in content.lines() {
+        let stripped = line.trim_start();
+
+        if matches!(state, ParseState::Done) {
+            break;
+        }
+
+        if stripped.starts_with(&start_fence) {
+            state = ParseState::ReadingFirst;
+            continue;
+        } else if stripped.starts_with(&end_fence) {
+            state = ParseState::Done;
+            continue;
+        } else if matches!(state, ParseState::ReadingFirst) {
+            // First line determines the format
+            if stripped.starts_with("#=") {
+                multiline_mode = true;
+                state = ParseState::Reading;
+
+                // Check if opening #= and closing =# are on the same line
+                if stripped.trim_end().ends_with("=#") {
+                    // Single-line multi-line comment
+                    let content = &stripped[2..stripped.len()-2];
+                    result.push_str(content);
+                    in_multiline = false;
+                } else {
+                    // Multi-line comment continues
+                    in_multiline = true;
+                    let content = &stripped[2..];
+                    result.push_str(content);
+                    result.push('\n');
+                }
+            } else {
+                // Line-by-line format
+                multiline_mode = false;
+                state = ParseState::Reading;
+
+                // Process this first line
+                if stripped.starts_with('#') {
+                    let toml_line = stripped[1..].trim_start();
+                    result.push_str(toml_line);
+                } else {
+                    result.push_str(line);
+                }
+                result.push('\n');
+            }
+        } else if matches!(state, ParseState::Reading) {
+            if multiline_mode && in_multiline {
+                // In multi-line comment mode, look for closing =#
+                if stripped.trim_end().ends_with("=#") {
+                    // Found closing delimiter
+                    let content = &stripped[..stripped.len()-2].trim_end();
+                    result.push_str(content);
+                    in_multiline = false;
+                } else {
+                    // Still inside multi-line comment
+                    result.push_str(line);
+                    result.push('\n');
+                }
+            } else if !multiline_mode {
+                // Line-by-line comment mode, strip # from each line
+                if stripped.starts_with('#') {
+                    let toml_line = stripped[1..].trim_start();
+                    result.push_str(toml_line);
+                } else {
+                    result.push_str(line);
+                }
+                result.push('\n');
+            }
+        }
+    }
+
+    if matches!(state, ParseState::Done) {
+        Ok(result.trim().to_string())
+    } else if matches!(state, ParseState::None) {
+        Ok(String::new())
+    } else {
+        Err(anyhow!(
+            "Incomplete inline {} block in `{}` (missing #!{} end marker).",
+            section_type,
+            path.display(),
+            section_type
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum ParseState {
+    None,
+    ReadingFirst,
+    Reading,
+    Done,
+}
+
+/// Reads julia_version from a portable script's inline manifest
+fn read_portable_script_julia_version(path: &Path) -> Result<Option<String>> {
+    log::debug!("AutoVersionDetect::PortableScript: Extracting inline manifest from: {}", path.display());
+
+    // Extract the inline manifest section
+    let manifest_toml = extract_inline_section(path, "manifest")?;
+
+    if manifest_toml.is_empty() {
+        log::debug!("AutoVersionDetect::PortableScript: No inline manifest found in: {}", path.display());
+        return Ok(None);
+    }
+
+    log::debug!("AutoVersionDetect::PortableScript: Successfully extracted inline manifest TOML");
+
+    // Parse the TOML
+    let manifest: Value = toml::from_str(&manifest_toml).with_context(|| {
+        format!(
+            "Failed to parse inline manifest from portable script `{}`.",
+            path.display()
+        )
+    })?;
+
+    let version = manifest
+        .get("julia_version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    match &version {
+        Some(v) => log::debug!("AutoVersionDetect::PortableScript: Read Julia version from inline manifest: {}", v),
+        None => log::debug!("AutoVersionDetect::PortableScript: Inline manifest exists but does not contain julia_version field"),
+    }
+
+    Ok(version)
 }
 
 fn parse_db_version(version: &str) -> Result<Version> {
@@ -1926,5 +2215,412 @@ mod tests {
         let result = find_highest_versioned_manifest(temp_dir.path());
         assert!(result.is_some());
         assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.11.toml");
+    }
+
+    // Helper to create a portable script
+    fn create_portable_script(dir: &Path, name: &str, julia_version: &str) -> PathBuf {
+        let script_path = dir.join(name);
+        let script_content = format!(
+            indoc! {r#"
+                #!/usr/bin/env julia
+
+                #!project begin
+                # name = "PortableScriptTest"
+                # uuid = "f7e12c4d-9a2b-4c3f-8e5d-6a7b8c9d0e1f"
+                # version = "0.1.0"
+                #!project end
+
+                #!manifest begin
+                # julia_version = "{}"
+                # manifest_format = "2.0"
+                # project_hash = "abc123"
+                #!manifest end
+
+                println("Hello from portable script!")
+            "#},
+            julia_version
+        );
+        fs::write(&script_path, script_content).unwrap();
+        script_path
+    }
+
+    fn create_portable_script_multiline(dir: &Path, name: &str, julia_version: &str) -> PathBuf {
+        let script_path = dir.join(name);
+        let script_content = format!(
+            indoc! {r#"
+                #!/usr/bin/env julia
+
+                #!project begin
+                #=
+                name = "PortableScriptMultilineTest"
+                uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                version = "0.1.0"
+                =#
+                #!project end
+
+                #!manifest begin
+                #=
+                julia_version = "{}"
+                manifest_format = "2.0"
+                project_hash = "xyz789"
+                =#
+                #!manifest end
+
+                println("Hello from multiline portable script!")
+            "#},
+            julia_version
+        );
+        fs::write(&script_path, script_content).unwrap();
+        script_path
+    }
+
+    fn create_portable_script_with_external_manifest(dir: &Path, name: &str, manifest_path: &Path) -> PathBuf {
+        let script_path = dir.join(name);
+        let script_content = format!(
+            indoc! {r#"
+                #!/usr/bin/env julia
+
+                #!project begin
+                # name = "PortableScriptExternalManifest"
+                # uuid = "12345678-1234-1234-1234-123456789012"
+                # version = "0.1.0"
+                # manifest = "{}"
+                #!project end
+
+                println("Hello from portable script with external manifest!")
+            "#},
+            manifest_path.display()
+        );
+        fs::write(&script_path, script_content).unwrap();
+        script_path
+    }
+
+    #[test]
+    fn test_is_portable_script() {
+        // Test detecting a portable script
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.0");
+
+        let result = is_portable_script(&script_path).unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_is_portable_script_not_portable() {
+        // Test detecting a non-portable script
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = temp_dir.path().join("regular.jl");
+        fs::write(&script_path, "println(\"Hello, World!\")").unwrap();
+
+        let result = is_portable_script(&script_path).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_extract_inline_section_line_by_line() {
+        // Test extracting inline manifest with line-by-line comments
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.0");
+
+        let result = extract_inline_section(&script_path, "manifest").unwrap();
+        assert!(result.contains("julia_version = \"1.13.0\""));
+        assert!(result.contains("manifest_format = \"2.0\""));
+        assert!(result.contains("project_hash = \"abc123\""));
+    }
+
+    #[test]
+    fn test_extract_inline_section_multiline() {
+        // Test extracting inline manifest with multiline comments
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script_multiline(temp_dir.path(), "test.jl", "1.14.0");
+
+        let result = extract_inline_section(&script_path, "manifest").unwrap();
+        assert!(result.contains("julia_version = \"1.14.0\""));
+        assert!(result.contains("manifest_format = \"2.0\""));
+        assert!(result.contains("project_hash = \"xyz789\""));
+    }
+
+    #[test]
+    fn test_extract_inline_section_project() {
+        // Test extracting inline project section
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.0");
+
+        let result = extract_inline_section(&script_path, "project").unwrap();
+        assert!(result.contains("name = \"PortableScriptTest\""));
+        assert!(result.contains("uuid = \"f7e12c4d-9a2b-4c3f-8e5d-6a7b8c9d0e1f\""));
+        assert!(result.contains("version = \"0.1.0\""));
+    }
+
+    #[test]
+    fn test_extract_inline_section_missing() {
+        // Test extracting non-existent inline section
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = temp_dir.path().join("regular.jl");
+        fs::write(&script_path, "println(\"Hello\")").unwrap();
+
+        let result = extract_inline_section(&script_path, "manifest").unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_read_portable_script_julia_version() {
+        // Test reading julia_version from a portable script
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.0");
+
+        let result = read_portable_script_julia_version(&script_path).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "1.13.0");
+    }
+
+    #[test]
+    fn test_read_portable_script_julia_version_multiline() {
+        // Test reading julia_version from a multiline portable script
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script_multiline(temp_dir.path(), "test.jl", "1.14.0");
+
+        let result = read_portable_script_julia_version(&script_path).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "1.14.0");
+    }
+
+    #[test]
+    fn test_read_portable_script_julia_version_missing() {
+        // Test reading julia_version when not present
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = temp_dir.path().join("test.jl");
+        let script_content = indoc! {r#"
+            #!/usr/bin/env julia
+
+            #!project begin
+            # name = "Test"
+            #!project end
+
+            #!manifest begin
+            # manifest_format = "2.0"
+            #!manifest end
+
+            println("Hello")
+        "#};
+        fs::write(&script_path, script_content).unwrap();
+
+        let result = read_portable_script_julia_version(&script_path).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_script_argument() {
+        // Test finding a script file in arguments
+        let args = vec![
+            "julia".to_string(),
+            "test.jl".to_string(),
+            "arg1".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "test.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_with_channel() {
+        // Test finding a script file with +channel
+        let args = vec![
+            "julia".to_string(),
+            "+nightly".to_string(),
+            "test.jl".to_string(),
+            "arg1".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "test.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_with_flags() {
+        // Test finding a script file after flags
+        let args = vec![
+            "julia".to_string(),
+            "-O3".to_string(),
+            "--color=yes".to_string(),
+            "test.jl".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "test.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_with_eval() {
+        // Test that -e flag doesn't get confused with scripts
+        let args = vec![
+            "julia".to_string(),
+            "-e".to_string(),
+            "println(1)".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_script_argument_no_script() {
+        // Test when there's no script file
+        let args = vec![
+            "julia".to_string(),
+            "--version".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_script_argument_with_double_dash() {
+        // Test -- (end of options marker)
+        let args = vec![
+            "julia".to_string(),
+            "-O3".to_string(),
+            "--".to_string(),
+            "--weird-name.jl".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "--weird-name.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_nonexistent_file() {
+        // Test that we return non-existent files (Julia's behavior)
+        let args = vec![
+            "julia".to_string(),
+            "nonexistent_script.jl".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "nonexistent_script.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_with_sysimage() {
+        // Test -J / --sysimage flag that takes an argument
+        let args = vec![
+            "julia".to_string(),
+            "-J".to_string(),
+            "custom.so".to_string(),
+            "script.jl".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "script.jl");
+    }
+
+    #[test]
+    fn test_find_script_argument_with_threads() {
+        // Test -t / --threads flag that takes an argument
+        let args = vec![
+            "julia".to_string(),
+            "-t".to_string(),
+            "4".to_string(),
+            "script.jl".to_string(),
+        ];
+        let result = find_script_argument(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_str().unwrap(), "script.jl");
+    }
+
+    #[test]
+    fn test_determine_project_version_spec_portable_script() {
+        // Test that portable scripts are detected and their version is used
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.5");
+
+        let args = vec![
+            "julia".to_string(),
+            script_path.to_string_lossy().to_string(),
+        ];
+
+        let result = determine_project_version_spec(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "1.13.5");
+    }
+
+    #[test]
+    fn test_determine_project_version_spec_portable_script_multiline() {
+        // Test multiline portable script detection
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script_multiline(temp_dir.path(), "test.jl", "1.14.2");
+
+        let args = vec![
+            "julia".to_string(),
+            script_path.to_string_lossy().to_string(),
+        ];
+
+        let result = determine_project_version_spec(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "1.14.2");
+    }
+
+    #[test]
+    fn test_determine_project_version_spec_portable_script_external_manifest() {
+        // Test portable script with external manifest specified via manifest = "path"
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create external manifest file
+        let manifest_path = temp_dir.path().join("Manifest.toml");
+        create_manifest(temp_dir.path(), "Manifest.toml", "1.15.3");
+
+        // Create portable script that references the external manifest
+        let script_path = create_portable_script_with_external_manifest(
+            temp_dir.path(),
+            "test.jl",
+            &manifest_path
+        );
+
+        let args = vec![
+            "julia".to_string(),
+            script_path.to_string_lossy().to_string(),
+        ];
+
+        let result = determine_project_version_spec(&args).unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "1.15.3");
+    }
+
+    #[test]
+    fn test_determine_project_version_spec_regular_script() {
+        // Test that regular (non-portable) scripts don't get detected
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = temp_dir.path().join("regular.jl");
+        fs::write(&script_path, "println(\"Hello, World!\")").unwrap();
+
+        let args = vec![
+            "julia".to_string(),
+            script_path.to_string_lossy().to_string(),
+        ];
+
+        let result = determine_project_version_spec(&args).unwrap();
+        // Should return None because it's not a portable script
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_determine_project_version_spec_project_overrides_portable() {
+        // Test that --project flag overrides portable script
+        let temp_dir = TempDir::new().unwrap();
+        let script_path = create_portable_script(temp_dir.path(), "test.jl", "1.13.0");
+
+        // Create a separate project with different version
+        create_test_project(temp_dir.path(), "name = \"OtherProject\"");
+        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
+
+        let args = vec![
+            "julia".to_string(),
+            format!("--project={}", temp_dir.path().display()),
+            script_path.to_string_lossy().to_string(),
+        ];
+
+        let result = determine_project_version_spec(&args).unwrap();
+        assert!(result.is_some());
+        // Should use the version from --project, not the portable script
+        assert_eq!(result.unwrap(), "1.10.0");
     }
 }
