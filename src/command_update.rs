@@ -6,9 +6,9 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::operations::create_symlink;
 use crate::operations::{garbage_collect_versions, install_from_url};
 use crate::operations::{install_version, update_version_db};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
-use console::style;
 use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
@@ -44,7 +44,11 @@ fn update_channel(
                         "Channel {channel} version is empty, you may need to manually codesign this channel if you trust the contents of this pull request."
                     );
                 }
-                eprintln!("{} channel {channel}", style("Updating").green().bold());
+                print_juliaup_style(
+                    "Updating",
+                    &format!("channel {channel}"),
+                    JuliaupMessageType::Progress,
+                );
 
                 let channel_data =
                     install_from_url(&url::Url::parse(url)?, &PathBuf::from(path), paths)?;
@@ -74,7 +78,11 @@ fn update_channel(
 
             if let Some(should_version) = should_version {
                 if &should_version.version != version {
-                    eprintln!("{} channel {}", style("Updating").green().bold(), channel);
+                    print_juliaup_style(
+                        "Updating",
+                        &format!("channel {}", channel),
+                        JuliaupMessageType::Progress,
+                    );
 
                     install_version(&should_version.version, config_db, version_db, paths)
                         .with_context(|| {
@@ -144,7 +152,14 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
                 if let JuliaupConfigChannel::AliasChannel { .. } = v {
                     continue;
                 }
-                update_channel(&mut config_file.data, &k, &version_db, true, paths)?;
+                if let Err(e) = update_channel(&mut config_file.data, &k, &version_db, true, paths)
+                {
+                    print_juliaup_style(
+                        "Failed",
+                        &format!("to update {k}. {e}"),
+                        JuliaupMessageType::Error,
+                    );
+                }
             }
         }
         Some(channel) => {

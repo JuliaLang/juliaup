@@ -1,4 +1,5 @@
 use crate::operations::is_valid_channel;
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use crate::{config_file::*, global_paths::GlobalPaths};
 use anyhow::{bail, Context, Result};
@@ -26,7 +27,11 @@ pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
     save_config_db(&mut config_file)
         .with_context(|| "`default` command failed to save configuration db.")?;
 
-    eprintln!("Configured the default Julia version to be '{}'.", channel);
+    print_juliaup_style(
+        "Configure",
+        &format!("Default Julia version set to '{}'.", channel),
+        JuliaupMessageType::Success,
+    );
 
     Ok(())
 }

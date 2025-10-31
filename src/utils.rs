@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
+use console::style;
 use semver::{BuildMetadata, Version};
 use std::path::PathBuf;
 use url::Url;
@@ -153,4 +154,72 @@ mod tests {
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
     }
+}
+
+// Message formatting constants and functions
+// Match the indent of Pkg.jl style messages
+const JULIAUP_STYLE_INDENT: usize = 12; // Width of "Precompiling" in Pkg
+
+/// Color options for styled messages
+#[derive(Clone, Copy)]
+pub enum JuliaupMessageType {
+    Success,
+    Error,
+    Warning,
+    Progress,
+}
+
+enum JuliaupStyleColor {
+    Green,
+    Red,
+    Yellow,
+    Cyan,
+}
+
+impl JuliaupMessageType {
+    fn color(&self) -> JuliaupStyleColor {
+        match self {
+            JuliaupMessageType::Success => JuliaupStyleColor::Green,
+            JuliaupMessageType::Progress => JuliaupStyleColor::Cyan,
+            JuliaupMessageType::Warning => JuliaupStyleColor::Yellow,
+            JuliaupMessageType::Error => JuliaupStyleColor::Red,
+        }
+    }
+}
+
+/// Print a styled message with Pkg.jl-like formatting (right-aligned prefix)
+/// Format: "     [action] message"
+///
+/// # Message Types
+/// - **Success**: Completion messages (Configure, Link, Remove, Tidyup) - Green
+/// - **Progress**: Active/in-progress operations (Updating, Installing, Creating, Deleting, Checking) - Cyan
+/// - **Warning**: Non-critical issues that need attention - Yellow
+/// - **Error**: Critical failures - Red
+///
+pub fn print_juliaup_style(action: &str, message: &str, message_type: JuliaupMessageType) {
+    let color = message_type.color();
+    let styled_action = match color {
+        JuliaupStyleColor::Green => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .green()
+                .bold()
+        }
+        JuliaupStyleColor::Red => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .red()
+                .bold()
+        }
+        JuliaupStyleColor::Yellow => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .yellow()
+                .bold()
+        }
+        JuliaupStyleColor::Cyan => {
+            style(format!("{:>width$}", action, width = JULIAUP_STYLE_INDENT))
+                .cyan()
+                .bold()
+        }
+    };
+
+    eprintln!("{} {}", styled_action, message);
 }
