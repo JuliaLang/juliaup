@@ -4,7 +4,7 @@ use cluFlock::{ExclusiveFlock, FlockLock, SharedFlock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
+use std::io::{BufReader, ErrorKind, Write};
 #[cfg(target_os = "windows")]
 use std::mem;
 use tempfile::NamedTempFile;
@@ -296,12 +296,12 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         }
     };
 
-    let mut file = std::fs::OpenOptions::new()
+    let file = std::fs::OpenOptions::new()
         .read(true)
         .open(&paths.juliaupconfig);
 
     let data = match file {
-        Err(file) => {
+        Err(_file) => {
             let new_config = JuliaupConfig {
                 default: None,
                 installed_versions: HashMap::new(),
@@ -317,7 +317,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
 
             new_config
         }
-        _ => {
+        Ok(file) => {
             let reader = BufReader::new(&file);
 
             serde_json::from_reader(reader)
