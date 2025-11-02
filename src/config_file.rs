@@ -326,32 +326,42 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     };
 
     #[cfg(feature = "selfupdate")]
-    let self_file: File;
-    #[cfg(feature = "selfupdate")]
     let self_data: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        self_file = std::fs::OpenOptions::new()
+        let self_file = std::fs::OpenOptions::new()
             .read(true)
-            .write(true)
-            .open(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to open juliaup config file.")?;
+            .open(&paths.juliaupselfconfig);
 
-        let reader = BufReader::new(&self_file);
+        self_data = match self_file {
+            // TODO Or should we just error when the file can't be read?
+            Err(_self_file) => {
+                let new_self_config = JuliaupSelfConfig {
+                    background_selfupdate_interval: None,
+                    startup_selfupdate_interval: None,
+                    modify_path: false,
+                    juliaup_channel: None,
+                    last_selfupdate: None,
+                };
+                
+                new_self_config
+            }
+            Ok(self_file) => {
+                let reader = BufReader::new(&self_file);
 
-        self_data = serde_json::from_reader(reader).with_context(|| {
-            format!(
-                "Failed to parse self configuration file '{:?}' for reading.",
-                paths.juliaupselfconfig
-            )
-        })?
+                serde_json::from_reader(reader).with_context(|| {
+                    format!(
+                        "Failed to parse self configuration file '{:?}' for reading.",
+                        paths.juliaupselfconfig
+                    )
+                })?
+            }
+        }
     }
 
     let result = JuliaupConfigFile {
         lock: file_lock,
         data,
-        #[cfg(feature = "selfupdate")]
-        self_file,
         #[cfg(feature = "selfupdate")]
         self_data,
     };
@@ -419,35 +429,9 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
             .sync_all()
             .with_context(|| "Failed to sync self configuration data to disc.")?;
 
-        // On Windows, we must close the file before replacing it
-        #[cfg(target_os = "windows")]
-        {
-            // Create a dummy file to replace the handle we need to close
-            let dummy = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(self_config_dir.join(".dummy_self"))
-                .with_context(|| "Failed to create dummy self config file handle.")?;
-
-            // Replace the file handle with the dummy, dropping the old handle
-            let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
-        }
-
         temp_self_file
             .persist(&paths.juliaupselfconfig)
             .with_context(|| "Failed to persist self configuration file.")?;
-
-        // Reopen the self config file (Windows only, since we closed it)
-        #[cfg(target_os = "windows")]
-        {
-            juliaup_config_file.self_file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&paths.juliaupselfconfig)
-                .with_context(|| "Failed to reopen self configuration file after save.")?;
-        }
     }
 
     Ok(())
