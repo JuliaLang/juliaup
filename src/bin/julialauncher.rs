@@ -50,6 +50,47 @@ fn get_juliaup_path() -> Result<PathBuf> {
     Ok(juliaup_path)
 }
 
+/// Resolves the Julia binary path, accounting for .app bundles on macOS
+#[cfg(target_os = "macos")]
+fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
+    // Check if this is a .app bundle installation
+    if let Ok(entries) = std::fs::read_dir(base_path) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_str()
+                .map(|name| name.ends_with(".app"))
+                .unwrap_or(false)
+            {
+                // This is a DMG installation with .app bundle
+                let julia_path = entry
+                    .path()
+                    .join("Contents")
+                    .join("Resources")
+                    .join("julia")
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+
+                if julia_path.exists() {
+                    return Ok(julia_path);
+                }
+            }
+        }
+    }
+
+    // Fall back to standard path (tarball installation)
+    Ok(base_path
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
+    Ok(base_path
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
+}
+
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
     if !juliaupconfig_path.exists() {
         let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
@@ -494,12 +535,12 @@ fn get_julia_path_from_installed_channel(
                 })?;
             }
 
-            let absolute_path = juliaupconfig_path
+            let base_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                .join(path);
+
+            let absolute_path = resolve_julia_binary_path(&base_path)?
                 .normalize()
                 .with_context(|| {
                     format!(
@@ -543,12 +584,9 @@ fn get_julia_path_from_installed_channel(
                 }
             }
 
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap()
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+            let base_path = juliaupconfig_path.parent().unwrap().join(path);
+
+            let absolute_path = resolve_julia_binary_path(&base_path)?
                 .normalize()
                 .with_context(|| {
                     format!(
