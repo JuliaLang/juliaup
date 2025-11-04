@@ -332,7 +332,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         self_data = match self_file {
             // TODO Or should we just error when the file can't be read?
             Err(_self_file) => {
-                new_self_config = JuliaupSelfConfig {
+                JuliaupSelfConfig {
                     background_selfupdate_interval: None,
                     startup_selfupdate_interval: None,
                     modify_path: false,
