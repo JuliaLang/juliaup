@@ -299,20 +299,18 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         .open(&paths.juliaupconfig);
 
     let data = match file {
-        Err(_file) => {
-            JuliaupConfig {
-                default: None,
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-                overrides: Vec::new(),
-                settings: JuliaupConfigSettings {
-                    create_channel_symlinks: false,
-                    versionsdb_update_interval: default_versionsdb_update_interval(),
-                    auto_install_channels: None,
-                },
-                last_version_db_update: None,
-            }
-        }
+        Err(_file) => JuliaupConfig {
+            default: None,
+            installed_versions: HashMap::new(),
+            installed_channels: HashMap::new(),
+            overrides: Vec::new(),
+            settings: JuliaupConfigSettings {
+                create_channel_symlinks: false,
+                versionsdb_update_interval: default_versionsdb_update_interval(),
+                auto_install_channels: None,
+            },
+            last_version_db_update: None,
+        },
         Ok(file) => {
             let reader = BufReader::new(&file);
 
@@ -331,15 +329,13 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
 
         self_data = match self_file {
             // TODO Or should we just error when the file can't be read?
-            Err(_self_file) => {
-                JuliaupSelfConfig {
-                    background_selfupdate_interval: None,
-                    startup_selfupdate_interval: None,
-                    modify_path: false,
-                    juliaup_channel: None,
-                    last_selfupdate: None,
-                }
-            }
+            Err(_self_file) => JuliaupSelfConfig {
+                background_selfupdate_interval: None,
+                startup_selfupdate_interval: None,
+                modify_path: false,
+                juliaup_channel: None,
+                last_selfupdate: None,
+            },
             Ok(self_file) => {
                 let reader = BufReader::new(&self_file);
 
