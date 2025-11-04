@@ -459,7 +459,7 @@ pub fn install_version(
         eprint!("Checking standard library notarization");
         let _ = std::io::stdout().flush();
 
-        let exit_status = std::process::Command::new(julia_path)
+        match std::process::Command::new(julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
@@ -468,12 +468,22 @@ pub fn install_version(
             // .stderr(std::process::Stdio::null())
             // .stdin(std::process::Stdio::null())
             .status()
-            .unwrap();
-
-        if exit_status.success() {
-            eprintln!("done.")
-        } else {
-            eprintln!("failed with {}.", exit_status);
+        {
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    eprintln!("done.")
+                } else {
+                    eprintln!("failed with {}.", exit_status);
+                }
+            }
+            Err(e) => {
+                eprintln!("failed to execute Julia binary.");
+                eprintln!("Error: {}", e);
+                if e.raw_os_error() == Some(86) {
+                    eprintln!("This may indicate an architecture mismatch (e.g., trying to run an Intel binary on Apple Silicon or vice versa).");
+                }
+                eprintln!("Installation completed but notarization check was skipped.");
+            }
         }
     }
 
