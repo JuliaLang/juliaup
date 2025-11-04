@@ -300,7 +300,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
 
     let data = match file {
         Err(_file) => {
-            let new_config = JuliaupConfig {
+            JuliaupConfig {
                 default: None,
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
@@ -311,9 +311,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                     auto_install_channels: None,
                 },
                 last_version_db_update: None,
-            };
-
-            new_config
+            }
         }
         Ok(file) => {
             let reader = BufReader::new(&file);
@@ -334,15 +332,13 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         self_data = match self_file {
             // TODO Or should we just error when the file can't be read?
             Err(_self_file) => {
-                let new_self_config = JuliaupSelfConfig {
+                new_self_config = JuliaupSelfConfig {
                     background_selfupdate_interval: None,
                     startup_selfupdate_interval: None,
                     modify_path: false,
                     juliaup_channel: None,
                     last_selfupdate: None,
-                };
-                
-                new_self_config
+                }
             }
             Ok(self_file) => {
                 let reader = BufReader::new(&self_file);
