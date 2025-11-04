@@ -8,7 +8,7 @@ pub struct TestEnv {
     depot_dir: TempDir,
 }
 
-impl Default for TestEnv{
+impl Default for TestEnv {
     fn default() -> Self {
         Self::new()
     }
