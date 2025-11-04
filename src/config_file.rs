@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Write};
-#[cfg(target_os = "windows")]
-use std::mem;
 use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
