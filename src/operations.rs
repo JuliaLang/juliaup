@@ -194,7 +194,7 @@ impl std::io::Read for DataReaderWrap {
             self.0
                 .LoadAsync(buf.len() as u32)
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))?
-                .get()
+                .join()
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))? as usize;
         bytes = bytes.min(buf.len());
         self.0
@@ -221,7 +221,7 @@ pub fn download_extract_sans_parent(
     let http_response = http_client
         .GetAsync(&request_uri)
         .with_context(|| "Failed to initiate download.")?
-        .get()
+        .join()
         .with_context(|| "Failed to complete async download operation.")?;
 
     http_response
@@ -243,7 +243,7 @@ pub fn download_extract_sans_parent(
     let response_stream = http_response_content
         .ReadAsInputStreamAsync()
         .with_context(|| "Failed to initiate get input stream from response")?
-        .get()
+        .join()
         .with_context(|| "Failed to obtain input stream from http response")?;
 
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
@@ -319,7 +319,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed on http_client.GetStringAsync")?
-        .get()
+        .join()
         .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
 
@@ -346,7 +346,7 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed to download version db step 1.")?
-        .get()
+        .join()
         .with_context(|| "Failed to download version db step 2.")?
         .to_string();
 
@@ -1674,7 +1674,7 @@ fn download_direct_download_etags(
                         .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
 
                     let response = async_op
-                        .get()
+                        .join()
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
 
                     if response.IsSuccessStatusCode()? {
