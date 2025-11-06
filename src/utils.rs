@@ -154,6 +154,79 @@ mod tests {
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
     }
+
+    #[test]
+    fn test_get_julia_environment_variables() {
+        let env_vars = get_julia_environment_variables();
+
+        // Should return a non-empty list
+        assert!(!env_vars.is_empty(), "Should have Julia environment variables");
+
+        // Should contain common variables
+        assert!(
+            env_vars.contains(&"JULIA_NUM_THREADS"),
+            "Should include JULIA_NUM_THREADS"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_DEPOT_PATH"),
+            "Should include JULIA_DEPOT_PATH"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_EDITOR"),
+            "Should include JULIA_EDITOR"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_PKG_SERVER"),
+            "Should include JULIA_PKG_SERVER"
+        );
+
+        // Should NOT contain JULIA_PROJECT (it's explicitly excluded)
+        assert!(
+            !env_vars.contains(&"JULIA_PROJECT"),
+            "Should NOT include JULIA_PROJECT"
+        );
+
+        // All entries should start with "JULIA_" or be known exceptions
+        for var in &env_vars {
+            assert!(
+                var.starts_with("JULIA_")
+                    || *var == "NO_COLOR"
+                    || *var == "FORCE_COLOR"
+                    || *var == "ENABLE_JITPROFILING"
+                    || *var == "ENABLE_GDBLISTENER",
+                "Variable {} should start with JULIA_ or be a known exception",
+                var
+            );
+        }
+
+        // Check that we have variables from different categories
+        assert!(
+            env_vars.contains(&"JULIA_NUM_THREADS"),
+            "Should have parallelization vars"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_ERROR_COLOR"),
+            "Should have REPL formatting vars"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_DEBUG"),
+            "Should have debugging vars"
+        );
+    }
+
+    #[test]
+    fn test_julia_environment_variables_uniqueness() {
+        let env_vars = get_julia_environment_variables();
+        let mut seen = std::collections::HashSet::new();
+
+        for var in env_vars {
+            assert!(
+                seen.insert(var),
+                "Duplicate environment variable found: {}",
+                var
+            );
+        }
+    }
 }
 
 // Message formatting constants and functions
