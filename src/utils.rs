@@ -223,3 +223,71 @@ pub fn print_juliaup_style(action: &str, message: &str, message_type: JuliaupMes
 
     eprintln!("{} {}", styled_action, message);
 }
+
+/// Returns the list of Julia environment variables that can be persisted
+/// Excludes JULIA_PROJECT as noted in the Julia documentation
+pub fn get_julia_environment_variables() -> Vec<&'static str> {
+    vec![
+        // File Locations
+        "JULIA_BINDIR",
+        "JULIA_LOAD_PATH",
+        "JULIA_DEPOT_PATH",
+        "JULIA_HISTORY",
+        "JULIA_MAX_NUM_PRECOMPILE_FILES",
+        "JULIA_VERBOSE_LINKING",
+        // Pkg.jl
+        "JULIA_CI",
+        "JULIA_NUM_PRECOMPILE_TASKS",
+        "JULIA_PKG_DEVDIR",
+        "JULIA_PKG_IGNORE_HASHES",
+        "JULIA_PKG_OFFLINE",
+        "JULIA_PKG_PRECOMPILE_AUTO",
+        "JULIA_PKG_SERVER",
+        "JULIA_PKG_SERVER_REGISTRY_PREFERENCE",
+        "JULIA_PKG_UNPACK_REGISTRY",
+        "JULIA_PKG_USE_CLI_GIT",
+        "JULIA_PKGRESOLVE_ACCURACY",
+        "JULIA_PKG_PRESERVE_TIERED_INSTALLED",
+        "JULIA_PKG_GC_AUTO",
+        // Network Transport
+        "JULIA_NO_VERIFY_HOSTS",
+        "JULIA_SSL_NO_VERIFY_HOSTS",
+        "JULIA_SSH_NO_VERIFY_HOSTS",
+        "JULIA_ALWAYS_VERIFY_HOSTS",
+        "JULIA_SSL_CA_ROOTS_PATH",
+        // External Applications
+        "JULIA_SHELL",
+        "JULIA_EDITOR",
+        // Parallelization
+        "JULIA_CPU_THREADS",
+        "JULIA_WORKER_TIMEOUT",
+        "JULIA_NUM_THREADS",
+        "JULIA_THREAD_SLEEP_THRESHOLD",
+        "JULIA_NUM_GC_THREADS",
+        "JULIA_IMAGE_THREADS",
+        "JULIA_IMAGE_TIMINGS",
+        "JULIA_EXCLUSIVE",
+        // Garbage Collection
+        "JULIA_HEAP_SIZE_HINT",
+        // REPL Formatting
+        "JULIA_ERROR_COLOR",
+        "JULIA_WARN_COLOR",
+        "JULIA_INFO_COLOR",
+        "JULIA_INPUT_COLOR",
+        "JULIA_ANSWER_COLOR",
+        "NO_COLOR",
+        "FORCE_COLOR",
+        // System and Package Image Building
+        "JULIA_CPU_TARGET",
+        // Debugging and Profiling
+        "JULIA_DEBUG",
+        "JULIA_PROFILE_PEEK_HEAP_SNAPSHOT",
+        "JULIA_TIMING_SUBSYSTEMS",
+        "JULIA_GC_NO_GENERATIONAL",
+        "JULIA_GC_WAIT_FOR_DEBUGGER",
+        "ENABLE_JITPROFILING",
+        "ENABLE_GDBLISTENER",
+        "JULIA_LLVM_ARGS",
+        "JULIA_FALLBACK_REPL",
+    ]
+}
