@@ -1,7 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use console::{style, Term};
 use dialoguer::Select;
-use expand_tilde::expand_tilde;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{
@@ -281,12 +280,10 @@ fn load_path_expand_impl(
     }
 
     // Otherwise, it's a path
-    let path = expand_tilde(env)?.into_owned();
-    let path = if path.is_absolute() {
-        path
-    } else {
-        current_dir.join(path)
-    };
+    let mut path = PathBuf::from(shellexpand::tilde(env).as_ref());
+    if path.is_relative() {
+        path = current_dir.join(path);
+    }
 
     if path.is_dir() {
         // Directory with a project file?
@@ -345,13 +342,13 @@ fn julia_option_requires_arg(opt: &str) -> bool {
 
     // Handle short options: from shortopts = "+vhqH:e:E:L:J:C:it:p:O:g:m:"
     // Options WITHOUT ':' are no_argument, 'O' and 'g' are optional_argument
-    if let Some(short) = opt.strip_prefix('-').and_then(|s| {
-        if !s.starts_with('-') && s.len() == 1 {
-            s.chars().next()
-        } else {
-            None
-        }
-    }) {
+
+    // Check if this is a short option (e.g., "-e" but not "--eval")
+    let short_option = opt.strip_prefix('-')
+        .filter(|s| !s.starts_with('-') && s.len() == 1)
+        .and_then(|s| s.chars().next());
+
+    if let Some(short) = short_option {
         // no_argument: v, h, q, i
         // optional_argument: O, g
         return !matches!(short, 'v' | 'h' | 'q' | 'i' | 'O' | 'g');
@@ -521,32 +518,31 @@ fn determine_project_version_spec_impl(
 ) -> Result<Option<String>> {
     let depot_path = std::env::var_os("JULIA_DEPOT_PATH");
 
-    // Get the active project file using Julia's init_active_project logic
-    let project_file = match init_active_project_impl(
+    // Try --project or JULIA_PROJECT first
+    if let Some(project_file) = init_active_project_impl(
         args,
         current_dir,
         julia_project.as_deref(),
         depot_path.as_deref(),
     )? {
-        Some(file) => file,
-        None => {
-            // If no project specified via --project or JULIA_PROJECT,
-            // try searching JULIA_LOAD_PATH
-            if let Some(load_path) = julia_load_path {
-                match find_project_from_load_path(&load_path, current_dir, depot_path.as_deref())? {
-                    Some(file) => file,
-                    None => {
-                        log::debug!("VersionDetect::No project specification found");
-                        return Ok(None);
-                    }
-                }
-            } else {
-                log::debug!("VersionDetect::No project specification found");
-                return Ok(None);
-            }
-        }
-    };
+        return extract_version_from_project(project_file);
+    }
 
+    // Fall back to JULIA_LOAD_PATH
+    if let Some(ref load_path) = julia_load_path {
+        if let Some(project_file) =
+            find_project_from_load_path(load_path, current_dir, depot_path.as_deref())?
+        {
+            return extract_version_from_project(project_file);
+        }
+    }
+
+    // No project found
+    log::debug!("VersionDetect::No project specification found");
+    Ok(None)
+}
+
+fn extract_version_from_project(project_file: PathBuf) -> Result<Option<String>> {
     log::debug!(
         "VersionDetect::Using project file: {}",
         project_file.display()
@@ -605,20 +601,23 @@ fn find_highest_versioned_manifest(project_root: &Path) -> Option<PathBuf> {
         let path = entry.path();
         if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
             // Check for versioned manifests: JuliaManifest-v*.toml or Manifest-v*.toml
+            // Skip files that don't match either pattern
+            if !filename.starts_with("JuliaManifest-v") && !filename.starts_with("Manifest-v") {
+                continue;
+            }
+
             let (prefix, target) = if filename.starts_with("JuliaManifest-v") {
                 ("JuliaManifest-v", &mut highest_julia)
-            } else if filename.starts_with("Manifest-v") {
-                ("Manifest-v", &mut highest_manifest)
             } else {
-                continue;
+                ("Manifest-v", &mut highest_manifest)
             };
 
-            if let Some(stripped) = filename.strip_prefix(prefix) {
-                if let Some(version_str) = stripped.strip_suffix(".toml") {
-                    if let Some(version) = parse_version_lenient(version_str) {
-                        update_highest(target, version, path);
-                    }
-                }
+            if let Some(version) = filename
+                .strip_prefix(prefix)
+                .and_then(|s| s.strip_suffix(".toml"))
+                .and_then(parse_version_lenient)
+            {
+                update_highest(target, version, path);
             }
         }
     }
@@ -833,14 +832,18 @@ fn max_version_for_minor(
 
     // Check both available_versions and available_channels for the most complete picture
     for key in versions_db.available_channels.keys() {
-        if let Ok(version) = parse_db_version(key) {
-            if version.major == major && version.minor == minor {
-                max_version = match &max_version {
-                    Some(current) if current >= &version => Some(current.clone()),
-                    _ => Some(version),
-                };
-            }
+        let Ok(version) = parse_db_version(key) else {
+            continue;
+        };
+
+        if version.major != major || version.minor != minor {
+            continue;
         }
+
+        max_version = match &max_version {
+            Some(current) if current >= &version => Some(current.clone()),
+            _ => Some(version),
+        };
     }
 
     Ok(max_version)
@@ -1000,6 +1003,7 @@ fn is_nightly_channel(channel: &str) -> bool {
     nightly_re.is_match(channel)
 }
 
+#[derive(Debug)]
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
@@ -1539,6 +1543,54 @@ mod tests {
         .unwrap();
     }
 
+    // Helper to create a project with a standard manifest in one call
+    fn create_project_with_manifest(dir: &Path, julia_version: &str) -> PathBuf {
+        let project_file = create_test_project(dir, "name = \"TestProject\"");
+        create_manifest(dir, "Manifest.toml", julia_version);
+        project_file
+    }
+
+    // Helper to build julia args, optionally with --project flag
+    // Pass None for no project flag, Some(path) for --project={path}
+    fn julia_args(project_path: Option<&Path>) -> Vec<String> {
+        let mut args = vec!["julia".to_string()];
+        if let Some(path) = project_path {
+            args.push(format!("--project={}", path.display()));
+        }
+        args.push("-e".to_string());
+        args.push("1+1".to_string());
+        args
+    }
+
+    // Helper to build julia args with --project flag (no value, searches upward)
+    fn julia_args_with_project_search() -> Vec<String> {
+        vec![
+            "julia".to_string(),
+            "--project".to_string(),
+            "-e".to_string(),
+            "1+1".to_string(),
+        ]
+    }
+
+    // Helper to assert channel determination result
+    fn assert_channel(
+        result: Result<(String, JuliaupChannelSource)>,
+        expected_channel: &str,
+        expected_source: JuliaupChannelSource,
+    ) {
+        assert!(result.is_ok());
+        let (channel, source) = result.unwrap();
+        assert_eq!(channel, expected_channel);
+        // Use discriminant comparison to check enum variant equality
+        assert_eq!(
+            std::mem::discriminant(&source),
+            std::mem::discriminant(&expected_source),
+            "Expected source {:?}, got {:?}",
+            expected_source,
+            source
+        );
+    }
+
     // Platform-specific path separator for JULIA_LOAD_PATH
     #[cfg(windows)]
     const LOAD_PATH_SEPARATOR: &str = ";";
@@ -1597,42 +1649,26 @@ mod tests {
     fn test_determine_project_version_spec_from_project_flag() {
         // Test --project flag with explicit path (end-to-end: manifest -> channel)
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
-
-        let args = vec![
-            "julia".to_string(),
-            format!("--project={}", temp_dir.path().display()),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
+        let args = julia_args(Some(temp_dir.path()));
 
         let versions_db = create_test_versions_db();
         let result =
             determine_channel(&args, None, None, Some("default".to_string()), &versions_db);
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.10.5");
-        assert!(matches!(source, JuliaupChannelSource::Auto));
+        assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
     }
 
     #[test]
     fn test_determine_project_version_spec_from_project_flag_no_value() {
         // Test --project (without value) searches upward (end-to-end: manifest -> channel)
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.11.0");
+        create_project_with_manifest(temp_dir.path(), "1.11.0");
 
         let old_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
-        let args = vec![
-            "julia".to_string(),
-            "--project".to_string(),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        let args = julia_args_with_project_search();
 
         let versions_db = create_test_versions_db();
         let result =
@@ -1640,10 +1676,7 @@ mod tests {
 
         std::env::set_current_dir(old_dir).unwrap();
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.11.0");
-        assert!(matches!(source, JuliaupChannelSource::Auto));
+        assert_channel(result, "1.11.0", JuliaupChannelSource::Auto);
     }
 
     #[test]
@@ -1651,10 +1684,8 @@ mod tests {
         // Test JULIA_PROJECT environment variable auto-detects version
         // (Low-level test for JULIA_PROJECT parsing - complementary to end-to-end tests)
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.11.3");
-
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        create_project_with_manifest(temp_dir.path(), "1.11.3");
+        let args = julia_args(None);
 
         let result = determine_project_version_spec_impl(
             &args,
@@ -1671,10 +1702,8 @@ mod tests {
     fn test_determine_project_version_spec_from_env_var_empty_searches_upward() {
         // Test JULIA_PROJECT="" (empty) searches upward like @.
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.11.0");
-
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        create_project_with_manifest(temp_dir.path(), "1.11.0");
+        let args = julia_args(None);
 
         let result =
             determine_project_version_spec_impl(&args, Some("".to_string()), None, temp_dir.path())
@@ -1688,8 +1717,7 @@ mod tests {
         // Test that --project parsing stops at the first positional argument (script name)
         // julia script.jl --project=@foo should NOT use @foo
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
+        create_project_with_manifest(temp_dir.path(), "1.10.0");
 
         let args = vec![
             "julia".to_string(),
@@ -1708,8 +1736,7 @@ mod tests {
         // Test that --project parsing stops at --
         // julia -- script.jl --project=@foo should NOT use @foo
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
+        create_project_with_manifest(temp_dir.path(), "1.10.0");
 
         let args = vec![
             "julia".to_string(),
@@ -1730,8 +1757,7 @@ mod tests {
         // julia --project=path script.jl --project=@foo
         // Should use the first --project (before script.jl)
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
 
         let args = vec![
             "julia".to_string(),
@@ -1744,20 +1770,15 @@ mod tests {
         let result =
             determine_channel(&args, None, None, Some("default".to_string()), &versions_db);
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.10.5");
-        assert!(matches!(source, JuliaupChannelSource::Auto));
+        assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
     }
 
     #[test]
     fn test_determine_project_version_spec_from_env_var_named_environment() {
         // Test JULIA_PROJECT=@. resolves to current directory
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.2");
-
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        create_project_with_manifest(temp_dir.path(), "1.10.2");
+        let args = julia_args(None);
 
         let result = determine_project_version_spec_impl(
             &args,
@@ -1805,7 +1826,7 @@ mod tests {
     fn test_determine_project_version_spec_no_project_specified() {
         // Test that None is returned when no project is specified
         let temp_dir = TempDir::new().unwrap();
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        let args = julia_args(None);
 
         let result =
             determine_project_version_spec_impl(&args, None, None, temp_dir.path()).unwrap();
@@ -1816,8 +1837,7 @@ mod tests {
     fn test_determine_project_version_spec_from_load_path() {
         // Test JULIA_LOAD_PATH environment variable
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.12.0");
+        create_project_with_manifest(temp_dir.path(), "1.12.0");
 
         let load_path = format!(
             "@{}{}{}@stdlib",
@@ -1825,8 +1845,7 @@ mod tests {
             temp_dir.path().display(),
             LOAD_PATH_SEPARATOR
         );
-
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        let args = julia_args(None);
 
         let result =
             determine_project_version_spec_impl(&args, None, Some(load_path), temp_dir.path())
@@ -1940,15 +1959,13 @@ mod tests {
         // Test that --project parsing correctly handles options with required arguments (getopt behavior)
         // E.g., "julia --module --project foo.jl" treats "--project" as the module name, not a flag
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
+
+        let to_args = |parts: &[&str]| parts.iter().map(|s| s.to_string()).collect::<Vec<_>>();
 
         // --project consumed by --module (long option)
         assert!(determine_project_version_spec_impl(
-            &["julia", "--module", "--project", "foo.jl"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+            &to_args(&["julia", "--module", "--project", "foo.jl"]),
             None,
             None,
             temp_dir.path()
@@ -1958,10 +1975,7 @@ mod tests {
 
         // --project consumed by -e (short option)
         assert!(determine_project_version_spec_impl(
-            &["julia", "-e", "--project", "foo.jl"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+            &to_args(&["julia", "-e", "--project", "foo.jl"]),
             None,
             None,
             temp_dir.path()
@@ -1972,15 +1986,12 @@ mod tests {
         // --project after multiple required args still works
         assert_eq!(
             determine_project_version_spec_impl(
-                &[
+                &to_args(&[
                     "julia",
                     "--eval",
                     "1+1",
                     &format!("--project={}", temp_dir.path().display())
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+                ]),
                 None,
                 None,
                 temp_dir.path()
@@ -1992,14 +2003,11 @@ mod tests {
         // Options with = don't consume next token
         assert_eq!(
             determine_project_version_spec_impl(
-                &[
+                &to_args(&[
                     "julia",
                     "--eval=1+1",
                     &format!("--project={}", temp_dir.path().display())
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<_>>(),
+                ]),
                 None,
                 None,
                 temp_dir.path()
@@ -2406,8 +2414,7 @@ mod tests {
     fn test_channel_selection_priority_cmdline_wins() {
         // Test that +channel has highest priority
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
 
         let args = vec![
             "julia".to_string(),
@@ -2426,25 +2433,15 @@ mod tests {
             &versions_db,
         );
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.11.3");
-        assert!(matches!(source, JuliaupChannelSource::CmdLine));
+        assert_channel(result, "1.11.3", JuliaupChannelSource::CmdLine);
     }
 
     #[test]
     fn test_channel_selection_priority_env_over_auto() {
         // Test that JULIAUP_CHANNEL has priority over auto-detected version
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
-
-        let args = vec![
-            "julia".to_string(),
-            format!("--project={}", temp_dir.path().display()),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
+        let args = julia_args(Some(temp_dir.path()));
 
         let versions_db = create_test_versions_db();
         let result = determine_channel(
@@ -2455,64 +2452,41 @@ mod tests {
             &versions_db,
         );
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.11.3");
-        assert!(matches!(source, JuliaupChannelSource::EnvVar));
+        assert_channel(result, "1.11.3", JuliaupChannelSource::EnvVar);
     }
 
     #[test]
     fn test_channel_selection_auto_from_manifest() {
         // Test that auto-detection works when no higher priority source
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
-
-        let args = vec![
-            "julia".to_string(),
-            format!("--project={}", temp_dir.path().display()),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
+        let args = julia_args(Some(temp_dir.path()));
 
         let versions_db = create_test_versions_db();
         let result =
             determine_channel(&args, None, None, Some("default".to_string()), &versions_db);
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.10.5");
-        assert!(matches!(source, JuliaupChannelSource::Auto));
+        assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
     }
 
     #[test]
     fn test_channel_selection_default_fallback() {
         // Test that default channel is used when nothing else applies
-        let args = vec!["julia".to_string(), "-e".to_string(), "1+1".to_string()];
+        let args = julia_args(None);
 
         let versions_db = create_test_versions_db();
         let result =
             determine_channel(&args, None, None, Some("release".to_string()), &versions_db);
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "release");
-        assert!(matches!(source, JuliaupChannelSource::Default));
+        assert_channel(result, "release", JuliaupChannelSource::Default);
     }
 
     #[test]
     fn test_channel_selection_override_priority() {
         // Test that override has priority over auto and default
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.10.5");
-
-        let args = vec![
-            "julia".to_string(),
-            format!("--project={}", temp_dir.path().display()),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        create_project_with_manifest(temp_dir.path(), "1.10.5");
+        let args = julia_args(Some(temp_dir.path()));
 
         let versions_db = create_test_versions_db();
         let result = determine_channel(
@@ -2523,29 +2497,20 @@ mod tests {
             &versions_db,
         );
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.11.0");
-        assert!(matches!(source, JuliaupChannelSource::Override));
+        assert_channel(result, "1.11.0", JuliaupChannelSource::Override);
     }
 
     #[test]
     fn test_channel_selection_auto_with_project_flag_no_value() {
         // Test auto-detection with --project (no value) searches upward
         let temp_dir = TempDir::new().unwrap();
-        create_test_project(temp_dir.path(), "name = \"TestProject\"");
-        create_manifest(temp_dir.path(), "Manifest.toml", "1.11.0");
+        create_project_with_manifest(temp_dir.path(), "1.11.0");
 
         // Change to temp directory for the test
         let old_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
-        let args = vec![
-            "julia".to_string(),
-            "--project".to_string(),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
+        let args = julia_args_with_project_search();
 
         let versions_db = create_test_versions_db();
         let result =
@@ -2554,9 +2519,6 @@ mod tests {
         // Restore directory
         std::env::set_current_dir(old_dir).unwrap();
 
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, "1.11.0");
-        assert!(matches!(source, JuliaupChannelSource::Auto));
+        assert_channel(result, "1.11.0", JuliaupChannelSource::Auto);
     }
 }
