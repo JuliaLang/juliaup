@@ -30,6 +30,7 @@ pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod operations;
 pub mod utils;
+pub mod version_selection;
 pub mod versions_file;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
