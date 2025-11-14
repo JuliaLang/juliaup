@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use toml::Value;
 
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 
 // Constants matching Julia's base/loading.jl
 // https://github.com/JuliaLang/julia/blob/dd80509227adbd525737244ebabc95ec5d634354/base/loading.jl#L625C1-L631C2
@@ -398,25 +399,11 @@ pub fn extract_version_from_project(project_file: PathBuf) -> Result<Option<Stri
 
 /// Find highest versioned manifest, preferring JuliaManifest over Manifest for same version
 pub fn find_highest_versioned_manifest(project_root: &Path) -> Option<PathBuf> {
-    let Ok(entries) = fs::read_dir(project_root) else {
-        return None;
-    };
+    let entries = fs::read_dir(project_root).ok()?;
 
     // Track highest version for both JuliaManifest and Manifest separately
     let mut highest_julia: Option<(Version, PathBuf)> = None;
     let mut highest_manifest: Option<(Version, PathBuf)> = None;
-
-    // Helper to update highest version if new version is greater
-    let update_highest =
-        |highest: &mut Option<(Version, PathBuf)>, version: Version, path: PathBuf| match highest {
-            Some((current_version, _)) if version > *current_version => {
-                *highest = Some((version, path));
-            }
-            None => {
-                *highest = Some((version, path));
-            }
-            _ => {}
-        };
 
     for entry in entries.flatten() {
         let path = entry.path();
@@ -438,20 +425,21 @@ pub fn find_highest_versioned_manifest(project_root: &Path) -> Option<PathBuf> {
                 .and_then(|s| s.strip_suffix(".toml"))
                 .and_then(parse_version_lenient)
             {
-                update_highest(target, version, path);
+                // Update highest if this version is greater or if none exists yet
+                let should_update = match target {
+                    Some((current_version, _)) => version > *current_version,
+                    None => true,
+                };
+                if should_update {
+                    *target = Some((version, path));
+                }
             }
         }
     }
 
     // Return highest version, preferring JuliaManifest for same version
     match (highest_julia, highest_manifest) {
-        (Some((jv, jpath)), Some((mv, mpath))) => {
-            if jv >= mv {
-                Some(jpath)
-            } else {
-                Some(mpath)
-            }
-        }
+        (Some((jv, jpath)), Some((mv, mpath))) => Some(if jv >= mv { jpath } else { mpath }),
         (Some((_, jpath)), None) => Some(jpath),
         (None, Some((_, mpath))) => Some(mpath),
         (None, None) => None,
@@ -509,12 +497,26 @@ pub fn parse_db_version(version: &str) -> Result<Version> {
     Version::parse(base).with_context(|| format!("Failed to parse version `{}`.", base))
 }
 
-pub fn max_available_version(versions_db: &JuliaupVersionDB) -> Result<Option<Version>> {
-    Ok(versions_db
-        .available_versions
-        .keys()
-        .filter_map(|key| parse_db_version(key).ok())
-        .max())
+fn versioned_nightly_channel(major: u64, minor: u64) -> String {
+    format!("{}.{}-nightly", major, minor)
+}
+
+impl JuliaupVersionDB {
+    pub fn max_available_version(&self) -> Option<Version> {
+        self.available_versions
+            .keys()
+            .filter_map(|key| parse_db_version(key).ok())
+            .max()
+    }
+
+    /// Find the maximum version (including prerelease) for a given major.minor series
+    pub fn max_version_for_minor(&self, major: u64, minor: u64) -> Option<Version> {
+        self.available_channels
+            .keys()
+            .filter_map(|key| parse_db_version(key).ok())
+            .filter(|version| version.major == major && version.minor == minor)
+            .max()
+    }
 }
 
 pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) -> Result<String> {
@@ -535,29 +537,32 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
     // Prereleases should use nightly channels because they represent development/testing versions
     if !required_version.pre.is_empty() {
         // Check if a version-specific nightly channel exists (e.g., 1.12-nightly)
-        let versioned_nightly = format!(
-            "{}.{}-nightly",
-            required_version.major, required_version.minor
-        );
+        let versioned_nightly =
+            versioned_nightly_channel(required_version.major, required_version.minor);
 
         if versions_db
             .available_channels
             .contains_key(&versioned_nightly)
         {
-            eprintln!(
-                "{} Manifest specifies prerelease Julia {}. Using {} channel.",
-                console::style("Info:").cyan().bold(),
-                required,
-                versioned_nightly
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Manifest specifies prerelease Julia {}. Using {} channel.",
+                    required, versioned_nightly
+                ),
+                JuliaupMessageType::Progress,
             );
             return Ok(versioned_nightly);
         }
 
         // Fall back to main nightly channel
-        eprintln!(
-            "{} Manifest specifies prerelease Julia {}. Using nightly channel.",
-            console::style("Info:").cyan().bold(),
-            required
+        print_juliaup_style(
+            "Info",
+            &format!(
+                "Manifest specifies prerelease Julia {}. Using nightly channel.",
+                required
+            ),
+            JuliaupMessageType::Progress,
         );
         return Ok("nightly".to_string());
     }
@@ -566,23 +571,23 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
     // This handles both regular versions (e.g., 1.12.55 > 1.12.1) and prerelease versions
     // (e.g., 1.12.0-rc1 when only 1.11.x exists)
     let max_version_for_minor =
-        max_version_for_minor(versions_db, required_version.major, required_version.minor)?;
+        versions_db.max_version_for_minor(required_version.major, required_version.minor);
 
     if let Some(max_minor_version) = &max_version_for_minor {
         if &required_version > max_minor_version {
             // The requested version is higher than any known version for this minor series
-            let channel = format!(
-                "{}.{}-nightly",
-                required_version.major, required_version.minor
-            );
-            eprintln!(
-                "{} Manifest specifies Julia {} but the highest known version for {}.{} is {}. Using {} channel.",
-                console::style("Info:").cyan().bold(),
-                required,
-                required_version.major,
-                required_version.minor,
-                max_minor_version,
-                channel
+            let channel = versioned_nightly_channel(required_version.major, required_version.minor);
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Manifest specifies Julia {} but the highest known version for {}.{} is {}. Using {} channel.",
+                    required,
+                    required_version.major,
+                    required_version.minor,
+                    max_minor_version,
+                    channel
+                ),
+                JuliaupMessageType::Progress,
             );
             return Ok(channel);
         }
@@ -590,44 +595,48 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
 
     // Check if requested version is higher than any known version overall
     // This handles the case where we have 1.12.x but request 1.13.0
-    let max_known_version = max_available_version(versions_db)?;
+    let max_known_version = versions_db.max_available_version();
     if let Some(max_version) = &max_known_version {
         if &required_version > max_version {
             // Check if a version-specific nightly channel exists (e.g., 1.13-nightly)
-            let versioned_nightly = format!(
-                "{}.{}-nightly",
-                required_version.major, required_version.minor
-            );
+            let versioned_nightly =
+                versioned_nightly_channel(required_version.major, required_version.minor);
 
             if versions_db
                 .available_channels
                 .contains_key(&versioned_nightly)
             {
-                eprintln!(
-                    "{} Manifest specifies Julia {} but the highest known version is {}. Using {} channel.",
-                    console::style("Info:").cyan().bold(),
-                    required,
-                    max_version,
-                    versioned_nightly
+                print_juliaup_style(
+                    "Info",
+                    &format!(
+                        "Manifest specifies Julia {} but the highest known version is {}. Using {} channel.",
+                        required, max_version, versioned_nightly
+                    ),
+                    JuliaupMessageType::Progress,
                 );
                 return Ok(versioned_nightly);
             }
 
             // Fall back to main nightly channel
-            eprintln!(
-                "{} Manifest specifies Julia {} but the highest known version is {}. Using nightly channel.",
-                console::style("Info:").cyan().bold(),
-                required,
-                max_version
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Manifest specifies Julia {} but the highest known version is {}. Using nightly channel.",
+                    required, max_version
+                ),
+                JuliaupMessageType::Progress,
             );
             return Ok("nightly".to_string());
         }
     } else {
         // No versions in database at all, use nightly
-        eprintln!(
-            "{} Manifest specifies Julia {} but no versions are known. Using nightly channel.",
-            console::style("Info:").cyan().bold(),
-            required
+        print_juliaup_style(
+            "Info",
+            &format!(
+                "Manifest specifies Julia {} but no versions are known. Using nightly channel.",
+                required
+            ),
+            JuliaupMessageType::Progress,
         );
         return Ok("nightly".to_string());
     }
@@ -638,35 +647,18 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
     ))
 }
 
-/// Find the maximum version (including prerelease) for a given major.minor series
-pub fn max_version_for_minor(
-    versions_db: &JuliaupVersionDB,
-    major: u64,
-    minor: u64,
-) -> Result<Option<Version>> {
-    Ok(versions_db
-        .available_channels
-        .keys()
-        .filter_map(|key| parse_db_version(key).ok())
-        .filter(|version| version.major == major && version.minor == minor)
-        .max())
-}
-
 pub fn get_auto_channel(
     args: &[String],
     versions_db: &JuliaupVersionDB,
     manifest_version_detect: bool,
-) -> Option<String> {
+) -> Result<Option<String>> {
     if !manifest_version_detect {
-        return None;
+        return Ok(None);
     }
 
-    determine_project_version_spec(args)
-        .and_then(|opt_version| {
-            opt_version
-                .map(|version| resolve_auto_channel(version, versions_db))
-                .transpose()
-        })
-        .ok()
-        .flatten()
+    if let Some(required_version) = determine_project_version_spec(args)? {
+        resolve_auto_channel(required_version, versions_db).map(Some)
+    } else {
+        Ok(None)
+    }
 }

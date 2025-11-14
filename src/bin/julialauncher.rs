@@ -614,7 +614,7 @@ fn determine_channel(
         Ok((channel, JuliaupChannelSource::EnvVar))
     } else if let Some(channel) = override_channel {
         Ok((channel, JuliaupChannelSource::Override))
-    } else if let Some(channel) = get_auto_channel(args, versions_db, manifest_version_detect) {
+    } else if let Some(channel) = get_auto_channel(args, versions_db, manifest_version_detect)? {
         Ok((channel, JuliaupChannelSource::Auto))
     } else if let Some(channel) = default_channel {
         Ok((channel, JuliaupChannelSource::Default))
@@ -1035,8 +1035,14 @@ mod tests {
         let args = julia_args(Some(temp_dir.path()));
 
         let versions_db = create_test_versions_db();
-        let result =
-            determine_channel(&args, None, None, Some("default".to_string()), &versions_db, true);
+        let result = determine_channel(
+            &args,
+            None,
+            None,
+            Some("default".to_string()),
+            &versions_db,
+            true,
+        );
 
         assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
     }
@@ -1047,8 +1053,14 @@ mod tests {
         let args = julia_args(None);
 
         let versions_db = create_test_versions_db();
-        let result =
-            determine_channel(&args, None, None, Some("release".to_string()), &versions_db, true);
+        let result = determine_channel(
+            &args,
+            None,
+            None,
+            Some("release".to_string()),
+            &versions_db,
+            true,
+        );
 
         assert_channel(result, "release", JuliaupChannelSource::Default);
     }
@@ -1086,8 +1098,14 @@ mod tests {
         let args = julia_args_with_project_search();
 
         let versions_db = create_test_versions_db();
-        let result =
-            determine_channel(&args, None, None, Some("default".to_string()), &versions_db, true);
+        let result = determine_channel(
+            &args,
+            None,
+            None,
+            Some("default".to_string()),
+            &versions_db,
+            true,
+        );
 
         // Restore directory
         std::env::set_current_dir(old_dir).unwrap();
