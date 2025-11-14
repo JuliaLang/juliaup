@@ -14,6 +14,11 @@ const PROJECT_NAMES: &[&str] = &["JuliaProject.toml", "Project.toml"];
 // excludes versioned manifests here
 const MANIFEST_NAMES: &[&str] = &["JuliaManifest.toml", "Manifest.toml"];
 
+#[cfg(windows)]
+pub const LOAD_PATH_SEPARATOR: &str = ";";
+#[cfg(not(windows))]
+pub const LOAD_PATH_SEPARATOR: &str = ":";
+
 fn find_named_file(dir: &Path, candidates: &[&str]) -> Option<PathBuf> {
     candidates
         .iter()
@@ -140,9 +145,7 @@ pub fn find_project_from_load_path(
     current_dir: &Path,
     depot_path: Option<&std::ffi::OsStr>,
 ) -> Result<Option<PathBuf>> {
-    let separator = if cfg!(windows) { ';' } else { ':' };
-
-    for entry in load_path.split(separator).map(str::trim) {
+    for entry in load_path.split(LOAD_PATH_SEPARATOR).map(str::trim) {
         if should_skip_load_path_entry(entry) {
             continue;
         }
@@ -167,6 +170,7 @@ pub fn find_project_from_load_path(
 /// Check if a Julia option requires an argument (mimics getopt's required_argument)
 /// Based on jloptions.c:421-493
 pub fn julia_option_requires_arg(opt: &str) -> bool {
+    // TODO: Rewrite with clap.rs in future
     // Options with = already include their argument
     if opt.contains('=') {
         return false;
@@ -653,10 +657,8 @@ pub fn get_auto_channel(
     manifest_version_detect: bool,
 ) -> Result<Option<String>> {
     if !manifest_version_detect {
-        return Ok(None);
-    }
-
-    if let Some(required_version) = determine_project_version_spec(args)? {
+        Ok(None)
+    } else if let Some(required_version) = determine_project_version_spec(args)? {
         resolve_auto_channel(required_version, versions_db).map(Some)
     } else {
         Ok(None)

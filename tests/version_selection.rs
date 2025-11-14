@@ -2,7 +2,7 @@ use indoc::indoc;
 use juliaup::jsonstructs_versionsdb::{
     JuliaupVersionDB, JuliaupVersionDBChannel, JuliaupVersionDBVersion,
 };
-use juliaup::version_selection::*;
+use juliaup::version_selection::{LOAD_PATH_SEPARATOR, *};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -43,12 +43,6 @@ fn julia_args(project_path: Option<&Path>) -> Vec<String> {
     args.push("1+1".to_string());
     args
 }
-
-// Platform-specific path separator for JULIA_LOAD_PATH
-#[cfg(windows)]
-const LOAD_PATH_SEPARATOR: &str = ";";
-#[cfg(not(windows))]
-const LOAD_PATH_SEPARATOR: &str = ":";
 
 #[test]
 fn test_load_path_expand_named_environment_dot() {
