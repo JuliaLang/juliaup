@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use semver::Version;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use toml::Value;
@@ -12,6 +13,54 @@ const PROJECT_NAMES: &[&str] = &["JuliaProject.toml", "Project.toml"];
 // excludes versioned manifests here
 const MANIFEST_NAMES: &[&str] = &["JuliaManifest.toml", "Manifest.toml"];
 
+fn find_named_file(dir: &Path, candidates: &[&str]) -> Option<PathBuf> {
+    candidates
+        .iter()
+        .map(|file| dir.join(file))
+        .find(|path| path.is_file())
+}
+
+fn find_project_file_in_dir(dir: &Path) -> Option<PathBuf> {
+    find_named_file(dir, PROJECT_NAMES)
+}
+
+fn resolve_depot_paths(depot_path: Option<&OsStr>) -> Result<Vec<PathBuf>> {
+    if let Some(paths) = depot_path {
+        let candidates: Vec<_> = std::env::split_paths(paths).collect();
+        if !candidates.is_empty() {
+            return Ok(candidates);
+        }
+    }
+
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow!("Could not determine the path of the user home directory."))?;
+    Ok(vec![home.join(".julia")])
+}
+
+fn find_named_environment(depot_paths: &[PathBuf], env_name: &str) -> Option<PathBuf> {
+    depot_paths.iter().find_map(|depot| {
+        let env_dir = depot.join("environments").join(env_name);
+        if env_dir.is_dir() {
+            find_project_file_in_dir(&env_dir)
+        } else {
+            None
+        }
+    })
+}
+
+fn default_named_environment_path(depot_paths: &[PathBuf], env_name: &str) -> Option<PathBuf> {
+    depot_paths.first().map(|depot| {
+        depot
+            .join("environments")
+            .join(env_name)
+            .join(PROJECT_NAMES.last().copied().unwrap_or("Project.toml"))
+    })
+}
+
+fn should_skip_load_path_entry(entry: &str) -> bool {
+    entry.is_empty() || entry == "@" || entry == "@stdlib" || entry.starts_with("@v")
+}
+
 /// Search upward from dir for a project file (Julia's current_project)
 /// https://github.com/JuliaLang/julia/blob/dd80509227adbd525737244ebabc95ec5d634354/base/initdefs.jl#L203-L216
 pub fn current_project(dir: &Path) -> Option<PathBuf> {
@@ -19,17 +68,13 @@ pub fn current_project(dir: &Path) -> Option<PathBuf> {
     let mut current = dir;
 
     loop {
-        // Check for project files in priority order
-        for proj in PROJECT_NAMES {
-            let file = current.join(proj);
-            if file.exists() && file.is_file() {
-                return Some(file);
-            }
+        if let Some(project) = find_project_file_in_dir(current) {
+            return Some(project);
         }
 
         // Bail at home directory
-        if let Some(ref home) = home {
-            if current == home.as_path() {
+        if let Some(ref home_dir) = home {
+            if current == home_dir.as_path() {
                 break;
             }
         }
@@ -54,53 +99,21 @@ pub fn load_path_expand_impl(
 ) -> Result<Option<PathBuf>> {
     // Named environment?
     if let Some(stripped) = env.strip_prefix('@') {
-        if stripped.is_empty() {
-            // "@" - would need active_project, skip for now
-            return Ok(None);
-        } else if stripped == "." {
-            // "@." - current project
-            return Ok(current_project(current_dir));
-        } else if stripped == "stdlib" {
-            // "@stdlib" - skip, not relevant for version detection
-            return Ok(None);
+        match stripped {
+            "" => return Ok(None),
+            "." => return Ok(current_project(current_dir)),
+            "stdlib" => return Ok(None),
+            _ => {}
         }
 
         // Named environment like "@v1.10"
-        let depot_paths = match depot_path {
-            Some(paths) if !paths.is_empty() => std::env::split_paths(paths).collect::<Vec<_>>(),
-            _ => {
-                let home = dirs::home_dir().ok_or_else(|| {
-                    anyhow!("Could not determine the path of the user home directory.")
-                })?;
-                vec![home.join(".julia")]
-            }
-        };
+        let depot_paths = resolve_depot_paths(depot_path)?;
 
-        // Look for named env in each depot
-        for depot in &depot_paths {
-            let path = depot.join("environments").join(stripped);
-            if !path.exists() || !path.is_dir() {
-                continue;
-            }
-
-            for proj in PROJECT_NAMES {
-                let file = path.join(proj);
-                if file.exists() && file.is_file() {
-                    return Ok(Some(file));
-                }
-            }
+        if let Some(project) = find_named_environment(&depot_paths, stripped) {
+            return Ok(Some(project));
         }
 
-        // Return default location even if it doesn't exist
-        if depot_paths.is_empty() {
-            return Ok(None);
-        }
-        return Ok(Some(
-            depot_paths[0]
-                .join("environments")
-                .join(stripped)
-                .join(PROJECT_NAMES[PROJECT_NAMES.len() - 1]),
-        ));
+        return Ok(default_named_environment_path(&depot_paths, stripped));
     }
 
     // Otherwise, it's a path
@@ -111,11 +124,8 @@ pub fn load_path_expand_impl(
 
     if path.is_dir() {
         // Directory with a project file?
-        for proj in PROJECT_NAMES {
-            let file = path.join(proj);
-            if file.exists() && file.is_file() {
-                return Ok(Some(file));
-            }
+        if let Some(project_file) = find_project_file_in_dir(&path) {
+            return Ok(Some(project_file));
         }
     }
 
@@ -131,24 +141,21 @@ pub fn find_project_from_load_path(
 ) -> Result<Option<PathBuf>> {
     let separator = if cfg!(windows) { ';' } else { ':' };
 
-    for entry in load_path.split(separator) {
-        let entry = entry.trim();
-
-        // Skip empty entries and special entries that don't represent projects
-        if entry.is_empty() || entry == "@" || entry.starts_with("@v") || entry == "@stdlib" {
+    for entry in load_path.split(separator).map(str::trim) {
+        if should_skip_load_path_entry(entry) {
             continue;
         }
 
-        // Try to expand this load path entry as a project
-        if let Ok(Some(project_file)) = load_path_expand_impl(entry, current_dir, depot_path) {
-            // Check if this project has a manifest
-            if project_file_manifest_path(&project_file).is_some() {
-                log::debug!(
-                    "VersionDetect::Found valid project in JULIA_LOAD_PATH entry: {}",
-                    entry
-                );
-                return Ok(Some(project_file));
-            }
+        let Ok(Some(project_file)) = load_path_expand_impl(entry, current_dir, depot_path) else {
+            continue;
+        };
+
+        if project_file_manifest_path(&project_file).is_some() {
+            log::debug!(
+                "VersionDetect::Found valid project in JULIA_LOAD_PATH entry: {}",
+                entry
+            );
+            return Ok(Some(project_file));
         }
     }
 
@@ -205,11 +212,9 @@ pub fn init_active_project_impl(
     // Check for --project flag in args
     // Stop parsing at "--" or the first positional argument (non-flag)
     // to match Julia's argument parsing behavior
-    let mut project_cli: Option<Option<String>> = None;
-    let mut index = 1;
-    while index < args.len() {
-        let arg = &args[index];
-
+    let mut project_cli = None;
+    let mut args_iter = args.iter().skip(1);
+    while let Some(arg) = args_iter.next() {
         // Stop at -- separator (everything after is for the script)
         if arg == "--" {
             break;
@@ -230,9 +235,8 @@ pub fn init_active_project_impl(
         } else if julia_option_requires_arg(arg) {
             // This option consumes the next token as its argument
             // Skip it to avoid treating the argument as a flag
-            index += 1;
+            args_iter.next();
         }
-        index += 1;
     }
 
     // Determine project spec
@@ -300,15 +304,7 @@ pub fn project_file_manifest_path(project_file: &Path) -> Option<PathBuf> {
         return Some(versioned_manifest);
     }
 
-    // Then check standard manifests in priority order
-    for mfst in MANIFEST_NAMES {
-        let manifest_file = dir.join(mfst);
-        if manifest_file.exists() && manifest_file.is_file() {
-            return Some(manifest_file);
-        }
-    }
-
-    None
+    find_named_file(dir, MANIFEST_NAMES)
 }
 
 /// Determines the Julia version requirement from a project's Manifest.toml.
@@ -514,16 +510,11 @@ pub fn parse_db_version(version: &str) -> Result<Version> {
 }
 
 pub fn max_available_version(versions_db: &JuliaupVersionDB) -> Result<Option<Version>> {
-    let mut max_version: Option<Version> = None;
-    for key in versions_db.available_versions.keys() {
-        if let Ok(version) = parse_db_version(key) {
-            max_version = match max_version {
-                Some(current) if current >= version => Some(current),
-                _ => Some(version),
-            };
-        }
-    }
-    Ok(max_version)
+    Ok(versions_db
+        .available_versions
+        .keys()
+        .filter_map(|key| parse_db_version(key).ok())
+        .max())
 }
 
 pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) -> Result<String> {
@@ -653,25 +644,12 @@ pub fn max_version_for_minor(
     major: u64,
     minor: u64,
 ) -> Result<Option<Version>> {
-    let mut max_version: Option<Version> = None;
-
-    // Check both available_versions and available_channels for the most complete picture
-    for key in versions_db.available_channels.keys() {
-        let Ok(version) = parse_db_version(key) else {
-            continue;
-        };
-
-        if version.major != major || version.minor != minor {
-            continue;
-        }
-
-        max_version = match &max_version {
-            Some(current) if current >= &version => Some(current.clone()),
-            _ => Some(version),
-        };
-    }
-
-    Ok(max_version)
+    Ok(versions_db
+        .available_channels
+        .keys()
+        .filter_map(|key| parse_db_version(key).ok())
+        .filter(|version| version.major == major && version.minor == minor)
+        .max())
 }
 
 pub fn get_auto_channel(args: &[String], versions_db: &JuliaupVersionDB) -> Option<String> {
