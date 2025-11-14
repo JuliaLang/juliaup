@@ -596,6 +596,7 @@ fn determine_channel(
     override_channel: Option<String>,
     default_channel: Option<String>,
     versions_db: &JuliaupVersionDB,
+    manifest_version_detect: bool,
 ) -> Result<(String, JuliaupChannelSource)> {
     // Parse command line for +channel
     let mut channel_from_cmd_line: Option<String> = None;
@@ -613,7 +614,7 @@ fn determine_channel(
         Ok((channel, JuliaupChannelSource::EnvVar))
     } else if let Some(channel) = override_channel {
         Ok((channel, JuliaupChannelSource::Override))
-    } else if let Some(channel) = get_auto_channel(args, versions_db) {
+    } else if let Some(channel) = get_auto_channel(args, versions_db, manifest_version_detect) {
         Ok((channel, JuliaupChannelSource::Auto))
     } else if let Some(channel) = default_channel {
         Ok((channel, JuliaupChannelSource::Default))
@@ -648,6 +649,7 @@ fn run_app() -> Result<i32> {
         get_override_channel(&config_file)?,
         config_file.data.default.clone(),
         &versiondb_data,
+        config_file.data.settings.manifest_version_detect,
     )
     .with_context(|| "The Julia launcher failed to figure out which juliaup channel to use.")?;
 
@@ -999,6 +1001,7 @@ mod tests {
             Some("override".to_string()),
             Some("default".to_string()),
             &versions_db,
+            true,
         );
 
         assert_channel(result, "1.11.3", JuliaupChannelSource::CmdLine);
@@ -1018,6 +1021,7 @@ mod tests {
             None,
             Some("default".to_string()),
             &versions_db,
+            true,
         );
 
         assert_channel(result, "1.11.3", JuliaupChannelSource::EnvVar);
@@ -1032,7 +1036,7 @@ mod tests {
 
         let versions_db = create_test_versions_db();
         let result =
-            determine_channel(&args, None, None, Some("default".to_string()), &versions_db);
+            determine_channel(&args, None, None, Some("default".to_string()), &versions_db, true);
 
         assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
     }
@@ -1044,7 +1048,7 @@ mod tests {
 
         let versions_db = create_test_versions_db();
         let result =
-            determine_channel(&args, None, None, Some("release".to_string()), &versions_db);
+            determine_channel(&args, None, None, Some("release".to_string()), &versions_db, true);
 
         assert_channel(result, "release", JuliaupChannelSource::Default);
     }
@@ -1063,6 +1067,7 @@ mod tests {
             Some("1.11.0".to_string()),
             Some("default".to_string()),
             &versions_db,
+            true,
         );
 
         assert_channel(result, "1.11.0", JuliaupChannelSource::Override);
@@ -1082,7 +1087,7 @@ mod tests {
 
         let versions_db = create_test_versions_db();
         let result =
-            determine_channel(&args, None, None, Some("default".to_string()), &versions_db);
+            determine_channel(&args, None, None, Some("default".to_string()), &versions_db, true);
 
         // Restore directory
         std::env::set_current_dir(old_dir).unwrap();

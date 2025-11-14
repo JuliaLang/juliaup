@@ -652,7 +652,15 @@ pub fn max_version_for_minor(
         .max())
 }
 
-pub fn get_auto_channel(args: &[String], versions_db: &JuliaupVersionDB) -> Option<String> {
+pub fn get_auto_channel(
+    args: &[String],
+    versions_db: &JuliaupVersionDB,
+    manifest_version_detect: bool,
+) -> Option<String> {
+    if !manifest_version_detect {
+        return None;
+    }
+
     determine_project_version_spec(args)
         .and_then(|opt_version| {
             opt_version
