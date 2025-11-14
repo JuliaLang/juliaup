@@ -14,6 +14,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
@@ -37,6 +38,9 @@ use tar::Archive;
 use tempfile::Builder;
 use tempfile::TempPath;
 use url::Url;
+
+// Progress bar prefix with proper indentation to match other messages (12 characters wide, right-aligned)
+const DOWNLOADING_PREFIX: &str = " Downloading";
 
 #[cfg(not(target_os = "freebsd"))]
 fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
@@ -92,6 +96,58 @@ where
     Ok(())
 }
 
+fn format_progress_bar(state: &indicatif::ProgressState, w: &mut dyn std::fmt::Write) {
+    // Mimics Pkg.jl's smooth progress bar implementation:
+    // https://github.com/JuliaLang/Pkg.jl/commit/e099a62e572c7f868857374688affc1fa1da0e88
+    use console::Style;
+
+    let width = 25; // Progress bar width in characters
+    let pos = state.pos();
+    let len = state.len().unwrap_or(pos);
+
+    let perc = if len > 0 {
+        (pos as f64 / len as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    // Use floor instead of ceil for smoother progress
+    let max_progress_width = width;
+    let n_filled = ((max_progress_width as f64 * perc / 100.0).floor() as usize).min(width);
+    let partial_filled = (max_progress_width as f64 * perc / 100.0) - n_filled as f64;
+
+    let cyan = Style::new().cyan();
+    let dim = Style::new().black().bright();
+
+    // Draw filled portion (cyan)
+    let filled_str = "━".repeat(n_filled);
+    let _ = write!(w, "{}", cyan.apply_to(filled_str));
+
+    // Draw partial character and empty portion to always maintain width
+    if n_filled < width {
+        let n_left = width - n_filled - 1;
+
+        if partial_filled > 0.5 {
+            // More filled, use ╸ in cyan
+            let _ = write!(w, "{}", cyan.apply_to("╸"));
+        } else {
+            // Less filled, use ╺ in dim color
+            let _ = write!(w, "{}", dim.apply_to("╺"));
+        }
+
+        // Draw empty portion (dim)
+        let empty_str = "━".repeat(n_left);
+        let _ = write!(w, "{}", dim.apply_to(empty_str));
+    }
+}
+
+fn bar_style() -> ProgressStyle {
+    ProgressStyle::default_bar()
+        .template("{prefix:.cyan.bold} {bar} {bytes}/{total_bytes} eta: {eta}")
+        .unwrap()
+        .with_key("bar", format_progress_bar)
+}
+
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
@@ -109,13 +165,8 @@ pub fn download_extract_sans_parent(
         None => ProgressBar::new_spinner(),
     };
 
-    pb.set_prefix("  Downloading:");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-            .unwrap()
-            .progress_chars("=> "),
-    );
+    pb.set_prefix(DOWNLOADING_PREFIX);
+    pb.set_style(bar_style());
 
     let last_modified = match response
         .headers()
@@ -143,7 +194,7 @@ impl std::io::Read for DataReaderWrap {
             self.0
                 .LoadAsync(buf.len() as u32)
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))?
-                .get()
+                .join()
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))? as usize;
         bytes = bytes.min(buf.len());
         self.0
@@ -170,7 +221,7 @@ pub fn download_extract_sans_parent(
     let http_response = http_client
         .GetAsync(&request_uri)
         .with_context(|| "Failed to initiate download.")?
-        .get()
+        .join()
         .with_context(|| "Failed to complete async download operation.")?;
 
     http_response
@@ -192,7 +243,7 @@ pub fn download_extract_sans_parent(
     let response_stream = http_response_content
         .ReadAsInputStreamAsync()
         .with_context(|| "Failed to initiate get input stream from response")?
-        .get()
+        .join()
         .with_context(|| "Failed to obtain input stream from http response")?;
 
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
@@ -209,13 +260,8 @@ pub fn download_extract_sans_parent(
         ProgressBar::new_spinner()
     };
 
-    pb.set_prefix("  Downloading:");
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix:.cyan.bold} [{bar}] {bytes}/{total_bytes} eta: {eta}")
-            .unwrap()
-            .progress_chars("=> "),
-    );
+    pb.set_prefix(DOWNLOADING_PREFIX);
+    pb.set_style(bar_style());
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
@@ -273,7 +319,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed on http_client.GetStringAsync")?
-        .get()
+        .join()
         .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
 
@@ -300,7 +346,7 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed to download version db step 1.")?
-        .get()
+        .join()
         .with_context(|| "Failed to download version db step 2.")?
         .to_string();
 
@@ -370,10 +416,10 @@ pub fn install_version(
                 )
             })?;
 
-        eprintln!(
-            "{} Julia {}",
-            style("Installing").green().bold(),
-            fullversion
+        print_juliaup_style(
+            "Installing",
+            &format!("Julia {}", fullversion),
+            JuliaupMessageType::Progress,
         );
 
         download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
@@ -413,7 +459,7 @@ pub fn install_version(
         eprint!("Checking standard library notarization");
         let _ = std::io::stdout().flush();
 
-        let exit_status = std::process::Command::new(julia_path)
+        match std::process::Command::new(julia_path)
             .env("JULIA_LOAD_PATH", "@stdlib")
             .arg("--startup-file=no")
             .arg("-e")
@@ -422,12 +468,22 @@ pub fn install_version(
             // .stderr(std::process::Stdio::null())
             // .stdin(std::process::Stdio::null())
             .status()
-            .unwrap();
-
-        if exit_status.success() {
-            eprintln!("done.")
-        } else {
-            eprintln!("failed with {}.", exit_status);
+        {
+            Ok(exit_status) => {
+                if exit_status.success() {
+                    eprintln!("done.")
+                } else {
+                    eprintln!("failed with {}.", exit_status);
+                }
+            }
+            Err(e) => {
+                eprintln!("failed to execute Julia binary.");
+                eprintln!("Error: {}", e);
+                if e.raw_os_error() == Some(86) {
+                    eprintln!("This may indicate an architecture mismatch (e.g., trying to run an Intel binary on Apple Silicon or vice versa).");
+                }
+                eprintln!("Installation completed but notarization check was skipped.");
+            }
         }
     }
 
@@ -741,7 +797,11 @@ pub fn install_non_db_version(
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
 
-    eprintln!("{} Julia {}", style("Installing").green().bold(), name);
+    print_juliaup_style(
+        "Installing",
+        &format!("Julia {}", name),
+        JuliaupMessageType::Progress,
+    );
 
     let res = install_from_url(&download_url, &rel_path, paths)?;
 
@@ -764,25 +824,33 @@ pub fn garbage_collect_versions(
 
             match std::fs::remove_dir_all(&path_to_delete) {
                 Ok(_) => versions_to_uninstall.push(installed_version.clone()),
-                Err(_) => eprintln!(
-                    "{}: Failed to delete {}. \
+                Err(_) => print_juliaup_style(
+                    "WARNING",
+                    &format!(
+                        "Failed to delete {}. \
                     Make sure to close any old julia version still running.\n\
                     You can try to delete at a later point by running `juliaup gc`.",
-                    style("WARNING").yellow().bold(),
-                    display
+                        display
+                    ),
+                    JuliaupMessageType::Warning,
                 ),
             }
         }
     }
 
     if versions_to_uninstall.is_empty() {
-        eprintln!(
-            "{}: No unused Julia installations to clean up.",
-            style("GC").cyan().bold()
+        print_juliaup_style(
+            "Tidyup",
+            "No unused Julia installations to clean up.",
+            JuliaupMessageType::Success,
         );
     } else {
         for i in versions_to_uninstall {
-            eprintln!("{} Julia {}", style("Removed").green().bold(), &i);
+            print_juliaup_style(
+                "Tidyup",
+                &format!("Removed Julia {}", &i),
+                JuliaupMessageType::Success,
+            );
             config_data.installed_versions.remove(&i);
         }
     }
@@ -826,10 +894,10 @@ pub fn remove_symlink(symlink_name: &String) -> Result<()> {
         .with_context(|| "Failed to retrieve binary directory while trying to remove a symlink.")?
         .join(symlink_name);
 
-    eprintln!(
-        "{} {}.",
-        style("Deleting symlink").cyan().bold(),
-        symlink_name
+    print_juliaup_style(
+        "Deleting",
+        &format!("symlink {}.", symlink_name),
+        JuliaupMessageType::Progress,
     );
 
     _remove_symlink(&symlink_path)?;
@@ -849,19 +917,21 @@ fn create_system_channel_symlink(
     let target_path = paths.juliauphome.join(&child_target_foldername);
 
     if let Some(ref prev_target) = updating {
-        eprintln!(
-            "{} symlink {} ( {} -> {} )",
-            style("Updating").cyan().bold(),
-            symlink_name,
-            prev_target.to_string_lossy(),
-            version
+        print_juliaup_style(
+            "Updating",
+            &format!(
+                "symlink {} ( {} -> {} )",
+                symlink_name,
+                prev_target.to_string_lossy(),
+                version
+            ),
+            JuliaupMessageType::Progress,
         );
     } else {
-        eprintln!(
-            "{} {} for Julia {}.",
-            style("Creating symlink").cyan().bold(),
-            symlink_name,
-            version
+        print_juliaup_style(
+            "Creating",
+            &format!("symlink {} for Julia {}", symlink_name, version),
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -887,19 +957,21 @@ fn create_direct_download_symlink(
     let target_path = paths.juliauphome.join(path);
 
     if let Some(ref prev_target) = updating {
-        eprintln!(
-            "{} symlink {} ( {} -> {} )",
-            style("Updating").cyan().bold(),
-            symlink_name,
-            prev_target.to_string_lossy(),
-            version
+        print_juliaup_style(
+            "Updating",
+            &format!(
+                "symlink {} ( {} -> {} )",
+                symlink_name,
+                prev_target.to_string_lossy(),
+                version
+            ),
+            JuliaupMessageType::Progress,
         );
     } else {
-        eprintln!(
-            "{} {} for Julia {}.",
-            style("Creating symlink").cyan().bold(),
-            symlink_name,
-            version
+        print_juliaup_style(
+            "Creating",
+            &format!("symlink {} for Julia {}", symlink_name, version),
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -927,19 +999,21 @@ fn create_linked_channel_shim(
     };
 
     if let Some(ref prev_target) = updating {
-        eprintln!(
-            "{} shim {} ( {} -> {} )",
-            style("Updating").cyan().bold(),
-            symlink_name,
-            prev_target.to_string_lossy(),
-            formatted_command
+        print_juliaup_style(
+            "Updating",
+            &format!(
+                "shim {} ( {} -> {} )",
+                symlink_name,
+                prev_target.to_string_lossy(),
+                formatted_command
+            ),
+            JuliaupMessageType::Progress,
         );
     } else {
-        eprintln!(
-            "{} {} for {}.",
-            style("Creating shim").cyan().bold(),
-            symlink_name,
-            formatted_command
+        print_juliaup_style(
+            "Creating",
+            &format!("shim {} for {}", symlink_name, formatted_command),
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -1348,9 +1422,10 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 }
 
 pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
-    eprintln!(
-        "{} for new Julia versions",
-        style("Checking").green().bold()
+    print_juliaup_style(
+        "Checking",
+        "for new Julia versions",
+        JuliaupMessageType::Progress,
     );
 
     let file_lock = get_read_lock(paths)?;
@@ -1495,10 +1570,13 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                     },
                 );
             } else {
-                eprintln!(
-                    "{} to update {}. This can happen if a build is no longer available.",
-                    style("Failed").red().bold(),
-                    channel
+                print_juliaup_style(
+                    "Failed",
+                    &format!(
+                        "to update {}. This can happen if a build is no longer available.",
+                        channel
+                    ),
+                    JuliaupMessageType::Error,
                 );
             }
         }
@@ -1579,7 +1657,7 @@ fn download_direct_download_etags(
             let channel_name_clone = channel_name.clone();
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("Checking").green().bold(),
+                style("    Checking").cyan().bold(),
                 channel_name
             );
 
@@ -1596,7 +1674,7 @@ fn download_direct_download_etags(
                         .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
 
                     let response = async_op
-                        .get()
+                        .join()
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
 
                     if response.IsSuccessStatusCode()? {
@@ -1648,9 +1726,10 @@ fn download_direct_download_etags(
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
+
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
-                style("Checking").green().bold(),
+                style("    Checking").cyan().bold(),
                 channel_name
             );
 

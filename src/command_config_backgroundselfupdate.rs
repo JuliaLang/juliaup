@@ -1,4 +1,6 @@
 #[cfg(feature = "selfupdate")]
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
+#[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
@@ -44,14 +46,22 @@ pub fn run_command_config_backgroundselfupdate(
 
             if !quiet {
                 if value_changed {
-                    eprintln!(
-                        "Property 'backgroundselfupdateinterval' set to '{}'",
-                        value.unwrap_or(0)
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "Property 'backgroundselfupdateinterval' set to '{}'",
+                            value.unwrap_or(0)
+                        ),
+                        JuliaupMessageType::Success,
                     );
                 } else {
-                    eprintln!(
-                        "Property 'backgroundselfupdateinterval' is already set to '{}'",
-                        value.unwrap_or(0)
+                    print_juliaup_style(
+                        "Configure",
+                        &format!(
+                            "Property 'backgroundselfupdateinterval' is already set to '{}'",
+                            value.unwrap_or(0)
+                        ),
+                        JuliaupMessageType::Success,
                     );
                 }
             }
@@ -61,12 +71,16 @@ pub fn run_command_config_backgroundselfupdate(
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             if !quiet {
-                eprintln!(
-                    "Property 'backgroundselfupdateinterval' set to '{}'",
-                    config_file
-                        .self_data
-                        .background_selfupdate_interval
-                        .unwrap_or(0)
+                print_juliaup_style(
+                    "Configure",
+                    &format!(
+                        "Property 'backgroundselfupdateinterval' set to '{}'",
+                        config_file
+                            .self_data
+                            .background_selfupdate_interval
+                            .unwrap_or(0)
+                    ),
+                    JuliaupMessageType::Success,
                 );
             }
         }

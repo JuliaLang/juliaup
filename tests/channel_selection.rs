@@ -115,7 +115,7 @@ fn channel_selection() {
         .success()
         .stdout("1.8.2")
         .stderr(contains(
-            "Info: Installing Julia 1.8.2 automatically per juliaup settings...",
+            "Installing Julia 1.8.2 automatically per juliaup settings",
         ));
 
     // https://github.com/JuliaLang/juliaup/issues/820
@@ -129,7 +129,7 @@ fn channel_selection() {
         .success()
         .stdout("SUCCESS")
         .stderr(contains(
-            "Info: Installing Julia nightly automatically per juliaup settings...",
+            "Installing Julia nightly automatically per juliaup settings",
         ));
 
     // https://github.com/JuliaLang/juliaup/issues/995
@@ -181,7 +181,7 @@ fn auto_install_valid_channel() {
         .success()
         .stdout("1.10.10")
         .stderr(contains(
-            "Info: Installing Julia 1.10.10 automatically per juliaup settings...",
+            "Installing Julia 1.10.10 automatically per juliaup settings",
         ));
 }
 

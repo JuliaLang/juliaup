@@ -5,6 +5,7 @@ use crate::operations::create_symlink;
 use crate::operations::{
     channel_to_name, install_non_db_version, install_version, update_version_db,
 };
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
@@ -76,6 +77,12 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         )?;
     }
 
+    print_juliaup_style(
+        "Add",
+        &format!("Installed Julia channel '{}'", channel),
+        JuliaupMessageType::Success,
+    );
+
     Ok(())
 }
 
@@ -131,6 +138,12 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
             eprintln!("The Julia binary may not run without manual codesigning.");
         }
     }
+
+    print_juliaup_style(
+        "Add",
+        &format!("Installed Julia channel '{}'", channel),
+        JuliaupMessageType::Success,
+    );
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo::cargo_bin_cmd, Command};
 use assert_fs::TempDir;
 use std::path::{Path, PathBuf};
 
@@ -6,6 +6,12 @@ use std::path::{Path, PathBuf};
 /// with isolated depot directories.
 pub struct TestEnv {
     depot_dir: TempDir,
+}
+
+impl Default for TestEnv {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[allow(dead_code)] // May not be used in all test configurations
@@ -19,17 +25,15 @@ impl TestEnv {
 
     /// Get a Command for running juliaup with the test environment's depot paths
     pub fn juliaup(&self) -> Command {
-        self.command("juliaup")
+        let mut cmd = cargo_bin_cmd!("juliaup");
+        cmd.env("JULIA_DEPOT_PATH", self.depot_dir.path());
+        cmd.env("JULIAUP_DEPOT_PATH", self.depot_dir.path());
+        cmd
     }
 
     /// Get a Command for running julia with the test environment's depot paths
     pub fn julia(&self) -> Command {
-        self.command("julia")
-    }
-
-    /// Get a Command for running any binary with the test environment's depot paths
-    pub fn command(&self, bin: &str) -> Command {
-        let mut cmd = Command::cargo_bin(bin).unwrap();
+        let mut cmd = cargo_bin_cmd!("julia");
         cmd.env("JULIA_DEPOT_PATH", self.depot_dir.path());
         cmd.env("JULIAUP_DEPOT_PATH", self.depot_dir.path());
         cmd

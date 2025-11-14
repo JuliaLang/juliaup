@@ -9,6 +9,7 @@ use juliaup::config_file::{
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
+use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -916,10 +917,10 @@ fn set_auto_install_preference(
     save_config_db(&mut config_file)
         .with_context(|| "Failed to save auto-install preference to configuration.")?;
 
-    eprintln!(
-        "{} Auto-install preference set to '{}'.",
-        style("Info:").cyan().bold(),
-        auto_install
+    print_juliaup_style(
+        "Configure",
+        &format!("Auto-install preference set to '{}'.", auto_install),
+        JuliaupMessageType::Success,
     );
 
     Ok(())
@@ -931,16 +932,16 @@ fn spawn_juliaup_add(
     is_automatic: bool,
 ) -> Result<()> {
     if is_automatic {
-        eprintln!(
-            "{} Installing Julia {} automatically per juliaup settings...",
-            style("Info:").cyan().bold(),
-            channel
+        print_juliaup_style(
+            "Installing",
+            &format!("Julia {} automatically per juliaup settings", channel),
+            JuliaupMessageType::Progress,
         );
     } else {
-        eprintln!(
-            "{} Installing Julia {} as requested...",
-            style("Info:").cyan().bold(),
-            channel
+        print_juliaup_style(
+            "Installing",
+            &format!("Julia {} as requested", channel),
+            JuliaupMessageType::Progress,
         );
     }
 
@@ -952,11 +953,6 @@ fn spawn_juliaup_add(
         .with_context(|| format!("Failed to spawn juliaup to install channel '{}'", channel))?;
 
     if status.success() {
-        eprintln!(
-            "{} Successfully installed Julia {}.",
-            style("Info:").cyan().bold(),
-            channel
-        );
         Ok(())
     } else {
         Err(anyhow!(
@@ -984,7 +980,14 @@ fn check_channel_uptodate(
         .version;
 
     if latest_version != current_version {
-        eprintln!("The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:", channel, latest_version, current_version);
+        print_juliaup_style(
+            "Info",
+            &format!(
+                "The latest version of Julia in the `{}` channel is {}. You currently have `{}` installed. Run:",
+                channel, latest_version, current_version
+            ),
+            JuliaupMessageType::Progress,
+        );
         eprintln!();
         eprintln!("  juliaup update");
         eprintln!();
@@ -1199,13 +1202,19 @@ fn get_julia_path_from_installed_channel(
                     // more often than not unless folks update a couple of times a day.
                     // Also, folks using nightly are typically more experienced and need
                     // less detailed prompting
-                    eprintln!(
-                        "A new `nightly` version is available. Install with `juliaup update`."
+                    print_juliaup_style(
+                        "Info",
+                        "A new `nightly` version is available. Install with `juliaup update`.",
+                        JuliaupMessageType::Progress,
                     );
                 } else {
-                    eprintln!(
-                        "A new version of Julia for the `{}` channel is available. Run:",
-                        channel
+                    print_juliaup_style(
+                        "Info",
+                        &format!(
+                            "A new version of Julia for the `{}` channel is available. Run:",
+                            channel
+                        ),
+                        JuliaupMessageType::Progress,
                     );
                     eprintln!();
                     eprintln!("  juliaup update");

@@ -4,7 +4,10 @@ use cluFlock::{ExclusiveFlock, FlockLock, SharedFlock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, ErrorKind, Seek, SeekFrom};
+use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
+#[cfg(target_os = "windows")]
+use std::mem;
+use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
 
@@ -381,45 +384,121 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
 }
 
 pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()> {
-    juliaup_config_file
-        .file
-        .rewind()
-        .with_context(|| "Failed to rewind config file for write.")?;
+    // Get the path to the config file from the file descriptor
+    // We need to use a temporary file and atomic rename to avoid corruption
+    // in case of disk quota or other I/O errors
 
-    juliaup_config_file
-        .file
-        .set_len(0)
-        .with_context(|| "Failed to set len to 0 for config file before writing new content.")?;
+    // Get the paths from the global state
+    let paths = crate::global_paths::get_paths()?;
 
-    serde_json::to_writer_pretty(&juliaup_config_file.file, &juliaup_config_file.data)
-        .with_context(|| "Failed to write configuration file.")?;
+    // Write to a temporary file in the same directory as the target file
+    // This ensures we're on the same filesystem for atomic rename
+    let config_dir = paths
+        .juliaupconfig
+        .parent()
+        .ok_or_else(|| anyhow!("Config file path has no parent directory"))?;
 
-    juliaup_config_file
-        .file
+    let mut temp_file = NamedTempFile::new_in(config_dir)
+        .with_context(|| "Failed to create temporary config file.")?;
+
+    // Write the configuration data to the temporary file
+    serde_json::to_writer_pretty(&mut temp_file, &juliaup_config_file.data)
+        .with_context(|| "Failed to write configuration data to temporary file.")?;
+
+    // Ensure all data is written to disk before persisting
+    temp_file
+        .flush()
+        .with_context(|| "Failed to flush configuration data to temporary file.")?;
+
+    temp_file
+        .as_file()
         .sync_all()
-        .with_context(|| "Failed to write config data to disc.")?;
+        .with_context(|| "Failed to sync configuration data to disc.")?;
+
+    // On Windows, we must close the file before replacing it
+    // On Unix, the file can remain open during atomic rename
+    #[cfg(target_os = "windows")]
+    {
+        // Create a dummy file to replace the handle we need to close
+        let dummy = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(config_dir.join(".dummy"))
+            .with_context(|| "Failed to create dummy file handle.")?;
+
+        // Replace the file handle with the dummy, dropping the old handle
+        let _ = mem::replace(&mut juliaup_config_file.file, dummy);
+    }
+
+    // Atomically replace the old config file with the new one
+    temp_file
+        .persist(&paths.juliaupconfig)
+        .with_context(|| "Failed to persist configuration file.")?;
+
+    // Reopen the file to update our file handle (Windows only, since we closed it)
+    #[cfg(target_os = "windows")]
+    {
+        juliaup_config_file.file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&paths.juliaupconfig)
+            .with_context(|| "Failed to reopen configuration file after save.")?;
+    }
 
     #[cfg(feature = "selfupdate")]
     {
-        juliaup_config_file
-            .self_file
-            .rewind()
-            .with_context(|| "Failed to rewind self config file for write.")?;
+        // Use the same atomic write pattern for the self config file
+        let self_config_dir = paths
+            .juliaupselfconfig
+            .parent()
+            .ok_or_else(|| anyhow!("Self config file path has no parent directory"))?;
 
-        juliaup_config_file.self_file.set_len(0).with_context(|| {
-            "Failed to set len to 0 for self config file before writing new content."
-        })?;
+        let mut temp_self_file = NamedTempFile::new_in(self_config_dir)
+            .with_context(|| "Failed to create temporary self config file.")?;
 
-        serde_json::to_writer_pretty(
-            &juliaup_config_file.self_file,
-            &juliaup_config_file.self_data,
-        )
-        .with_context(|| "Failed to write self configuration file.".to_string())?;
+        serde_json::to_writer_pretty(&mut temp_self_file, &juliaup_config_file.self_data)
+            .with_context(|| "Failed to write self configuration data to temporary file.")?;
 
-        juliaup_config_file
-            .self_file
+        temp_self_file
+            .flush()
+            .with_context(|| "Failed to flush self configuration data to temporary file.")?;
+
+        temp_self_file
+            .as_file()
             .sync_all()
-            .with_context(|| "Failed to write config data to disc.")?;
+            .with_context(|| "Failed to sync self configuration data to disc.")?;
+
+        // On Windows, we must close the file before replacing it
+        #[cfg(target_os = "windows")]
+        {
+            // Create a dummy file to replace the handle we need to close
+            let dummy = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(self_config_dir.join(".dummy_self"))
+                .with_context(|| "Failed to create dummy self config file handle.")?;
+
+            // Replace the file handle with the dummy, dropping the old handle
+            let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
+        }
+
+        temp_self_file
+            .persist(&paths.juliaupselfconfig)
+            .with_context(|| "Failed to persist self configuration file.")?;
+
+        // Reopen the self config file (Windows only, since we closed it)
+        #[cfg(target_os = "windows")]
+        {
+            juliaup_config_file.self_file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&paths.juliaupselfconfig)
+                .with_context(|| "Failed to reopen self configuration file after save.")?;
+        }
     }
 
     Ok(())

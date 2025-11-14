@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 use std::path::Path;
@@ -11,8 +11,7 @@ fn command_initial_setup() {
         .child(Path::new("juliaup"))
         .assert(predicate::path::missing());
 
-    Command::cargo_bin("juliaup")
-        .unwrap()
+    cargo_bin_cmd!("juliaup")
         .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac")
         .env("JULIA_DEPOT_PATH", depot_dir.path())
         .env("JULIAUP_DEPOT_PATH", depot_dir.path())
@@ -20,15 +19,17 @@ fn command_initial_setup() {
         .success()
         .stdout(predicate::str::is_empty())
         .stderr(
-            predicate::str::starts_with("Checking for new Julia versions\nInstalling Julia 1.")
-                .and(
-                    predicate::str::contains("apple.darwin14")
-                        .not()
-                        .or(
-                            predicate::str::contains("Checking standard library notarization")
-                                .and(predicate::str::ends_with("done.\n")),
-                        ),
-                ),
+            predicate::str::starts_with(
+                "    Checking for new Julia versions\n  Installing Julia 1.",
+            )
+            .and(
+                predicate::str::contains("apple.darwin14")
+                    .not()
+                    .or(
+                        predicate::str::contains("Checking standard library notarization")
+                            .and(predicate::str::contains("done.\n")),
+                    ),
+            ),
         );
 
     depot_dir
