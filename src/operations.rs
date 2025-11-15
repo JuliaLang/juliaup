@@ -241,7 +241,7 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
         .find(|e| {
             e.file_name()
                 .to_str()
-                .map_or(false, |n| n.ends_with(".app"))
+                .is_some_and(|n| n.ends_with(".app"))
         })
         .ok_or_else(|| anyhow!("No .app bundle found in DMG"))?;
 
