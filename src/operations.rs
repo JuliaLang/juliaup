@@ -334,7 +334,7 @@ impl std::io::Read for DataReaderWrap {
             self.0
                 .LoadAsync(buf.len() as u32)
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))?
-                .get()
+                .join()
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))? as usize;
         bytes = bytes.min(buf.len());
         self.0
@@ -361,7 +361,7 @@ pub fn download_extract_sans_parent(
     let http_response = http_client
         .GetAsync(&request_uri)
         .with_context(|| "Failed to initiate download.")?
-        .get()
+        .join()
         .with_context(|| "Failed to complete async download operation.")?;
 
     http_response
@@ -383,7 +383,7 @@ pub fn download_extract_sans_parent(
     let response_stream = http_response_content
         .ReadAsInputStreamAsync()
         .with_context(|| "Failed to initiate get input stream from response")?
-        .get()
+        .join()
         .with_context(|| "Failed to obtain input stream from http response")?;
 
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
@@ -459,7 +459,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed on http_client.GetStringAsync")?
-        .get()
+        .join()
         .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
 
@@ -486,7 +486,7 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     let response = http_client
         .GetStringAsync(&request_uri)
         .with_context(|| "Failed to download version db step 1.")?
-        .get()
+        .join()
         .with_context(|| "Failed to download version db step 2.")?
         .to_string();
 
@@ -626,18 +626,28 @@ pub fn install_version(
             eprint!("Checking standard library notarization");
             let _ = std::io::stdout().flush();
 
-            let exit_status = std::process::Command::new(julia_path)
+            match std::process::Command::new(julia_path)
                 .env("JULIA_LOAD_PATH", "@stdlib")
                 .arg("--startup-file=no")
                 .arg("-e")
                 .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
                 .status()
-                .unwrap();
-
-            if exit_status.success() {
-                eprintln!("done.")
-            } else {
-                eprintln!("failed with {}.", exit_status);
+            {
+                Ok(exit_status) => {
+                    if exit_status.success() {
+                        eprintln!("done.")
+                    } else {
+                        eprintln!("failed with {}.", exit_status);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("failed to execute Julia binary.");
+                    eprintln!("Error: {}", e);
+                    if e.raw_os_error() == Some(86) {
+                        eprintln!("This may indicate an architecture mismatch (e.g., trying to run an Intel binary on Apple Silicon or vice versa).");
+                    }
+                    eprintln!("Installation completed but notarization check was skipped.");
+                }
             }
         }
 
@@ -1897,7 +1907,7 @@ fn download_direct_download_etags(
                         .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
 
                     let response = async_op
-                        .get()
+                        .join()
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
 
                     if response.IsSuccessStatusCode()? {
