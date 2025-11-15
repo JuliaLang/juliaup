@@ -238,11 +238,7 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     let mount_path = Path::new(&mount_point);
     let app_bundle = std::fs::read_dir(mount_path)?
         .filter_map(|e| e.ok())
-        .find(|e| {
-            e.file_name()
-                .to_str()
-                .is_some_and(|n| n.ends_with(".app"))
-        })
+        .find(|e| e.file_name().to_str().is_some_and(|n| n.ends_with(".app")))
         .ok_or_else(|| anyhow!("No .app bundle found in DMG"))?;
 
     std::fs::create_dir_all(target_path)?;
