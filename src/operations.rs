@@ -550,6 +550,9 @@ pub fn install_version(
         #[cfg(target_os = "macos")]
         let download_url_path = {
             // Convert .tar.gz URLs to .dmg URLs for macOS
+            // TODO: Update the database version format to include DMG URLs directly
+            // instead of doing runtime string replacement. This would require
+            // publishing a v2 version database schema.
             if download_url_path.ends_with(".tar.gz") {
                 download_url_path.replace(".tar.gz", ".dmg")
             } else {
