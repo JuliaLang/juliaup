@@ -557,11 +557,8 @@ pub fn install_version(
         };
 
         #[cfg(not(target_os = "macos"))]
-        let download_url_path = download_url_path;
-
-        #[cfg(not(target_os = "macos"))]
         let download_url = juliaupserver_base
-            .join(&download_url_path)
+            .join(download_url_path)
             .with_context(|| {
                 format!(
                     "Failed to construct a valid url from '{}' and '{}'.",
