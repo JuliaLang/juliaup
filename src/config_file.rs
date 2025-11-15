@@ -96,7 +96,7 @@ impl Default for JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
             auto_install_channels: None,
-            manifest_version_detect: true,
+            manifest_version_detect: false,
         }
     }
 }
@@ -224,12 +224,7 @@ pub fn load_config_db(
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
                 overrides: Vec::new(),
-                settings: JuliaupConfigSettings {
-                    create_channel_symlinks: false,
-                    versionsdb_update_interval: default_versionsdb_update_interval(),
-                    auto_install_channels: None,
-                    manifest_version_detect: true,
-                },
+                settings: JuliaupConfigSettings::default(),
                 last_version_db_update: None,
             },
             other_error => {
@@ -326,12 +321,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 installed_versions: HashMap::new(),
                 installed_channels: HashMap::new(),
                 overrides: Vec::new(),
-                settings: JuliaupConfigSettings {
-                    create_channel_symlinks: false,
-                    versionsdb_update_interval: default_versionsdb_update_interval(),
-                    auto_install_channels: None,
-                    manifest_version_detect: true,
-                },
+                settings: JuliaupConfigSettings::default(),
                 last_version_db_update: None,
             };
 
