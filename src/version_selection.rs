@@ -150,21 +150,38 @@ pub fn find_project_from_load_path(
             continue;
         }
 
-        let Ok(Some(project_file)) = load_path_expand_impl(entry, current_dir, depot_path) else {
-            continue;
-        };
-
-        if project_file_manifest_path(&project_file).is_some() {
-            log::debug!(
-                "VersionDetect::Found valid project in JULIA_LOAD_PATH entry: {}",
-                entry
-            );
-            return Ok(Some(project_file));
+        match load_path_expand_impl(entry, current_dir, depot_path)? {
+            Some(project_file) => {
+                if project_file_manifest_path(&project_file).is_some() {
+                    log::debug!(
+                        "VersionDetect::Found valid project in JULIA_LOAD_PATH entry: {}",
+                        entry
+                    );
+                    return Ok(Some(project_file));
+                }
+            }
+            None => continue, // Entry resolved to None (e.g., @stdlib, @), try next
         }
     }
 
     log::debug!("VersionDetect::No valid project with manifest found in JULIA_LOAD_PATH");
     Ok(None)
+}
+
+const PROJECT_FLAGS: &[&str] = &["--project", "--projec", "--proje", "--proj"];
+
+fn match_project_flag(arg: &str) -> Option<Option<String>> {
+    PROJECT_FLAGS.iter().find_map(|flag| {
+        if arg == *flag {
+            // --proj / --proje / --projec / --project
+            Some(None)
+        } else {
+            // --proj=val / --proje=val / --projec=val / --project=val
+            arg.strip_prefix(flag)
+                .and_then(|rest| rest.strip_prefix('='))
+                .map(|v| Some(v.to_string()))
+        }
+    })
 }
 
 /// Check if a Julia option requires an argument (mimics getopt's required_argument)
@@ -230,13 +247,8 @@ pub fn init_active_project_impl(
             break;
         }
 
-        if ["--project", "--projec", "--proje", "--proj"].contains(&arg.as_str()) {
-            project_cli = Some(None);
-        } else if let Some(value) = ["--project=", "--projec=", "--proje=", "--proj="]
-            .iter()
-            .find_map(|prefix| arg.strip_prefix(prefix))
-        {
-            project_cli = Some(Some(value.to_string()));
+        if let Some(spec) = match_project_flag(arg) {
+            project_cli = Some(spec);
         } else if julia_option_requires_arg(arg) {
             // This option consumes the next token as its argument
             // Skip it to avoid treating the argument as a flag
@@ -245,7 +257,7 @@ pub fn init_active_project_impl(
     }
 
     // Determine project spec
-    let project = if let Some(spec) = project_cli {
+    let maybe_project = if let Some(spec) = project_cli {
         // --project flag takes precedence
         // If --project has no value, treat as "@." (search upward)
         Some(spec.unwrap_or_else(|| "@.".to_string()))
@@ -260,13 +272,12 @@ pub fn init_active_project_impl(
         })
     };
 
-    let project = match project {
-        None => return Ok(None),
-        Some(p) => p,
-    };
-
     // Expand the project spec using load_path_expand
-    load_path_expand_impl(&project, current_dir, depot_path)
+    if let Some(project) = maybe_project {
+        load_path_expand_impl(&project, current_dir, depot_path)
+    } else {
+        Ok(None)
+    }
 }
 
 /// Find project file's corresponding manifest file (Julia's project_file_manifest_path)
@@ -344,28 +355,32 @@ pub fn determine_project_version_spec_impl(
 ) -> Result<Option<String>> {
     let depot_path = std::env::var_os("JULIA_DEPOT_PATH");
 
-    // Try --project or JULIA_PROJECT first
-    if let Some(project_file) = init_active_project_impl(
-        args,
-        current_dir,
-        julia_project.as_deref(),
-        depot_path.as_deref(),
-    )? {
-        return extract_version_from_project(project_file);
-    }
+    // Resolve project file (in priority order)
+    let maybe_project_file =
+        // 1. --project flag or JULIA_PROJECT env
+        init_active_project_impl(
+            args,
+            current_dir,
+            julia_project.as_deref(),
+            depot_path.as_deref(),
+        )?
+        // 2. Fallback to JULIA_LOAD_PATH
+        .or_else(|| {
+            julia_load_path.as_ref().and_then(|load_path| {
+                find_project_from_load_path(load_path, current_dir, depot_path.as_deref())
+                    .ok()      // Result<Option<PathBuf>> → Option<Option<PathBuf>>
+                    .flatten() // Option<Option<PathBuf>> → Option<PathBuf>
+            })
+        });
 
-    // Fall back to JULIA_LOAD_PATH
-    if let Some(ref load_path) = julia_load_path {
-        if let Some(project_file) =
-            find_project_from_load_path(load_path, current_dir, depot_path.as_deref())?
-        {
-            return extract_version_from_project(project_file);
-        }
-    }
+    // If no project was found, stop here
+    let Some(project_file) = maybe_project_file else {
+        log::debug!("VersionDetect::No project specification found");
+        return Ok(None);
+    };
 
-    // No project found
-    log::debug!("VersionDetect::No project specification found");
-    Ok(None)
+    // Extract version from the resolved project
+    extract_version_from_project(project_file)
 }
 
 pub fn extract_version_from_project(project_file: PathBuf) -> Result<Option<String>> {
@@ -521,11 +536,15 @@ impl JuliaupVersionDB {
             .filter(|version| version.major == major && version.minor == minor)
             .max()
     }
+
+    pub fn has_channel(&self, version: &str) -> bool {
+        self.available_channels.contains_key(version)
+    }
 }
 
 pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) -> Result<String> {
     // Check if exact version is available
-    if versions_db.available_channels.contains_key(&required) {
+    if versions_db.has_channel(&required) {
         return Ok(required);
     }
 
@@ -544,10 +563,7 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
         let versioned_nightly =
             versioned_nightly_channel(required_version.major, required_version.minor);
 
-        if versions_db
-            .available_channels
-            .contains_key(&versioned_nightly)
-        {
+        if versions_db.has_channel(&versioned_nightly) {
             print_juliaup_style(
                 "Info",
                 &format!(
@@ -606,10 +622,7 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
             let versioned_nightly =
                 versioned_nightly_channel(required_version.major, required_version.minor);
 
-            if versions_db
-                .available_channels
-                .contains_key(&versioned_nightly)
-            {
+            if versions_db.has_channel(&versioned_nightly) {
                 print_juliaup_style(
                     "Info",
                     &format!(

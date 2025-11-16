@@ -1,14 +1,14 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+use crate::global_paths::GlobalPaths;
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 
 pub fn run_command_config_manifestversiondetect(
     value: Option<bool>,
     quiet: bool,
-    paths: &crate::global_paths::GlobalPaths,
+    paths: &GlobalPaths,
 ) -> Result<()> {
-    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
-    use crate::utils::{print_juliaup_style, JuliaupMessageType};
-    use anyhow::Context;
-
     match value {
         Some(value) => {
             let mut config_file = load_mut_config_db(paths)
