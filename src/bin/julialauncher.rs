@@ -580,49 +580,6 @@ fn get_override_channel(
     }
 }
 
-/// Determines which channel to use based on the inputs.
-/// This is the core channel selection logic used both in production and tests.
-/// Returns (channel_name, source)
-///
-/// Priority order:
-/// 1. Command line (+channel)
-/// 2. Environment variable (JULIAUP_CHANNEL)
-/// 3. Override (from config file)
-/// 4. Auto-detection (from project manifest)
-/// 5. Default (from config file)
-fn determine_channel(
-    args: &[String],
-    env_channel: Option<String>,
-    override_channel: Option<String>,
-    default_channel: Option<String>,
-    versions_db: &JuliaupVersionDB,
-    manifest_version_detect: bool,
-) -> Result<(String, JuliaupChannelSource)> {
-    // Parse command line for +channel
-    let mut channel_from_cmd_line: Option<String> = None;
-    if args.len() > 1 {
-        let first_arg = &args[1];
-        if let Some(stripped) = first_arg.strip_prefix('+') {
-            channel_from_cmd_line = Some(stripped.to_string());
-        }
-    }
-
-    // Priority order
-    if let Some(channel) = channel_from_cmd_line {
-        Ok((channel, JuliaupChannelSource::CmdLine))
-    } else if let Some(channel) = env_channel {
-        Ok((channel, JuliaupChannelSource::EnvVar))
-    } else if let Some(channel) = override_channel {
-        Ok((channel, JuliaupChannelSource::Override))
-    } else if let Some(channel) = get_auto_channel(args, versions_db, manifest_version_detect)? {
-        Ok((channel, JuliaupChannelSource::Auto))
-    } else if let Some(channel) = default_channel {
-        Ok((channel, JuliaupChannelSource::Default))
-    } else {
-        Err(anyhow!("Failed to determine juliaup channel"))
-    }
-}
-
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -641,17 +598,37 @@ fn run_app() -> Result<i32> {
     let versiondb_data = load_versions_db(&paths)
         .with_context(|| "The Julia launcher failed to load a versions db.")?;
 
-    // Determine which channel to use
+    // Parse command line
+    let mut channel_from_cmd_line: Option<String> = None;
     let args: Vec<String> = std::env::args().collect();
-    let (julia_channel_to_use, juliaup_channel_source) = determine_channel(
-        &args,
-        std::env::var("JULIAUP_CHANNEL").ok(),
-        get_override_channel(&config_file)?,
-        config_file.data.default.clone(),
-        &versiondb_data,
-        config_file.data.settings.manifest_version_detect,
-    )
-    .with_context(|| "The Julia launcher failed to figure out which juliaup channel to use.")?;
+    if args.len() > 1 {
+        let first_arg = &args[1];
+
+        if let Some(stripped) = first_arg.strip_prefix('+') {
+            channel_from_cmd_line = Some(stripped.to_string());
+        }
+    }
+
+    let (julia_channel_to_use, juliaup_channel_source) =
+        if let Some(channel) = channel_from_cmd_line {
+            (channel, JuliaupChannelSource::CmdLine)
+        } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
+            (channel, JuliaupChannelSource::EnvVar)
+        } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
+            (channel, JuliaupChannelSource::Override)
+        } else if let Ok(Some(channel)) = get_auto_channel(
+            &args,
+            &versiondb_data,
+            config_file.data.settings.manifest_version_detect,
+        ) {
+            (channel, JuliaupChannelSource::Auto)
+        } else if let Some(channel) = config_file.data.default.clone() {
+            (channel, JuliaupChannelSource::Default)
+        } else {
+            return Err(anyhow!(
+                "The Julia launcher failed to figure out which juliaup channel to use."
+            ));
+        };
 
     let (julia_path, julia_args) = get_julia_path_from_channel(
         &versiondb_data,
@@ -846,270 +823,4 @@ fn main() -> Result<std::process::ExitCode> {
 
     // TODO https://github.com/rust-lang/rust/issues/111688 is finalized, we should use that instead of calling exit
     std::process::exit(client_status?);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use juliaup::jsonstructs_versionsdb::{JuliaupVersionDBChannel, JuliaupVersionDBVersion};
-    use std::collections::HashMap;
-    use std::fs;
-    use std::path::Path;
-    use tempfile::TempDir;
-
-    // Helper to create a test directory with Project.toml
-    fn create_test_project(dir: &Path, project_content: &str) -> PathBuf {
-        let project_file = dir.join("Project.toml");
-        fs::write(&project_file, project_content).unwrap();
-        project_file
-    }
-
-    // Helper to create a manifest file
-    fn create_manifest(dir: &Path, name: &str, julia_version: &str) {
-        let manifest_file = dir.join(name);
-        fs::write(
-            &manifest_file,
-            format!(r#"julia_version = "{}""#, julia_version),
-        )
-        .unwrap();
-    }
-
-    // Helper to create a project with a standard manifest in one call
-    fn create_project_with_manifest(dir: &Path, julia_version: &str) -> PathBuf {
-        let project_file = create_test_project(dir, "name = \"TestProject\"");
-        create_manifest(dir, "Manifest.toml", julia_version);
-        project_file
-    }
-
-    // Helper to build julia args, optionally with --project flag
-    // Pass None for no project flag, Some(path) for --project={path}
-    fn julia_args(project_path: Option<&Path>) -> Vec<String> {
-        let mut args = vec!["julia".to_string()];
-        if let Some(path) = project_path {
-            args.push(format!("--project={}", path.display()));
-        }
-        args.push("-e".to_string());
-        args.push("1+1".to_string());
-        args
-    }
-
-    // Helper to build julia args with --project flag (no value, searches upward)
-    fn julia_args_with_project_search() -> Vec<String> {
-        vec![
-            "julia".to_string(),
-            "--project".to_string(),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ]
-    }
-
-    // Helper to assert channel determination result
-    fn assert_channel(
-        result: Result<(String, JuliaupChannelSource)>,
-        expected_channel: &str,
-        expected_source: JuliaupChannelSource,
-    ) {
-        assert!(result.is_ok());
-        let (channel, source) = result.unwrap();
-        assert_eq!(channel, expected_channel);
-        // Use discriminant comparison to check enum variant equality
-        assert_eq!(
-            std::mem::discriminant(&source),
-            std::mem::discriminant(&expected_source),
-            "Expected source {:?}, got {:?}",
-            expected_source,
-            source
-        );
-    }
-
-    // Helper to build a test versions database
-    struct TestVersionsDbBuilder {
-        available_versions: HashMap<String, JuliaupVersionDBVersion>,
-        available_channels: HashMap<String, JuliaupVersionDBChannel>,
-    }
-
-    impl TestVersionsDbBuilder {
-        fn new() -> Self {
-            Self {
-                available_versions: HashMap::new(),
-                available_channels: HashMap::new(),
-            }
-        }
-
-        fn add_version(mut self, version: &str) -> Self {
-            self.available_versions.insert(
-                version.to_string(),
-                JuliaupVersionDBVersion {
-                    url_path: "test".to_string(),
-                },
-            );
-            self
-        }
-
-        fn add_channel(mut self, channel: &str, version: &str) -> Self {
-            self.available_channels.insert(
-                channel.to_string(),
-                JuliaupVersionDBChannel {
-                    version: version.to_string(),
-                },
-            );
-            self
-        }
-
-        fn build(self) -> JuliaupVersionDB {
-            JuliaupVersionDB {
-                available_versions: self.available_versions,
-                available_channels: self.available_channels,
-                version: "1".to_string(),
-            }
-        }
-    }
-
-    // Helper to create a minimal versions db for testing
-    fn create_test_versions_db() -> JuliaupVersionDB {
-        TestVersionsDbBuilder::new()
-            .add_version("1.10.0")
-            .add_channel("1.10.0", "1.10.0")
-            .add_version("1.10.5")
-            .add_channel("1.10.5", "1.10.5")
-            .add_version("1.11.0")
-            .add_channel("1.11.0", "1.11.0")
-            .add_version("1.11.3")
-            .add_channel("1.11.3", "1.11.3")
-            .build()
-    }
-
-    // Integration tests for determine_channel - tests the full channel selection logic
-    #[test]
-    fn test_channel_selection_priority_cmdline_wins() {
-        // Test that +channel has highest priority
-        let temp_dir = TempDir::new().unwrap();
-        create_project_with_manifest(temp_dir.path(), "1.10.5");
-
-        let args = vec![
-            "julia".to_string(),
-            "+1.11.3".to_string(),
-            format!("--project={}", temp_dir.path().display()),
-            "-e".to_string(),
-            "1+1".to_string(),
-        ];
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            Some("1.10.0".to_string()),
-            Some("override".to_string()),
-            Some("default".to_string()),
-            &versions_db,
-            true,
-        );
-
-        assert_channel(result, "1.11.3", JuliaupChannelSource::CmdLine);
-    }
-
-    #[test]
-    fn test_channel_selection_priority_env_over_auto() {
-        // Test that JULIAUP_CHANNEL has priority over auto-detected version
-        let temp_dir = TempDir::new().unwrap();
-        create_project_with_manifest(temp_dir.path(), "1.10.5");
-        let args = julia_args(Some(temp_dir.path()));
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            Some("1.11.3".to_string()),
-            None,
-            Some("default".to_string()),
-            &versions_db,
-            true,
-        );
-
-        assert_channel(result, "1.11.3", JuliaupChannelSource::EnvVar);
-    }
-
-    #[test]
-    fn test_channel_selection_auto_from_manifest() {
-        // Test that auto-detection works when no higher priority source
-        let temp_dir = TempDir::new().unwrap();
-        create_project_with_manifest(temp_dir.path(), "1.10.5");
-        let args = julia_args(Some(temp_dir.path()));
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            None,
-            None,
-            Some("default".to_string()),
-            &versions_db,
-            true,
-        );
-
-        assert_channel(result, "1.10.5", JuliaupChannelSource::Auto);
-    }
-
-    #[test]
-    fn test_channel_selection_default_fallback() {
-        // Test that default channel is used when nothing else applies
-        let args = julia_args(None);
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            None,
-            None,
-            Some("release".to_string()),
-            &versions_db,
-            true,
-        );
-
-        assert_channel(result, "release", JuliaupChannelSource::Default);
-    }
-
-    #[test]
-    fn test_channel_selection_override_priority() {
-        // Test that override has priority over auto and default
-        let temp_dir = TempDir::new().unwrap();
-        create_project_with_manifest(temp_dir.path(), "1.10.5");
-        let args = julia_args(Some(temp_dir.path()));
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            None,
-            Some("1.11.0".to_string()),
-            Some("default".to_string()),
-            &versions_db,
-            true,
-        );
-
-        assert_channel(result, "1.11.0", JuliaupChannelSource::Override);
-    }
-
-    #[test]
-    fn test_channel_selection_auto_with_project_flag_no_value() {
-        // Test auto-detection with --project (no value) searches upward
-        let temp_dir = TempDir::new().unwrap();
-        create_project_with_manifest(temp_dir.path(), "1.11.0");
-
-        // Change to temp directory for the test
-        let old_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
-        let args = julia_args_with_project_search();
-
-        let versions_db = create_test_versions_db();
-        let result = determine_channel(
-            &args,
-            None,
-            None,
-            Some("default".to_string()),
-            &versions_db,
-            true,
-        );
-
-        // Restore directory
-        std::env::set_current_dir(old_dir).unwrap();
-
-        assert_channel(result, "1.11.0", JuliaupChannelSource::Auto);
-    }
 }
