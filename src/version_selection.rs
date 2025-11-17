@@ -153,10 +153,7 @@ pub fn find_project_from_load_path(
         match load_path_expand_impl(entry, current_dir, depot_path)? {
             Some(project_file) => {
                 if project_file_manifest_path(&project_file).is_some() {
-                    log::debug!(
-                        "VersionDetect::Found valid project in JULIA_LOAD_PATH entry: {}",
-                        entry
-                    );
+                    log::debug!("Found valid project in JULIA_LOAD_PATH entry: {}", entry);
                     return Ok(Some(project_file));
                 }
             }
@@ -164,7 +161,7 @@ pub fn find_project_from_load_path(
         }
     }
 
-    log::debug!("VersionDetect::No valid project with manifest found in JULIA_LOAD_PATH");
+    log::debug!("No valid project with manifest found in JULIA_LOAD_PATH");
     Ok(None)
 }
 
@@ -375,7 +372,7 @@ pub fn determine_project_version_spec_impl(
 
     // If no project was found, stop here
     let Some(project_file) = maybe_project_file else {
-        log::debug!("VersionDetect::No project specification found");
+        log::debug!("No project specification found");
         return Ok(None);
     };
 
@@ -384,35 +381,26 @@ pub fn determine_project_version_spec_impl(
 }
 
 pub fn extract_version_from_project(project_file: PathBuf) -> Result<Option<String>> {
-    log::debug!(
-        "VersionDetect::Using project file: {}",
-        project_file.display()
-    );
+    log::debug!("Using project file: {}", project_file.display());
 
     // Find the manifest file using Julia's project_file_manifest_path logic
     let manifest_path = match project_file_manifest_path(&project_file) {
         Some(path) => path,
         None => {
-            log::debug!("VersionDetect::No manifest file found for project");
+            log::debug!("No manifest file found for project");
             return Ok(None);
         }
     };
 
-    log::debug!(
-        "VersionDetect::Detected manifest file: {}",
-        manifest_path.display()
-    );
+    log::debug!("Detected manifest file: {}", manifest_path.display());
 
     // Read julia_version from manifest
     if let Some(version) = read_manifest_julia_version(&manifest_path)? {
-        log::debug!(
-            "VersionDetect::Read Julia version from manifest: {}",
-            version
-        );
+        log::debug!("Read Julia version from manifest: {}", version);
         return Ok(Some(version));
     }
 
-    log::debug!("VersionDetect::Manifest file exists but does not contain julia_version field");
+    log::debug!("Manifest file exists but does not contain julia_version field");
     Ok(None)
 }
 
@@ -486,7 +474,7 @@ pub fn parse_version_lenient(version_str: &str) -> Option<Version> {
 pub fn read_manifest_julia_version(path: &Path) -> Result<Option<String>> {
     if !path.exists() {
         log::debug!(
-            "VersionDetect::Manifest file `{}` not found while attempting to resolve Julia version.",
+            "Manifest file `{}` not found while attempting to resolve Julia version.",
             path.display()
         );
         return Ok(None);
