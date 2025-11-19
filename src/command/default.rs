@@ -4,7 +4,7 @@ use crate::versions_file::load_versions_db;
 use crate::{config_file::*, global_paths::GlobalPaths};
 use anyhow::{bail, Context, Result};
 
-pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
+pub fn run(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`default` command failed to load configuration data.")?;
 

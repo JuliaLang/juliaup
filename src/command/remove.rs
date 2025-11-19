@@ -1,14 +1,14 @@
 #[cfg(not(windows))]
 use crate::operations::remove_symlink;
-use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::{
     config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel},
     global_paths::GlobalPaths,
     operations::garbage_collect_versions,
+    utils::{print_juliaup_style, JuliaupMessageType},
 };
 use anyhow::{bail, Context, Result};
 
-pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
+pub fn run(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`remove` command failed to load configuration data.")?;
 

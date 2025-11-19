@@ -135,7 +135,7 @@ fn update_channel(
     Ok(())
 }
 
-pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
+pub fn run(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
     update_version_db(channel, paths).with_context(|| "Failed to update versions db.")?;
 
     let version_db =

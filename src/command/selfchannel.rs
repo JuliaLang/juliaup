@@ -1,8 +1,6 @@
-#[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
-#[cfg(feature = "selfupdate")]
-pub fn run_command_selfchannel(
+pub fn run(
     channel: Option<crate::cli::JuliaupChannel>,
     paths: &crate::global_paths::GlobalPaths,
 ) -> Result<()> {
