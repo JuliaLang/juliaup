@@ -4,6 +4,7 @@ use juliaup::cli::{ConfigSubCmd, Juliaup, OverrideSubCmd, SelfSubCmd};
 use juliaup::command_api::run_command_api;
 use juliaup::command_completions::generate_completion_for_command;
 use juliaup::command_config_autoinstall::run_command_config_autoinstall;
+use juliaup::command_config_manifestversiondetect::run_command_config_manifestversiondetect;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
@@ -126,6 +127,9 @@ fn main() -> Result<()> {
             }
             ConfigSubCmd::AutoInstallChannels { value } => {
                 run_command_config_autoinstall(value, false, &paths)
+            }
+            ConfigSubCmd::ManifestVersionDetect { value } => {
+                run_command_config_manifestversiondetect(value, false, &paths)
             }
         },
         Juliaup::Api { command } => run_command_api(&command, &paths),
