@@ -16,7 +16,7 @@ struct ChannelRow {
     version: String,
 }
 
-pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 

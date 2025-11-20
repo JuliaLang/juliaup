@@ -23,7 +23,7 @@ struct OverrideRow {
     channel: String,
 }
 
-pub fn run_command_override_status(paths: &GlobalPaths) -> Result<()> {
+pub fn status(paths: &GlobalPaths) -> Result<()> {
     let config_file = load_config_db(paths, None)
         .with_context(|| "`override status` command failed to load configuration file.")?;
 
@@ -57,11 +57,7 @@ pub fn run_command_override_status(paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
-pub fn run_command_override_set(
-    paths: &GlobalPaths,
-    channel: String,
-    path: Option<String>,
-) -> Result<()> {
+pub fn set(paths: &GlobalPaths, channel: String, path: Option<String>) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`override set` command failed to load configuration data.")?;
 
@@ -124,11 +120,7 @@ pub fn run_command_override_set(
     Ok(())
 }
 
-pub fn run_command_override_unset(
-    paths: &GlobalPaths,
-    nonexistent: bool,
-    path: Option<String>,
-) -> Result<()> {
+pub fn unset(paths: &GlobalPaths, nonexistent: bool, path: Option<String>) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`override unset` command failed to load configuration data.")?;
 

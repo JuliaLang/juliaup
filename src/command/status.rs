@@ -1,15 +1,14 @@
-use crate::config_file::load_config_db;
-use crate::config_file::{JuliaupConfigChannel, JuliaupReadonlyConfigFile};
-use crate::global_paths::GlobalPaths;
-use crate::jsonstructs_versionsdb::JuliaupVersionDB;
-use crate::versions_file::load_versions_db;
+use crate::{
+    config_file::load_config_db,
+    config_file::{JuliaupConfigChannel, JuliaupReadonlyConfigFile},
+    global_paths::GlobalPaths,
+    jsonstructs_versionsdb::JuliaupVersionDB,
+    versions_file::load_versions_db,
+};
 use anyhow::{Context, Result};
-use cli_table::format::HorizontalLine;
-use cli_table::format::Separator;
-use cli_table::ColorChoice;
 use cli_table::{
-    format::{Border, Justify},
-    print_stdout, Table, WithTitle,
+    format::{Border, HorizontalLine, Justify, Separator},
+    print_stdout, ColorChoice, Table, WithTitle,
 };
 use itertools::Itertools;
 use numeric_sort::cmp;
@@ -115,7 +114,7 @@ struct ChannelRow {
     update: String,
 }
 
-pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     let config_file = load_config_db(paths, None)
         .with_context(|| "`status` command failed to load configuration file.")?;
 
