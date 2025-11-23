@@ -1,34 +1,33 @@
-#[cfg(feature = "selfupdate")]
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
-#[cfg(feature = "selfupdate")]
-use anyhow::Result;
+use anyhow::Context;
 
-#[cfg(feature = "selfupdate")]
-pub fn run_command_config_startupselfupdate(
-    value: Option<i64>,
+pub fn run(
+    value: Option<bool>,
     quiet: bool,
     paths: &crate::global_paths::GlobalPaths,
-) -> Result<()> {
-    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
-    use anyhow::{bail, Context};
+) -> anyhow::Result<()> {
+    use crate::operations::{
+        add_binfolder_to_path_in_shell_scripts, remove_binfolder_from_path_in_shell_scripts,
+    };
 
     match value {
         Some(value) => {
-            if value < 0 {
-                bail!("Invalid argument.");
-            }
-
             let mut config_file = load_mut_config_db(paths)
                 .with_context(|| "`config` command failed to load configuration data.")?;
 
             let mut value_changed = false;
 
-            let value = if value == 0 { None } else { Some(value) };
-
-            if value != config_file.self_data.startup_selfupdate_interval {
-                config_file.self_data.startup_selfupdate_interval = value;
+            if value != config_file.self_data.modify_path {
+                config_file.self_data.modify_path = value;
 
                 value_changed = true;
+            }
+
+            if value {
+                add_binfolder_to_path_in_shell_scripts(&paths.juliaupselfbin)?;
+            } else {
+                remove_binfolder_from_path_in_shell_scripts()?;
             }
 
             save_config_db(&mut config_file)
@@ -38,19 +37,13 @@ pub fn run_command_config_startupselfupdate(
                 if value_changed {
                     print_juliaup_style(
                         "Configure",
-                        &format!(
-                            "Property 'startupselfupdateinterval' set to '{}'",
-                            value.unwrap_or(0)
-                        ),
+                        &format!("Property 'modifypath' set to '{}'", value),
                         JuliaupMessageType::Success,
                     );
                 } else {
                     print_juliaup_style(
                         "Configure",
-                        &format!(
-                            "Property 'startupselfupdateinterval' is already set to '{}'",
-                            value.unwrap_or(0)
-                        ),
+                        &format!("Property 'modifypath' is already set to '{}'", value),
                         JuliaupMessageType::Success,
                     );
                 }
@@ -64,11 +57,8 @@ pub fn run_command_config_startupselfupdate(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "Property 'startupselfupdateinterval' set to '{}'",
-                        config_file
-                            .self_data
-                            .startup_selfupdate_interval
-                            .unwrap_or(0)
+                        "Property 'modifypath' set to '{}'",
+                        config_file.self_data.modify_path
                     ),
                     JuliaupMessageType::Success,
                 );

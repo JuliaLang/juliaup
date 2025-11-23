@@ -1,16 +1,13 @@
-#[cfg(not(windows))]
-use anyhow::Result;
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
+use anyhow::Context;
 
-#[cfg(not(windows))]
-pub fn run_command_config_symlinks(
+pub fn run(
     value: Option<bool>,
     quiet: bool,
     paths: &crate::global_paths::GlobalPaths,
-) -> Result<()> {
-    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+) -> anyhow::Result<()> {
     use crate::operations::{create_symlink, remove_symlink};
-    use crate::utils::{print_juliaup_style, JuliaupMessageType};
-    use anyhow::Context;
 
     match value {
         Some(value) => {
@@ -59,7 +56,7 @@ pub fn run_command_config_symlinks(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "Property 'channelsymlinks' set to '{}'",
+                        "Property 'create_channel_symlinks' set to '{}'",
                         config_file.data.settings.create_channel_symlinks
                     ),
                     JuliaupMessageType::Success,

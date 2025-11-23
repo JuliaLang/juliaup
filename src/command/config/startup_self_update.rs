@@ -1,18 +1,12 @@
-#[cfg(feature = "selfupdate")]
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
-#[cfg(feature = "selfupdate")]
-use anyhow::Result;
+use anyhow::{bail, Context};
 
-#[cfg(feature = "selfupdate")]
-pub fn run_command_config_backgroundselfupdate(
+pub fn run(
     value: Option<i64>,
     quiet: bool,
     paths: &crate::global_paths::GlobalPaths,
-) -> Result<()> {
-    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
-    use crate::operations::{install_background_selfupdate, uninstall_background_selfupdate};
-    use anyhow::{bail, Context};
-
+) -> anyhow::Result<()> {
     match value {
         Some(value) => {
             if value < 0 {
@@ -26,19 +20,10 @@ pub fn run_command_config_backgroundselfupdate(
 
             let value = if value == 0 { None } else { Some(value) };
 
-            if value != config_file.self_data.background_selfupdate_interval {
-                config_file.self_data.background_selfupdate_interval = value;
+            if value != config_file.self_data.startup_selfupdate_interval {
+                config_file.self_data.startup_selfupdate_interval = value;
 
                 value_changed = true;
-
-                match value {
-                    Some(value) => {
-                        install_background_selfupdate(value).unwrap();
-                    }
-                    None => {
-                        uninstall_background_selfupdate().unwrap();
-                    }
-                }
             }
 
             save_config_db(&mut config_file)
@@ -49,7 +34,7 @@ pub fn run_command_config_backgroundselfupdate(
                     print_juliaup_style(
                         "Configure",
                         &format!(
-                            "Property 'backgroundselfupdateinterval' set to '{}'",
+                            "Property 'startupselfupdateinterval' set to '{}'",
                             value.unwrap_or(0)
                         ),
                         JuliaupMessageType::Success,
@@ -58,7 +43,7 @@ pub fn run_command_config_backgroundselfupdate(
                     print_juliaup_style(
                         "Configure",
                         &format!(
-                            "Property 'backgroundselfupdateinterval' is already set to '{}'",
+                            "Property 'startupselfupdateinterval' is already set to '{}'",
                             value.unwrap_or(0)
                         ),
                         JuliaupMessageType::Success,
@@ -74,10 +59,10 @@ pub fn run_command_config_backgroundselfupdate(
                 print_juliaup_style(
                     "Configure",
                     &format!(
-                        "Property 'backgroundselfupdateinterval' set to '{}'",
+                        "Property 'startupselfupdateinterval' set to '{}'",
                         config_file
                             .self_data
-                            .background_selfupdate_interval
+                            .startup_selfupdate_interval
                             .unwrap_or(0)
                     ),
                     JuliaupMessageType::Success,

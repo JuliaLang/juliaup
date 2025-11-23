@@ -1,15 +1,11 @@
-#[cfg(feature = "selfupdate")]
 use anyhow::Result;
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
+pub fn run(paths: &crate::global_paths::GlobalPaths) -> Result<()> {
     use dialoguer::Confirm;
 
     use crate::{
-        command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
-        command_config_modifypath::run_command_config_modifypath,
-        command_config_startupselfupdate::run_command_config_startupselfupdate,
-        command_config_symlinks::run_command_config_symlinks,
+        command,
         utils::{print_juliaup_style, JuliaupMessageType},
     };
 
@@ -23,25 +19,25 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
     }
 
     eprint!("Removing background self update task.");
-    match run_command_config_backgroundselfupdate(Some(0), true, paths) {
+    match command::config::background_self_update(Some(0), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
 
     eprint!("Removing startup self update configuration.");
-    match run_command_config_startupselfupdate(Some(0), true, paths) {
+    match command::config::startup_self_update(Some(0), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
 
     eprint!("Removing PATH modifications in startup scripts.");
-    match run_command_config_modifypath(Some(false), true, paths) {
+    match command::config::modify_path(Some(false), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
 
     eprint!("Removing symlinks.");
-    match run_command_config_symlinks(Some(false), true, paths) {
+    match command::config::symlinks(Some(false), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(_) => eprintln!(" Failed."),
     };
@@ -124,10 +120,7 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
 }
 
 #[cfg(not(feature = "selfupdate"))]
-use anyhow::Result;
-
-#[cfg(not(feature = "selfupdate"))]
-pub fn run_command_selfuninstall_unavailable() -> Result<()> {
+pub fn unavailable() -> Result<()> {
     eprintln!(
         "Self uninstall command is unavailable in this variant of Juliaup.
 This software was built with the intention of distributing it

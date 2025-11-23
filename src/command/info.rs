@@ -8,7 +8,7 @@ use crate::{get_bundled_dbversion, global_paths::GlobalPaths};
 use crate::{get_juliaup_target, get_own_version};
 use anyhow::{bail, Context, Result};
 
-pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     #[cfg(feature = "selfupdate")]
     let config_file = load_config_db(paths, None).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."

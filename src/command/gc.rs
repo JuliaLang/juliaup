@@ -3,7 +3,7 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::garbage_collect_versions;
 use anyhow::{Context, Result};
 
-pub fn run_command_gc(prune_linked: bool, paths: &GlobalPaths) -> Result<()> {
+pub fn run(prune_linked: bool, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`gc` command failed to load configuration data.")?;
 
