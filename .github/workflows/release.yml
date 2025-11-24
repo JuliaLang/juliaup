@@ -1009,7 +1009,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Update Homebrew formula
-      uses: dawidd6/action-homebrew-bump-formula@v5
+      uses: dawidd6/action-homebrew-bump-formula@v6
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup
