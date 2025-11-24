@@ -532,7 +532,7 @@ pub fn install_version(
         let juliaupserver_base =
             get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
 
-        let download_url_path = &version_db
+        let version_info = version_db
             .available_versions
             .get(fullversion)
             .ok_or_else(|| {
@@ -540,23 +540,28 @@ pub fn install_version(
                     "Failed to find download url in versions db for '{}'.",
                     fullversion
                 )
-            })?
-            .url_path;
+            })?;
 
         #[cfg(target_os = "macos")]
-        let download_url_path = {
-            // Convert .tar.gz URLs to .dmg URLs for macOS
-            // TODO: Update the database version format to include DMG URLs directly
-            // instead of doing runtime string replacement. This would require
-            // publishing a v2 version database schema.
-            if download_url_path.ends_with(".tar.gz") {
-                download_url_path.replace(".tar.gz", ".dmg")
-            } else {
-                download_url_path.clone()
-            }
+        let (download_url_path, source_type) = {
+            let url = version_info
+                .get_url_for_type("dmg")
+                .or_else(|| version_info.get_tarball_url())
+                .ok_or_else(|| anyhow!("No download URL found for '{}'.", fullversion))?;
+            let stype = version_info
+                .get_source_type_for_url(url)
+                .unwrap_or("tarball");
+            (url, stype)
         };
 
         #[cfg(not(target_os = "macos"))]
+        let (download_url_path, source_type) = {
+            let url = version_info
+                .get_tarball_url()
+                .ok_or_else(|| anyhow!("No tarball URL found for '{}'.", fullversion))?;
+            (url, "tarball")
+        };
+
         let download_url = juliaupserver_base
             .join(download_url_path)
             .with_context(|| {
@@ -573,19 +578,18 @@ pub fn install_version(
         );
 
         #[cfg(target_os = "macos")]
-        let used_dmg = {
-            let download_url = juliaupserver_base
-                .join(&download_url_path)
-                .with_context(|| {
-                    format!(
-                        "Failed to construct a valid url from '{}' and '{}'.",
-                        juliaupserver_base, download_url_path
-                    )
-                })?;
-
-            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, &target_path)?;
-            used_dmg
+        let used_dmg = if source_type == "dmg" {
+            download_extract_dmg(download_url.as_ref(), &target_path)?;
+            true
+        } else {
+            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+            false
         };
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+        }
 
         #[cfg(target_os = "macos")]
         if !used_dmg
@@ -634,10 +638,6 @@ pub fn install_version(
             }
         }
 
-        #[cfg(not(target_os = "macos"))]
-        {
-            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
-        }
     }
 
     let mut rel_path = PathBuf::new();
