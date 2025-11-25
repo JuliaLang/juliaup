@@ -26,37 +26,31 @@ impl JuliaupVersionDBVersion {
     pub fn get_url_for_type(&self, preferred_type: &str) -> Option<&str> {
         match self {
             JuliaupVersionDBVersion::V1 { url_path } => Some(url_path.as_str()),
-            JuliaupVersionDBVersion::V2 { sources } => {
-                sources
-                    .iter()
-                    .find(|s| s.source_type == preferred_type)
-                    .or_else(|| sources.first())
-                    .map(|s| s.url.as_str())
-            }
+            JuliaupVersionDBVersion::V2 { sources } => sources
+                .iter()
+                .find(|s| s.source_type == preferred_type)
+                .or_else(|| sources.first())
+                .map(|s| s.url.as_str()),
         }
     }
 
     pub fn get_source_type_for_url(&self, url: &str) -> Option<&str> {
         match self {
             JuliaupVersionDBVersion::V1 { .. } => Some("tarball"),
-            JuliaupVersionDBVersion::V2 { sources } => {
-                sources
-                    .iter()
-                    .find(|s| s.url == url)
-                    .map(|s| s.source_type.as_str())
-            }
+            JuliaupVersionDBVersion::V2 { sources } => sources
+                .iter()
+                .find(|s| s.url == url)
+                .map(|s| s.source_type.as_str()),
         }
     }
 
     pub fn get_tarball_url(&self) -> Option<&str> {
         match self {
             JuliaupVersionDBVersion::V1 { url_path } => Some(url_path.as_str()),
-            JuliaupVersionDBVersion::V2 { sources } => {
-                sources
-                    .iter()
-                    .find(|s| s.source_type == "tarball")
-                    .map(|s| s.url.as_str())
-            }
+            JuliaupVersionDBVersion::V2 { sources } => sources
+                .iter()
+                .find(|s| s.source_type == "tarball")
+                .map(|s| s.url.as_str()),
         }
     }
 }

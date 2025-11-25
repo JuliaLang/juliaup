@@ -555,7 +555,7 @@ pub fn install_version(
         };
 
         #[cfg(not(target_os = "macos"))]
-        let (download_url_path, source_type) = {
+        let (download_url_path, _source_type) = {
             let url = version_info
                 .get_tarball_url()
                 .ok_or_else(|| anyhow!("No tarball URL found for '{}'.", fullversion))?;
@@ -637,7 +637,6 @@ pub fn install_version(
                 eprintln!("failed with {}.", exit_status);
             }
         }
-
     }
 
     let mut rel_path = PathBuf::new();

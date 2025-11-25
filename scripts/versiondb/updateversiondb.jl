@@ -73,7 +73,7 @@ function get_available_versions(data, platform)
     end
 
     all_versions = data |> pairs |> @map(VersionNumber(_[1])) |> @orderby(_) |> collect
-      
+
     # Collect all available sources for each version
     if platform in ["x86_64-apple-darwin", "aarch64-apple-darwin"]
         # For macOS, collect both tarball and dmg files
@@ -90,7 +90,7 @@ function get_available_versions(data, platform)
                 "Sources" => [OrderedDict("Url" => file.url_path, "Type" => file.source_type) for file in _]
             )) |>
             OrderedDict
-        
+
         available_versions = all_files
     else
         # For non-macOS, only collect tarball files
@@ -147,7 +147,7 @@ function get_available_versions(data, platform)
             end
         end
     end
-    
+
     major_channels = all_versions |>
         @map({major=convert(Int, _.major), version=_}) |>
         @groupby({_.major}) |>
@@ -184,7 +184,7 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$release_version+0.$(triplet2semverbuild(p))")
             available_channels["release~$(triplet2channel(p))"] = Dict("Version"=>"$release_version+0.$(triplet2semverbuild(p))")
         end
-    end        
+    end
 
     lts_version = all_versions |>
         @filter(isempty(_.prerelease) && _.major==lts_major && _.minor==lts_minor) |>
@@ -201,12 +201,12 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$lts_version+0.$(triplet2semverbuild(p))")
             available_channels["lts~$(triplet2channel(p))"] = Dict("Version"=>"$lts_version+0.$(triplet2semverbuild(p))")
         end
-    end        
-    
+    end
+
 
     rc_version = all_versions |>
         @filter(!isempty(_.prerelease) && startswith(_.prerelease[1], "rc")) |>
-        maximum    
+        maximum
     if rc_version < release_version
         rc_version = release_version
     end
@@ -222,7 +222,7 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$rc_version+0.$(triplet2semverbuild(p))")
             available_channels["rc~$(triplet2channel(p))"] = Dict("Version"=>"$rc_version+0.$(triplet2semverbuild(p))")
         end
-    end        
+    end
 
     beta_version = all_versions |>
         @filter(!isempty(_.prerelease) && startswith(_.prerelease[1], "beta")) |>
@@ -365,7 +365,7 @@ function main_impl(temp_path)
         end
 
     end
-    
+
     return (update_needed=update_needed,)
 end
 
