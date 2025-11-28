@@ -173,6 +173,9 @@ the `JULIAUP_DEPOT_PATH` environment variable. Caution: Previous versions of Jul
 Juliaup by default downloads julia binary tarballs from the official server "https://julialang-s3.julialang.org".
 If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-party mirror server.
 
+**Note:** Nightly and PR channels (e.g., `nightly`, `pr123`) require the server to provide `etag` headers in HTTP responses for version tracking.
+If your custom mirror server does not support `etag` headers, these channels will not be available. Regular versioned Julia releases will still work normally.
+
 ## Development guides
 
 For juliaup developers, information on how to build juliaup locally, update julia versions, and release updates
