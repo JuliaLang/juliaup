@@ -533,6 +533,9 @@
         },
         "1.12.2+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.12/julia-1.12.2-linux-i686.tar.gz"
+        },
+        "1.13.0-alpha2+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.13/julia-1.13.0-alpha2-linux-i686.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1226,6 +1229,18 @@
         "1.12~x86": {
             "Version": "1.12.2+0.x86.linux.gnu"
         },
+        "1.13": {
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
+        },
+        "1.13.0-alpha2": {
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
+        },
+        "1.13.0-alpha2~x86": {
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
+        },
+        "1.13~x86": {
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
+        },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.linux.gnu"
         },
@@ -1725,10 +1740,10 @@
             "Version": "1.12.2+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.12.2+0.x86.linux.gnu"
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.12.2+0.x86.linux.gnu"
+            "Version": "1.13.0-alpha2+0.x86.linux.gnu"
         },
         "beta": {
             "Version": "1.12.2+0.x86.linux.gnu"
@@ -1755,5 +1770,5 @@
             "Version": "1.12.2+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.76"
+    "Version": "1.0.77"
 }
