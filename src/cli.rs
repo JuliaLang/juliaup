@@ -188,4 +188,10 @@ pub enum ConfigSubCmd {
         /// New value: true, false, or default
         value: Option<String>,
     },
+    /// Enable Julia version selection from manifests
+    #[clap(name = "manifestversiondetect")]
+    ManifestVersionDetect {
+        /// New value
+        value: Option<bool>,
+    },
 }

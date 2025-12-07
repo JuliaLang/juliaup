@@ -547,7 +547,7 @@ pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
 // considers the nightly channels as system channels
 // XXX: does not account for PR channels
 pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
-    let regular = versions_db.available_channels.contains_key(channel);
+    let regular = versions_db.has_channel(channel);
 
     let nightly_chans = get_channel_variations("nightly")?;
 
