@@ -1,14 +1,12 @@
-use anyhow::{anyhow, Result};
+use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
+use anyhow::{bail, Context};
 
-pub fn run_command_config_autoinstall(
+pub fn run(
     value: Option<String>,
     quiet: bool,
     paths: &crate::global_paths::GlobalPaths,
-) -> Result<()> {
-    use crate::config_file::{load_config_db, load_mut_config_db, save_config_db};
-    use crate::utils::{print_juliaup_style, JuliaupMessageType};
-    use anyhow::Context;
-
+) -> anyhow::Result<()> {
     match value {
         Some(value_str) => {
             let mut config_file = load_mut_config_db(paths)
@@ -19,12 +17,10 @@ pub fn run_command_config_autoinstall(
                 "true" => Some(true),
                 "false" => Some(false),
                 "default" => None,
-                _ => {
-                    return Err(anyhow!(
+                _ => bail!(
                         "Invalid value '{}'. Valid values are: true, false, default (to unset the property)",
                         value_str
-                    ))
-                }
+                    ),
             };
 
             if new_value != config_file.data.settings.auto_install_channels {
