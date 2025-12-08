@@ -73,17 +73,40 @@ function get_available_versions(data, platform)
     end
 
     all_versions = data |> pairs |> @map(VersionNumber(_[1])) |> @orderby(_) |> collect
-      
-    available_versions = data |>
-        pairs |>
-        @map({version=_[1], stable=_[2]["stable"], files=_[2]["files"]}) |>
-        @mapmany(_.files, {_.version, _.stable, extension=__["extension"], triplet=__["triplet"], kind=__["kind"], arch=__["arch"], sha256=__["sha256"], size=__["size"], url=__["url"], os=__["os"], asc=get(__, "asc", "")}) |>
-        @filter(_.extension=="tar.gz" && _.kind=="archive" && _.triplet in platforms_to_include) |>
-        @mutate(version=VersionNumber(_.version), url_path=remove_prefix(_.url, "https://julialang-s3.julialang.org/")) |>
-        @orderby(_.version) |>
-        @thenby(_.triplet) |>
-        @map("$(_.version)+0.$(triplet2semverbuild(_.triplet))" => OrderedDict("UrlPath" => _.url_path)) |>
-        OrderedDict
+
+    # Collect all available sources for each version
+    if platform in ["x86_64-apple-darwin", "aarch64-apple-darwin"]
+        # For macOS, collect both tarball and dmg files
+        all_files = data |>
+            pairs |>
+            @map({version=_[1], stable=_[2]["stable"], files=_[2]["files"]}) |>
+            @mapmany(_.files, {_.version, _.stable, extension=__["extension"], triplet=__["triplet"], kind=__["kind"], arch=__["arch"], sha256=__["sha256"], size=__["size"], url=__["url"], os=__["os"], asc=get(__, "asc", "")}) |>
+            @filter((_.extension=="tar.gz" && _.kind=="archive" || _.extension=="dmg" && _.kind=="installer") && _.triplet in platforms_to_include) |>
+            @mutate(version=VersionNumber(_.version), url_path=remove_prefix(_.url, "https://julialang-s3.julialang.org/"), source_type=(_.extension=="dmg" ? "dmg" : "tarball")) |>
+            @orderby(_.version) |>
+            @thenby(_.triplet) |>
+            @groupby("$(_.version)+0.$(triplet2semverbuild(_.triplet))") |>
+            @map(key(_) => OrderedDict(
+                "Sources" => [OrderedDict("Url" => file.url_path, "Type" => file.source_type) for file in _]
+            )) |>
+            OrderedDict
+
+        available_versions = all_files
+    else
+        # For non-macOS, only collect tarball files
+        available_versions = data |>
+            pairs |>
+            @map({version=_[1], stable=_[2]["stable"], files=_[2]["files"]}) |>
+            @mapmany(_.files, {_.version, _.stable, extension=__["extension"], triplet=__["triplet"], kind=__["kind"], arch=__["arch"], sha256=__["sha256"], size=__["size"], url=__["url"], os=__["os"], asc=get(__, "asc", "")}) |>
+            @filter(_.extension=="tar.gz" && _.kind=="archive" && _.triplet in platforms_to_include) |>
+            @mutate(version=VersionNumber(_.version), url_path=remove_prefix(_.url, "https://julialang-s3.julialang.org/")) |>
+            @orderby(_.version) |>
+            @thenby(_.triplet) |>
+            @map("$(_.version)+0.$(triplet2semverbuild(_.triplet))" => OrderedDict(
+                "Sources" => [OrderedDict("Url" => _.url_path, "Type" => "tarball")]
+            )) |>
+            OrderedDict
+    end
 
     available_channels = Dict()
 
@@ -124,7 +147,7 @@ function get_available_versions(data, platform)
             end
         end
     end
-    
+
     major_channels = all_versions |>
         @map({major=convert(Int, _.major), version=_}) |>
         @groupby({_.major}) |>
@@ -161,7 +184,7 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$release_version+0.$(triplet2semverbuild(p))")
             available_channels["release~$(triplet2channel(p))"] = Dict("Version"=>"$release_version+0.$(triplet2semverbuild(p))")
         end
-    end        
+    end
 
     lts_version = all_versions |>
         @filter(isempty(_.prerelease) && _.major==lts_major && _.minor==lts_minor) |>
@@ -178,12 +201,12 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$lts_version+0.$(triplet2semverbuild(p))")
             available_channels["lts~$(triplet2channel(p))"] = Dict("Version"=>"$lts_version+0.$(triplet2semverbuild(p))")
         end
-    end        
-    
+    end
+
 
     rc_version = all_versions |>
         @filter(!isempty(_.prerelease) && startswith(_.prerelease[1], "rc")) |>
-        maximum    
+        maximum
     if rc_version < release_version
         rc_version = release_version
     end
@@ -199,7 +222,7 @@ function get_available_versions(data, platform)
         if haskey(available_versions, "$rc_version+0.$(triplet2semverbuild(p))")
             available_channels["rc~$(triplet2channel(p))"] = Dict("Version"=>"$rc_version+0.$(triplet2semverbuild(p))")
         end
-    end        
+    end
 
     beta_version = all_versions |>
         @filter(!isempty(_.prerelease) && startswith(_.prerelease[1], "beta")) |>
@@ -342,7 +365,7 @@ function main_impl(temp_path)
         end
 
     end
-    
+
     return (update_needed=update_needed,)
 end
 
