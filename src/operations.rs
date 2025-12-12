@@ -42,6 +42,38 @@ use url::Url;
 // Progress bar prefix with proper indentation to match other messages (12 characters wide, right-aligned)
 const DOWNLOADING_PREFIX: &str = " Downloading";
 
+/// Creates an HTTP client with a proper User-Agent header.
+/// Some CDNs (like CloudFront) block requests without User-Agent.
+#[cfg(not(windows))]
+fn http_client() -> Result<reqwest::blocking::Client> {
+    let user_agent = format!("juliaup/{}", env!("CARGO_PKG_VERSION"));
+    reqwest::blocking::Client::builder()
+        .user_agent(user_agent)
+        .build()
+        .with_context(|| "Failed to create HTTP client")
+}
+
+/// Creates a Windows HTTP client with a proper User-Agent header.
+/// Some CDNs (like CloudFront) block requests without User-Agent.
+#[cfg(windows)]
+fn http_client() -> Result<windows::Web::Http::HttpClient> {
+    use windows::core::HSTRING;
+
+    let http_client =
+        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+
+    let user_agent = format!("juliaup/{}", env!("CARGO_PKG_VERSION"));
+    http_client
+        .DefaultRequestHeaders()
+        .with_context(|| "Failed to get default request headers.")?
+        .UserAgent()
+        .with_context(|| "Failed to get User-Agent header collection.")?
+        .TryParseAdd(&HSTRING::from(&user_agent))
+        .with_context(|| "Failed to set User-Agent header.")?;
+
+    Ok(http_client)
+}
+
 #[cfg(not(target_os = "freebsd"))]
 fn unpack_sans_parent<R, P>(src: R, dst: P, levels_to_skip: usize) -> Result<()>
 where
@@ -155,7 +187,9 @@ pub fn download_extract_sans_parent(
     levels_to_skip: usize,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
-    let response = reqwest::blocking::get(url)
+    let response = http_client()?
+        .get(url)
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let content_length = response.content_length();
@@ -212,10 +246,9 @@ pub fn download_extract_sans_parent(
 ) -> Result<String> {
     use windows::core::HSTRING;
 
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+    let http_client = http_client()?;
 
-    let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
+    let request_uri = windows::Foundation::Uri::CreateUri(&HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
     let http_response = http_client
@@ -273,7 +306,9 @@ pub fn download_extract_sans_parent(
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = reqwest::blocking::get(url)
+    let response = http_client()?
+        .get(url)
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?
         .text()?;
 
@@ -291,7 +326,9 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let mut response = reqwest::blocking::get(url)
+    let mut response = http_client()?
+        .get(url)
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let mut file = std::fs::OpenOptions::new()
@@ -310,8 +347,7 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
 
 #[cfg(windows)]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+    let http_client = http_client()?;
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
@@ -337,8 +373,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(windows)]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let http_client =
-        windows::Web::Http::HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+    let http_client = http_client()?;
 
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
@@ -1635,11 +1670,10 @@ fn download_direct_download_etags(
 ) -> Result<Vec<(String, Option<String>)>> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
-    use windows::Web::Http::HttpClient;
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
-    let http_client = HttpClient::new().with_context(|| "Failed to create HttpClient.")?;
+    let http_client = http_client()?;
 
     let mut requests = Vec::new();
 
@@ -1710,7 +1744,7 @@ fn download_direct_download_etags(
 ) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
 
-    let client = Arc::new(reqwest::blocking::Client::new());
+    let client = Arc::new(http_client()?);
 
     let mut requests = Vec::new();
 
