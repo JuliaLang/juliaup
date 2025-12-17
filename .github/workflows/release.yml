@@ -219,16 +219,16 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: vmactions/freebsd-vm@v1
+      uses: cross-platform-actions/action@v0.30.0
       with:
-        release: "13.4"
-        usesh: true
-        mem: 8192
-        copyback: true
-        prepare: |
-          pkg install -y curl
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        operating_system: freebsd
+        version: '13.4'
+        architecture: x86-64
+        cpu_count: 4
+        memory: '12G'
+        shell: sh
         run: |
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
           . "${HOME}/.cargo/env"
           cargo build --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v5
@@ -329,16 +329,16 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: vmactions/freebsd-vm@v1
+      uses: cross-platform-actions/action@v0.30.0
       with:
-        release: "13.4"
-        usesh: true
-        mem: 8192
-        copyback: false
-        prepare: |
-          pkg install -y curl
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        operating_system: freebsd
+        version: '13.4'
+        architecture: x86-64
+        cpu_count: 4
+        memory: '12G'
+        shell: sh
         run: |
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
           . "${HOME}/.cargo/env"
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
   package-unix:
