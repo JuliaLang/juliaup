@@ -4,9 +4,7 @@ use cluFlock::{ExclusiveFlock, FlockLock, SharedFlock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
-#[cfg(target_os = "windows")]
-use std::mem;
+use std::io::{BufReader, ErrorKind, Write};
 use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
@@ -143,11 +141,8 @@ pub struct JuliaupSelfConfig {
 }
 
 pub struct JuliaupConfigFile {
-    pub file: File,
     pub lock: FlockLock<File>,
     pub data: JuliaupConfig,
-    #[cfg(feature = "selfupdate")]
-    pub self_file: File,
     #[cfg(feature = "selfupdate")]
     pub self_data: JuliaupSelfConfig,
 }
@@ -299,48 +294,24 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         }
     };
 
-    let mut file = std::fs::OpenOptions::new()
+    let file = std::fs::OpenOptions::new()
         .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.juliaupconfig)
-        .with_context(|| "Failed to open juliaup config file.")?;
+        .open(&paths.juliaupconfig);
 
-    let stream_len = file
-        .seek(SeekFrom::End(0))
-        .with_context(|| "Failed to determine the length of the configuration file.")?;
-
-    let data = match stream_len {
-        0 => {
-            let new_config = JuliaupConfig {
-                default: None,
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-                overrides: Vec::new(),
-                settings: JuliaupConfigSettings {
-                    create_channel_symlinks: false,
-                    versionsdb_update_interval: default_versionsdb_update_interval(),
-                    auto_install_channels: None,
-                },
-                last_version_db_update: None,
-            };
-
-            serde_json::to_writer_pretty(&file, &new_config)
-                .with_context(|| "Failed to write configuration file.")?;
-
-            file.sync_all()
-                .with_context(|| "Failed to write configuration data to disc.")?;
-
-            file.rewind()
-                .with_context(|| "Failed to rewind config file after initial write of data.")?;
-
-            new_config
-        }
-        _ => {
-            file.rewind()
-                .with_context(|| "Failed to rewind existing config file.")?;
-
+    let data = match file {
+        Err(_file) => JuliaupConfig {
+            default: None,
+            installed_versions: HashMap::new(),
+            installed_channels: HashMap::new(),
+            overrides: Vec::new(),
+            settings: JuliaupConfigSettings {
+                create_channel_symlinks: false,
+                versionsdb_update_interval: default_versionsdb_update_interval(),
+                auto_install_channels: None,
+            },
+            last_version_db_update: None,
+        },
+        Ok(file) => {
             let reader = BufReader::new(&file);
 
             serde_json::from_reader(reader)
@@ -349,33 +320,38 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     };
 
     #[cfg(feature = "selfupdate")]
-    let self_file: File;
-    #[cfg(feature = "selfupdate")]
     let self_data: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        self_file = std::fs::OpenOptions::new()
+        let self_file = std::fs::OpenOptions::new()
             .read(true)
-            .write(true)
-            .open(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to open juliaup config file.")?;
+            .open(&paths.juliaupselfconfig);
 
-        let reader = BufReader::new(&self_file);
+        self_data = match self_file {
+            // TODO Or should we just error when the file can't be read?
+            Err(_self_file) => JuliaupSelfConfig {
+                background_selfupdate_interval: None,
+                startup_selfupdate_interval: None,
+                modify_path: false,
+                juliaup_channel: None,
+                last_selfupdate: None,
+            },
+            Ok(self_file) => {
+                let reader = BufReader::new(&self_file);
 
-        self_data = serde_json::from_reader(reader).with_context(|| {
-            format!(
-                "Failed to parse self configuration file '{:?}' for reading.",
-                paths.juliaupselfconfig
-            )
-        })?
+                serde_json::from_reader(reader).with_context(|| {
+                    format!(
+                        "Failed to parse self configuration file '{:?}' for reading.",
+                        paths.juliaupselfconfig
+                    )
+                })?
+            }
+        }
     }
 
     let result = JuliaupConfigFile {
-        file,
         lock: file_lock,
         data,
-        #[cfg(feature = "selfupdate")]
-        self_file,
         #[cfg(feature = "selfupdate")]
         self_data,
     };
@@ -415,37 +391,10 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
         .sync_all()
         .with_context(|| "Failed to sync configuration data to disc.")?;
 
-    // On Windows, we must close the file before replacing it
-    // On Unix, the file can remain open during atomic rename
-    #[cfg(target_os = "windows")]
-    {
-        // Create a dummy file to replace the handle we need to close
-        let dummy = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(config_dir.join(".dummy"))
-            .with_context(|| "Failed to create dummy file handle.")?;
-
-        // Replace the file handle with the dummy, dropping the old handle
-        let _ = mem::replace(&mut juliaup_config_file.file, dummy);
-    }
-
     // Atomically replace the old config file with the new one
     temp_file
         .persist(&paths.juliaupconfig)
         .with_context(|| "Failed to persist configuration file.")?;
-
-    // Reopen the file to update our file handle (Windows only, since we closed it)
-    #[cfg(target_os = "windows")]
-    {
-        juliaup_config_file.file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(&paths.juliaupconfig)
-            .with_context(|| "Failed to reopen configuration file after save.")?;
-    }
 
     #[cfg(feature = "selfupdate")]
     {
@@ -470,35 +419,9 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
             .sync_all()
             .with_context(|| "Failed to sync self configuration data to disc.")?;
 
-        // On Windows, we must close the file before replacing it
-        #[cfg(target_os = "windows")]
-        {
-            // Create a dummy file to replace the handle we need to close
-            let dummy = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(self_config_dir.join(".dummy_self"))
-                .with_context(|| "Failed to create dummy self config file handle.")?;
-
-            // Replace the file handle with the dummy, dropping the old handle
-            let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
-        }
-
         temp_self_file
             .persist(&paths.juliaupselfconfig)
             .with_context(|| "Failed to persist self configuration file.")?;
-
-        // Reopen the self config file (Windows only, since we closed it)
-        #[cfg(target_os = "windows")]
-        {
-            juliaup_config_file.self_file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&paths.juliaupselfconfig)
-                .with_context(|| "Failed to reopen self configuration file after save.")?;
-        }
     }
 
     Ok(())
