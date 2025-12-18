@@ -223,9 +223,7 @@ pub fn main() -> Result<()> {
     };
     use is_terminal::IsTerminal;
     use juliaup::{
-        command_add::run_command_add,
-        command_default::run_command_default,
-        command_selfchannel::run_command_selfchannel,
+        command,
         config_file::JuliaupSelfConfig,
         get_juliaup_target, get_own_version,
         global_paths::get_paths,
@@ -266,12 +264,6 @@ pub fn main() -> Result<()> {
 
     let mut paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
-    use juliaup::{
-        command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
-        command_config_modifypath::run_command_config_modifypath,
-        command_config_startupselfupdate::run_command_config_startupselfupdate,
-        command_config_symlinks::run_command_config_symlinks,
-    };
     use log::{debug, info, trace};
 
     println!("{}", style("Welcome to Julia!").bold());
@@ -500,26 +492,28 @@ pub fn main() -> Result<()> {
         paths.juliaupselfconfig = self_config_path.clone();
     }
 
-    run_command_config_backgroundselfupdate(
+    command::config::background_self_update(
         Some(install_choices.backgroundselfupdate),
         true,
         &paths,
     )
     .unwrap();
-    run_command_config_startupselfupdate(Some(install_choices.startupselfupdate), true, &paths)
+    command::config::startup_self_update(Some(install_choices.startupselfupdate), true, &paths)
         .unwrap();
     if install_choices.modifypath {
         // We only run this if true so that we don't try to touch the various shell scripts at all
         // if this is not selected.
-        run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
+        command::config::modify_path(Some(install_choices.modifypath), true, &paths).unwrap();
     }
-    run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
-    run_command_selfchannel(Some(args.juliaup_channel), &paths).unwrap();
 
-    run_command_add(&args.default_channel, &paths)
+    #[cfg(not(windows))]
+    command::config::symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
+    command::selfchannel(Some(args.juliaup_channel), &paths).unwrap();
+
+    command::add(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;
 
-    run_command_default(&args.default_channel, &paths)
+    command::default(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_default`.")?;
 
     let symlink_path = juliaupselfbin.join("julia");

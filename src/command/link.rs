@@ -11,12 +11,7 @@ use anyhow::{bail, Context, Result};
 use path_absolutize::Absolutize;
 use std::path::Path;
 
-pub fn run_command_link(
-    channel: &str,
-    target: &str,
-    args: &[String],
-    paths: &GlobalPaths,
-) -> Result<()> {
+pub fn run(channel: &str, target: &str, args: &[String], paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`link` command failed to load configuration data.")?;
 

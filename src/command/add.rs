@@ -10,7 +10,7 @@ use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 
-pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
+pub fn run(channel: &str, paths: &GlobalPaths) -> Result<()> {
     // This regex is dynamically compiled, but its runtime is negligible compared to downloading Julia
     if Regex::new(r"^(?:pr\d+|nightly|\d+\.\d+-nightly)(?:~|$)")
         .unwrap()

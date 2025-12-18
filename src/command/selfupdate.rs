@@ -3,7 +3,7 @@ use crate::operations::update_version_db;
 use anyhow::{Context, Result};
 
 #[cfg(feature = "selfupdate")]
-pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db};
     use crate::operations::{download_extract_sans_parent, download_juliaup_version};
     use crate::utils::get_juliaserver_base_url;
@@ -90,8 +90,8 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature = "windowsstore")]
-pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
+#[cfg(all(windows, feature = "windowsstore"))]
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     use windows::{
         core::Interface,
         Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow},
@@ -145,7 +145,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 }
 
 #[cfg(not(any(feature = "windowsstore", feature = "selfupdate")))]
-pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
+pub fn run(paths: &GlobalPaths) -> Result<()> {
     update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
     Ok(())
 }

@@ -1,7 +1,7 @@
 use crate::cli;
 use anyhow::Result;
 use clap::CommandFactory;
-use clap_complete::{generate, Shell};
+use clap_complete::Shell;
 use cli::CompletionShell;
 use std::io;
 
@@ -25,10 +25,8 @@ impl From<CompletionShell> for GeneratorType {
 }
 
 /// Generic completion generator that supports both standard shells and nushell
-pub fn generate_completion_for_command<T: CommandFactory>(
-    shell: CompletionShell,
-    app_name: &str,
-) -> Result<()> {
+pub fn generate<T: CommandFactory>(shell: CompletionShell, app_name: &str) -> Result<()> {
+    use clap_complete::generate;
     let mut cmd = T::command();
     let mut stdout = io::stdout().lock();
 
