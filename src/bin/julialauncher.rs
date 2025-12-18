@@ -11,6 +11,7 @@ use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
 use juliaup::versions_file::load_versions_db;
+use std::collections::HashMap;
 #[cfg(not(windows))]
 use nix::{
     sys::wait::{waitpid, WaitStatus},
@@ -553,6 +554,64 @@ fn get_override_channel(
     }
 }
 
+/// Process Julia environment variables:
+/// 1. Check current environment for each Julia env var
+/// 2. If set in current env (and non-empty), use it and persist to config
+/// 3. If not set in current env but exists in persisted config, use persisted value
+/// Returns a HashMap of environment variables to set for the Julia process
+fn process_julia_environment_variables(
+    paths: &juliaup::global_paths::GlobalPaths,
+) -> Result<HashMap<String, String>> {
+    use juliaup::utils::get_julia_environment_variables;
+
+    let mut env_vars_to_set = HashMap::new();
+    let mut config_needs_update = false;
+
+    // Load config for reading persisted env vars
+    let config_file = load_config_db(paths, None)
+        .with_context(|| "Failed to load config when processing environment variables.")?;
+
+    let persisted_vars = &config_file.data.settings.julia_env_variables;
+
+    // Collect environment variables that need to be persisted
+    let mut vars_to_persist = HashMap::new();
+
+    for var_name in get_julia_environment_variables() {
+        // Check if variable is set in current environment
+        if let Ok(current_value) = std::env::var(var_name) {
+            if !current_value.is_empty() {
+                // Use the current environment value
+                env_vars_to_set.insert(var_name.to_string(), current_value.clone());
+
+                // Check if we need to persist this value
+                if persisted_vars.get(var_name) != Some(&current_value) {
+                    vars_to_persist.insert(var_name.to_string(), current_value);
+                    config_needs_update = true;
+                }
+            }
+        } else if let Some(persisted_value) = persisted_vars.get(var_name) {
+            // Not set in current environment, but we have a persisted value
+            env_vars_to_set.insert(var_name.to_string(), persisted_value.clone());
+        }
+    }
+
+    // If we need to update config, do it now
+    if config_needs_update {
+        let mut config_mut = load_mut_config_db(paths)
+            .with_context(|| "Failed to load mutable config for persisting environment variables.")?;
+
+        // Update the persisted environment variables
+        for (key, value) in vars_to_persist {
+            config_mut.data.settings.julia_env_variables.insert(key, value);
+        }
+
+        save_config_db(&mut config_mut)
+            .with_context(|| "Failed to save config after persisting environment variables.")?;
+    }
+
+    Ok(env_vars_to_set)
+}
+
 fn run_app() -> Result<i32> {
     if std::io::stdout().is_terminal() {
         // Set console title
@@ -624,6 +683,10 @@ fn run_app() -> Result<i32> {
         }
     }
 
+    // Process Julia environment variables: load persisted values and persist current non-empty values
+    let julia_env_vars = process_julia_environment_variables(&paths)
+        .with_context(|| "Failed to process Julia environment variables.")?;
+
     // On *nix platforms we replace the current process with the Julia one.
     // This simplifies use in e.g. debuggers, but requires that we fork off
     // a subprocess to do the selfupdate and versiondb update.
@@ -652,6 +715,7 @@ fn run_app() -> Result<i32> {
             // replace the current process
             let _ = std::process::Command::new(&julia_path)
                 .args(&new_args)
+                .envs(&julia_env_vars)
                 .exec();
 
             // this is only ever reached if launching Julia fails
@@ -727,6 +791,7 @@ fn run_app() -> Result<i32> {
 
         let mut child_process = std::process::Command::new(julia_path)
             .args(&new_args)
+            .envs(&julia_env_vars)
             .spawn()
             .with_context(|| "The Julia launcher failed to start Julia.")?; // TODO Maybe include the command we actually tried to start?
 

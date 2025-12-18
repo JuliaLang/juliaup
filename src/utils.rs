@@ -154,6 +154,79 @@ mod tests {
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
     }
+
+    #[test]
+    fn test_get_julia_environment_variables() {
+        let env_vars = get_julia_environment_variables();
+
+        // Should return a non-empty list
+        assert!(!env_vars.is_empty(), "Should have Julia environment variables");
+
+        // Should contain common variables
+        assert!(
+            env_vars.contains(&"JULIA_NUM_THREADS"),
+            "Should include JULIA_NUM_THREADS"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_DEPOT_PATH"),
+            "Should include JULIA_DEPOT_PATH"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_EDITOR"),
+            "Should include JULIA_EDITOR"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_PKG_SERVER"),
+            "Should include JULIA_PKG_SERVER"
+        );
+
+        // Should NOT contain JULIA_PROJECT (it's explicitly excluded)
+        assert!(
+            !env_vars.contains(&"JULIA_PROJECT"),
+            "Should NOT include JULIA_PROJECT"
+        );
+
+        // All entries should start with "JULIA_" or be known exceptions
+        for var in &env_vars {
+            assert!(
+                var.starts_with("JULIA_")
+                    || *var == "NO_COLOR"
+                    || *var == "FORCE_COLOR"
+                    || *var == "ENABLE_JITPROFILING"
+                    || *var == "ENABLE_GDBLISTENER",
+                "Variable {} should start with JULIA_ or be a known exception",
+                var
+            );
+        }
+
+        // Check that we have variables from different categories
+        assert!(
+            env_vars.contains(&"JULIA_NUM_THREADS"),
+            "Should have parallelization vars"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_ERROR_COLOR"),
+            "Should have REPL formatting vars"
+        );
+        assert!(
+            env_vars.contains(&"JULIA_DEBUG"),
+            "Should have debugging vars"
+        );
+    }
+
+    #[test]
+    fn test_julia_environment_variables_uniqueness() {
+        let env_vars = get_julia_environment_variables();
+        let mut seen = std::collections::HashSet::new();
+
+        for var in env_vars {
+            assert!(
+                seen.insert(var),
+                "Duplicate environment variable found: {}",
+                var
+            );
+        }
+    }
 }
 
 // Message formatting constants and functions
@@ -222,4 +295,72 @@ pub fn print_juliaup_style(action: &str, message: &str, message_type: JuliaupMes
     };
 
     eprintln!("{} {}", styled_action, message);
+}
+
+/// Returns the list of Julia environment variables that can be persisted
+/// Excludes JULIA_PROJECT as noted in the Julia documentation
+pub fn get_julia_environment_variables() -> Vec<&'static str> {
+    vec![
+        // File Locations
+        "JULIA_BINDIR",
+        "JULIA_LOAD_PATH",
+        "JULIA_DEPOT_PATH",
+        "JULIA_HISTORY",
+        "JULIA_MAX_NUM_PRECOMPILE_FILES",
+        "JULIA_VERBOSE_LINKING",
+        // Pkg.jl
+        "JULIA_CI",
+        "JULIA_NUM_PRECOMPILE_TASKS",
+        "JULIA_PKG_DEVDIR",
+        "JULIA_PKG_IGNORE_HASHES",
+        "JULIA_PKG_OFFLINE",
+        "JULIA_PKG_PRECOMPILE_AUTO",
+        "JULIA_PKG_SERVER",
+        "JULIA_PKG_SERVER_REGISTRY_PREFERENCE",
+        "JULIA_PKG_UNPACK_REGISTRY",
+        "JULIA_PKG_USE_CLI_GIT",
+        "JULIA_PKGRESOLVE_ACCURACY",
+        "JULIA_PKG_PRESERVE_TIERED_INSTALLED",
+        "JULIA_PKG_GC_AUTO",
+        // Network Transport
+        "JULIA_NO_VERIFY_HOSTS",
+        "JULIA_SSL_NO_VERIFY_HOSTS",
+        "JULIA_SSH_NO_VERIFY_HOSTS",
+        "JULIA_ALWAYS_VERIFY_HOSTS",
+        "JULIA_SSL_CA_ROOTS_PATH",
+        // External Applications
+        "JULIA_SHELL",
+        "JULIA_EDITOR",
+        // Parallelization
+        "JULIA_CPU_THREADS",
+        "JULIA_WORKER_TIMEOUT",
+        "JULIA_NUM_THREADS",
+        "JULIA_THREAD_SLEEP_THRESHOLD",
+        "JULIA_NUM_GC_THREADS",
+        "JULIA_IMAGE_THREADS",
+        "JULIA_IMAGE_TIMINGS",
+        "JULIA_EXCLUSIVE",
+        // Garbage Collection
+        "JULIA_HEAP_SIZE_HINT",
+        // REPL Formatting
+        "JULIA_ERROR_COLOR",
+        "JULIA_WARN_COLOR",
+        "JULIA_INFO_COLOR",
+        "JULIA_INPUT_COLOR",
+        "JULIA_ANSWER_COLOR",
+        "NO_COLOR",
+        "FORCE_COLOR",
+        // System and Package Image Building
+        "JULIA_CPU_TARGET",
+        // Debugging and Profiling
+        "JULIA_DEBUG",
+        "JULIA_PROFILE_PEEK_HEAP_SNAPSHOT",
+        "JULIA_TIMING_SUBSYSTEMS",
+        "JULIA_GC_NO_GENERATIONAL",
+        "JULIA_GC_WAIT_FOR_DEBUGGER",
+        "ENABLE_JITPROFILING",
+        "ENABLE_GDBLISTENER",
+        "JULIA_LLVM_ARGS",
+        "JULIA_FALLBACK_REPL",
+    ]
 }
