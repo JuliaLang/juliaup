@@ -7,6 +7,7 @@ pub mod command_api;
 pub mod command_completions;
 pub mod command_config_autoinstall;
 pub mod command_config_backgroundselfupdate;
+pub mod command_config_manifestversiondetect;
 pub mod command_config_modifypath;
 pub mod command_config_startupselfupdate;
 pub mod command_config_symlinks;
@@ -30,6 +31,7 @@ pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod operations;
 pub mod utils;
+pub mod version_selection;
 pub mod versions_file;
 
 include!(concat!(env!("OUT_DIR"), "/bundled_version.rs"));
