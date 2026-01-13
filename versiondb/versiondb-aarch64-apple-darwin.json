@@ -584,6 +584,12 @@
         },
         "1.13.0-alpha2+0.x64.apple.darwin14": {
             "UrlPath": "bin/mac/x64/1.13/julia-1.13.0-alpha2-mac64.tar.gz"
+        },
+        "1.13.0-beta1+0.aarch64.apple.darwin14": {
+            "UrlPath": "bin/mac/aarch64/1.13/julia-1.13.0-beta1-macaarch64.tar.gz"
+        },
+        "1.13.0-beta1+0.x64.apple.darwin14": {
+            "UrlPath": "bin/mac/x64/1.13/julia-1.13.0-beta1-mac64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1116,7 +1122,7 @@
             "Version": "1.12.4+0.x64.apple.darwin14"
         },
         "1.13": {
-            "Version": "1.13.0-alpha2+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "1.13.0-alpha2": {
             "Version": "1.13.0-alpha2+0.aarch64.apple.darwin14"
@@ -1127,11 +1133,20 @@
         "1.13.0-alpha2~x64": {
             "Version": "1.13.0-alpha2+0.x64.apple.darwin14"
         },
+        "1.13.0-beta1": {
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
+        },
+        "1.13.0-beta1~aarch64": {
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
+        },
+        "1.13.0-beta1~x64": {
+            "Version": "1.13.0-beta1+0.x64.apple.darwin14"
+        },
         "1.13~aarch64": {
-            "Version": "1.13.0-alpha2+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "1.13~x64": {
-            "Version": "1.13.0-alpha2+0.x64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.x64.apple.darwin14"
         },
         "1.1~x64": {
             "Version": "1.1.1+0.x64.apple.darwin14"
@@ -1644,22 +1659,22 @@
             "Version": "1.12.4+0.x64.apple.darwin14"
         },
         "alpha": {
-            "Version": "1.13.0-alpha2+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "alpha~aarch64": {
-            "Version": "1.13.0-alpha2+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "alpha~x64": {
-            "Version": "1.13.0-alpha2+0.x64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.x64.apple.darwin14"
         },
         "beta": {
-            "Version": "1.12.4+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "beta~aarch64": {
-            "Version": "1.12.4+0.aarch64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.aarch64.apple.darwin14"
         },
         "beta~x64": {
-            "Version": "1.12.4+0.x64.apple.darwin14"
+            "Version": "1.13.0-beta1+0.x64.apple.darwin14"
         },
         "lts": {
             "Version": "1.10.10+0.aarch64.apple.darwin14"
@@ -1689,5 +1704,5 @@
             "Version": "1.12.4+0.x64.apple.darwin14"
         }
     },
-    "Version": "1.0.79"
+    "Version": "1.0.80"
 }

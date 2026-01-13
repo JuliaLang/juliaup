@@ -359,6 +359,9 @@
         },
         "1.13.0-alpha2+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.13/julia-1.13.0-alpha2-win32.tar.gz"
+        },
+        "1.13.0-beta1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.13/julia-1.13.0-beta1-win32.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -741,7 +744,7 @@
             "Version": "1.12.4+0.x86.w64.mingw32"
         },
         "1.13": {
-            "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "1.13.0-alpha2": {
             "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
@@ -749,8 +752,14 @@
         "1.13.0-alpha2~x86": {
             "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
         },
+        "1.13.0-beta1": {
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
+        },
+        "1.13.0-beta1~x86": {
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
+        },
         "1.13~x86": {
-            "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.w64.mingw32"
@@ -1185,16 +1194,16 @@
             "Version": "1.12.4+0.x86.w64.mingw32"
         },
         "alpha": {
-            "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "alpha~x86": {
-            "Version": "1.13.0-alpha2+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "beta": {
-            "Version": "1.12.4+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "beta~x86": {
-            "Version": "1.12.4+0.x86.w64.mingw32"
+            "Version": "1.13.0-beta1+0.x86.w64.mingw32"
         },
         "lts": {
             "Version": "1.10.10+0.x86.w64.mingw32"
@@ -1215,5 +1224,5 @@
             "Version": "1.12.4+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.79"
+    "Version": "1.0.80"
 }
