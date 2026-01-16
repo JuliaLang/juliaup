@@ -6,11 +6,11 @@ on:
       - 'v*'
 
 permissions: write-all
-      
+
 jobs:
 
   build-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         label: [
@@ -42,6 +42,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: windowsstore,binjulialauncher
             rustflags:
             toolchain: stable
@@ -49,6 +50,7 @@ jobs:
             target: x86_64-pc-windows-msvc
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -56,6 +58,7 @@ jobs:
             target: x86_64-pc-windows-gnu
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: binjulialauncher
             rustflags:
             toolchain: stable-gnu
@@ -63,6 +66,7 @@ jobs:
             target: x86_64-pc-windows-gnu
             bins: --bin juliaup --bin julia
             os: windows
+            runner: windows-latest
             features: dummy
             rustflags:
             toolchain: stable-gnu
@@ -70,6 +74,7 @@ jobs:
             target: i686-pc-windows-gnu
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: binjulialauncher
             rustflags:
             toolchain: stable-i686-gnu
@@ -77,6 +82,7 @@ jobs:
             target: i686-pc-windows-gnu
             bins: --bin juliaup --bin julia
             os: windows
+            runner: windows-latest
             features: dummy
             rustflags:
             toolchain: stable-i686-gnu
@@ -84,6 +90,7 @@ jobs:
             target: x86_64-apple-darwin
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: macos
+            runner: macos-13
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -91,6 +98,7 @@ jobs:
             target: x86_64-apple-darwin
             bins: --bin juliaup --bin julia
             os: macos
+            runner: macos-13
             features: dummy
             rustflags:
             toolchain: stable
@@ -98,6 +106,7 @@ jobs:
             target: x86_64-unknown-linux-gnu
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -105,6 +114,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -112,6 +122,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             bins: --bin juliaup --bin julia
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -119,6 +130,7 @@ jobs:
             target: x86_64-unknown-freebsd
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -126,6 +138,7 @@ jobs:
             target: i686-pc-windows-msvc
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: windowsstore,binjulialauncher
             rustflags:
             toolchain: stable
@@ -133,6 +146,7 @@ jobs:
             target: i686-pc-windows-msvc
             bins: --bin juliaup --bin julialauncher
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -140,6 +154,7 @@ jobs:
             target: i686-unknown-linux-gnu
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -147,6 +162,7 @@ jobs:
             target: i686-unknown-linux-musl
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -154,6 +170,7 @@ jobs:
             target: i686-unknown-linux-musl
             bins: --bin juliaup --bin julia
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -161,6 +178,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -168,6 +186,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -175,6 +194,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             bins: --bin juliaup --bin julia
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy
             rustflags: -C target-feature=+crt-static
             toolchain: stable
@@ -182,6 +202,7 @@ jobs:
             target: aarch64-apple-darwin
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: macos
+            runner: macos-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -189,6 +210,7 @@ jobs:
             target: aarch64-apple-darwin
             bins: --bin juliaup --bin julia
             os: macos
+            runner: macos-latest
             features: dummy
             rustflags:
             toolchain: stable
@@ -250,7 +272,7 @@ jobs:
           target/${{matrix.target}}/release/juliainstaller.exe
 
   test-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         target: [
@@ -264,41 +286,49 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-gnu
           - target: x86_64-apple-darwin
             os: macos
+            runner: macos-13
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-unknown-linux-musl
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
           - target: x86_64-unknown-freebsd
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: i686-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: i686-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-i686-gnu
@@ -761,7 +791,7 @@ jobs:
         trusted-signing-account-name: juliahubwincertsaccount
         certificate-profile-name: JuliaHubWinCert
         files-folder: ${{ github.workspace }}\target\msix\winappinstallermsix
-        # files-folder-filter: 
+        # files-folder-filter:
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
@@ -847,7 +877,7 @@ jobs:
         files-folder-filter: exe
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
-        timestamp-digest: SHA256        
+        timestamp-digest: SHA256
     - name: Build MSI
       run: |
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
