@@ -63,7 +63,7 @@ jobs:
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
-            runner: macos-13
+            runner: macos-15-intel
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-unknown-linux-gnu
@@ -175,7 +175,7 @@ jobs:
             toolchain: stable-gnu
           - target: x86_64-apple-darwin
             os: macos
-            runner: macos-13
+            runner: macos-15-intel
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable

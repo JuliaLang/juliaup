@@ -90,7 +90,7 @@ jobs:
             target: x86_64-apple-darwin
             bins: --bin juliaup --bin julialauncher --bin juliainstaller
             os: macos
-            runner: macos-13
+            runner: macos-15-intel
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
             toolchain: stable
@@ -98,7 +98,7 @@ jobs:
             target: x86_64-apple-darwin
             bins: --bin juliaup --bin julia
             os: macos
-            runner: macos-13
+            runner: macos-15-intel
             features: dummy
             rustflags:
             toolchain: stable
@@ -298,7 +298,7 @@ jobs:
             toolchain: stable-gnu
           - target: x86_64-apple-darwin
             os: macos
-            runner: macos-13
+            runner: macos-15-intel
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
