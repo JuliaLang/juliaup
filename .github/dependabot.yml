@@ -1,4 +1,5 @@
-version: 2 #hello world
+version: 2
+foo
 updates:
   # Maintain dependencies for cargo
   - package-ecosystem: "cargo"
