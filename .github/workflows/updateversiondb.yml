@@ -14,7 +14,7 @@ jobs:
     outputs:
       versionDbIsUpdated: ${{ steps.runjuliascript.outputs.versionDbIsUpdated }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: julia-actions/setup-julia@v1
       with:
         version: 1.8
@@ -22,7 +22,7 @@ jobs:
       name: Update Version DB
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder >> $GITHUB_OUTPUT
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: scriptoutput
         path: scriptoutputfolder    
@@ -33,9 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -61,7 +61,7 @@ jobs:
         mv scriptoutputfolder/versiondbbuild/* versiondb
         rm -rf scriptoutputfolder
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: Update version db
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder

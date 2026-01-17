@@ -1,7 +1,11 @@
 use anyhow::{anyhow, bail, Context, Result};
 use console::style;
+use retry::{
+    delay::{jitter, Fibonacci},
+    retry, OperationResult,
+};
 use semver::{BuildMetadata, Version};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use url::Url;
 
@@ -402,4 +406,30 @@ pub fn print_juliaup_style(action: &str, message: &str, message_type: JuliaupMes
     };
 
     eprintln!("{} {}", styled_action, message);
+}
+
+/// Retry a rename with Fibonacci backoff to handle transient permission errors
+/// from e.g. antivirus scanners. Similar approach to rustup.
+pub fn retry_rename(src: &Path, dest: &Path) -> Result<()> {
+    // 20 fib steps from 1 millisecond sums to ~18 seconds
+    retry(
+        Fibonacci::from_millis(1).map(jitter).take(20),
+        || match std::fs::rename(src, dest) {
+            Ok(()) => OperationResult::Ok(()),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::PermissionDenied => {
+                    log::debug!("Retrying rename {} to {}.", src.display(), dest.display());
+                    OperationResult::Retry(e)
+                }
+                _ => OperationResult::Err(e),
+            },
+        },
+    )
+    .with_context(|| {
+        format!(
+            "Failed to rename '{}' to '{}'.",
+            src.display(),
+            dest.display()
+        )
+    })
 }

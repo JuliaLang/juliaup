@@ -28,11 +28,10 @@ jobs:
             features: selfupdate,binjuliainstaller,binjulialauncher
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: 1.90.0
           components: clippy
       - name: Run clippy
         run: cargo clippy --workspace --features ${{ matrix.features }} -- -D warnings

@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.head_ref || github.ref_name || github.run_id }} 
+  group: ${{ github.head_ref || github.ref_name || github.run_id }}
   cancel-in-progress: true
 
 jobs:
 
   check-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         label: [
@@ -39,91 +39,110 @@ jobs:
           - label: x86_64-pc-windows-msvc-windowsstore
             target: x86_64-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: windowsstore,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-pc-windows-msvc-windowsappinstaller
             target: x86_64-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-pc-windows-gnu-msi
             target: x86_64-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
           - label: i686-pc-windows-gnu-msi
             target: i686-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-apple-darwin
             target: x86_64-apple-darwin
             os: macos
+            runner: macos-15-intel
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-unknown-linux-gnu
             target: x86_64-unknown-linux-gnu
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: x86_64-unknown-linux-musl
             target: x86_64-unknown-linux-musl
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: x86_64-unknown-freebsd
             target: x86_64-unknown-freebsd
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: i686-pc-windows-msvc-windowsstore
             target: i686-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: windowsstore,binjuliainstaller,binjulialauncher
             rustflags:
           - label: i686-pc-windows-msvc-windowsappinstaller
             target: i686-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: windowsappinstaller,binjuliainstaller,binjulialauncher
             rustflags:
           - label: i686-unknown-linux-gnu
             target: i686-unknown-linux-gnu
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: i686-unknown-linux-musl
             target: i686-unknown-linux-musl
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: aarch64-unknown-linux-gnu
             target: aarch64-unknown-linux-gnu
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
           - label: aarch64-unknown-linux-musl
             target: aarch64-unknown-linux-musl
             os: ubuntu
+            runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
+            runner: macos-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
         target: ${{matrix.target}}
+    - if: ${{ matrix.os == 'ubuntu' }}
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
     - name: Check build
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v4
       with:
         command: check
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
@@ -131,7 +150,7 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
 
   test-juliaup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         target: [
@@ -148,54 +167,63 @@ jobs:
         include:
           - target: x86_64-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-gnu
           - target: x86_64-apple-darwin
             os: macos
+            runner: macos-15-intel
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-unknown-linux-gnu
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: x86_64-unknown-linux-musl
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags: -C target-feature=+crt-static
             toolchain: stable
           - target: x86_64-unknown-freebsd
             os: ubuntu
+            runner: ubuntu-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: i686-pc-windows-msvc
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
           - target: i686-pc-windows-gnu
             os: windows
+            runner: windows-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable-i686-gnu
           - target: aarch64-apple-darwin
             os: macos
+            runner: macos-latest
             features: dummy,binjulialauncher
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@v2
+    - uses: egor-tensin/setup-mingw@v3
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
@@ -214,16 +242,16 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: vmactions/freebsd-vm@v1
+      uses: cross-platform-actions/action@v0.32.0
       with:
-        release: "13.4"
-        usesh: true
-        mem: 8192
-        copyback: false
-        prepare: |
-          pkg install -y curl
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+        operating_system: freebsd
+        version: '13.4'
+        architecture: x86-64
+        cpu_count: 4
+        memory: '12G'
+        shell: sh
         run: |
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}

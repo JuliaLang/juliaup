@@ -10,6 +10,7 @@ use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
+use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
 use nix::{
@@ -318,10 +319,19 @@ fn check_channel_uptodate(
     Ok(())
 }
 
+fn is_nightly_channel(channel: &str) -> bool {
+    use regex::Regex;
+    let nightly_re =
+        Regex::new(r"^((?:nightly|latest)|(\d+\.\d+)-(?:nightly|latest))(~|$)").unwrap();
+    nightly_re.is_match(channel)
+}
+
+#[derive(Debug)]
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
     Override,
+    Auto,
     Default,
 }
 
@@ -355,53 +365,57 @@ fn get_julia_path_from_channel(
         );
     }
 
-    // Handle auto-installation for command line channel selection
-    if let JuliaupChannelSource::CmdLine = juliaup_channel_source {
-        if channel_valid || is_pr_channel(&resolved_channel) {
-            // Check the user's auto-install preference
-            let should_auto_install = match config_data.settings.auto_install_channels {
-                Some(auto_install) => auto_install, // User has explicitly set a preference
-                None => {
-                    // User hasn't set a preference - prompt in interactive mode, default to false in non-interactive
-                    if is_interactive() {
-                        handle_auto_install_prompt(&resolved_channel, paths)?
-                    } else {
-                        false
-                    }
-                }
-            };
-
-            if should_auto_install {
-                // Install the channel using juliaup
-                let is_automatic = config_data.settings.auto_install_channels == Some(true);
-                spawn_juliaup_add(&resolved_channel, paths, is_automatic)?;
-
-                // Reload the config to get the newly installed channel
-                let updated_config_file = load_config_db(paths, None)
-                    .with_context(|| "Failed to reload configuration after installing channel.")?;
-
-                let updated_channel_info = updated_config_file
-                    .data
-                    .installed_channels
-                    .get(&resolved_channel);
-
-                if let Some(channel_info) = updated_channel_info {
-                    return get_julia_path_from_installed_channel(
-                        versions_db,
-                        &updated_config_file.data,
-                        &resolved_channel,
-                        juliaupconfig_path,
-                        channel_info,
-                        alias_args,
-                    );
+    // Handle auto-installation for command line channel selection and auto-resolved channels
+    if matches!(
+        juliaup_channel_source,
+        JuliaupChannelSource::CmdLine | JuliaupChannelSource::Auto
+    ) && (channel_valid
+        || is_pr_channel(&resolved_channel)
+        || is_nightly_channel(&resolved_channel))
+    {
+        // Check the user's auto-install preference
+        let should_auto_install = match config_data.settings.auto_install_channels {
+            Some(auto_install) => auto_install, // User has explicitly set a preference
+            None => {
+                // User hasn't set a preference - prompt in interactive mode, default to false in non-interactive
+                if is_interactive() {
+                    handle_auto_install_prompt(&resolved_channel, paths)?
                 } else {
-                    return Err(anyhow!(
-                        "Channel '{resolved_channel}' was installed but could not be found in configuration."
-                    ));
+                    false
                 }
             }
-            // If we reach here, either installation failed or user declined
+        };
+
+        if should_auto_install {
+            // Install the channel using juliaup
+            let is_automatic = config_data.settings.auto_install_channels == Some(true);
+            spawn_juliaup_add(&resolved_channel, paths, is_automatic)?;
+
+            // Reload the config to get the newly installed channel
+            let updated_config_file = load_config_db(paths, None)
+                .with_context(|| "Failed to reload configuration after installing channel.")?;
+
+            let updated_channel_info = updated_config_file
+                .data
+                .installed_channels
+                .get(&resolved_channel);
+
+            if let Some(channel_info) = updated_channel_info {
+                return get_julia_path_from_installed_channel(
+                    versions_db,
+                    &updated_config_file.data,
+                    &resolved_channel,
+                    juliaupconfig_path,
+                    channel_info,
+                    alias_args,
+                );
+            } else {
+                return Err(anyhow!(
+                        "Channel '{resolved_channel}' was installed but could not be found in configuration."
+                    ));
+            }
         }
+        // If we reach here, either installation failed or user declined
     }
 
     // Original error handling for non-command-line sources or invalid channels
@@ -411,6 +425,8 @@ fn get_julia_path_from_channel(
                 UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
             } else if is_pr_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
+            } else if is_nightly_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install nightly channel.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}`. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
@@ -431,6 +447,17 @@ fn get_julia_path_from_channel(
                 UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.") }
+            }
+        },
+        JuliaupChannelSource::Auto => {
+            if channel_valid {
+                UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
+            } else if is_pr_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
+            } else if is_nightly_channel(&resolved_channel) {
+                UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install nightly channel.") }
+            } else {
+                UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` resolved from project manifest. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::Default => UserError {msg: format!("The Juliaup configuration is in an inconsistent state, the currently configured default channel `{resolved_channel}` is not installed.") }
@@ -589,6 +616,12 @@ fn run_app() -> Result<i32> {
             (channel, JuliaupChannelSource::EnvVar)
         } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
             (channel, JuliaupChannelSource::Override)
+        } else if let Ok(Some(channel)) = get_auto_channel(
+            &args,
+            &versiondb_data,
+            config_file.data.settings.manifest_version_detect,
+        ) {
+            (channel, JuliaupChannelSource::Auto)
         } else if let Some(channel) = config_file.data.default.clone() {
             (channel, JuliaupChannelSource::Default)
         } else {

@@ -158,9 +158,29 @@ The Julia launcher `julia` automatically determines which specific version of Ju
 1. A command line Julia version specifier, such as `julia +release`.
 2. The `JULIAUP_CHANNEL` environment variable.
 3. A directory override, set with the `juliaup override set` command.
-3. The default Juliaup channel.
+4. [Automatic version selection based on the active project](#project-based-version-selection).
+5. The default Juliaup channel.
 
 The channel is used in the order listed above, using the first available option.
+
+### Project-based Version Selection
+
+When no explicit channel is specified via command line, environment variable, or directory override, Juliaup can automatically attempt to select an appropriate Julia version based on the active project's requirements.
+This feature is currently disabled by default, but will likely be enabled by default in the future. Options are `true`, `false`, `default`. Set it with:
+
+```sh
+juliaup config manifestversiondetect true
+```
+
+If a project is specified (via `--project`, `JULIA_PROJECT`, or `JULIA_LOAD_PATH`), Juliaup reads the project's `Manifest.toml` and uses the `julia_version` field to determine which Julia version to use:
+
+1. **Exact match**: If the exact version exists as a channel (e.g., `1.10.5`, `1.12.0-rc1`), it uses that version.
+2. **Prerelease versions**: If the version has a prerelease suffix (e.g., `1.12.1-DEV`, `1.13.0-rc1`) and no exact channel exists, it uses the corresponding nightly channel:
+   - Uses `X.Y-nightly` if available (e.g., `1.12-nightly` for `1.12.1-DEV`)
+   - Falls back to `nightly` otherwise
+3. **Future patch versions**: If the patch version is higher than any known release in that minor series (e.g., `1.10.99` when only `1.10.5` exists), it uses `X.Y-nightly`.
+4. **Future minor/major versions**: If the version is higher than any known release (e.g., `1.13.0` when only `1.12.x` exists), it uses `X.Y-nightly` if available, or `nightly` otherwise.
+5. **Default fallback**: If no project or manifest is found, it falls back to the default channel.
 
 ## Path used by Juliaup
 
