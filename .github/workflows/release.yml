@@ -241,7 +241,7 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@v0.30.0
+      uses: cross-platform-actions/action@v0.32.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -359,7 +359,7 @@ jobs:
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@v0.30.0
+      uses: cross-platform-actions/action@v0.32.0
       with:
         operating_system: freebsd
         version: '13.4'
