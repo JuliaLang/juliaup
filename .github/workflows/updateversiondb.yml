@@ -22,7 +22,7 @@ jobs:
       name: Update Version DB
       run: |
         julia scripts/versiondb/updateversiondb.jl scriptoutputfolder >> $GITHUB_OUTPUT
-    - uses: actions/upload-artifact@v5
+    - uses: actions/upload-artifact@v6
       with:
         name: scriptoutput
         path: scriptoutputfolder    
