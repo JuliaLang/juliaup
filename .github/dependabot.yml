@@ -1,4 +1,4 @@
-version: 2
+version: 2 #hello world
 updates:
   # Maintain dependencies for cargo
   - package-ecosystem: "cargo"
