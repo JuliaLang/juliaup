@@ -378,92 +378,92 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download Linux x64 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-unknown-linux-gnu
         path: target/x86_64-unknown-linux-gnu
     - name: Download Linux x64 musl juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-unknown-linux-musl
         path: target/x86_64-unknown-linux-musl
     - name: Download Linux x86 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-unknown-linux-gnu
         path: target/i686-unknown-linux-gnu
     - name: Download Linux x86 musl juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-unknown-linux-musl
         path: target/i686-unknown-linux-musl
     - name: Download MacOS x64 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-apple-darwin
         path: target/x86_64-apple-darwin
     - name: Download MacOS aarch64 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
     - name: Download Linux aarch64 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
     - name: Download Linux aarch64 musl juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-aarch64-unknown-linux-musl
         path: target/aarch64-unknown-linux-musl
     - name: Download FreeBSD x64 juliaup artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-unknown-freebsd
         path: target/x86_64-unknown-freebsd
     - name: Download installer artifacts for x86_64-apple-darwin
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-x86_64-apple-darwin
         path: target/installer/x86_64-apple-darwin
     - name: Download installer artifacts for x86_64-unknown-linux-gnu
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-x86_64-unknown-linux-gnu
         path: target/installer/x86_64-unknown-linux-gnu
     - name: Download installer artifacts for x86_64-unknown-linux-musl
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-x86_64-unknown-linux-musl
         path: target/installer/x86_64-unknown-linux-musl
     - name: Download installer artifacts for i686-unknown-linux-gnu
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-i686-unknown-linux-gnu
         path: target/installer/i686-unknown-linux-gnu
     - name: Download installer artifacts for i686-unknown-linux-musl
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-i686-unknown-linux-musl
         path: target/installer/i686-unknown-linux-musl
     - name: Download installer artifacts for aarch64-unknown-linux-gnu
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-aarch64-unknown-linux-gnu
         path: target/installer/aarch64-unknown-linux-gnu
     - name: Download installer artifacts for aarch64-unknown-linux-musl
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-aarch64-unknown-linux-musl
         path: target/installer/aarch64-unknown-linux-musl
     - name: Download installer artifacts for aarch64-apple-darwin
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/installer/aarch64-apple-darwin
     - name: Download installer artifacts for x86_64-unknown-freebsd
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliainstaller-x86_64-unknown-freebsd
         path: target/installer/x86_64-unknown-freebsd
@@ -554,27 +554,27 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download x86_64-apple-darwin-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-apple-darwin-portable
         path: target/x86_64-apple-darwin-portable
     - name: Download x86_64-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-unknown-linux-musl-portable
         path: target/x86_64-unknown-linux-musl-portable
     - name: Download i686-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-unknown-linux-musl-portable
         path: target/i686-unknown-linux-musl-portable
     - name: Download aarch64-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-aarch64-unknown-linux-musl-portable
         path: target/aarch64-unknown-linux-musl-portable
     - name: Download aarch64-apple-darwin-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-aarch64-apple-darwin-portable
         path: target/aarch64-apple-darwin-portable
@@ -628,12 +628,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download x86_64-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-pc-windows-gnu-portable
         path: target/x86_64-pc-windows-gnu-portable
     - name: Download i686-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-pc-windows-gnu-portable
         path: target/i686-pc-windows-gnu-portable
@@ -731,22 +731,22 @@ jobs:
         Invoke-WebRequest "https://julialang-s3.julialang.org/$x86DownloadUrl" -OutFile "target\bundledjulia\downloads\$x86Filename"
         tar -xvzf "target\bundledjulia\downloads\$x86Filename" -C target\bundledjulia\extracted\x86 --strip-components=1
     - name: Download x86 Juliaup Windows Store artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-pc-windows-msvc-windowsstore
         path: target\windowsstore\i686-pc-windows-msvc\release
     - name: Download x64 Juliaup Windows Store artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsstore
         path: target\windowsstore\x86_64-pc-windows-msvc\release
     - name: Download x86 Juliaup Windows AppInstaller artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\i686-pc-windows-msvc\release
     - name: Download x64 Juliaup Windows AppInstaller artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
@@ -830,12 +830,12 @@ jobs:
     - name: Install Wix UI extensions
       run: wix extension add -g WixToolset.UI.wixext/4.0.4
     - name: Download x86 Juliaup Windows MSI artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-i686-pc-windows-gnu-msi
         path: target\msi\i686-pc-windows-gnu\release
     - name: Download x64 Juliaup Windows MSI artifact
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: juliaup-x86_64-pc-windows-gnu-msi
         path: target\msi\x86_64-pc-windows-gnu\release
@@ -925,11 +925,11 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: portable-mac-linux
         path: public
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: portable-windows
         path: public
@@ -958,7 +958,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: storepackage
     - name: Authenticate with store
@@ -988,7 +988,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: storepackage
     - name: Authenticate with store
@@ -1018,7 +1018,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v6
+    - uses: actions/download-artifact@v7
       with:
         name: storepackage
     - name: Authenticate with store
@@ -1104,7 +1104,7 @@ jobs:
           echo "$VERSION" > public/DEVCHANNELVERSION
         env:
           GH_REF: ${{ github.ref }}
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: winappinstaller
           path: publicscript
@@ -1190,7 +1190,7 @@ jobs:
         run: |
           mkdir public
           mkdir publicscript
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: msiinstallers
           path: publicscript

@@ -35,7 +35,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
@@ -123,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download script output
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: scriptoutput
         path: scriptoutputfolder
