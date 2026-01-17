@@ -67,10 +67,10 @@ toml = "0.8"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Threading", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams", "Management_Deployment"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "native-tls", "socks"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "native-tls", "socks"] }
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-native-roots", "socks"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "rustls", "rustls-native-certs", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.30", features = ["process"] }
