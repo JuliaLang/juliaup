@@ -135,7 +135,7 @@ jobs:
         toolchain: stable
         target: ${{matrix.target}}
     - name: Check build
-      uses: clechasseur/rs-cargo@v2
+      uses: clechasseur/rs-cargo@v4
       with:
         command: check
         use-cross: ${{ matrix.os == 'ubuntu' }}
