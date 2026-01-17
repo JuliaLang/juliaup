@@ -134,11 +134,15 @@ jobs:
       with:
         toolchain: stable
         target: ${{matrix.target}}
+    - if: ${{ matrix.os == 'ubuntu' }}
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
     - name: Check build
       uses: clechasseur/rs-cargo@v4
       with:
         command: check
-        use-cross: ${{ matrix.os == 'ubuntu' }}
+        tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
