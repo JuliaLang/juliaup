@@ -165,7 +165,12 @@ The channel is used in the order listed above, using the first available option.
 
 ### Project-based Version Selection
 
-When no explicit channel is specified via command line, environment variable, or directory override, Juliaup will automatically attempt to select an appropriate Julia version based on the active project's requirements.
+When no explicit channel is specified via command line, environment variable, or directory override, Juliaup can automatically attempt to select an appropriate Julia version based on the active project's requirements.
+This feature is currently disabled by default, but will likely be enabled by default in the future. Options are `true`, `false`, `default`. Set it with:
+
+```sh
+juliaup config manifestversiondetect true
+```
 
 If a project is specified (via `--project`, `JULIA_PROJECT`, or `JULIA_LOAD_PATH`), Juliaup reads the project's `Manifest.toml` and uses the `julia_version` field to determine which Julia version to use:
 
