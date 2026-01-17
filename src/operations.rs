@@ -14,6 +14,7 @@ use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
+use crate::utils::retry_rename;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
@@ -711,7 +712,7 @@ pub fn install_from_url(
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
-    std::fs::rename(temp_dir.keep(), &target_path)?;
+    retry_rename(&temp_dir.keep(), &target_path)?;
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
@@ -1620,7 +1621,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
     new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
 
     if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
-        std::fs::rename(&temp_versiondb_download_path, &paths.versiondb)?;
+        retry_rename(&temp_versiondb_download_path, &paths.versiondb)?;
     } else if delete_old_version_db {
         let _ = std::fs::remove_file(&paths.versiondb);
     }
