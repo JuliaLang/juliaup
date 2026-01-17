@@ -1303,6 +1303,7 @@ dependencies = [
  "predicates",
  "regex",
  "reqwest",
+ "retry",
  "semver",
  "serde",
  "serde_json",
@@ -1866,6 +1867,15 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "retry"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1e211f878258887b3e65dd3c8ff9f530fe109f441a117ee0cdc27f341355032"
+dependencies = [
+ "rand",
 ]
 
 [[package]]
