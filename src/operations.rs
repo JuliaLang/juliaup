@@ -639,6 +639,15 @@ pub fn install_from_url(
     path: &PathBuf,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
+    // Check if the nightly server supports etag headers (required for nightly/PR channels)
+    // Do this BEFORE downloading to avoid wasting bandwidth
+    if !check_server_supports_nightlies()? {
+        bail!(
+            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
+            Nightly and PR channels cannot be installed from this server."
+        );
+    }
+
     // Download and extract into a temporary directory
     let temp_dir = Builder::new()
         .prefix("julia-temp-")
@@ -654,17 +663,6 @@ pub fn install_from_url(
             bail!("Failed to download and extract pr or nightly: {}", e);
         }
     };
-
-    // Nightly and PR channels require etag for version tracking
-    // If etag is empty, the server doesn't support this functionality
-    if server_etag.is_empty() {
-        std::fs::remove_dir_all(temp_dir.path())?;
-        bail!(
-            "The server did not provide an etag header, which is required for nightly and PR channels.\n\
-            This is likely due to requesting a pull request that does not have a cached build available, \
-            or using a server that does not support etag headers. You may have to build locally."
-        );
-    }
 
     // Query the actual version
     let julia_path = temp_dir
