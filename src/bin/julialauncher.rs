@@ -9,7 +9,7 @@ use juliaup::config_file::{
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
-use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
+use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -48,47 +48,6 @@ fn get_juliaup_path() -> Result<PathBuf> {
         .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
 
     Ok(juliaup_path)
-}
-
-/// Resolves the Julia binary path, accounting for .app bundles on macOS
-#[cfg(target_os = "macos")]
-fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
-    // Check if this is a .app bundle installation
-    if let Ok(entries) = std::fs::read_dir(base_path) {
-        for entry in entries.flatten() {
-            if entry
-                .file_name()
-                .to_str()
-                .map(|name| name.ends_with(".app"))
-                .unwrap_or(false)
-            {
-                // This is a DMG installation with .app bundle
-                let julia_path = entry
-                    .path()
-                    .join("Contents")
-                    .join("Resources")
-                    .join("julia")
-                    .join("bin")
-                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
-
-                if julia_path.exists() {
-                    return Ok(julia_path);
-                }
-            }
-        }
-    }
-
-    // Fall back to standard path (tarball installation)
-    Ok(base_path
-        .join("bin")
-        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
-}
-
-#[cfg(not(target_os = "macos"))]
-fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
-    Ok(base_path
-        .join("bin")
-        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
 }
 
 fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {

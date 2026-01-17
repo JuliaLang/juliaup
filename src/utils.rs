@@ -8,6 +8,47 @@ use semver::{BuildMetadata, Version};
 use std::path::{Path, PathBuf};
 use url::Url;
 
+/// Resolves the Julia binary path, accounting for .app bundles on macOS
+#[cfg(target_os = "macos")]
+pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
+    // Check if this is a .app bundle installation
+    if let Ok(entries) = std::fs::read_dir(base_path) {
+        for entry in entries.flatten() {
+            if entry
+                .file_name()
+                .to_str()
+                .map(|name| name.ends_with(".app"))
+                .unwrap_or(false)
+            {
+                // This is a DMG installation with .app bundle
+                let julia_path = entry
+                    .path()
+                    .join("Contents")
+                    .join("Resources")
+                    .join("julia")
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+
+                if julia_path.exists() {
+                    return Ok(julia_path);
+                }
+            }
+        }
+    }
+
+    // Fall back to standard path (tarball installation)
+    Ok(base_path
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
+    Ok(base_path
+        .join("bin")
+        .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
+}
+
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
         if val.ends_with('/') {

@@ -629,38 +629,41 @@ pub fn install_version(
         };
 
         #[cfg(target_os = "macos")]
-        if !used_dmg
-            && semver::Version::parse(fullversion).unwrap()
-                > semver::Version::parse("1.11.0-rc1").unwrap()
-        {
-            use normpath::PathExt;
+        if !used_dmg {
+            let needs_notarization_check = semver::Version::parse(fullversion)
+                .ok()
+                .zip(semver::Version::parse("1.11.0-rc1").ok())
+                .is_some_and(|(v, threshold)| v > threshold);
 
-            let rel_path = {
-                let mut p = PathBuf::new();
-                p.push(".");
-                p.push(&child_target_foldername);
-                p
-            };
+            if needs_notarization_check {
+                use normpath::PathExt;
 
-            let julia_path = &paths
-                .juliaupconfig
-                .parent()
-                .unwrap() // unwrap OK because there should always be a parent
-                .join(&rel_path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        &paths.juliaupconfig.display()
-                    )
-                })?;
+                let rel_path = {
+                    let mut p = PathBuf::new();
+                    p.push(".");
+                    p.push(&child_target_foldername);
+                    p
+                };
 
-            eprint!("Checking standard library notarization");
-            let _ = std::io::stdout().flush();
+                let julia_path = &paths
+                    .juliaupconfig
+                    .parent()
+                    .unwrap() // unwrap OK because there should always be a parent
+                    .join(&rel_path)
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                    .normalize()
+                    .with_context(|| {
+                        format!(
+                            "Failed to normalize path for Julia binary, starting from `{}`.",
+                            &paths.juliaupconfig.display()
+                        )
+                    })?;
 
-            let exit_status = std::process::Command::new(julia_path)
+                eprint!("Checking standard library notarization");
+                let _ = std::io::stdout().flush();
+
+                let exit_status = std::process::Command::new(julia_path)
                 .env("JULIA_LOAD_PATH", "@stdlib")
                 .arg("--startup-file=no")
                 .arg("-e")
@@ -668,10 +671,11 @@ pub fn install_version(
                 .status()
                 .unwrap();
 
-            if exit_status.success() {
-                eprintln!("done.")
-            } else {
-                eprintln!("failed with {}.", exit_status);
+                if exit_status.success() {
+                    eprintln!("done.")
+                } else {
+                    eprintln!("failed with {}.", exit_status);
+                }
             }
         }
 
@@ -925,9 +929,8 @@ pub fn install_from_url(
     #[cfg(target_os = "macos")]
     if use_dmg {
         // For DMG, keep the entire .app bundle to preserve notarization ticket
-        // Just move the whole temp directory to target
-        retry_rename(temp_dir.path(), &target_path)?;
-        std::mem::forget(temp_dir); // Don't auto-delete since we moved it
+        // keep() consumes the TempDir and returns the path without cleanup
+        retry_rename(&temp_dir.keep(), &target_path)?;
     } else {
         retry_rename(&temp_dir.keep(), &target_path)?;
     }
