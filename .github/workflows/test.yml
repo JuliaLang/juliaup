@@ -16,6 +16,7 @@ jobs:
   check-juliaup:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: ${{ github.ref != 'refs/heads/main' }}
       matrix:
         label: [
           x86_64-pc-windows-msvc-windowsstore,
@@ -152,6 +153,7 @@ jobs:
   test-juliaup:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: ${{ github.ref != 'refs/heads/main' }}
       matrix:
         target: [
           x86_64-pc-windows-msvc,
