@@ -9,7 +9,7 @@ use juliaup::config_file::{
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
-use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
+use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -494,12 +494,12 @@ fn get_julia_path_from_installed_channel(
                 })?;
             }
 
-            let absolute_path = juliaupconfig_path
+            let base_path = juliaupconfig_path
                 .parent()
                 .unwrap() // unwrap OK because there should always be a parent
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                .join(path);
+
+            let absolute_path = resolve_julia_binary_path(&base_path)?
                 .normalize()
                 .with_context(|| {
                     format!(
@@ -543,12 +543,9 @@ fn get_julia_path_from_installed_channel(
                 }
             }
 
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap()
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+            let base_path = juliaupconfig_path.parent().unwrap().join(path);
+
+            let absolute_path = resolve_julia_binary_path(&base_path)?
                 .normalize()
                 .with_context(|| {
                     format!(
