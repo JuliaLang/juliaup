@@ -446,10 +446,15 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = http_client()?
         .get(url)
         .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .text()?;
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let trimmed_response = response.trim();
+    let status = response.status();
+    if !status.is_success() {
+        anyhow::bail!("Failed to download version from `{}`: HTTP {}", url, status);
+    }
+
+    let response_text = response.text()?;
+    let trimmed_response = response_text.trim();
 
     let version = Version::parse(trimmed_response).with_context(|| {
         format!(
@@ -467,6 +472,15 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        anyhow::bail!(
+            "Failed to download version database from `{}`: HTTP {}",
+            url,
+            status
+        );
+    }
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -489,9 +503,11 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let response = http_client
+    let async_op = http_client
         .GetStringAsync(&request_uri)
-        .with_context(|| "Failed on http_client.GetStringAsync")?
+        .with_context(|| "Failed on http_client.GetStringAsync")?;
+
+    let response = async_op
         .join()
         .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
