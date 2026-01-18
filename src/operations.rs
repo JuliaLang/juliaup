@@ -677,7 +677,9 @@ pub fn install_from_url(
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Check if the nightly server supports etag headers (required for nightly/PR channels)
     // Do this BEFORE downloading to avoid wasting bandwidth
-    if !check_server_supports_nightlies()? {
+    if !check_server_supports_nightlies()
+        .context("Failed to check if nightly server supports etag headers")?
+    {
         bail!(
             "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
             Nightly and PR channels cannot be installed from this server."
@@ -740,7 +742,9 @@ pub fn install_non_db_version(
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Check if the nightly server supports etag headers (required for nightly/PR channels)
-    if !check_server_supports_nightlies()? {
+    if !check_server_supports_nightlies()
+        .context("Failed to check if nightly server supports etag headers")?
+    {
         bail!(
             "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
             Nightly and PR channels cannot be installed from this server."
