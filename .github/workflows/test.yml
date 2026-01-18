@@ -251,11 +251,15 @@ jobs:
         architecture: x86-64
         cpu_count: 4
         memory: '12G'
-        disk_size: '30G'
+        sync_files: runner-to-vm
         shell: sh
         run: |
+          df -h
           RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
           fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
+          # Clean target directory before tests to ensure fresh build
+          rm -rf target
+          df -h
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
