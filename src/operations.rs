@@ -221,19 +221,26 @@ pub fn download_extract_sans_parent(
 }
 
 #[cfg(windows)]
-struct DataReaderWrap(windows::Storage::Streams::DataReader);
+struct DataReaderWrap {
+    reader: windows::Storage::Streams::DataReader,
+    pb: ProgressBar,
+}
 
 #[cfg(windows)]
 impl std::io::Read for DataReaderWrap {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let mut bytes =
-            self.0
+        let bytes =
+            self.reader
                 .LoadAsync(buf.len() as u32)
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))?
                 .join()
                 .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))? as usize;
-        bytes = bytes.min(buf.len());
-        self.0
+
+        // Update progress bar immediately after LoadAsync completes (when actual download happens)
+        self.pb.inc(bytes as u64);
+
+        let bytes = bytes.min(buf.len());
+        self.reader
             .ReadBytes(&mut buf[0..bytes])
             .map_err(|e| std::io::Error::from_raw_os_error(e.code().0))
             .map(|_| bytes)
@@ -299,10 +306,15 @@ pub fn download_extract_sans_parent(
     pb.set_prefix(DOWNLOADING_PREFIX);
     pb.set_style(bar_style());
 
-    let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
+    let response_reader = DataReaderWrap {
+        reader,
+        pb: pb.clone(),
+    };
 
-    unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
+    unpack_sans_parent(response_reader, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
+    pb.finish();
 
     Ok(last_modified)
 }
