@@ -6,6 +6,7 @@ use retry::{
 };
 use semver::{BuildMetadata, Version};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use url::Url;
 
 /// Resolves the Julia binary path, accounting for .app bundles on macOS
@@ -47,6 +48,185 @@ pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
     Ok(base_path
         .join("bin")
         .join(format!("julia{}", std::env::consts::EXE_SUFFIX)))
+}
+
+/// Cached result of whether the nightly server supports etag headers.
+/// This is used to avoid repeated HTTP requests to check server capabilities.
+static NIGHTLY_SERVER_SUPPORTS_ETAG: OnceLock<bool> = OnceLock::new();
+
+/// Checks if the nightly server supports etag headers.
+/// This is required for nightly and PR channel support because we use etags
+/// to track versions of these builds.
+///
+/// The result is cached after the first check.
+/// If JULIAUP_SERVER equals the default official ones, it works as usual (assumes ETAG support).
+/// Otherwise, sends a HEAD check request to verify ETAG support.
+#[cfg(not(windows))]
+pub fn check_server_supports_nightlies() -> Result<bool> {
+    Ok(*NIGHTLY_SERVER_SUPPORTS_ETAG.get_or_init(|| {
+        // Check if JULIAUP_SERVER equals the default official one
+        let is_default_server = {
+            let julia_server = std::env::var("JULIAUP_SERVER")
+                .unwrap_or_else(|_| "https://julialang-s3.julialang.org".to_string());
+
+            // Normalize URL (remove trailing slashes for comparison)
+            let julia_server_normalized = julia_server.trim_end_matches('/');
+
+            julia_server_normalized == "https://julialang-s3.julialang.org"
+        };
+
+        // If using default official servers, assume ETAG support
+        if is_default_server {
+            return true;
+        }
+
+        // For custom servers, check via HEAD request
+        let base_url = match get_julianightlies_base_url() {
+            Ok(url) => url,
+            Err(_) => return false,
+        };
+
+        let test_url = match base_url.join("bin/") {
+            Ok(url) => url,
+            Err(_) => return false,
+        };
+
+        let client = reqwest::blocking::Client::new();
+        match client.head(test_url.as_str()).send() {
+            Ok(response) => {
+                let has_etag = response.headers().get("etag").is_some();
+                log::debug!("Server etag support check: {}", has_etag);
+                has_etag
+            }
+            Err(e) => {
+                log::debug!("Failed to check server etag support: {}", e);
+                false
+            }
+        }
+    }))
+}
+
+/// Checks if the nightly server supports etag headers.
+/// This is required for nightly and PR channel support because we use etags
+/// to track versions of these builds.
+///
+/// The result is cached after the first check.
+/// If JULIAUP_SERVER equals the default official ones, it works as usual (assumes ETAG support).
+/// Otherwise, sends a HEAD check request to verify ETAG support.
+#[cfg(windows)]
+pub fn check_server_supports_nightlies() -> Result<bool> {
+    use windows::core::HSTRING;
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpClient;
+    use windows::Web::Http::HttpMethod;
+    use windows::Web::Http::HttpRequestMessage;
+
+    Ok(*NIGHTLY_SERVER_SUPPORTS_ETAG.get_or_init(|| {
+        // Check if JULIAUP_SERVER equals the default official one
+        let is_default_server = {
+            let julia_server = std::env::var("JULIAUP_SERVER")
+                .unwrap_or_else(|_| "https://julialang-s3.julialang.org".to_string());
+
+            // Parse and compare URLs properly to handle variations
+            match Url::parse(&julia_server) {
+                Ok(parsed) => {
+                    if let Ok(default_url) = Url::parse("https://julialang-s3.julialang.org") {
+                        parsed.scheme() == default_url.scheme()
+                            && parsed.host_str() == default_url.host_str()
+                            && parsed.path().trim_end_matches('/')
+                                == default_url.path().trim_end_matches('/')
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => {
+                    // Fall back to simple string comparison if URL parsing fails
+                    let julia_server_normalized = julia_server.trim_end_matches('/');
+                    julia_server_normalized == "https://julialang-s3.julialang.org"
+                }
+            }
+        };
+
+        // If using default official servers, assume ETAG support
+        if is_default_server {
+            return true;
+        }
+
+        // For custom servers, check via HEAD request
+        let base_url = match get_julianightlies_base_url() {
+            Ok(url) => url,
+            Err(e) => {
+                log::debug!("Failed to get nightly base URL: {}", e);
+                return false;
+            }
+        };
+
+        let test_url = match base_url.join("bin/") {
+            Ok(url) => url,
+            Err(e) => {
+                log::debug!("Failed to join bin/ to base URL: {}", e);
+                return false;
+            }
+        };
+
+        let http_client = match HttpClient::new() {
+            Ok(client) => client,
+            Err(e) => {
+                log::debug!("Failed to create HTTP client: {:?}", e);
+                return false;
+            }
+        };
+
+        let request_uri = match Uri::CreateUri(&HSTRING::from(test_url.as_str())) {
+            Ok(uri) => uri,
+            Err(e) => {
+                log::debug!("Failed to create URI: {:?}", e);
+                return false;
+            }
+        };
+
+        let head_method = match HttpMethod::Head() {
+            Ok(m) => m,
+            Err(e) => {
+                log::debug!("Failed to create HEAD method: {:?}", e);
+                return false;
+            }
+        };
+
+        let request = match HttpRequestMessage::Create(&head_method, &request_uri) {
+            Ok(req) => req,
+            Err(e) => {
+                log::debug!("Failed to create request: {:?}", e);
+                return false;
+            }
+        };
+
+        let response = match http_client.SendRequestAsync(&request) {
+            Ok(async_op) => match async_op.join() {
+                Ok(resp) => resp,
+                Err(e) => {
+                    log::debug!("Failed to send HEAD request: {:?}", e);
+                    return false;
+                }
+            },
+            Err(e) => {
+                log::debug!("Failed to start HEAD request: {:?}", e);
+                return false;
+            }
+        };
+
+        match response.Headers() {
+            Ok(headers) => {
+                let has_etag = headers.Lookup(&HSTRING::from("ETag")).is_ok();
+                log::debug!("Server etag support check: {}", has_etag);
+                has_etag
+            }
+            Err(e) => {
+                log::debug!("Failed to get response headers: {:?}", e);
+                false
+            }
+        }
+    }))
 }
 
 pub fn get_juliaserver_base_url() -> Result<Url> {

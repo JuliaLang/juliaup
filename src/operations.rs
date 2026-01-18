@@ -10,6 +10,7 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaserver_base_url;
@@ -355,13 +356,13 @@ pub fn download_extract_sans_parent(
     pb.set_prefix(DOWNLOADING_PREFIX);
     pb.set_style(bar_style());
 
-    let last_modified = match response
+    // Extract etag if present, otherwise return empty string
+    // Empty etag is valid for regular version installs from servers without etag support
+    let last_modified = response
         .headers()
-        .get("etag") {
-            Some(etag) => Ok(etag.to_str().unwrap().to_string()),
-            None => Err(anyhow!(format!("Failed to get etag from `{}`.\n\
-                This is likely due to requesting a pull request that does not have a cached build available. You may have to build locally.", url))),
-        }?;
+        .get("etag")
+        .map(|etag| etag.to_str().unwrap_or("").to_string())
+        .unwrap_or_default();
 
     let response_with_pb = pb.wrap_read(response);
 
@@ -412,15 +413,16 @@ pub fn download_extract_sans_parent(
 
     http_response
         .EnsureSuccessStatusCode()
-        .with_context(|| format!("Failed to get etag from `{}`.\n\
-            This is likely due to requesting a pull request that does not have a cached build available. You may have to build locally.", url))?;
+        .with_context(|| format!("Failed to download from `{}`.", url))?;
 
+    // Extract etag if present, otherwise return empty string
+    // Empty etag is valid for regular version installs from servers without etag support
     let last_modified = http_response
         .Headers()
-        .unwrap()
-        .Lookup(&HSTRING::from("etag"))
-        .unwrap()
-        .to_string();
+        .ok()
+        .and_then(|headers| headers.Lookup(&HSTRING::from("etag")).ok())
+        .map(|etag| etag.to_string())
+        .unwrap_or_default();
 
     let http_response_content = http_response
         .Content()
@@ -899,6 +901,17 @@ pub fn install_from_url(
     path: &PathBuf,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
+    // Check if the nightly server supports etag headers (required for nightly/PR channels)
+    // Do this BEFORE downloading to avoid wasting bandwidth
+    if !check_server_supports_nightlies()
+        .context("Failed to check if nightly server supports etag headers")?
+    {
+        bail!(
+            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
+            Nightly and PR channels cannot be installed from this server."
+        );
+    }
+
     // Download and extract into a temporary directory
     let temp_dir = Builder::new()
         .prefix("julia-temp-")
@@ -994,6 +1007,16 @@ pub fn install_non_db_version(
     name: &String,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
+    // Check if the nightly server supports etag headers (required for nightly/PR channels)
+    if !check_server_supports_nightlies()
+        .context("Failed to check if nightly server supports etag headers")?
+    {
+        bail!(
+            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
+            Nightly and PR channels cannot be installed from this server."
+        );
+    }
+
     // Determine the download URL
     let download_url_base = get_julianightlies_base_url()?;
 
@@ -1940,6 +1963,9 @@ fn download_direct_download_etags(
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
+    // Check if the server supports etag headers (required for nightly/PR updates)
+    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
+
     let http_client = http_client()?;
 
     let mut requests = Vec::new();
@@ -1953,6 +1979,13 @@ fn download_direct_download_etags(
         }
 
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+            // If server doesn't support etag, we can't check for updates on nightly/PR channels
+            // Return None gracefully so the update process can continue with other channels
+            if !server_supports_etag {
+                requests.push((channel_name.clone(), None));
+                continue;
+            }
+
             let http_client = http_client.clone();
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
@@ -1979,16 +2012,14 @@ fn download_direct_download_etags(
                         .map_err(|e| anyhow!("Failed to get response: {:?}", e))?;
 
                     if response.IsSuccessStatusCode()? {
-                        let headers = response
+                        // Gracefully handle missing etag - return None instead of error
+                        let etag = response
                             .Headers()
-                            .map_err(|e| anyhow!("Failed to get headers: {:?}", e))?;
+                            .ok()
+                            .and_then(|headers| headers.Lookup(&HSTRING::from("ETag")).ok())
+                            .map(|s| s.to_string());
 
-                        let etag = headers
-                            .Lookup(&HSTRING::from("ETag"))
-                            .map_err(|e| anyhow!("ETag header not found: {:?}", e))?
-                            .to_string();
-
-                        Ok::<Option<String>, anyhow::Error>(Some(etag))
+                        Ok::<Option<String>, anyhow::Error>(etag)
                     } else {
                         Ok::<Option<String>, anyhow::Error>(None)
                     }
@@ -2011,6 +2042,9 @@ fn download_direct_download_etags(
 ) -> Result<Vec<(String, Option<String>)>> {
     use std::sync::Arc;
 
+    // Check if the server supports etag headers (required for nightly/PR updates)
+    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
+
     let client = Arc::new(http_client()?);
 
     let mut requests = Vec::new();
@@ -2024,6 +2058,13 @@ fn download_direct_download_etags(
         }
 
         if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+            // If server doesn't support etag, we can't check for updates on nightly/PR channels
+            // Return None gracefully so the update process can continue with other channels
+            if !server_supports_etag {
+                requests.push((channel_name.clone(), None));
+                continue;
+            }
+
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let channel_name_clone = channel_name.clone();
@@ -2041,17 +2082,14 @@ fn download_direct_download_etags(
                     })?;
 
                     if response.status().is_success() {
+                        // Gracefully handle missing etag - return None instead of error
                         let etag = response
                             .headers()
                             .get("etag")
-                            .ok_or_else(|| {
-                                anyhow!("ETag header not found in response from {}", &url_clone)
-                            })?
-                            .to_str()
-                            .map_err(|e| anyhow!("Failed to parse ETag header: {}", e))?
-                            .to_string();
+                            .and_then(|h| h.to_str().ok())
+                            .map(|s| s.to_string());
 
-                        Ok::<Option<String>, anyhow::Error>(Some(etag))
+                        Ok::<Option<String>, anyhow::Error>(etag)
                     } else {
                         Ok::<Option<String>, anyhow::Error>(None)
                     }
