@@ -259,7 +259,9 @@ jobs:
           fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
-          # Clean target directory before tests to ensure fresh build
+          # Clean up to maximize available disk space
           rm -rf target
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/git/db
           df -h
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
