@@ -251,6 +251,7 @@ jobs:
         architecture: x86-64
         cpu_count: 4
         memory: '12G'
+        disk_size: '30G'
         shell: sh
         run: |
           RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
