@@ -261,7 +261,12 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
                 None
             }
         })
-        .ok_or_else(|| anyhow!("Failed to find mount point in hdiutil output"))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "Failed to parse mount point from hdiutil output. Output:\n{}",
+                mount_output_str
+            )
+        })?;
 
     log::debug!("Mounted DMG at: {}", mount_point);
 
@@ -288,10 +293,21 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
 
     show_install_progress("Unmounting installer");
 
-    // Unmount (force, ignore errors)
-    let _ = std::process::Command::new("hdiutil")
+    // Unmount (force, but log failures)
+    match std::process::Command::new("hdiutil")
         .args(["detach", "-force", &mount_point])
-        .output();
+        .output()
+    {
+        Ok(output) if !output.status.success() => {
+            log::warn!(
+                "Failed to unmount DMG at {}: {}",
+                mount_point,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        Err(e) => log::warn!("Failed to execute hdiutil detach: {}", e),
+        _ => {}
+    }
 
     eprint!("\r\x1b[2K");
     let _ = std::io::stderr().flush();
@@ -450,7 +466,18 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
     let status = response.status();
     if !status.is_success() {
-        anyhow::bail!("Failed to download version from `{}`: HTTP {}", url, status);
+        let status_code = status.as_u16();
+        let hint = match status_code {
+            404 => "Resource not found",
+            503 => "Service temporarily unavailable, please try again later",
+            _ => "Unexpected server error",
+        };
+        anyhow::bail!(
+            "Failed to download from `{}`: HTTP {} - {}",
+            url,
+            status,
+            hint
+        );
     }
 
     let response_text = response.text()?;
@@ -475,10 +502,17 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
 
     let status = response.status();
     if !status.is_success() {
+        let status_code = status.as_u16();
+        let hint = match status_code {
+            404 => "Resource not found",
+            503 => "Service temporarily unavailable, please try again later",
+            _ => "Unexpected server error",
+        };
         anyhow::bail!(
-            "Failed to download version database from `{}`: HTTP {}",
+            "Failed to download version database from `{}`: HTTP {} - {}",
             url,
-            status
+            status,
+            hint
         );
     }
 
@@ -679,18 +713,21 @@ pub fn install_version(
                 eprint!("Checking standard library notarization");
                 let _ = std::io::stdout().flush();
 
-                let exit_status = std::process::Command::new(julia_path)
-                .env("JULIA_LOAD_PATH", "@stdlib")
-                .arg("--startup-file=no")
-                .arg("-e")
-                .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
-                .status()
-                .unwrap();
-
-                if exit_status.success() {
-                    eprintln!("done.")
-                } else {
-                    eprintln!("failed with {}.", exit_status);
+                match std::process::Command::new(julia_path)
+                    .env("JULIA_LOAD_PATH", "@stdlib")
+                    .arg("--startup-file=no")
+                    .arg("-e")
+                    .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
+                    .status()
+                {
+                    Ok(exit_status) if exit_status.success() => eprintln!("done."),
+                    Ok(exit_status) => eprintln!("failed with {}.", exit_status),
+                    Err(e) => {
+                        eprintln!("failed to execute Julia: {}", e);
+                        if e.raw_os_error() == Some(86) {
+                            eprintln!("This may indicate an architecture mismatch.");
+                        }
+                    }
                 }
             }
         }
@@ -898,12 +935,9 @@ pub fn install_from_url(
             })
             .collect();
 
-        if app_entries.is_empty() {
-            std::fs::remove_dir_all(temp_dir.path())?;
-            bail!("No .app bundle found after DMG extraction");
-        }
-
-        app_entries[0]
+        app_entries
+            .first()
+            .ok_or_else(|| anyhow!("No .app bundle found after DMG extraction"))?
             .path()
             .join("Contents")
             .join("Resources")
@@ -942,16 +976,8 @@ pub fn install_from_url(
         std::fs::remove_dir_all(&target_path)?;
     }
 
-    #[cfg(target_os = "macos")]
-    if use_dmg {
-        // For DMG, keep the entire .app bundle to preserve notarization ticket
-        // keep() consumes the TempDir and returns the path without cleanup
-        retry_rename(&temp_dir.keep(), &target_path)?;
-    } else {
-        retry_rename(&temp_dir.keep(), &target_path)?;
-    }
-
-    #[cfg(not(target_os = "macos"))]
+    // keep() consumes the TempDir and returns the path without cleanup
+    // For macOS DMG installs, this preserves the .app bundle structure
     retry_rename(&temp_dir.keep(), &target_path)?;
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
