@@ -8,14 +8,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.head_ref || github.ref_name || github.run_id }}
-  cancel-in-progress: true
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 
   check-juliaup:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: ${{ github.ref != 'refs/heads/main' }}
       matrix:
         label: [
           x86_64-pc-windows-msvc-windowsstore,
@@ -152,6 +153,7 @@ jobs:
   test-juliaup:
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: ${{ github.ref != 'refs/heads/main' }}
       matrix:
         target: [
           x86_64-pc-windows-msvc,
@@ -251,7 +253,8 @@ jobs:
         memory: '12G'
         shell: sh
         run: |
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
           . "${HOME}/.cargo/env"
           export RUST_BACKTRACE=full
           cargo test --target ${{matrix.target}} --features ${{matrix.features}}
