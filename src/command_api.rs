@@ -47,24 +47,10 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         // Resolve aliases to their target channels
         let (resolved_value, alias_args) = match value {
             JuliaupConfigChannel::AliasChannel { target, args } => {
-                let mut current_target = target.as_str();
-                let mut accumulated_args = args.clone().unwrap_or_default();
-
-                // Follow alias chain to find the real channel
-                loop {
-                    match config_file.data.installed_channels.get(current_target) {
-                        Some(JuliaupConfigChannel::AliasChannel {
-                            target: next_target,
-                            args: next_args,
-                        }) => {
-                            if let Some(next_args) = next_args {
-                                accumulated_args.extend(next_args.clone());
-                            }
-                            current_target = next_target;
-                        }
-                        Some(target_channel) => break (target_channel, accumulated_args),
-                        None => continue 'outer,
-                    }
+                // Since alias-to-alias is prevented in command_link.rs, we only need to resolve one level
+                match config_file.data.installed_channels.get(target.as_str()) {
+                    Some(target_channel) => (target_channel, args.clone().unwrap_or_default()),
+                    None => continue 'outer,
                 }
             }
             other => (other, Vec::new()),
