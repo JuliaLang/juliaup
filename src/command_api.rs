@@ -43,8 +43,34 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         "Failed to load configuration file while running the getconfig1 API command."
     })?;
 
-    for (key, value) in &config_file.data.installed_channels {
-        let curr = match &value {
+    'outer: for (key, value) in &config_file.data.installed_channels {
+        // Resolve aliases to their target channels
+        let (resolved_value, alias_args) = match value {
+            JuliaupConfigChannel::AliasChannel { target, args } => {
+                let mut current_target = target.as_str();
+                let mut accumulated_args = args.clone().unwrap_or_default();
+
+                // Follow alias chain to find the real channel
+                loop {
+                    match config_file.data.installed_channels.get(current_target) {
+                        Some(JuliaupConfigChannel::AliasChannel {
+                            target: next_target,
+                            args: next_args,
+                        }) => {
+                            if let Some(next_args) = next_args {
+                                accumulated_args.extend(next_args.clone());
+                            }
+                            current_target = next_target;
+                        }
+                        Some(target_channel) => break (target_channel, accumulated_args),
+                        None => continue 'outer,
+                    }
+                }
+            }
+            other => (other, Vec::new()),
+        };
+
+        let curr = match resolved_value {
             JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
                 JuliaupChannelInfo {
                     name: key.clone(),
@@ -57,7 +83,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         .into_path_buf()
                         .to_string_lossy()
                         .to_string(),
-                    args: Vec::new(),
+                    args: alias_args,
                     version: version.clone(),
                     arch: "".to_string(),
                 }
@@ -80,7 +106,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                             .into_path_buf()
                             .to_string_lossy()
                             .to_string(),
-                        args: Vec::new(),
+                        args: alias_args,
                         version: version.to_string(),
                         arch: platform
                     },
@@ -88,11 +114,14 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 }
             }
             JuliaupConfigChannel::LinkedChannel { command, args } => {
-                let mut new_args = args.clone().unwrap_or_default();
-                new_args.push("--version".to_string());
+                let mut combined_args = alias_args.clone();
+                combined_args.extend(args.clone().unwrap_or_default());
+
+                let mut version_args = combined_args.clone();
+                version_args.push("--version".to_string());
 
                 let res = std::process::Command::new(command)
-                    .args(&new_args)
+                    .args(&version_args)
                     .output();
 
                 match res {
@@ -111,7 +140,7 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: command.clone(),
-                            args: args.clone().unwrap_or_default(),
+                            args: combined_args,
                             version: version.to_string(),
                             arch: String::new(),
                         }
@@ -119,14 +148,8 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Err(_) => continue,
                 }
             }
-            JuliaupConfigChannel::AliasChannel { target, args } => {
-                JuliaupChannelInfo {
-                    name: key.clone(),
-                    file: format!("alias-to-{target}"),
-                    args: args.clone().unwrap_or_default(),
-                    version: format!("alias to {target}"),
-                    arch: String::new(),
-                }
+            JuliaupConfigChannel::AliasChannel { .. } => {
+                unreachable!("Aliases should have been resolved above")
             }
         };
 

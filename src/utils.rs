@@ -299,9 +299,9 @@ pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
 
     let build_parts: Vec<&str> = version.build.split('.').collect();
 
-    if build_parts.len() != 4 {
+    if build_parts.len() < 4 {
         bail!(
-            "`{}` is an invalid version specifier: the build part must have four parts.",
+            "`{}` is an invalid version specifier: the build part must have at least four parts.",
             value
         );
     }
@@ -337,6 +337,12 @@ mod tests {
         let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 1, 1));
+
+        // FreeBSD has 5 parts in the build metadata
+        let s = "1.10.10+0.x64.unknown.freebsd11.1";
+        let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
+        assert_eq!(p, "x64");
+        assert_eq!(v, Version::new(1, 10, 10));
     }
 }
 
