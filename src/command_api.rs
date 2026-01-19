@@ -3,7 +3,6 @@ use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
 use crate::utils::parse_versionstring;
 use anyhow::{bail, Context, Result};
-use normpath::PathExt;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -57,24 +56,28 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         };
 
         let curr = match resolved_value {
-            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
-                JuliaupChannelInfo {
-                    name: key.clone(),
-                    file: paths.juliauphome
-                        .join(path)
-                        .join("bin")
-                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                        .normalize()
-                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                        .into_path_buf()
-                        .to_string_lossy()
-                        .to_string(),
-                    args: alias_args,
-                    version: version.clone(),
-                    arch: "".to_string(),
-                }
-            }
-            JuliaupConfigChannel::SystemChannel { version: fullversion } => {
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path,
+                url: _,
+                local_etag: _,
+                server_etag: _,
+                version,
+            } => JuliaupChannelInfo {
+                name: key.clone(),
+                file: paths
+                    .juliauphome
+                    .join(path)
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                    .to_string_lossy()
+                    .to_string(),
+                args: alias_args,
+                version: version.clone(),
+                arch: "".to_string(),
+            },
+            JuliaupConfigChannel::SystemChannel {
+                version: fullversion,
+            } => {
                 let (platform, mut version) = parse_versionstring(fullversion)
                     .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
@@ -87,9 +90,6 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                             .join(&channel.path)
                             .join("bin")
                             .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                            .normalize()
-                            .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                            .into_path_buf()
                             .to_string_lossy()
                             .to_string(),
                         args: alias_args,
