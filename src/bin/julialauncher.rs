@@ -484,9 +484,9 @@ fn get_julia_path_from_installed_channel(
             Ok((PathBuf::from(command), combined_args))
         }
         JuliaupConfigChannel::SystemChannel { version } => {
-            let path = &config_data
+            let version_info = config_data
                 .installed_versions.get(version)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?.path;
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?;
 
             if is_interactive() {
                 check_channel_uptodate(channel, version, versions_db).with_context(|| {
@@ -494,19 +494,23 @@ fn get_julia_path_from_installed_channel(
                 })?;
             }
 
-            let base_path = juliaupconfig_path
-                .parent()
-                .unwrap() // unwrap OK because there should always be a parent
-                .join(path);
+            let config_dir = juliaupconfig_path.parent().unwrap(); // unwrap OK because there should always be a parent
 
-            let absolute_path = resolve_julia_binary_path(&base_path)?
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
+            // Use pre-computed binary_path if available (new installations),
+            // otherwise fall back to runtime resolution (backward compatibility)
+            let absolute_path = if let Some(ref binary_path) = version_info.binary_path {
+                config_dir.join(binary_path)
+            } else {
+                let base_path = config_dir.join(&version_info.path);
+                resolve_julia_binary_path(&base_path)?
+            }
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
             Ok((absolute_path.into_path_buf(), alias_args))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
@@ -515,6 +519,7 @@ fn get_julia_path_from_installed_channel(
             local_etag,
             server_etag,
             version: _,
+            binary_path,
         } => {
             if local_etag != server_etag && is_interactive() {
                 if channel.starts_with("nightly") {
@@ -543,16 +548,23 @@ fn get_julia_path_from_installed_channel(
                 }
             }
 
-            let base_path = juliaupconfig_path.parent().unwrap().join(path);
+            let config_dir = juliaupconfig_path.parent().unwrap();
 
-            let absolute_path = resolve_julia_binary_path(&base_path)?
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
+            // Use pre-computed binary_path if available (new installations),
+            // otherwise fall back to runtime resolution (backward compatibility)
+            let absolute_path = if let Some(ref bp) = binary_path {
+                config_dir.join(bp)
+            } else {
+                let base_path = config_dir.join(path);
+                resolve_julia_binary_path(&base_path)?
+            }
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
             Ok((absolute_path.into_path_buf(), alias_args))
         }
     }

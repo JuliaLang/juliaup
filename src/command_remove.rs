@@ -58,6 +58,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
         local_etag: _,
         server_etag: _,
         version: _,
+        binary_path: _,
     } = channel_info
     {
         let path_to_delete = paths.juliauphome.join(path);

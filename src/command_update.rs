@@ -36,6 +36,7 @@ fn update_channel(
             local_etag,
             server_etag,
             version,
+            binary_path,
         } => {
             if local_etag != server_etag {
                 // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
@@ -66,6 +67,7 @@ fn update_channel(
                             local_etag: local_etag.clone(),
                             server_etag: server_etag.clone(),
                             version: version.clone(),
+                            binary_path: binary_path.clone(),
                         },
                         channel,
                         paths,

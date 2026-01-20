@@ -617,7 +617,7 @@ pub fn install_version(
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
-        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
+        fs_extra::dir::copy(path_of_bundled_version, &target_path, &options)?;
     } else {
         let juliaupserver_base =
             get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
@@ -721,10 +721,31 @@ pub fn install_version(
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
 
+    // Compute the binary path at installation time for efficient launch
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)
+        .ok()
+        .map(|p| {
+            p.strip_prefix(&target_path)
+                .map(|suffix| rel_path.join(suffix).to_string_lossy().into_owned())
+                .unwrap_or_else(|_| {
+                    // Fallback: store the path relative to juliauphome
+                    p.strip_prefix(&paths.juliauphome)
+                        .map(|rel| PathBuf::from(".").join(rel).to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| {
+                            rel_path
+                                .join("bin")
+                                .join("julia")
+                                .to_string_lossy()
+                                .into_owned()
+                        })
+                })
+        });
+
     config_data.installed_versions.insert(
         fullversion.clone(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
+            binary_path,
         },
     );
 
@@ -937,12 +958,31 @@ pub fn install_from_url(
     // For macOS DMG installs, this preserves the .app bundle structure
     retry_rename(&temp_dir.keep(), &target_path)?;
 
+    // Compute the binary path relative to the installation folder for efficient launch
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)
+        .ok()
+        .map(|p| {
+            p.strip_prefix(&target_path)
+                .map(|suffix| path.join(suffix).to_string_lossy().into_owned())
+                .unwrap_or_else(|_| {
+                    p.strip_prefix(&paths.juliauphome)
+                        .map(|rel| PathBuf::from(".").join(rel).to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| {
+                            path.join("bin")
+                                .join("julia")
+                                .to_string_lossy()
+                                .into_owned()
+                        })
+                })
+        });
+
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
         url: url.to_string().to_owned(), // TODO Use proper URL
         local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
         server_etag,
         version: julia_version,
+        binary_path,
     })
 }
 
@@ -1825,6 +1865,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             local_etag,
             server_etag: _,
             version,
+            binary_path,
         } = channel_data
         {
             if let Some(etag) = etag {
@@ -1836,6 +1877,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                         local_etag: local_etag.clone(),
                         server_etag: etag,
                         version: version.clone(),
+                        binary_path: binary_path.clone(),
                     },
                 );
             } else {

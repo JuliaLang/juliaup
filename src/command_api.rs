@@ -63,17 +63,22 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 local_etag: _,
                 server_etag: _,
                 version,
+                binary_path,
             } => {
-                let base_path = paths.juliauphome.join(path);
-                let julia_path = resolve_julia_binary_path(&base_path)
-                    .with_context(|| {
+                // Use pre-computed binary_path if available, otherwise resolve at runtime
+                let julia_path = if let Some(ref bp) = binary_path {
+                    paths.juliauphome.join(bp)
+                } else {
+                    let base_path = paths.juliauphome.join(path);
+                    resolve_julia_binary_path(&base_path).with_context(|| {
                         "Failed to resolve Julia binary path for DirectDownloadChannel."
                     })?
-                    .normalize()
-                    .with_context(|| {
-                        "Failed to normalize Julia binary path for DirectDownloadChannel."
-                    })?
-                    .into_path_buf();
+                }
+                .normalize()
+                .with_context(|| {
+                    "Failed to normalize Julia binary path for DirectDownloadChannel."
+                })?
+                .into_path_buf();
                 JuliaupChannelInfo {
                     name: key.clone(),
                     file: julia_path.to_string_lossy().to_string(),
@@ -91,13 +96,18 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 version.build = semver::BuildMetadata::EMPTY;
 
                 match config_file.data.installed_versions.get(fullversion) {
-                    Some(channel) => {
-                        let base_path = paths.juliauphome.join(&channel.path);
-                        let julia_path = resolve_julia_binary_path(&base_path)
-                            .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?
-                            .normalize()
-                            .with_context(|| "Failed to normalize Julia binary path for SystemChannel.")?
-                            .into_path_buf();
+                    Some(version_info) => {
+                        // Use pre-computed binary_path if available, otherwise resolve at runtime
+                        let julia_path = if let Some(ref bp) = version_info.binary_path {
+                            paths.juliauphome.join(bp)
+                        } else {
+                            let base_path = paths.juliauphome.join(&version_info.path);
+                            resolve_julia_binary_path(&base_path)
+                                .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?
+                        }
+                        .normalize()
+                        .with_context(|| "Failed to normalize Julia binary path for SystemChannel.")?
+                        .into_path_buf();
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: julia_path.to_string_lossy().to_string(),
