@@ -1,7 +1,7 @@
 use crate::config_file::load_config_db;
 use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
-use crate::utils::parse_versionstring;
+use crate::utils::{parse_versionstring, resolve_julia_binary_path};
 use anyhow::{bail, Context, Result};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -62,19 +62,19 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 local_etag: _,
                 server_etag: _,
                 version,
-            } => JuliaupChannelInfo {
-                name: key.clone(),
-                file: paths
-                    .juliauphome
-                    .join(path)
-                    .join("bin")
-                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                    .to_string_lossy()
-                    .to_string(),
-                args: alias_args,
-                version: version.clone(),
-                arch: "".to_string(),
-            },
+            } => {
+                let base_path = paths.juliauphome.join(path);
+                let julia_path = resolve_julia_binary_path(&base_path).with_context(|| {
+                    "Failed to resolve Julia binary path for DirectDownloadChannel."
+                })?;
+                JuliaupChannelInfo {
+                    name: key.clone(),
+                    file: julia_path.to_string_lossy().to_string(),
+                    args: alias_args,
+                    version: version.clone(),
+                    arch: "".to_string(),
+                }
+            }
             JuliaupConfigChannel::SystemChannel {
                 version: fullversion,
             } => {
@@ -84,18 +84,18 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 version.build = semver::BuildMetadata::EMPTY;
 
                 match config_file.data.installed_versions.get(fullversion) {
-                    Some(channel) => JuliaupChannelInfo {
-                        name: key.clone(),
-                        file: paths.juliauphome
-                            .join(&channel.path)
-                            .join("bin")
-                            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                            .to_string_lossy()
-                            .to_string(),
-                        args: alias_args,
-                        version: version.to_string(),
-                        arch: platform
-                    },
+                    Some(channel) => {
+                        let base_path = paths.juliauphome.join(&channel.path);
+                        let julia_path = resolve_julia_binary_path(&base_path)
+                            .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?;
+                        JuliaupChannelInfo {
+                            name: key.clone(),
+                            file: julia_path.to_string_lossy().to_string(),
+                            args: alias_args,
+                            version: version.to_string(),
+                            arch: platform,
+                        }
+                    }
                     None => bail!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key)
                 }
             }

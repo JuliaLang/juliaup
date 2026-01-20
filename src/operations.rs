@@ -631,25 +631,9 @@ pub fn install_version(
             })?
             .url_path;
 
-        #[cfg(target_os = "macos")]
-        let download_url_path = {
-            // Convert .tar.gz URLs to .dmg URLs for macOS at runtime.
-            // TODO: Replace this with database schema v2 that includes multiple ranked
-            // download sources. With v2, we would:
-            // 1. Query the database for available sources for this version
-            // 2. Select DMG if available, otherwise fall back to tarball
-            // 3. Eliminate this runtime string manipulation
-            // This approach avoids the need for string replacement and properly supports
-            // platforms that may have different preferred installation formats.
-            // See discussion at: https://github.com/JuliaLang/juliaup/pull/1320
-            if download_url_path.ends_with(".tar.gz") {
-                download_url_path.replace(".tar.gz", ".dmg")
-            } else {
-                download_url_path.clone()
-            }
-        };
-
-        #[cfg(not(target_os = "macos"))]
+        // On macOS, try_download_dmg_with_fallback handles .tar.gz → .dmg conversion
+        // TODO: Replace runtime URL manipulation with database schema v2 that includes
+        // multiple ranked download sources. See: https://github.com/JuliaLang/juliaup/pull/1320
         let download_url = juliaupserver_base
             .join(download_url_path)
             .with_context(|| {
@@ -667,15 +651,6 @@ pub fn install_version(
 
         #[cfg(target_os = "macos")]
         let used_dmg = {
-            let download_url = juliaupserver_base
-                .join(&download_url_path)
-                .with_context(|| {
-                    format!(
-                        "Failed to construct a valid url from '{}' and '{}'.",
-                        juliaupserver_base, download_url_path
-                    )
-                })?;
-
             let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, &target_path)?;
             used_dmg
         };
@@ -713,7 +688,7 @@ pub fn install_version(
                     })?;
 
                 eprint!("Checking standard library notarization");
-                let _ = std::io::stdout().flush();
+                let _ = std::io::stderr().flush();
 
                 match std::process::Command::new(julia_path)
                     .env("JULIA_LOAD_PATH", "@stdlib")
