@@ -198,7 +198,9 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     use std::io::Write;
 
     log::debug!("Downloading DMG from url `{}`.", url);
-    let response = reqwest::blocking::get(url)
+    let response = http_client()?
+        .get(url)
+        .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     if !response.status().is_success() {
@@ -278,7 +280,7 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     let app_bundle = std::fs::read_dir(mount_path)?
         .filter_map(|e| e.ok())
         .find(|e| e.file_name().to_str().is_some_and(|n| n.ends_with(".app")))
-        .ok_or_else(|| anyhow!("No .app bundle found in DMG"))?;
+        .ok_or_else(|| anyhow!("No .app bundle found in DMG."))?;
 
     std::fs::create_dir_all(target_path)?;
 
@@ -289,10 +291,10 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
         .status()?;
 
     if !copy_status.success() {
-        bail!("Failed to copy .app bundle from DMG");
+        bail!("Failed to copy .app bundle from DMG.");
     }
 
-    show_install_progress("Unmounting installer");
+    show_install_progress("Unmounting installer...");
 
     // Unmount (force, but log failures)
     match std::process::Command::new("hdiutil")
@@ -894,7 +896,7 @@ pub fn install_from_url(
         .expect("Failed to create temporary directory");
 
     #[cfg(target_os = "macos")]
-    let (server_etag, use_dmg) = try_download_dmg_with_fallback(url, temp_dir.path())?;
+    let (server_etag, _) = try_download_dmg_with_fallback(url, temp_dir.path())?;
 
     #[cfg(not(target_os = "macos"))]
     let server_etag = {
@@ -909,41 +911,8 @@ pub fn install_from_url(
     };
 
     // Query the actual version
-    #[cfg(target_os = "macos")]
-    let julia_path = if use_dmg {
-        // For DMG, find the .app bundle and construct path to julia binary
-        let app_entries: Vec<_> = std::fs::read_dir(temp_dir.path())?
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_str()
-                    .map(|name| name.ends_with(".app"))
-                    .unwrap_or(false)
-            })
-            .collect();
-
-        app_entries
-            .first()
-            .ok_or_else(|| anyhow!("No .app bundle found after DMG extraction"))?
-            .path()
-            .join("Contents")
-            .join("Resources")
-            .join("julia")
-            .join("bin")
-            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-    } else {
-        temp_dir
-            .path()
-            .join("bin")
-            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-    };
-
-    #[cfg(not(target_os = "macos"))]
-    let julia_path = temp_dir
-        .path()
-        .join("bin")
-        .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+    let julia_path = crate::utils::resolve_julia_binary_path(temp_dir.path())
+        .with_context(|| "Failed to resolve Julia binary path after extraction.")?;
 
     let julia_process = std::process::Command::new(julia_path.clone())
         .arg("--startup-file=no")

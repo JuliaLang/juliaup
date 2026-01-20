@@ -18,8 +18,7 @@ pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
             if entry
                 .file_name()
                 .to_str()
-                .map(|name| name.ends_with(".app"))
-                .unwrap_or(false)
+                .is_some_and(|name| name.ends_with(".app"))
             {
                 // This is a DMG installation with .app bundle
                 let julia_path = entry

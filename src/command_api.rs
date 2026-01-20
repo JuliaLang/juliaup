@@ -3,6 +3,7 @@ use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
 use crate::utils::{parse_versionstring, resolve_julia_binary_path};
 use anyhow::{bail, Context, Result};
+use normpath::PathExt;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -64,9 +65,15 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                 version,
             } => {
                 let base_path = paths.juliauphome.join(path);
-                let julia_path = resolve_julia_binary_path(&base_path).with_context(|| {
-                    "Failed to resolve Julia binary path for DirectDownloadChannel."
-                })?;
+                let julia_path = resolve_julia_binary_path(&base_path)
+                    .with_context(|| {
+                        "Failed to resolve Julia binary path for DirectDownloadChannel."
+                    })?
+                    .normalize()
+                    .with_context(|| {
+                        "Failed to normalize Julia binary path for DirectDownloadChannel."
+                    })?
+                    .into_path_buf();
                 JuliaupChannelInfo {
                     name: key.clone(),
                     file: julia_path.to_string_lossy().to_string(),
@@ -87,7 +94,10 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
                     Some(channel) => {
                         let base_path = paths.juliauphome.join(&channel.path);
                         let julia_path = resolve_julia_binary_path(&base_path)
-                            .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?;
+                            .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?
+                            .normalize()
+                            .with_context(|| "Failed to normalize Julia binary path for SystemChannel.")?
+                            .into_path_buf();
                         JuliaupChannelInfo {
                             name: key.clone(),
                             file: julia_path.to_string_lossy().to_string(),
