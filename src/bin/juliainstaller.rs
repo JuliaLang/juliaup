@@ -498,6 +498,13 @@ pub fn main() -> Result<()> {
 
         paths.juliaupselfbin = juliaupselfbin.clone();
         paths.juliaupselfconfig = self_config_path.clone();
+        // Update the main config paths to point to the installation location
+        paths.juliauphome = install_choices.install_location.clone();
+        paths.juliaupconfig = install_choices.install_location.join("juliaup.json");
+        paths.lockfile = install_choices.install_location.join(".juliaup-lock");
+        paths.versiondb = install_choices
+            .install_location
+            .join(format!("versiondb-{}.json", juliaup_target));
     }
 
     run_command_config_backgroundselfupdate(
