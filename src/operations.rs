@@ -197,6 +197,49 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     use std::fs::File;
     use std::io::Write;
 
+    struct DmgMountGuard {
+        mount_point: String,
+        armed: bool,
+    }
+
+    impl DmgMountGuard {
+        fn new(mount_point: String) -> Self {
+            Self {
+                mount_point,
+                armed: true,
+            }
+        }
+
+        fn detach(&mut self) {
+            if !self.armed {
+                return;
+            }
+
+            match std::process::Command::new("hdiutil")
+                .args(["detach", "-force", &self.mount_point])
+                .output()
+            {
+                Ok(output) if !output.status.success() => {
+                    log::warn!(
+                        "Failed to unmount DMG at {}: {}",
+                        self.mount_point,
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+                Err(e) => log::warn!("Failed to execute hdiutil detach: {}", e),
+                _ => {}
+            }
+
+            self.armed = false;
+        }
+    }
+
+    impl Drop for DmgMountGuard {
+        fn drop(&mut self) {
+            self.detach();
+        }
+    }
+
     log::debug!("Downloading DMG from url `{}`.", url);
     let response = http_client()?
         .get(url)
@@ -230,6 +273,10 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     drop(dmg_file);
 
     pb.finish_and_clear();
+
+    if std::env::var_os("JULIAUP_TEST_DMG_FAIL").is_some() {
+        bail!("Simulated DMG install failure for tests.");
+    }
 
     show_install_progress("Mounting installer...");
 
@@ -272,6 +319,7 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
         })?;
 
     log::debug!("Mounted DMG at: {}", mount_point);
+    let mut mount_guard = DmgMountGuard::new(mount_point.clone());
 
     show_install_progress("Copying application...");
 
@@ -295,22 +343,7 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     }
 
     show_install_progress("Unmounting installer...");
-
-    // Unmount (force, but log failures)
-    match std::process::Command::new("hdiutil")
-        .args(["detach", "-force", &mount_point])
-        .output()
-    {
-        Ok(output) if !output.status.success() => {
-            log::warn!(
-                "Failed to unmount DMG at {}: {}",
-                mount_point,
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        Err(e) => log::warn!("Failed to execute hdiutil detach: {}", e),
-        _ => {}
-    }
+    mount_guard.detach();
 
     eprint!("\r\x1b[2K");
     let _ = std::io::stderr().flush();
@@ -1244,14 +1277,13 @@ fn create_system_channel_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
-        || {
-            format!(
-                "failed to create symlink `{}`.",
-                symlink_path.to_string_lossy()
-            )
-        },
-    )
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)?;
+    std::os::unix::fs::symlink(binary_path, symlink_path).with_context(|| {
+        format!(
+            "failed to create symlink `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })
 }
 
 #[cfg(not(windows))]
@@ -1284,14 +1316,13 @@ fn create_direct_download_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
-        || {
-            format!(
-                "failed to create symlink `{}`.",
-                symlink_path.to_string_lossy()
-            )
-        },
-    )
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)?;
+    std::os::unix::fs::symlink(binary_path, symlink_path).with_context(|| {
+        format!(
+            "failed to create symlink `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })
 }
 
 #[cfg(not(windows))]
@@ -2094,6 +2125,35 @@ fn download_direct_download_etags(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &std::path::Path) -> Self {
+            let original = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            if let Some(ref value) = self.original {
+                std::env::set_var(self.key, value);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
 
     #[test]
     fn match_markers_none_without_markers() {
@@ -2196,5 +2256,136 @@ mod tests {
         // Verify Err(..) is returned
         let res = match_markers(&inp);
         assert!(res.is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn symlink_uses_app_bundle_for_system_channel() -> Result<()> {
+        let _guard = env_lock();
+        let depot_dir = tempfile::TempDir::new()?;
+        let _env_guard = EnvVarGuard::set("JULIAUP_DEPOT_PATH", depot_dir.path());
+        let paths = crate::global_paths::get_paths()?;
+
+        let version = "1.2.3";
+        let target_path = paths.juliauphome.join(format!("julia-{}", version));
+        let julia_bin = target_path.join("Julia-1.2.app/Contents/Resources/julia/bin/julia");
+        std::fs::create_dir_all(julia_bin.parent().unwrap())?;
+        std::fs::write(&julia_bin, b"")?;
+
+        let symlink_dir = tempfile::TempDir::new()?;
+        let symlink_path = symlink_dir.path().join("julia-1.2");
+
+        create_system_channel_symlink(version, "julia-1.2", &symlink_path, &paths, &None)?;
+
+        let link_target = std::fs::read_link(&symlink_path)?;
+        assert_eq!(link_target, julia_bin);
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn symlink_uses_app_bundle_for_direct_download_channel() -> Result<()> {
+        let _guard = env_lock();
+        let depot_dir = tempfile::TempDir::new()?;
+        let _env_guard = EnvVarGuard::set("JULIAUP_DEPOT_PATH", depot_dir.path());
+        let paths = crate::global_paths::get_paths()?;
+
+        let version = "1.2.3";
+        let path = "julia-pr123";
+        let target_path = paths.juliauphome.join(path);
+        let julia_bin = target_path.join("Julia-1.2.app/Contents/Resources/julia/bin/julia");
+        std::fs::create_dir_all(julia_bin.parent().unwrap())?;
+        std::fs::write(&julia_bin, b"")?;
+
+        let symlink_dir = tempfile::TempDir::new()?;
+        let symlink_path = symlink_dir.path().join("julia-pr123");
+
+        create_direct_download_symlink(path, version, "julia-pr123", &symlink_path, &paths, &None)?;
+
+        let link_target = std::fs::read_link(&symlink_path)?;
+        assert_eq!(link_target, julia_bin);
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn dmg_failure_falls_back_to_tarball() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+        use tar::Builder;
+
+        let _guard = env_lock();
+        let _env_guard = EnvVarGuard::set("JULIAUP_TEST_DMG_FAIL", std::path::Path::new("1"));
+
+        let tarball_bytes = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut builder = Builder::new(&mut encoder);
+
+                let mut dir_header = tar::Header::new_gnu();
+                dir_header.set_entry_type(tar::EntryType::Directory);
+                dir_header.set_mode(0o755);
+                dir_header.set_size(0);
+                dir_header.set_cksum();
+                builder.append_data(&mut dir_header, "julia-1.2.3/bin", std::io::empty())?;
+
+                let data = b"#!/bin/sh\n";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o755);
+                header.set_cksum();
+                builder.append_data(&mut header, "julia-1.2.3/bin/julia", &data[..])?;
+
+                builder.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dmg_bytes = b"not-a-real-dmg".to_vec();
+
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let addr = listener.local_addr()?;
+        let handle = thread::spawn(move || {
+            for _ in 0..2 {
+                if let Ok((mut stream, _)) = listener.accept() {
+                    let mut buf = [0u8; 1024];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&buf[..n]);
+                    let path = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("/");
+
+                    let (body, etag) = if path.ends_with(".dmg") {
+                        (dmg_bytes.as_slice(), "\"dmg-etag\"")
+                    } else {
+                        (tarball_bytes.as_slice(), "\"tar-etag\"")
+                    };
+
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: {}\r\nConnection: close\r\n\r\n",
+                        body.len(),
+                        etag
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.write_all(body);
+                }
+            }
+        });
+
+        let url = url::Url::parse(&format!("http://{}/julia.tar.gz", addr))?;
+        let target_dir = tempfile::TempDir::new()?;
+        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path())?;
+
+        assert!(!used_dmg);
+        assert_eq!(etag, "\"tar-etag\"");
+        assert!(target_dir.path().join("bin/julia").exists());
+
+        let _ = handle.join();
+        Ok(())
     }
 }
