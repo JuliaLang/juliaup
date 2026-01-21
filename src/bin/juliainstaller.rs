@@ -505,16 +505,19 @@ pub fn main() -> Result<()> {
         true,
         &paths,
     )
-    .unwrap();
+    .with_context(|| "Failed to configure background self-update interval.")?;
     run_command_config_startupselfupdate(Some(install_choices.startupselfupdate), true, &paths)
-        .unwrap();
+        .with_context(|| "Failed to configure startup self-update interval.")?;
     if install_choices.modifypath {
         // We only run this if true so that we don't try to touch the various shell scripts at all
         // if this is not selected.
-        run_command_config_modifypath(Some(install_choices.modifypath), true, &paths).unwrap();
+        run_command_config_modifypath(Some(install_choices.modifypath), true, &paths)
+            .with_context(|| "Failed to configure PATH modification setting.")?;
     }
-    run_command_config_symlinks(Some(install_choices.symlinks), true, &paths).unwrap();
-    run_command_selfchannel(Some(args.juliaup_channel), &paths).unwrap();
+    run_command_config_symlinks(Some(install_choices.symlinks), true, &paths)
+        .with_context(|| "Failed to configure channel symlinks setting.")?;
+    run_command_selfchannel(Some(args.juliaup_channel), &paths)
+        .with_context(|| "Failed to set juliaup update channel.")?;
 
     run_command_add(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;
