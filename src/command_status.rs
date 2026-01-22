@@ -13,6 +13,7 @@ use cli_table::{
 };
 use itertools::Itertools;
 use numeric_sort::cmp;
+use semver::Version;
 
 fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
     let mut combined_command = String::new();
@@ -73,8 +74,14 @@ fn get_update_info(
         } => (local_etag != server_etag).then(|| "Update available".to_string()),
         JuliaupConfigChannel::SystemChannel { version } => {
             match versiondb_data.available_channels.get(channel_name) {
-                Some(channel) if &channel.version != version => {
-                    Some(format!("Update to {} available", channel.version))
+                Some(channel) => {
+                    // Parse both versions and compare semantically
+                    match (Version::parse(version), Version::parse(&channel.version)) {
+                        (Ok(installed_ver), Ok(available_ver)) if available_ver > installed_ver => {
+                            Some(format!("Update to {} available", channel.version))
+                        }
+                        _ => None,
+                    }
                 }
                 _ => None,
             }
@@ -90,8 +97,16 @@ fn get_update_info(
                 }) => (local_etag != server_etag).then(|| "Update available".to_string()),
                 Some(JuliaupConfigChannel::SystemChannel { version }) => {
                     match versiondb_data.available_channels.get(target) {
-                        Some(channel) if channel.version != *version => {
-                            Some(format!("Update to {} available", channel.version))
+                        Some(channel) => {
+                            // Parse both versions and compare semantically
+                            match (Version::parse(version), Version::parse(&channel.version)) {
+                                (Ok(installed_ver), Ok(available_ver))
+                                    if available_ver > installed_ver =>
+                                {
+                                    Some(format!("Update to {} available", channel.version))
+                                }
+                                _ => None,
+                            }
                         }
                         _ => None,
                     }
