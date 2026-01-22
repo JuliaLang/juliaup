@@ -182,6 +182,193 @@ fn bar_style() -> ProgressStyle {
         .with_key("bar", format_progress_bar)
 }
 
+#[cfg(target_os = "macos")]
+fn show_install_progress(message: &str) {
+    eprint!(
+        "\r\x1b[2K{} {}",
+        style("  Installing").cyan().bold(),
+        message
+    );
+    let _ = std::io::stderr().flush();
+}
+
+#[cfg(target_os = "macos")]
+pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
+    use std::fs::File;
+    use std::io::Write;
+
+    struct DmgMountGuard {
+        mount_point: String,
+        armed: bool,
+    }
+
+    impl DmgMountGuard {
+        fn new(mount_point: String) -> Self {
+            Self {
+                mount_point,
+                armed: true,
+            }
+        }
+
+        fn detach(&mut self) {
+            if !self.armed {
+                return;
+            }
+
+            match std::process::Command::new("hdiutil")
+                .args(["detach", "-force", &self.mount_point])
+                .output()
+            {
+                Ok(output) if !output.status.success() => {
+                    log::warn!(
+                        "Failed to unmount DMG at {}: {}",
+                        self.mount_point,
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+                Err(e) => log::warn!("Failed to execute hdiutil detach: {}", e),
+                _ => {}
+            }
+
+            self.armed = false;
+        }
+    }
+
+    impl Drop for DmgMountGuard {
+        fn drop(&mut self) {
+            self.detach();
+        }
+    }
+
+    log::debug!("Downloading DMG from url `{}`.", url);
+    let response = http_client()?
+        .get(url)
+        .send()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    if !response.status().is_success() {
+        bail!("DMG not found at URL (status: {})", response.status());
+    }
+
+    let pb = match response.content_length() {
+        Some(len) => ProgressBar::new(len),
+        None => ProgressBar::new_spinner(),
+    };
+    pb.set_prefix(DOWNLOADING_PREFIX);
+    pb.set_style(bar_style());
+
+    let etag = response
+        .headers()
+        .get("etag")
+        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?
+        .to_str()?
+        .to_string();
+
+    // Download to temporary DMG file
+    let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
+
+    let mut dmg_file = File::create(temp_dmg.path())?;
+    std::io::copy(&mut pb.wrap_read(response), &mut dmg_file)?;
+    dmg_file.flush()?;
+    drop(dmg_file);
+
+    pb.finish_and_clear();
+
+    if std::env::var_os("JULIAUP_TEST_DMG_FAIL").is_some() {
+        bail!("Simulated DMG install failure for tests.");
+    }
+
+    show_install_progress("Mounting installer...");
+
+    // Mount the DMG
+    let mount_output = std::process::Command::new("hdiutil")
+        .args(["attach", "-nobrowse", "-plist"])
+        .arg(temp_dmg.path())
+        .output()?;
+
+    if !mount_output.status.success() {
+        bail!(
+            "Failed to mount DMG: {}",
+            String::from_utf8_lossy(&mount_output.stderr)
+        );
+    }
+
+    // Parse mount point from plist output
+    let mount_output_str = String::from_utf8_lossy(&mount_output.stdout);
+    let mount_point = mount_output_str
+        .lines()
+        .enumerate()
+        .find_map(|(i, line)| {
+            if line.trim() == "<key>mount-point</key>" {
+                mount_output_str.lines().nth(i + 1).and_then(|next_line| {
+                    let trimmed = next_line.trim();
+                    trimmed
+                        .strip_prefix("<string>")
+                        .and_then(|s| s.strip_suffix("</string>"))
+                        .map(|s| s.to_string())
+                })
+            } else {
+                None
+            }
+        })
+        .ok_or_else(|| {
+            anyhow!(
+                "Failed to parse mount point from hdiutil output. Output:\n{}",
+                mount_output_str
+            )
+        })?;
+
+    log::debug!("Mounted DMG at: {}", mount_point);
+    let mut mount_guard = DmgMountGuard::new(mount_point.clone());
+
+    show_install_progress("Copying application...");
+
+    // Find and copy .app bundle
+    let mount_path = Path::new(&mount_point);
+    let app_bundle = std::fs::read_dir(mount_path)?
+        .filter_map(|e| e.ok())
+        .find(|e| e.file_name().to_str().is_some_and(|n| n.ends_with(".app")))
+        .ok_or_else(|| anyhow!("No .app bundle found in DMG."))?;
+
+    std::fs::create_dir_all(target_path)?;
+
+    let copy_status = std::process::Command::new("cp")
+        .args(["-R"])
+        .arg(app_bundle.path())
+        .arg(target_path)
+        .status()?;
+
+    if !copy_status.success() {
+        bail!("Failed to copy .app bundle from DMG.");
+    }
+
+    show_install_progress("Unmounting installer...");
+    mount_guard.detach();
+
+    eprint!("\r\x1b[2K");
+    let _ = std::io::stderr().flush();
+
+    Ok(etag)
+}
+
+#[cfg(target_os = "macos")]
+fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
+    let dmg_url = if url.as_str().ends_with(".tar.gz") {
+        url.as_str().replace(".tar.gz", ".dmg")
+    } else {
+        url.to_string()
+    };
+
+    if let Ok(dmg_url) = url::Url::parse(&dmg_url) {
+        if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+            return Ok((etag, true));
+        }
+    }
+
+    let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
+    Ok((etag, false))
+}
+
 #[cfg(not(windows))]
 pub fn download_extract_sans_parent(
     url: &str,
@@ -312,10 +499,26 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let response = http_client()?
         .get(url)
         .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?
-        .text()?;
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
-    let trimmed_response = response.trim();
+    let status = response.status();
+    if !status.is_success() {
+        let status_code = status.as_u16();
+        let hint = match status_code {
+            404 => "Resource not found",
+            503 => "Service temporarily unavailable, please try again later",
+            _ => "Unexpected server error",
+        };
+        anyhow::bail!(
+            "Failed to download from `{}`: HTTP {} - {}",
+            url,
+            status,
+            hint
+        );
+    }
+
+    let response_text = response.text()?;
+    let trimmed_response = response_text.trim();
 
     let version = Version::parse(trimmed_response).with_context(|| {
         format!(
@@ -333,6 +536,22 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let status_code = status.as_u16();
+        let hint = match status_code {
+            404 => "Resource not found",
+            503 => "Service temporarily unavailable, please try again later",
+            _ => "Unexpected server error",
+        };
+        anyhow::bail!(
+            "Failed to download version database from `{}`: HTTP {} - {}",
+            url,
+            status,
+            hint
+        );
+    }
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -355,9 +574,11 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let request_uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
-    let response = http_client
+    let async_op = http_client
         .GetStringAsync(&request_uri)
-        .with_context(|| "Failed on http_client.GetStringAsync")?
+        .with_context(|| "Failed on http_client.GetStringAsync")?;
+
+    let response = async_op
         .join()
         .with_context(|| "Failed on http_client.GetStringAsync.get")?
         .to_string();
@@ -429,7 +650,7 @@ pub fn install_version(
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
-        fs_extra::dir::copy(path_of_bundled_version, target_path, &options)?;
+        fs_extra::dir::copy(path_of_bundled_version, &target_path, &options)?;
     } else {
         let juliaupserver_base =
             get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
@@ -445,6 +666,9 @@ pub fn install_version(
             })?
             .url_path;
 
+        // On macOS, try_download_dmg_with_fallback handles .tar.gz → .dmg conversion
+        // TODO: Replace runtime URL manipulation with database schema v2 that includes
+        // multiple ranked download sources. See: https://github.com/JuliaLang/juliaup/pull/1320
         let download_url = juliaupserver_base
             .join(download_url_path)
             .with_context(|| {
@@ -460,70 +684,103 @@ pub fn install_version(
             JuliaupMessageType::Progress,
         );
 
-        download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+        #[cfg(target_os = "macos")]
+        let used_dmg = {
+            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, &target_path)?;
+            used_dmg
+        };
+
+        #[cfg(target_os = "macos")]
+        if !used_dmg {
+            let needs_notarization_check = semver::Version::parse(fullversion)
+                .ok()
+                .zip(semver::Version::parse("1.11.0-rc1").ok())
+                .is_some_and(|(v, threshold)| v > threshold);
+
+            if needs_notarization_check {
+                use normpath::PathExt;
+
+                let rel_path = {
+                    let mut p = PathBuf::new();
+                    p.push(".");
+                    p.push(&child_target_foldername);
+                    p
+                };
+
+                let julia_path = &paths
+                    .juliaupconfig
+                    .parent()
+                    .unwrap() // unwrap OK because there should always be a parent
+                    .join(&rel_path)
+                    .join("bin")
+                    .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
+                    .normalize()
+                    .with_context(|| {
+                        format!(
+                            "Failed to normalize path for Julia binary, starting from `{}`.",
+                            &paths.juliaupconfig.display()
+                        )
+                    })?;
+
+                eprint!("Checking standard library notarization");
+                let _ = std::io::stderr().flush();
+
+                match std::process::Command::new(julia_path)
+                    .env("JULIA_LOAD_PATH", "@stdlib")
+                    .arg("--startup-file=no")
+                    .arg("-e")
+                    .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
+                    .status()
+                {
+                    Ok(exit_status) if exit_status.success() => eprintln!("done."),
+                    Ok(exit_status) => eprintln!("failed with {}.", exit_status),
+                    Err(e) => {
+                        eprintln!("failed to execute Julia: {}", e);
+                        if e.raw_os_error() == Some(86) {
+                            eprintln!("This may indicate an architecture mismatch.");
+                        }
+                    }
+                }
+            }
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+        }
     }
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
     rel_path.push(&child_target_foldername);
 
+    // Compute the binary path at installation time for efficient launch
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)
+        .ok()
+        .map(|p| {
+            p.strip_prefix(&target_path)
+                .map(|suffix| rel_path.join(suffix).to_string_lossy().into_owned())
+                .unwrap_or_else(|_| {
+                    // Fallback: store the path relative to juliauphome
+                    p.strip_prefix(&paths.juliauphome)
+                        .map(|rel| PathBuf::from(".").join(rel).to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| {
+                            rel_path
+                                .join("bin")
+                                .join("julia")
+                                .to_string_lossy()
+                                .into_owned()
+                        })
+                })
+        });
+
     config_data.installed_versions.insert(
         fullversion.clone(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
+            binary_path,
         },
     );
-
-    #[cfg(target_os = "macos")]
-    if semver::Version::parse(fullversion).unwrap() > semver::Version::parse("1.11.0-rc1").unwrap()
-    {
-        use normpath::PathExt;
-
-        let julia_path = &paths
-            .juliaupconfig
-            .parent()
-            .unwrap() // unwrap OK because there should always be a parent
-            .join(rel_path)
-            .join("bin")
-            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-            .normalize()
-            .with_context(|| {
-                format!(
-                    "Failed to normalize path for Julia binary, starting from `{}`.",
-                    &paths.juliaupconfig.display()
-                )
-            })?;
-
-        eprint!("Checking standard library notarization");
-        let _ = std::io::stdout().flush();
-
-        match std::process::Command::new(julia_path)
-            .env("JULIA_LOAD_PATH", "@stdlib")
-            .arg("--startup-file=no")
-            .arg("-e")
-            .arg("foreach(p -> begin print(stderr, '.'); @eval(import $(Symbol(p))) end, filter!(x -> isfile(joinpath(Sys.STDLIB, x, \"src\", \"$(x).jl\")), readdir(Sys.STDLIB)))")
-            // .stdout(std::process::Stdio::null())
-            // .stderr(std::process::Stdio::null())
-            // .stdin(std::process::Stdio::null())
-            .status()
-        {
-            Ok(exit_status) => {
-                if exit_status.success() {
-                    eprintln!("done.")
-                } else {
-                    eprintln!("failed with {}.", exit_status);
-                }
-            }
-            Err(e) => {
-                eprintln!("failed to execute Julia binary.");
-                eprintln!("Error: {}", e);
-                if e.raw_os_error() == Some(86) {
-                    eprintln!("This may indicate an architecture mismatch (e.g., trying to run an Intel binary on Apple Silicon or vice versa).");
-                }
-                eprintln!("Installation completed but notarization check was skipped.");
-            }
-        }
-    }
 
     Ok(())
 }
@@ -692,21 +949,25 @@ pub fn install_from_url(
         .tempdir_in(&paths.juliauphome)
         .expect("Failed to create temporary directory");
 
-    let download_result = download_extract_sans_parent(url.as_ref(), temp_dir.path(), 1);
+    #[cfg(target_os = "macos")]
+    let (server_etag, _) = try_download_dmg_with_fallback(url, temp_dir.path())?;
 
-    let server_etag = match download_result {
-        Ok(last_updated) => last_updated,
-        Err(e) => {
-            std::fs::remove_dir_all(temp_dir.path())?;
-            bail!("Failed to download and extract pr or nightly: {}", e);
+    #[cfg(not(target_os = "macos"))]
+    let server_etag = {
+        let download_result = download_extract_sans_parent(url.as_ref(), temp_dir.path(), 1);
+        match download_result {
+            Ok(last_updated) => last_updated,
+            Err(e) => {
+                std::fs::remove_dir_all(temp_dir.path())?;
+                bail!("Failed to download and extract pr or nightly: {}", e);
+            }
         }
     };
 
     // Query the actual version
-    let julia_path = temp_dir
-        .path()
-        .join("bin")
-        .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
+    let julia_path = crate::utils::resolve_julia_binary_path(temp_dir.path())
+        .with_context(|| "Failed to resolve Julia binary path after extraction.")?;
+
     let julia_process = std::process::Command::new(julia_path.clone())
         .arg("--startup-file=no")
         .arg("-e")
@@ -725,7 +986,28 @@ pub fn install_from_url(
     if target_path.exists() {
         std::fs::remove_dir_all(&target_path)?;
     }
+
+    // keep() consumes the TempDir and returns the path without cleanup
+    // For macOS DMG installs, this preserves the .app bundle structure
     retry_rename(&temp_dir.keep(), &target_path)?;
+
+    // Compute the binary path relative to the installation folder for efficient launch
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)
+        .ok()
+        .map(|p| {
+            p.strip_prefix(&target_path)
+                .map(|suffix| path.join(suffix).to_string_lossy().into_owned())
+                .unwrap_or_else(|_| {
+                    p.strip_prefix(&paths.juliauphome)
+                        .map(|rel| PathBuf::from(".").join(rel).to_string_lossy().into_owned())
+                        .unwrap_or_else(|_| {
+                            path.join("bin")
+                                .join("julia")
+                                .to_string_lossy()
+                                .into_owned()
+                        })
+                })
+        });
 
     Ok(JuliaupConfigChannel::DirectDownloadChannel {
         path: path.to_string_lossy().into_owned(),
@@ -733,6 +1015,7 @@ pub fn install_from_url(
         local_etag: server_etag.clone(), // TODO Use time stamp of HTTPS response
         server_etag,
         version: julia_version,
+        binary_path,
     })
 }
 
@@ -994,14 +1277,13 @@ fn create_system_channel_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
-        || {
-            format!(
-                "failed to create symlink `{}`.",
-                symlink_path.to_string_lossy()
-            )
-        },
-    )
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)?;
+    std::os::unix::fs::symlink(binary_path, symlink_path).with_context(|| {
+        format!(
+            "failed to create symlink `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })
 }
 
 #[cfg(not(windows))]
@@ -1034,14 +1316,13 @@ fn create_direct_download_symlink(
         );
     }
 
-    std::os::unix::fs::symlink(target_path.join("bin").join("julia"), symlink_path).with_context(
-        || {
-            format!(
-                "failed to create symlink `{}`.",
-                symlink_path.to_string_lossy()
-            )
-        },
-    )
+    let binary_path = crate::utils::resolve_julia_binary_path(&target_path)?;
+    std::os::unix::fs::symlink(binary_path, symlink_path).with_context(|| {
+        format!(
+            "failed to create symlink `{}`.",
+            symlink_path.to_string_lossy()
+        )
+    })
 }
 
 #[cfg(not(windows))]
@@ -1615,6 +1896,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
             local_etag,
             server_etag: _,
             version,
+            binary_path,
         } = channel_data
         {
             if let Some(etag) = etag {
@@ -1626,6 +1908,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                         local_etag: local_etag.clone(),
                         server_etag: etag,
                         version: version.clone(),
+                        binary_path: binary_path.clone(),
                     },
                 );
             } else {
@@ -1842,6 +2125,35 @@ fn download_direct_download_etags(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap()
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        original: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &std::path::Path) -> Self {
+            let original = std::env::var(key).ok();
+            std::env::set_var(key, value);
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            if let Some(ref value) = self.original {
+                std::env::set_var(self.key, value);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
 
     #[test]
     fn match_markers_none_without_markers() {
@@ -1944,5 +2256,136 @@ mod tests {
         // Verify Err(..) is returned
         let res = match_markers(&inp);
         assert!(res.is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn symlink_uses_app_bundle_for_system_channel() -> Result<()> {
+        let _guard = env_lock();
+        let depot_dir = tempfile::TempDir::new()?;
+        let _env_guard = EnvVarGuard::set("JULIAUP_DEPOT_PATH", depot_dir.path());
+        let paths = crate::global_paths::get_paths()?;
+
+        let version = "1.2.3";
+        let target_path = paths.juliauphome.join(format!("julia-{}", version));
+        let julia_bin = target_path.join("Julia-1.2.app/Contents/Resources/julia/bin/julia");
+        std::fs::create_dir_all(julia_bin.parent().unwrap())?;
+        std::fs::write(&julia_bin, b"")?;
+
+        let symlink_dir = tempfile::TempDir::new()?;
+        let symlink_path = symlink_dir.path().join("julia-1.2");
+
+        create_system_channel_symlink(version, "julia-1.2", &symlink_path, &paths, &None)?;
+
+        let link_target = std::fs::read_link(&symlink_path)?;
+        assert_eq!(link_target, julia_bin);
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn symlink_uses_app_bundle_for_direct_download_channel() -> Result<()> {
+        let _guard = env_lock();
+        let depot_dir = tempfile::TempDir::new()?;
+        let _env_guard = EnvVarGuard::set("JULIAUP_DEPOT_PATH", depot_dir.path());
+        let paths = crate::global_paths::get_paths()?;
+
+        let version = "1.2.3";
+        let path = "julia-pr123";
+        let target_path = paths.juliauphome.join(path);
+        let julia_bin = target_path.join("Julia-1.2.app/Contents/Resources/julia/bin/julia");
+        std::fs::create_dir_all(julia_bin.parent().unwrap())?;
+        std::fs::write(&julia_bin, b"")?;
+
+        let symlink_dir = tempfile::TempDir::new()?;
+        let symlink_path = symlink_dir.path().join("julia-pr123");
+
+        create_direct_download_symlink(path, version, "julia-pr123", &symlink_path, &paths, &None)?;
+
+        let link_target = std::fs::read_link(&symlink_path)?;
+        assert_eq!(link_target, julia_bin);
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn dmg_failure_falls_back_to_tarball() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+        use tar::Builder;
+
+        let _guard = env_lock();
+        let _env_guard = EnvVarGuard::set("JULIAUP_TEST_DMG_FAIL", std::path::Path::new("1"));
+
+        let tarball_bytes = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut builder = Builder::new(&mut encoder);
+
+                let mut dir_header = tar::Header::new_gnu();
+                dir_header.set_entry_type(tar::EntryType::Directory);
+                dir_header.set_mode(0o755);
+                dir_header.set_size(0);
+                dir_header.set_cksum();
+                builder.append_data(&mut dir_header, "julia-1.2.3/bin", std::io::empty())?;
+
+                let data = b"#!/bin/sh\n";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o755);
+                header.set_cksum();
+                builder.append_data(&mut header, "julia-1.2.3/bin/julia", &data[..])?;
+
+                builder.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dmg_bytes = b"not-a-real-dmg".to_vec();
+
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let addr = listener.local_addr()?;
+        let handle = thread::spawn(move || {
+            for _ in 0..2 {
+                if let Ok((mut stream, _)) = listener.accept() {
+                    let mut buf = [0u8; 1024];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&buf[..n]);
+                    let path = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("/");
+
+                    let (body, etag) = if path.ends_with(".dmg") {
+                        (dmg_bytes.as_slice(), "\"dmg-etag\"")
+                    } else {
+                        (tarball_bytes.as_slice(), "\"tar-etag\"")
+                    };
+
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: {}\r\nConnection: close\r\n\r\n",
+                        body.len(),
+                        etag
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.write_all(body);
+                }
+            }
+        });
+
+        let url = url::Url::parse(&format!("http://{}/julia.tar.gz", addr))?;
+        let target_dir = tempfile::TempDir::new()?;
+        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path())?;
+
+        assert!(!used_dmg);
+        assert_eq!(etag, "\"tar-etag\"");
+        assert!(target_dir.path().join("bin/julia").exists());
+
+        let _ = handle.join();
+        Ok(())
     }
 }

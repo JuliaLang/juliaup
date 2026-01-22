@@ -9,7 +9,7 @@ use juliaup::config_file::{
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
-use juliaup::utils::{print_juliaup_style, JuliaupMessageType};
+use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -484,9 +484,9 @@ fn get_julia_path_from_installed_channel(
             Ok((PathBuf::from(command), combined_args))
         }
         JuliaupConfigChannel::SystemChannel { version } => {
-            let path = &config_data
+            let version_info = config_data
                 .installed_versions.get(version)
-                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?.path;
+                .ok_or_else(|| anyhow!("The juliaup configuration is in an inconsistent state, the channel {channel} is pointing to Julia version {version}, which is not installed."))?;
 
             if is_interactive() {
                 check_channel_uptodate(channel, version, versions_db).with_context(|| {
@@ -494,19 +494,23 @@ fn get_julia_path_from_installed_channel(
                 })?;
             }
 
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap() // unwrap OK because there should always be a parent
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
+            let config_dir = juliaupconfig_path.parent().unwrap(); // unwrap OK because there should always be a parent
+
+            // Use pre-computed binary_path if available (new installations),
+            // otherwise fall back to runtime resolution (backward compatibility)
+            let absolute_path = if let Some(ref binary_path) = version_info.binary_path {
+                config_dir.join(binary_path)
+            } else {
+                let base_path = config_dir.join(&version_info.path);
+                resolve_julia_binary_path(&base_path)?
+            }
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
             Ok((absolute_path.into_path_buf(), alias_args))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
@@ -515,6 +519,7 @@ fn get_julia_path_from_installed_channel(
             local_etag,
             server_etag,
             version: _,
+            binary_path,
         } => {
             if local_etag != server_etag && is_interactive() {
                 if channel.starts_with("nightly") {
@@ -543,19 +548,23 @@ fn get_julia_path_from_installed_channel(
                 }
             }
 
-            let absolute_path = juliaupconfig_path
-                .parent()
-                .unwrap()
-                .join(path)
-                .join("bin")
-                .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                .normalize()
-                .with_context(|| {
-                    format!(
-                        "Failed to normalize path for Julia binary, starting from `{}`.",
-                        juliaupconfig_path.display()
-                    )
-                })?;
+            let config_dir = juliaupconfig_path.parent().unwrap();
+
+            // Use pre-computed binary_path if available (new installations),
+            // otherwise fall back to runtime resolution (backward compatibility)
+            let absolute_path = if let Some(ref bp) = binary_path {
+                config_dir.join(bp)
+            } else {
+                let base_path = config_dir.join(path);
+                resolve_julia_binary_path(&base_path)?
+            }
+            .normalize()
+            .with_context(|| {
+                format!(
+                    "Failed to normalize path for Julia binary, starting from `{}`.",
+                    juliaupconfig_path.display()
+                )
+            })?;
             Ok((absolute_path.into_path_buf(), alias_args))
         }
     }
