@@ -239,6 +239,14 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Free Disk Space
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: true
+        # Removing "large packages" alone takes a couple of minutes, it could
+        # be switched to true if more space is needed (it'd save ~5 GB or so)
+        large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@v0.32.0
