@@ -1285,6 +1285,8 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
     result.extend_from_slice(HEADER);
     if path.file_name().unwrap() == ".zshrc" {
         append_zsh_content(&mut result, bin_path_str);
+    } else if path.file_name().unwrap() == ".cshrc" || path.file_name().unwrap() == ".tcshrc" {
+        append_csh_content(&mut result, bin_path_str);
     } else {
         append_sh_content(&mut result, bin_path_str);
     }
@@ -1300,6 +1302,18 @@ fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
         "
             path=('{}' $path)
             export PATH
+        ",
+        path_str
+    );
+
+    buf.extend_from_slice(content.as_bytes());
+}
+
+fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
+    // csh specific syntax for path extension
+    let content = formatdoc!(
+        "
+            set path = ($path {})
         ",
         path_str
     );
@@ -1445,6 +1459,8 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
         home_dir.join(".bash_profile"),
         home_dir.join(".bash_login"),
         home_dir.join(".zshrc"),
+        home_dir.join(".cshrc"),
+        home_dir.join(".tcshrc"),
     ];
 
     let result = paths_to_test
