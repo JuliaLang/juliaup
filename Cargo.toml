@@ -74,7 +74,7 @@ reqwest = { version = "0.13", default-features = false, features = ["blocking", 
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "rustls", "rustls-native-certs", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
-nix = { version = "0.30", features = ["process"] }
+nix = { version = "0.31", features = ["process"] }
 
 [build-dependencies]
 anyhow = "1"
