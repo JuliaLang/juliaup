@@ -96,7 +96,7 @@ impl Default for JuliaupConfigSettings {
             create_channel_symlinks: false,
             versionsdb_update_interval: default_versionsdb_update_interval(),
             auto_install_channels: None,
-            manifest_version_detect: false,
+            manifest_version_detect: true,
         }
     }
 }
