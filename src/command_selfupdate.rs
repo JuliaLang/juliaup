@@ -11,7 +11,12 @@ struct UpdateNotification {
 }
 
 #[cfg(feature = "selfupdate")]
-static NOTIFICATIONS: &[UpdateNotification] = &[];
+static NOTIFICATIONS: &[UpdateNotification] = &[
+    UpdateNotification {
+        id: "v1.20.0-manifest-detect",
+        message: "Note: As of juliaup v1.20.0 launching julia into a specific environment will automatically detect if a manifest exists and launch the julia version that the manifest was resolved by. Disable this via `juliaup config manifestversiondetect false`",
+    },
+];
 
 #[cfg(feature = "selfupdate")]
 fn display_update_notification(old_version: &str, new_version: &str) {
