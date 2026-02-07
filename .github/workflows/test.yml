@@ -272,4 +272,4 @@ jobs:
           rm -rf ~/.cargo/registry/cache
           rm -rf ~/.cargo/git/db
           df -h
-          cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+          CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
