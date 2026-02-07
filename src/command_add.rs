@@ -108,7 +108,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
     }
 
     let name = channel_to_name(channel)?;
-    let config_channel = install_non_db_version(channel, &name, paths)?;
+    let (config_channel, _used_dmg) = install_non_db_version(channel, &name, paths)?;
 
     config_file
         .data

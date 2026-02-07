@@ -27,6 +27,10 @@ fn is_default_versionsdb_update_interval(i: &i64) -> bool {
 pub struct JuliaupConfigVersion {
     #[serde(rename = "Path")]
     pub path: String,
+    /// Relative path to the Julia binary (e.g., for .app bundles on macOS).
+    /// If None, the binary path is computed at runtime for backward compatibility.
+    #[serde(rename = "BinaryPath", skip_serializing_if = "Option::is_none")]
+    pub binary_path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -43,6 +47,10 @@ pub enum JuliaupConfigChannel {
         server_etag: String,
         #[serde(rename = "Version")]
         version: String,
+        /// Relative path to the Julia binary (e.g., for .app bundles on macOS).
+        /// If None, the binary path is computed at runtime for backward compatibility.
+        #[serde(rename = "BinaryPath", skip_serializing_if = "Option::is_none")]
+        binary_path: Option<String>,
     },
     SystemChannel {
         #[serde(rename = "Version")]
