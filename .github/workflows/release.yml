@@ -239,6 +239,14 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Free Disk Space
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: true
+        # Removing "large packages" alone takes a couple of minutes, it could
+        # be switched to true if more space is needed (it'd save ~5 GB or so)
+        large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@v0.32.0
@@ -250,9 +258,16 @@ jobs:
         memory: '12G'
         shell: sh
         run: |
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+          df -h
+          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
           . "${HOME}/.cargo/env"
-          cargo build --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
+          # Clean up to maximize available disk space
+          rm -rf target
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/git/db
+          df -h
+          CARGO_INCREMENTAL=0 cargo build --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
     - uses: actions/upload-artifact@v6
       with:
         name: juliaup-${{matrix.label}}
@@ -357,6 +372,14 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Free Disk Space
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: true
+        # Removing "large packages" alone takes a couple of minutes, it could
+        # be switched to true if more space is needed (it'd save ~5 GB or so)
+        large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@v0.32.0
@@ -366,11 +389,20 @@ jobs:
         architecture: x86-64
         cpu_count: 4
         memory: '12G'
+        sync_files: runner-to-vm
         shell: sh
         run: |
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain ${{matrix.toolchain}}
+          df -h
+          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
           . "${HOME}/.cargo/env"
-          cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+          export RUST_BACKTRACE=full
+          # Clean up to maximize available disk space
+          rm -rf target
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/git/db
+          df -h
+          CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
   package-unix:
     needs: [build-juliaup,test-juliaup]
     environment: package
