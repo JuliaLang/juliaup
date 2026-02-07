@@ -4,6 +4,8 @@ use crate::global_paths::GlobalPaths;
 use crate::operations::codesign_pr_build_if_needed;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
+#[cfg(target_os = "macos")]
+use crate::operations::is_pr_channel;
 use crate::operations::{
     channel_to_name, install_non_db_version, install_version, update_version_db,
 };
@@ -134,7 +136,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     // Handle codesigning for PR builds on macOS
     #[cfg(target_os = "macos")]
-    if Regex::new(r"^pr\d+").unwrap().is_match(channel) {
+    if is_pr_channel(channel) {
         if let Err(e) = codesign_pr_build_if_needed(channel, paths) {
             eprintln!("\nWarning: Codesigning failed: {}", e);
             eprintln!("The Julia binary may not run without manual codesigning.");
