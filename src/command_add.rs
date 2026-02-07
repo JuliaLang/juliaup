@@ -1,11 +1,7 @@
 use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel};
 use crate::global_paths::GlobalPaths;
-#[cfg(target_os = "macos")]
-use crate::operations::codesign_pr_build_if_needed;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
-#[cfg(target_os = "macos")]
-use crate::operations::is_pr_channel;
 use crate::operations::{
     channel_to_name, install_non_db_version, install_version, update_version_db,
 };
@@ -106,7 +102,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
             "\nWARNING: Note that unmerged PRs may not have been reviewed for security issues etc."
         );
         eprintln!(
-            "Review code at https://github.com/JuliaLang/julia/pull/{}\n",
+            "         Review code at https://github.com/JuliaLang/julia/pull/{}\n",
             pr_number
         );
     }
@@ -132,15 +128,6 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
     #[cfg(not(windows))]
     if config_file.data.settings.create_channel_symlinks {
         create_symlink(&config_channel, &format!("julia-{}", channel), paths)?;
-    }
-
-    // Handle codesigning for PR builds on macOS
-    #[cfg(target_os = "macos")]
-    if is_pr_channel(channel) {
-        if let Err(e) = codesign_pr_build_if_needed(channel, paths) {
-            eprintln!("\nWarning: Codesigning failed: {}", e);
-            eprintln!("The Julia binary may not run without manual codesigning.");
-        }
     }
 
     print_juliaup_style(

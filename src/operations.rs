@@ -642,9 +642,25 @@ pub fn channel_to_name(channel: &str) -> Result<String> {
     Ok(version.to_string() + "-" + os_arch_suffix)
 }
 
+fn query_julia_version(julia_path: &Path) -> Result<String> {
+    let output = std::process::Command::new(julia_path)
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .output()
+        .with_context(|| {
+            format!(
+                "Failed to execute Julia binary at `{}`.",
+                julia_path.display()
+            )
+        })?;
+    Ok(String::from_utf8(output.stdout)?)
+}
+
 pub fn install_from_url(
     url: &Url,
     path: &PathBuf,
+    #[cfg_attr(not(target_os = "macos"), allow(unused))] is_pr: bool,
     paths: &GlobalPaths,
 ) -> Result<crate::config_file::JuliaupConfigChannel> {
     // Check if the nightly server supports etag headers (required for nightly/PR channels)
@@ -674,23 +690,32 @@ pub fn install_from_url(
         }
     };
 
+    // On macOS, PR builds are unsigned. Gatekeeper blocks unsigned binaries,
+    // which would hang the version query below. Prompt the user to codesign.
+    #[cfg(target_os = "macos")]
+    let did_codesign = if is_pr {
+        prompt_and_codesign_pr_build(temp_dir.path())?
+    } else {
+        true // official nightlies are already signed
+    };
+
     // Query the actual version
     let julia_path = temp_dir
         .path()
         .join("bin")
         .join(format!("julia{}", std::env::consts::EXE_SUFFIX));
-    let julia_process = std::process::Command::new(julia_path.clone())
-        .arg("--startup-file=no")
-        .arg("-e")
-        .arg("print(VERSION)")
-        .output()
-        .with_context(|| {
-            format!(
-                "Failed to execute Julia binary at `{}`.",
-                julia_path.display()
-            )
-        })?;
-    let julia_version = String::from_utf8(julia_process.stdout)?;
+
+    #[cfg(target_os = "macos")]
+    let julia_version = if did_codesign {
+        let version = query_julia_version(&julia_path)?;
+        check_stdlib_notarization(&julia_path);
+        version
+    } else {
+        String::new()
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    let julia_version = query_julia_version(&julia_path)?;
 
     // Move into the final location
     let target_path = paths.juliauphome.join(path);
@@ -834,7 +859,7 @@ pub fn install_non_db_version(
         JuliaupMessageType::Progress,
     );
 
-    let res = install_from_url(&download_url, &rel_path, paths)?;
+    let res = install_from_url(&download_url, &rel_path, is_pr_channel(channel), paths)?;
 
     Ok(res)
 }
@@ -1812,11 +1837,11 @@ fn download_direct_download_etags(
 }
 
 #[cfg(target_os = "macos")]
-pub fn codesign_pr_build_if_needed(channel: &str, paths: &GlobalPaths) -> Result<()> {
+fn prompt_and_codesign_pr_build(dir: &Path) -> Result<bool> {
     use std::io::{self, Write};
 
     eprintln!("\nWARNING: PR builds are not code-signed for macOS.");
-    eprintln!("The Julia binary will fail to run unless you codesign it locally.");
+    eprintln!("         The Julia binary will fail to run unless you codesign it locally.");
     eprint!("\nWould you like to automatically codesign this PR build now? [Y/n]: ");
     io::stderr().flush()?;
 
@@ -1825,47 +1850,49 @@ pub fn codesign_pr_build_if_needed(channel: &str, paths: &GlobalPaths) -> Result
     let input = input.trim().to_lowercase();
 
     if input == "n" || input == "no" {
-        let dir_name = format!("julia-{}", channel);
         eprintln!("\nSkipping codesigning. You can manually codesign later with:");
         eprintln!(
-            "  codesign --force --sign - {}/{}/bin/julia",
-            paths.juliauphome.display(),
-            dir_name
+            "  find {} -type f -perm +111 -exec codesign --force --sign - {{}} \\;",
+            dir.display()
         );
-        eprintln!(
-            "  codesign --force --sign - {}/{}/lib/libjulia.*.dylib",
-            paths.juliauphome.display(),
-            dir_name
-        );
-        return Ok(());
+        return Ok(false);
     }
 
-    let julia_dir = paths.juliauphome.join(format!("julia-{}", channel));
-    let julia_bin = julia_dir.join("bin").join("julia");
-
-    eprintln!("\nCodesigning Julia binary...");
-    codesign_file(&julia_bin)?;
-
-    // Find and codesign libjulia dylib
-    eprintln!("Codesigning Julia library...");
-    let lib_dir = julia_dir.join("lib");
-    if lib_dir.exists() {
-        for entry in std::fs::read_dir(&lib_dir)? {
-            let path = entry?.path();
-            if let Some(name) = path.file_name().and_then(|f| f.to_str()) {
-                if name.starts_with("libjulia.") && name.ends_with(".dylib") {
-                    codesign_file(&path)?;
+    eprintln!("\nCodesigning all Mach-O binaries...");
+    let mut signed_count = 0u32;
+    let mut dirs_to_visit = vec![dir.to_path_buf()];
+    while let Some(current) = dirs_to_visit.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                // Skip dSYM bundles and precompiled cache
+                if !path.to_string_lossy().ends_with(".dSYM")
+                    && !path.ends_with("share/julia/compiled")
+                {
+                    dirs_to_visit.push(path);
                 }
+                continue;
+            }
+            if !path.is_file() {
+                continue;
+            }
+            let is_executable = entry
+                .metadata()
+                .map(|m| m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false);
+            let is_dylib = path.extension().map(|e| e == "dylib").unwrap_or(false);
+            if is_executable || is_dylib {
+                codesign_file(&path)?;
+                signed_count += 1;
             }
         }
     }
-
-    eprintln!("✓ Codesigning completed successfully.");
-
-    // Run stdlib notarization check
-    check_stdlib_notarization(&julia_bin);
-
-    Ok(())
+    eprintln!("\u{2713} Codesigning completed successfully ({signed_count} files).");
+    Ok(true)
 }
 
 #[cfg(target_os = "macos")]
