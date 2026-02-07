@@ -2,6 +2,8 @@ use crate::config_file::JuliaupConfig;
 use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel};
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+#[cfg(target_os = "macos")]
+use crate::operations::codesign_pr_build_if_needed;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::{garbage_collect_versions, install_from_url};
@@ -9,6 +11,7 @@ use crate::operations::{install_version, update_version_db};
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use regex::Regex;
 use std::path::PathBuf;
 
 fn resolve_channel_alias(config_db: &JuliaupConfig, channel_name: &str) -> Result<String> {
@@ -70,6 +73,15 @@ fn update_channel(
                         channel,
                         paths,
                     )?;
+                }
+
+                // Handle codesigning for PR builds on macOS
+                #[cfg(target_os = "macos")]
+                if Regex::new(r"^pr\d+").unwrap().is_match(channel) {
+                    if let Err(e) = codesign_pr_build_if_needed(channel, paths) {
+                        eprintln!("\nWarning: Codesigning failed: {}", e);
+                        eprintln!("The Julia binary may not run without manual codesigning.");
+                    }
                 }
             }
         }
