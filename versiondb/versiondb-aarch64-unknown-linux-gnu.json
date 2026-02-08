@@ -351,6 +351,9 @@
         "1.11.8+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.11/julia-1.11.8-linux-aarch64.tar.gz"
         },
+        "1.11.9+0.aarch64.linux.gnu": {
+            "UrlPath": "bin/linux/aarch64/1.11/julia-1.11.9-linux-aarch64.tar.gz"
+        },
         "1.12.0-beta1+0.aarch64.linux.gnu": {
             "UrlPath": "bin/linux/aarch64/1.12/julia-1.12.0-beta1-linux-aarch64.tar.gz"
         },
@@ -573,7 +576,7 @@
             "Version": "1.10.10+0.aarch64.linux.gnu"
         },
         "1.11": {
-            "Version": "1.11.8+0.aarch64.linux.gnu"
+            "Version": "1.11.9+0.aarch64.linux.gnu"
         },
         "1.11.0": {
             "Version": "1.11.0+0.aarch64.linux.gnu"
@@ -677,8 +680,14 @@
         "1.11.8~aarch64": {
             "Version": "1.11.8+0.aarch64.linux.gnu"
         },
+        "1.11.9": {
+            "Version": "1.11.9+0.aarch64.linux.gnu"
+        },
+        "1.11.9~aarch64": {
+            "Version": "1.11.9+0.aarch64.linux.gnu"
+        },
         "1.11~aarch64": {
-            "Version": "1.11.8+0.aarch64.linux.gnu"
+            "Version": "1.11.9+0.aarch64.linux.gnu"
         },
         "1.12": {
             "Version": "1.12.4+0.aarch64.linux.gnu"
@@ -1311,5 +1320,5 @@
             "Version": "1.12.4+0.aarch64.linux.gnu"
         }
     },
-    "Version": "1.0.81"
+    "Version": "1.0.82"
 }

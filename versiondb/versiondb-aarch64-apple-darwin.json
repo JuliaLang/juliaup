@@ -507,6 +507,12 @@
         "1.11.8+0.x64.apple.darwin14": {
             "UrlPath": "bin/mac/x64/1.11/julia-1.11.8-mac64.tar.gz"
         },
+        "1.11.9+0.aarch64.apple.darwin14": {
+            "UrlPath": "bin/mac/aarch64/1.11/julia-1.11.9-macaarch64.tar.gz"
+        },
+        "1.11.9+0.x64.apple.darwin14": {
+            "UrlPath": "bin/mac/x64/1.11/julia-1.11.9-mac64.tar.gz"
+        },
         "1.12.0-beta1+0.aarch64.apple.darwin14": {
             "UrlPath": "bin/mac/aarch64/1.12/julia-1.12.0-beta1-macaarch64.tar.gz"
         },
@@ -849,7 +855,7 @@
             "Version": "1.10.10+0.x64.apple.darwin14"
         },
         "1.11": {
-            "Version": "1.11.8+0.aarch64.apple.darwin14"
+            "Version": "1.11.9+0.aarch64.apple.darwin14"
         },
         "1.11.0": {
             "Version": "1.11.0+0.aarch64.apple.darwin14"
@@ -1004,11 +1010,20 @@
         "1.11.8~x64": {
             "Version": "1.11.8+0.x64.apple.darwin14"
         },
+        "1.11.9": {
+            "Version": "1.11.9+0.aarch64.apple.darwin14"
+        },
+        "1.11.9~aarch64": {
+            "Version": "1.11.9+0.aarch64.apple.darwin14"
+        },
+        "1.11.9~x64": {
+            "Version": "1.11.9+0.x64.apple.darwin14"
+        },
         "1.11~aarch64": {
-            "Version": "1.11.8+0.aarch64.apple.darwin14"
+            "Version": "1.11.9+0.aarch64.apple.darwin14"
         },
         "1.11~x64": {
-            "Version": "1.11.8+0.x64.apple.darwin14"
+            "Version": "1.11.9+0.x64.apple.darwin14"
         },
         "1.12": {
             "Version": "1.12.4+0.aarch64.apple.darwin14"
@@ -1719,5 +1734,5 @@
             "Version": "1.12.4+0.x64.apple.darwin14"
         }
     },
-    "Version": "1.0.81"
+    "Version": "1.0.82"
 }
