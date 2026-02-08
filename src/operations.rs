@@ -352,6 +352,14 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
 }
 
 #[cfg(target_os = "macos")]
+fn strip_quarantine_attribute(path: &Path) {
+    let _ = std::process::Command::new("xattr")
+        .args(["-dr", "com.apple.quarantine"])
+        .arg(path)
+        .output();
+}
+
+#[cfg(target_os = "macos")]
 fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
     let dmg_url = if url.as_str().ends_with(".tar.gz") {
         url.as_str().replace(".tar.gz", ".dmg")
@@ -361,11 +369,13 @@ fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<
 
     if let Ok(dmg_url) = url::Url::parse(&dmg_url) {
         if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+            strip_quarantine_attribute(target_path);
             return Ok((etag, true));
         }
     }
 
     let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
+    strip_quarantine_attribute(target_path);
     Ok((etag, false))
 }
 
@@ -969,7 +979,9 @@ pub fn install_from_url(
     #[cfg(target_os = "macos")]
     let julia_version = if did_codesign {
         let version = query_julia_version(&julia_path)?;
-        check_stdlib_notarization(&julia_path);
+        if !used_dmg {
+            check_stdlib_notarization(&julia_path);
+        }
         version
     } else {
         String::new()
