@@ -36,6 +36,7 @@ fn update_channel(
             local_etag,
             server_etag,
             version,
+            binary_path: _,
         } => {
             if local_etag != server_etag {
                 // We only do this so that we use `version` on both Windows and Linux to prevent a compiler warning/error
@@ -50,31 +51,21 @@ fn update_channel(
                     JuliaupMessageType::Progress,
                 );
 
-                let channel_data = install_from_url(
+                let (channel_data, _used_dmg) = install_from_url(
                     &url::Url::parse(url)?,
                     &PathBuf::from(path),
                     is_pr_channel(channel),
                     paths,
                 )?;
 
+                #[cfg(not(windows))]
+                if config_db.settings.create_channel_symlinks {
+                    create_symlink(&channel_data, channel, paths)?;
+                }
+
                 config_db
                     .installed_channels
                     .insert(channel.clone(), channel_data);
-
-                #[cfg(not(windows))]
-                if config_db.settings.create_channel_symlinks {
-                    create_symlink(
-                        &JuliaupConfigChannel::DirectDownloadChannel {
-                            path: path.clone(),
-                            url: url.clone(),
-                            local_etag: local_etag.clone(),
-                            server_etag: server_etag.clone(),
-                            version: version.clone(),
-                        },
-                        channel,
-                        paths,
-                    )?;
-                }
             }
         }
         JuliaupConfigChannel::SystemChannel { version } => {

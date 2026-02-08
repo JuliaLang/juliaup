@@ -1,7 +1,7 @@
 use crate::config_file::load_config_db;
 use crate::config_file::JuliaupConfigChannel;
 use crate::global_paths::GlobalPaths;
-use crate::utils::parse_versionstring;
+use crate::utils::{parse_versionstring, resolve_julia_binary_path};
 use anyhow::{bail, Context, Result};
 use normpath::PathExt;
 use semver::Version;
@@ -57,45 +57,65 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         };
 
         let curr = match resolved_value {
-            JuliaupConfigChannel::DirectDownloadChannel { path, url: _, local_etag: _, server_etag: _, version } => {
+            JuliaupConfigChannel::DirectDownloadChannel {
+                path,
+                url: _,
+                local_etag: _,
+                server_etag: _,
+                version,
+                binary_path,
+            } => {
+                // Use pre-computed binary_path if available, otherwise resolve at runtime
+                let julia_path = if let Some(ref bp) = binary_path {
+                    paths.juliauphome.join(bp)
+                } else {
+                    let base_path = paths.juliauphome.join(path);
+                    resolve_julia_binary_path(&base_path).with_context(|| {
+                        "Failed to resolve Julia binary path for DirectDownloadChannel."
+                    })?
+                }
+                .normalize()
+                .with_context(|| {
+                    "Failed to normalize Julia binary path for DirectDownloadChannel."
+                })?
+                .into_path_buf();
                 JuliaupChannelInfo {
                     name: key.clone(),
-                    file: paths.juliauphome
-                        .join(path)
-                        .join("bin")
-                        .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                        .normalize()
-                        .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                        .into_path_buf()
-                        .to_string_lossy()
-                        .to_string(),
+                    file: julia_path.to_string_lossy().to_string(),
                     args: alias_args,
                     version: version.clone(),
                     arch: "".to_string(),
                 }
             }
-            JuliaupConfigChannel::SystemChannel { version: fullversion } => {
+            JuliaupConfigChannel::SystemChannel {
+                version: fullversion,
+            } => {
                 let (platform, mut version) = parse_versionstring(fullversion)
                     .with_context(|| "Encountered invalid version string in the configuration file while running the getconfig1 API command.")?;
 
                 version.build = semver::BuildMetadata::EMPTY;
 
                 match config_file.data.installed_versions.get(fullversion) {
-                    Some(channel) => JuliaupChannelInfo {
-                        name: key.clone(),
-                        file: paths.juliauphome
-                            .join(&channel.path)
-                            .join("bin")
-                            .join(format!("julia{}", std::env::consts::EXE_SUFFIX))
-                            .normalize()
-                            .with_context(|| "Normalizing the path for an entry from the config file failed while running the getconfig1 API command.")?
-                            .into_path_buf()
-                            .to_string_lossy()
-                            .to_string(),
-                        args: alias_args,
-                        version: version.to_string(),
-                        arch: platform
-                    },
+                    Some(version_info) => {
+                        // Use pre-computed binary_path if available, otherwise resolve at runtime
+                        let julia_path = if let Some(ref bp) = version_info.binary_path {
+                            paths.juliauphome.join(bp)
+                        } else {
+                            let base_path = paths.juliauphome.join(&version_info.path);
+                            resolve_julia_binary_path(&base_path)
+                                .with_context(|| "Failed to resolve Julia binary path for SystemChannel.")?
+                        }
+                        .normalize()
+                        .with_context(|| "Failed to normalize Julia binary path for SystemChannel.")?
+                        .into_path_buf();
+                        JuliaupChannelInfo {
+                            name: key.clone(),
+                            file: julia_path.to_string_lossy().to_string(),
+                            args: alias_args,
+                            version: version.to_string(),
+                            arch: platform,
+                        }
+                    }
                     None => bail!("The channel '{}' is configured as a system channel, but no such channel exists in the versions database.", key)
                 }
             }

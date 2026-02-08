@@ -73,7 +73,18 @@ function get_available_versions(data, platform)
     end
 
     all_versions = data |> pairs |> @map(VersionNumber(_[1])) |> @orderby(_) |> collect
-      
+
+    # TODO: Future database schema v2 should include multiple ranked download sources.
+    # For macOS platforms, this should collect both DMG and tarball files and include
+    # them in a "Sources" array with priority rankings:
+    # - DMG files (preferred for notarization)
+    # - Tarball files (fallback)
+    # This requires:
+    # 1. Update schema to use "Sources" array instead of "UrlPath" string
+    # 2. Filter for both .dmg and .tar.gz files for macOS
+    # 3. Publish as v2 database schema
+    # 4. Ensure backward compatibility (old juliaup clients continue using v1)
+    # See discussion at: https://github.com/JuliaLang/juliaup/pull/1320
     available_versions = data |>
         pairs |>
         @map({version=_[1], stable=_[2]["stable"], files=_[2]["files"]}) |>
