@@ -271,5 +271,7 @@ jobs:
           rm -rf target
           rm -rf ~/.cargo/registry/cache
           rm -rf ~/.cargo/git/db
+          pkg clean -y
           df -h
-          CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+          export CARGO_INCREMENTAL=0
+          cargo test --verbose --target ${{matrix.target}} --features ${{matrix.features}}
