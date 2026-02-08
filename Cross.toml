@@ -1,0 +1,6 @@
+# The cross-rs 0.2.5 image for i686-unknown-linux-gnu (from ~2022) ships
+# glibc 2.27, too old for modern Rust build scripts (need >= 2.28).
+# Pin to a newer image by digest until cross-rs releases 0.2.6.
+# See: https://github.com/cross-rs/cross/issues/724
+[target.i686-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/i686-unknown-linux-gnu@sha256:dbaac6e686550f3704402c126c60b82ca9a9c7329e89ea115289ecc7ba0bdbce"
