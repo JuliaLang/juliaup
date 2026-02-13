@@ -180,7 +180,7 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
 
     garbage_collect_versions(false, &mut config_file.data, paths)?;
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "`update` command failed to save configuration db.")?;
 
     Ok(())
