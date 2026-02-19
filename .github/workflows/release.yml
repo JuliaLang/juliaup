@@ -1064,7 +1064,8 @@ jobs:
         $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        $subid, $uploadurl = Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -SubmissionId $subid
 
   deploy-release-channel-brew:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
