@@ -1004,7 +1004,10 @@ jobs:
         $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
+        $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
+        if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
 
   deploy-releasepreview-channel-winstore:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1034,7 +1037,10 @@ jobs:
         $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
+        $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
+        if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
 
   deploy-release-channel-winstore:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1066,6 +1072,8 @@ jobs:
         Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
         $subid, $uploadurl = Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
         Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -SubmissionId $subid
+        $sub = Get-ApplicationSubmission -AppId 9NJNWW8PVKMN -SubmissionId $subid
+        if ($sub.status -eq "CommitFailed") { throw "Store submission $subid failed: CommitFailed" }
 
   deploy-release-channel-brew:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
