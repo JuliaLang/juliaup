@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "juliaupgui"]
+resolver = "2"
+
 [package]
 name = "juliaup"
 version = "1.19.9"
@@ -101,6 +105,7 @@ dummy = []
 binjuliainstaller = []
 binjulialauncher = []
 winpkgidentityext = []
+gui = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [

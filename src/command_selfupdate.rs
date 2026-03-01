@@ -85,6 +85,14 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
         eprintln!("Updated Juliaup to version {}.", version);
+
+        // Refresh application shortcut in case the binary path changed
+        let gui_bin = my_own_folder.join("juliaupgui");
+        if gui_bin.exists() {
+            if let Err(e) = crate::command_app_shortcut::create_app_shortcut(&gui_bin) {
+                eprintln!("Warning: could not update application shortcut: {e}");
+            }
+        }
     }
 
     Ok(())

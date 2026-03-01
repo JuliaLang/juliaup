@@ -159,5 +159,17 @@ fn main() -> Result<()> {
         Juliaup::Completions { shell } => {
             generate_completion_for_command::<Juliaup>(shell, "juliaup")
         }
+        Juliaup::Gui {} => {
+            let exe = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.join("juliaupgui")))
+                .unwrap_or_else(|| std::path::PathBuf::from("juliaupgui"));
+            // Ensure application shortcut exists for this install
+            let _ = juliaup::command_app_shortcut::create_app_shortcut(&exe);
+            std::process::Command::new(&exe)
+                .status()
+                .with_context(|| format!("Failed to launch GUI binary at '{}'", exe.display()))
+                .map(|_| ())
+        }
     }
 }

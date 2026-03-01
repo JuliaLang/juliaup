@@ -1,0 +1,2224 @@
+use egui::{Color32, RichText};
+use egui_extras::{Column, TableBuilder};
+use itertools::Itertools;
+use juliaup::command_config_autoinstall::run_command_config_autoinstall;
+use juliaup::command_config_manifestversiondetect::run_command_config_manifestversiondetect;
+use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
+use juliaup::command_default::run_command_default;
+use juliaup::command_override::{run_command_override_set, run_command_override_unset};
+use juliaup::command_update_version_db::run_command_update_version_db;
+use juliaup::config_file::{
+    load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel, JuliaupConfigSettings,
+};
+use juliaup::global_paths::GlobalPaths;
+use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::operations::get_channel_variations;
+use juliaup::versions_file::load_versions_db;
+use numeric_sort::cmp;
+use std::collections::{HashMap, HashSet};
+use std::sync::{mpsc, Arc};
+use std::thread;
+
+#[cfg(not(windows))]
+use juliaup::command_config_symlinks::run_command_config_symlinks;
+
+// ── domain models ─────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+struct InstalledRow {
+    name: String,
+    version: String,
+    is_default: bool,
+    update: Option<String>,
+}
+
+#[derive(Clone)]
+struct AvailableRow {
+    channel: String,
+    version: String,
+    installed: bool,
+}
+
+#[derive(Clone)]
+struct OverrideRow {
+    path: String,
+    channel: String,
+}
+
+#[derive(Clone)]
+struct AppState {
+    installed: Vec<InstalledRow>,
+    available: Vec<AvailableRow>,
+    overrides: Vec<OverrideRow>,
+    settings: JuliaupConfigSettings,
+}
+
+// ── worker IPC ────────────────────────────────────────────────────────────────
+
+enum Op {
+    Reload,
+    Add(String),
+    Remove(String),
+    Update(Option<String>),
+    SetDefault(String),
+    SelfUpdate,
+    Gc,
+    UpdateVersionDb,
+    SetVersionsDbInterval(i64),
+    SetAutoInstall(Option<bool>),
+    SetManifestDetect(bool),
+    #[cfg(not(windows))]
+    SetChannelSymlinks(bool),
+    SetOverride {
+        path: String,
+        channel: String,
+    },
+    UnsetOverride(String),
+    UnsetNonexistentOverrides,
+    Link {
+        channel: String,
+        target: String,
+        args: Vec<String>,
+    },
+}
+
+enum Msg {
+    Loaded(Box<AppState>),
+    Line(String), // raw output from subprocess
+    Ok(String),   // operation succeeded
+    Err(String),  // operation failed
+}
+
+// Log entry kinds
+#[derive(Clone, PartialEq)]
+enum LogKind {
+    Output,
+    Ok,
+    Err,
+}
+
+#[derive(Clone)]
+struct LogEntry {
+    text: String,
+    kind: LogKind,
+}
+
+// ── tab ───────────────────────────────────────────────────────────────────────
+
+#[derive(PartialEq, Clone, Copy)]
+enum Tab {
+    Installed,
+    Available,
+    Config,
+}
+
+#[derive(PartialEq, Clone, Copy)]
+enum InstalledView {
+    Tile,
+    List,
+}
+
+// ── app ───────────────────────────────────────────────────────────────────────
+
+pub struct App {
+    tab: Tab,
+    installed_view: InstalledView,
+    state: Option<AppState>,
+    loading: bool,
+    busy: bool,
+    status: Option<(String, bool)>,
+    juliaup_version: String,
+
+    // Activity log
+    current_op: Option<String>,
+    log: Vec<LogEntry>,
+    log_open: bool,
+
+    // Installed tab inputs
+    link_channel: String,
+    link_target: String,
+    link_args: String,
+
+    // Available tab inputs
+    filter: String,
+    pr_prompt: Option<String>,
+    pr_number_input: String,
+    avail_expanded: HashSet<String>,
+
+    // Custom launch prompt
+    custom_launch_channel: Option<String>,
+    custom_launch_project: String,
+    custom_launch_args: String,
+    custom_launch_env: String,
+
+    // Config tab inputs
+    interval_input: String,
+    terminal_app: String,
+
+    // Override tab inputs
+    ov_path: String,
+    ov_channel: String,
+
+    op_tx: mpsc::SyncSender<(Op, Arc<GlobalPaths>)>,
+    msg_rx: mpsc::Receiver<Msg>,
+    paths: Arc<GlobalPaths>,
+}
+
+impl App {
+    pub fn new(cc: &eframe::CreationContext<'_>, paths: GlobalPaths) -> Self {
+        apply_theme(&cc.egui_ctx);
+
+        let paths = Arc::new(paths);
+        let (op_tx, op_rx) = mpsc::sync_channel::<(Op, Arc<GlobalPaths>)>(8);
+        let (msg_tx, msg_rx) = mpsc::channel::<Msg>();
+
+        thread::spawn(move || worker(op_rx, msg_tx));
+        let _ = op_tx.try_send((Op::Reload, paths.clone()));
+
+        let juliaup_version = juliaup::get_own_version()
+            .map(|v| format!("v{v}"))
+            .unwrap_or_default();
+
+        let terminal_app = load_terminal_pref(&paths);
+
+        Self {
+            tab: Tab::Installed,
+            installed_view: InstalledView::Tile,
+            state: None,
+            loading: true,
+            busy: true,
+            status: None,
+            juliaup_version,
+            current_op: Some("Loading…".to_string()),
+            log: Vec::new(),
+            log_open: false,
+            link_channel: String::new(),
+            link_target: String::new(),
+            link_args: String::new(),
+            filter: String::new(),
+            pr_prompt: None,
+            pr_number_input: String::new(),
+            avail_expanded: HashSet::new(),
+            custom_launch_channel: None,
+            custom_launch_project: String::new(),
+            custom_launch_args: String::new(),
+            custom_launch_env: String::new(),
+            interval_input: String::new(),
+            terminal_app,
+            ov_path: String::new(),
+            ov_channel: String::new(),
+            op_tx,
+            msg_rx,
+            paths,
+        }
+    }
+
+    fn send(&mut self, op: Op) {
+        if self.busy {
+            return;
+        }
+        self.busy = true;
+        self.status = None;
+        self.current_op = Some(op_label(&op));
+        let _ = self.op_tx.try_send((op, self.paths.clone()));
+    }
+
+    fn poll(&mut self) {
+        while let Ok(msg) = self.msg_rx.try_recv() {
+            match msg {
+                Msg::Loaded(s) => {
+                    self.interval_input = s.settings.versionsdb_update_interval.to_string();
+                    self.state = Some(*s);
+                    self.loading = false;
+                    self.busy = false;
+                    self.current_op = None;
+                }
+                Msg::Line(line) => {
+                    self.log.push(LogEntry {
+                        text: line,
+                        kind: LogKind::Output,
+                    });
+                    self.log_open = true;
+                }
+                Msg::Ok(m) => {
+                    self.log.push(LogEntry {
+                        text: m.clone(),
+                        kind: LogKind::Ok,
+                    });
+                    self.status = Some((m, false));
+                    self.current_op = Some("Reloading…".to_string());
+                    self.busy = true;
+                    let _ = self.op_tx.try_send((Op::Reload, self.paths.clone()));
+                }
+                Msg::Err(m) => {
+                    self.log.push(LogEntry {
+                        text: m.clone(),
+                        kind: LogKind::Err,
+                    });
+                    self.status = Some((m, true));
+                    self.busy = false;
+                    self.current_op = None;
+                }
+            }
+        }
+    }
+}
+
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.poll();
+        if self.loading || self.busy {
+            ctx.request_repaint();
+        }
+
+        // ── title + tab bar ───────────────────────────────────────────────
+        egui::TopBottomPanel::top("top")
+            .min_height(40.0)
+            .show(ctx, |ui| {
+                ui.add_space(5.0);
+                ui.horizontal_wrapped(|ui| {
+                    ui.add_space(10.0);
+                    julia_logo(ui, 26.0);
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("Juliaup").size(20.0).strong());
+                    ui.add_space(8.0);
+                    ui.separator();
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new("Installation manager for the Julia programming language")
+                            .size(12.0)
+                            .color(Color32::from_rgb(150, 150, 170)),
+                    );
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.add_space(10.0);
+                        for (t, label) in [
+                            (Tab::Config, "Configuration"),
+                            (Tab::Available, "Available"),
+                            (Tab::Installed, "Installed"),
+                        ] {
+                            ui.selectable_value(&mut self.tab, t, label);
+                            ui.add_space(1.0);
+                        }
+                    });
+                });
+                ui.add_space(3.0);
+            });
+
+        // ── activity panel ────────────────────────────────────────────────
+        egui::TopBottomPanel::bottom("status")
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(8.0);
+
+                    // Left: spinner + current state
+                    if self.loading || self.busy {
+                        ui.add(egui::Spinner::new().size(11.0));
+                        ui.add_space(3.0);
+                        let label = self.current_op.as_deref().unwrap_or("Working…");
+                        ui.label(RichText::new(label).size(12.0));
+                    } else if let Some((msg, is_err)) = &self.status {
+                        let col = if *is_err {
+                            Color32::from_rgb(220, 80, 60)
+                        } else {
+                            Color32::from_rgb(80, 190, 100)
+                        };
+                        let icon = if *is_err { "x" } else { "ok" };
+                        ui.colored_label(col, RichText::new(format!("{icon} {msg}")).size(12.0));
+                    } else {
+                        ui.label(RichText::new("Ready").size(12.0).weak());
+                    }
+
+                    // Right: toggle log button
+                    if !self.log.is_empty() {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.add_space(8.0);
+                            let toggle_label = if self.log_open {
+                                RichText::new("Hide log v").size(11.0).weak()
+                            } else {
+                                RichText::new(format!("Log ({}) ^", self.log.len()))
+                                    .size(11.0)
+                                    .weak()
+                            };
+                            if ui.small_button(toggle_label).clicked() {
+                                self.log_open = !self.log_open;
+                            }
+                        });
+                    }
+                });
+
+                if self.log_open && !self.log.is_empty() {
+                    ui.add_space(2.0);
+                    ui.separator();
+                    egui::ScrollArea::vertical()
+                        .id_salt("activity_log")
+                        .max_height(120.0)
+                        .stick_to_bottom(true)
+                        .show(ui, |ui| {
+                            ui.add_space(2.0);
+                            for entry in &self.log {
+                                let (col, prefix) = match entry.kind {
+                                    LogKind::Output => (Color32::from_rgb(180, 185, 190), ""),
+                                    LogKind::Ok => (Color32::from_rgb(80, 190, 100), "ok "),
+                                    LogKind::Err => (Color32::from_rgb(220, 80, 60), "x  "),
+                                };
+                                ui.label(
+                                    RichText::new(format!("{prefix}{}", entry.text))
+                                        .size(11.0)
+                                        .color(col)
+                                        .family(egui::FontFamily::Monospace),
+                                );
+                            }
+                            ui.add_space(2.0);
+                        });
+                }
+
+                ui.add_space(2.0);
+            });
+
+        // ── main content ──────────────────────────────────────────────────
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.add_space(4.0);
+            match self.tab {
+                Tab::Installed => tab_installed(self, ui),
+                Tab::Available => tab_available(self, ui),
+                Tab::Config => tab_config(self, ui),
+            }
+        });
+
+        // ── custom launch popup ───────────────────────────────────────
+        if self.custom_launch_channel.is_some() {
+            let mut open = true;
+            let ch = self.custom_launch_channel.clone().unwrap();
+            egui::Window::new(format!("Launch julia +{ch}"))
+                .open(&mut open)
+                .collapsible(false)
+                .resizable(false)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .show(ctx, |ui| {
+                    ui.label("Project directory:");
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.custom_launch_project)
+                                .hint_text("/path/to/project")
+                                .desired_width(260.0),
+                        );
+                        if ui.button("Browse...").clicked() {
+                            let mut dialog = rfd::FileDialog::new();
+                            if !self.custom_launch_project.trim().is_empty() {
+                                dialog = dialog.set_directory(self.custom_launch_project.trim());
+                            }
+                            if let Some(path) = dialog.pick_folder() {
+                                self.custom_launch_project = path.display().to_string();
+                            }
+                        }
+                    });
+                    ui.add_space(2.0);
+                    ui.label(
+                        RichText::new("Sets --project and cds into it. Optional.")
+                            .weak()
+                            .size(11.0),
+                    );
+
+                    ui.add_space(6.0);
+                    ui.label("Environment variables:");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.custom_launch_env)
+                            .hint_text("JULIA_DEBUG=Foo BAR=1 ...")
+                            .desired_width(ui.available_width().min(380.0))
+                            .font(egui::TextStyle::Monospace),
+                    );
+                    ui.add_space(2.0);
+                    ui.label(
+                        RichText::new("Space-separated KEY=VALUE pairs prepended to the command.")
+                            .weak()
+                            .size(11.0),
+                    );
+                    ui.add_space(8.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(format!("julia +{ch}"))
+                                .monospace()
+                                .color(Color32::from_rgb(130, 135, 155)),
+                        );
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.custom_launch_args)
+                                .hint_text("--threads=4 ...")
+                                .desired_width(200.0)
+                                .font(egui::TextStyle::Monospace),
+                        );
+                    });
+                    ui.add_space(8.0);
+
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(RichText::new("Launch").color(Color32::from_rgb(80, 190, 100)))
+                            .clicked()
+                        {
+                            launch_julia(
+                                &ch,
+                                &self.terminal_app,
+                                &self.custom_launch_project,
+                                &self.custom_launch_args,
+                                &self.custom_launch_env,
+                            );
+                            self.custom_launch_channel = None;
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.custom_launch_channel = None;
+                        }
+                    });
+                });
+            if !open {
+                self.custom_launch_channel = None;
+            }
+        }
+    }
+}
+
+// ── installed tab ─────────────────────────────────────────────────────────────
+
+fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        if ui
+            .add_enabled(!app.busy, egui::Button::new("Refresh").small())
+            .clicked()
+        {
+            app.send(Op::Reload);
+        }
+        if ui
+            .add_enabled(!app.busy, egui::Button::new("Update All").small())
+            .on_hover_text("Update every installed channel to its latest version")
+            .clicked()
+        {
+            app.send(Op::Update(None));
+        }
+        if ui
+            .add_enabled(!app.busy, egui::Button::new("GC").small())
+            .on_hover_text("Garbage-collect unused Julia versions from disk")
+            .clicked()
+        {
+            app.send(Op::Gc);
+        }
+
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.selectable_value(&mut app.installed_view, InstalledView::List, "List");
+            ui.selectable_value(&mut app.installed_view, InstalledView::Tile, "Tiles");
+        });
+    });
+
+    ui.add_space(4.0);
+
+    let state = match app.state.as_ref() {
+        Some(s) => s.clone(),
+        None => return,
+    };
+
+    if state.installed.is_empty() {
+        ui.add_space(16.0);
+        ui.vertical_centered(|ui| {
+            ui.label(RichText::new("No Julia channels installed.").weak());
+            ui.label("Go to the \"Available\" tab to install one.");
+        });
+        return;
+    }
+
+    match app.installed_view {
+        InstalledView::Tile => tab_installed_tiles(app, ui, &state),
+        InstalledView::List => tab_installed_list(app, ui, &state),
+    }
+}
+
+fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
+    let mut set_def: Option<String> = None;
+    let mut do_update: Option<String> = None;
+    let mut do_remove: Option<String> = None;
+    let mut do_launch: Option<String> = None;
+    let mut go_available = false;
+
+    const TILE_W: f32 = 168.0;
+    const TILE_H: f32 = 168.0;
+    const MARGIN: f32 = 14.0;
+
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        let tile_total = TILE_W + MARGIN * 2.0;
+        let gap = 12.0;
+        let avail = ui.available_width();
+        let cols = ((avail + gap) / (tile_total + gap)).floor().max(1.0) as usize;
+
+        // Build items: installed tiles + one "add" sentinel
+        let n = state.installed.len() + 1; // +1 for the "add" tile
+        let rows = n.div_ceil(cols);
+
+        for row_idx in 0..rows {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                let start = row_idx * cols;
+                for i in start..(start + cols).min(n) {
+                    if i < state.installed.len() {
+                        let row = state.installed[i].clone();
+                        let border_col = if row.is_default {
+                            Color32::from_rgb(80, 190, 100)
+                        } else {
+                            Color32::from_rgb(55, 58, 72)
+                        };
+
+                        // Allocate a fixed rect for hit-testing the whole tile
+                        let tile_outer = egui::vec2(TILE_W + MARGIN * 2.0, TILE_H + MARGIN * 2.0);
+                        let tile_id = ui.id().with(("tile", i));
+                        let tile_rect = ui.allocate_space(tile_outer).1;
+                        let tile_resp = ui.interact(tile_rect, tile_id, egui::Sense::click());
+                        let hovered = tile_resp.hovered();
+
+                        // Pointer cursor on hover
+                        if hovered {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+
+                        // Subtle hover effects
+                        let fill = if hovered {
+                            Color32::from_rgb(42, 45, 58)
+                        } else {
+                            Color32::from_rgb(36, 38, 50)
+                        };
+                        let stroke_w = if hovered { 2.0 } else { 1.5 };
+                        let rounding = egui::Rounding::same(8.0);
+
+                        // Paint the frame manually at the allocated rect
+                        ui.painter().rect(
+                            tile_rect,
+                            rounding,
+                            fill,
+                            egui::Stroke::new(stroke_w, border_col),
+                        );
+
+                        // Place child UI inside the tile rect
+                        let inner_rect = tile_rect.shrink(MARGIN);
+                        let mut child_ui = ui.new_child(
+                            egui::UiBuilder::new()
+                                .max_rect(inner_rect)
+                                .layout(egui::Layout::top_down(egui::Align::LEFT)),
+                        );
+                        child_ui.set_min_size(egui::vec2(TILE_W, TILE_H));
+                        child_ui.set_max_height(TILE_H);
+                        {
+                            let ui = &mut child_ui;
+                            ui.set_width(TILE_W);
+
+                            // ── header: name + version + badges ──
+                            ui.add(
+                                egui::Label::new(RichText::new(&row.name).size(18.0).strong())
+                                    .truncate(),
+                            );
+
+                            ui.add_space(1.0);
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&row.version)
+                                        .size(11.0)
+                                        .color(Color32::from_rgb(130, 135, 155)),
+                                )
+                                .truncate(),
+                            );
+
+                            if row.is_default || row.update.is_some() {
+                                ui.add_space(4.0);
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 6.0;
+                                    if row.is_default {
+                                        ui.label(
+                                            RichText::new("default")
+                                                .size(10.0)
+                                                .color(Color32::from_rgb(80, 190, 100)),
+                                        );
+                                    }
+                                    if let Some(upd) = &row.update {
+                                        ui.label(
+                                            RichText::new(format!("-> {upd}"))
+                                                .size(10.0)
+                                                .color(Color32::from_rgb(230, 170, 50)),
+                                        );
+                                    }
+                                });
+                            }
+
+                            // ── push buttons to bottom ──
+                            let used = ui.min_rect().height();
+                            let btn_h = 24.0;
+                            let btn_rows = if row.is_default { 1 } else { 2 };
+                            let buttons_h = btn_h * btn_rows as f32 + 4.0 * (btn_rows - 1) as f32;
+                            let remaining = (TILE_H - used - buttons_h).max(0.0);
+                            ui.add_space(remaining);
+
+                            // ── Launch row ──
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = 4.0;
+                                let launch_w = (TILE_W - 4.0) / 2.0;
+                                if ui
+                                    .add_sized(
+                                        [launch_w, btn_h],
+                                        egui::Button::new(
+                                            RichText::new("Launch")
+                                                .size(12.0)
+                                                .color(Color32::from_rgb(80, 190, 100)),
+                                        ),
+                                    )
+                                    .on_hover_text(format!("Start julia +{}", row.name))
+                                    .clicked()
+                                {
+                                    do_launch = Some(row.name.clone());
+                                }
+                                if ui
+                                    .add_sized(
+                                        [launch_w, btn_h],
+                                        egui::Button::new(RichText::new("Custom...").size(11.0)),
+                                    )
+                                    .on_hover_text("Launch with custom project & args")
+                                    .clicked()
+                                {
+                                    app.custom_launch_channel = Some(row.name.clone());
+                                }
+                            });
+
+                            // ── secondary actions row ──
+                            if !row.is_default {
+                                ui.add_space(4.0);
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 4.0;
+                                    let has_update = row.update.is_some();
+                                    let action_w = if has_update {
+                                        (TILE_W - 8.0) / 3.0
+                                    } else {
+                                        (TILE_W - 4.0) / 2.0
+                                    };
+                                    if ui
+                                        .add_sized(
+                                            [action_w, btn_h],
+                                            egui::Button::new(RichText::new("Default").size(11.0)),
+                                        )
+                                        .on_hover_text(
+                                            "Use this channel when no version is specified",
+                                        )
+                                        .clicked()
+                                    {
+                                        set_def = Some(row.name.clone());
+                                    }
+                                    if has_update
+                                        && ui
+                                            .add_sized(
+                                                [action_w, btn_h],
+                                                egui::Button::new(
+                                                    RichText::new("Update").size(11.0),
+                                                ),
+                                            )
+                                            .on_hover_text("Update to latest")
+                                            .clicked()
+                                    {
+                                        do_update = Some(row.name.clone());
+                                    }
+                                    if ui
+                                        .add_sized(
+                                            [action_w, btn_h],
+                                            egui::Button::new(RichText::new("Remove").size(11.0)),
+                                        )
+                                        .on_hover_text("Remove this channel")
+                                        .clicked()
+                                    {
+                                        do_remove = Some(row.name.clone());
+                                    }
+                                });
+                            }
+                        }
+
+                        // Whole-tile click = launch default
+                        if tile_resp.clicked() {
+                            do_launch = Some(state.installed[i].name.clone());
+                        }
+                    } else {
+                        // "Add another channel" tile
+                        let add_outer = egui::vec2(TILE_W + MARGIN * 2.0, TILE_H + MARGIN * 2.0);
+                        let add_id = ui.id().with("add_tile");
+                        let add_rect = ui.allocate_space(add_outer).1;
+                        let add_resp = ui.interact(add_rect, add_id, egui::Sense::click());
+                        let add_hov = add_resp.hovered();
+                        if add_hov {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        let add_fill = if add_hov {
+                            Color32::from_rgb(36, 38, 50)
+                        } else {
+                            Color32::from_rgb(30, 32, 42)
+                        };
+                        let add_stroke_w = if add_hov { 2.0 } else { 1.5 };
+                        ui.painter().rect(
+                            add_rect,
+                            egui::Rounding::same(8.0),
+                            add_fill,
+                            egui::Stroke::new(add_stroke_w, Color32::from_rgb(55, 58, 72)),
+                        );
+                        // Center the label in the tile
+                        ui.painter().text(
+                            add_rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            "+ Add channel",
+                            egui::FontId::proportional(14.0),
+                            Color32::from_rgb(150, 150, 170),
+                        );
+                        if add_resp.clicked() {
+                            go_available = true;
+                        }
+                    }
+                }
+            });
+            ui.add_space(gap);
+        }
+    });
+
+    if go_available {
+        app.tab = Tab::Available;
+    }
+    if let Some(ch) = do_launch {
+        launch_julia(&ch, &app.terminal_app, "", "", "");
+    }
+    if let Some(ch) = set_def {
+        app.send(Op::SetDefault(ch));
+    }
+    if let Some(ch) = do_update {
+        app.send(Op::Update(Some(ch)));
+    }
+    if let Some(ch) = do_remove {
+        app.send(Op::Remove(ch));
+    }
+}
+
+fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
+    let mut set_def: Option<String> = None;
+    let mut do_update: Option<String> = None;
+    let mut do_remove: Option<String> = None;
+    let mut do_launch: Option<String> = None;
+
+    let body_height = ui.available_height();
+
+    TableBuilder::new(ui)
+        .striped(true)
+        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+        .column(Column::exact(55.0)) // Default
+        .column(Column::initial(100.0).at_least(60.0)) // Channel
+        .column(Column::remainder().at_least(120.0)) // Version (takes leftover)
+        .column(Column::initial(130.0).at_least(80.0)) // Update
+        .column(Column::exact(160.0)) // Launch
+        .column(Column::exact(150.0)) // Actions
+        .min_scrolled_height(0.0)
+        .max_scroll_height(body_height)
+        .header(18.0, |mut header| {
+            header.col(|ui| {
+                ui.strong("Default");
+            });
+            header.col(|ui| {
+                ui.strong("Channel");
+            });
+            header.col(|ui| {
+                ui.strong("Version");
+            });
+            header.col(|ui| {
+                ui.strong("Update");
+            });
+            header.col(|ui| {
+                ui.strong("Launch");
+            });
+            header.col(|ui| {
+                ui.strong("Actions");
+            });
+        })
+        .body(|mut body| {
+            for row in &state.installed {
+                let row = row.clone();
+                body.row(22.0, |mut cells| {
+                    cells.col(|ui| {
+                        if row.is_default {
+                            ui.label(
+                                RichText::new("*")
+                                    .color(Color32::from_rgb(80, 190, 100))
+                                    .strong(),
+                            );
+                        }
+                    });
+                    cells.col(|ui| {
+                        ui.label(RichText::new(&row.name).size(13.0));
+                    });
+                    cells.col(|ui| {
+                        ui.label(RichText::new(&row.version).size(13.0).weak());
+                    });
+                    cells.col(|ui| {
+                        if let Some(upd) = &row.update {
+                            ui.label(
+                                RichText::new(upd)
+                                    .size(12.0)
+                                    .color(Color32::from_rgb(230, 170, 50)),
+                            );
+                        } else {
+                            ui.label(RichText::new("-").weak().size(12.0));
+                        }
+                    });
+                    cells.col(|ui| {
+                        ui.horizontal(|ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new("Launch")
+                                            .size(12.0)
+                                            .color(Color32::from_rgb(80, 190, 100)),
+                                    )
+                                    .small(),
+                                )
+                                .on_hover_text(format!("Start julia +{}", row.name))
+                                .clicked()
+                            {
+                                do_launch = Some(row.name.clone());
+                            }
+                            if ui
+                                .add(
+                                    egui::Button::new(RichText::new("Custom...").size(11.0))
+                                        .small(),
+                                )
+                                .on_hover_text("Launch with custom project & args")
+                                .clicked()
+                            {
+                                app.custom_launch_channel = Some(row.name.clone());
+                            }
+                        });
+                    });
+                    cells.col(|ui| {
+                        ui.horizontal(|ui| {
+                            if !row.is_default
+                                && ui
+                                    .add_enabled(
+                                        !app.busy,
+                                        egui::Button::new(RichText::new("Default").size(11.0))
+                                            .small(),
+                                    )
+                                    .on_hover_text("Set as default channel")
+                                    .clicked()
+                            {
+                                set_def = Some(row.name.clone());
+                            }
+                            if row.update.is_some()
+                                && ui
+                                    .add_enabled(
+                                        !app.busy,
+                                        egui::Button::new(RichText::new("Up").size(11.0)).small(),
+                                    )
+                                    .on_hover_text("Update this channel")
+                                    .clicked()
+                            {
+                                do_update = Some(row.name.clone());
+                            }
+                            if !row.is_default
+                                && ui
+                                    .add_enabled(
+                                        !app.busy,
+                                        egui::Button::new(RichText::new("x").size(11.0)).small(),
+                                    )
+                                    .on_hover_text("Remove this channel")
+                                    .clicked()
+                            {
+                                do_remove = Some(row.name.clone());
+                            }
+                        });
+                    });
+                });
+            }
+        });
+
+    if let Some(ch) = do_launch {
+        launch_julia(&ch, &app.terminal_app, "", "", "");
+    }
+    if let Some(ch) = set_def {
+        app.send(Op::SetDefault(ch));
+    }
+    if let Some(ch) = do_update {
+        app.send(Op::Update(Some(ch)));
+    }
+    if let Some(ch) = do_remove {
+        app.send(Op::Remove(ch));
+    }
+}
+
+// ── available tab ─────────────────────────────────────────────────────────────
+
+fn tab_available(app: &mut App, ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        ui.label("Filter:");
+        ui.add(
+            egui::TextEdit::singleline(&mut app.filter)
+                .hint_text("channel name…")
+                .desired_width(160.0),
+        );
+        ui.add_space(8.0);
+        if ui
+            .add_enabled(!app.busy, egui::Button::new("Refresh DB").small())
+            .on_hover_text("Download the latest Julia versions database from the server")
+            .clicked()
+        {
+            app.send(Op::UpdateVersionDb);
+        }
+    });
+
+    ui.add_space(6.0);
+
+    let state = match app.state.as_ref() {
+        Some(s) => s.clone(),
+        None => return,
+    };
+
+    let filter = app.filter.to_lowercase();
+
+    const POPULAR: &[&str] = &["release", "lts", "beta", "rc", "nightly"];
+    fn channel_priority(ch: &str) -> usize {
+        POPULAR.iter().position(|&p| ch == p).unwrap_or(usize::MAX)
+    }
+
+    let mut rows: Vec<AvailableRow> = state
+        .available
+        .iter()
+        .filter(|r| filter.is_empty() || r.channel.to_lowercase().contains(&filter))
+        .cloned()
+        .collect();
+    rows.sort_by(|a, b| {
+        channel_priority(&a.channel)
+            .cmp(&channel_priority(&b.channel))
+            .then_with(|| cmp(&a.channel, &b.channel))
+    });
+
+    let mut to_install: Option<String> = None;
+
+    ui.collapsing(
+        "Link an existing Julia binary or channel to a custom channel name",
+        |ui| {
+            egui::Grid::new("link_grid")
+                .num_columns(2)
+                .spacing([8.0, 4.0])
+                .show(ui, |ui| {
+                    ui.label(RichText::new("Channel name:").size(12.0));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut app.link_channel)
+                            .hint_text("e.g. myjulia")
+                            .desired_width(140.0),
+                    );
+                    ui.end_row();
+                    ui.label(RichText::new("Path or +channel:").size(12.0));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut app.link_target)
+                            .hint_text("/path/to/julia or +1.10")
+                            .desired_width(200.0),
+                    );
+                    ui.end_row();
+                    ui.label(RichText::new("Extra args:").size(12.0));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut app.link_args)
+                            .hint_text("optional")
+                            .desired_width(200.0),
+                    );
+                    ui.end_row();
+                });
+            let can_link = !app.busy
+                && !app.link_channel.trim().is_empty()
+                && !app.link_target.trim().is_empty();
+            if ui
+                .add_enabled(can_link, egui::Button::new("Link").small())
+                .clicked()
+            {
+                let args: Vec<String> =
+                    app.link_args.split_whitespace().map(String::from).collect();
+                app.send(Op::Link {
+                    channel: app.link_channel.trim().to_string(),
+                    target: app.link_target.trim().to_string(),
+                    args,
+                });
+                app.link_channel.clear();
+                app.link_target.clear();
+                app.link_args.clear();
+            }
+        },
+    );
+
+    ui.separator();
+
+    // ── build parent-child tree ───────────────────────────────────────
+    let channel_set: HashSet<&str> = rows.iter().map(|r| r.channel.as_str()).collect();
+
+    // For each channel, find its direct parent (longest prefix match separated by . - ~)
+    let mut parent_of: HashMap<&str, &str> = HashMap::new();
+    let mut children_of: HashMap<&str, Vec<usize>> = HashMap::new();
+    for (i, row) in rows.iter().enumerate() {
+        let ch = row.channel.as_str();
+        let mut best: Option<&str> = None;
+        let mut best_len = 0;
+        for &other in &channel_set {
+            if other.len() < ch.len()
+                && ch.starts_with(other)
+                && matches!(
+                    ch.as_bytes().get(other.len()),
+                    Some(b'.') | Some(b'-') | Some(b'~')
+                )
+                && other.len() > best_len
+            {
+                best = Some(other);
+                best_len = other.len();
+            }
+        }
+        if let Some(p) = best {
+            parent_of.insert(ch, p);
+            children_of.entry(p).or_default().push(i);
+        }
+    }
+
+    // DFS flatten into (index, depth) preserving sorted order
+    struct FlatEntry {
+        index: usize,
+        depth: usize,
+        has_children: bool,
+    }
+
+    fn dfs_flatten(
+        idx: usize,
+        depth: usize,
+        rows: &[AvailableRow],
+        children_of: &HashMap<&str, Vec<usize>>,
+        out: &mut Vec<FlatEntry>,
+    ) {
+        let ch = rows[idx].channel.as_str();
+        let kids = children_of.get(ch);
+        out.push(FlatEntry {
+            index: idx,
+            depth,
+            has_children: kids.is_some_and(|v| !v.is_empty()),
+        });
+        if let Some(kids) = kids {
+            for &kid in kids {
+                dfs_flatten(kid, depth + 1, rows, children_of, out);
+            }
+        }
+    }
+
+    let mut flat: Vec<FlatEntry> = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        if !parent_of.contains_key(row.channel.as_str()) {
+            dfs_flatten(i, 0, &rows, &children_of, &mut flat);
+        }
+    }
+
+    // Determine visibility: all ancestors must be expanded (or filter active = show flat)
+    let filtering = !filter.is_empty();
+    let visible: Vec<&FlatEntry> = flat
+        .iter()
+        .filter(|e| {
+            if filtering {
+                return true;
+            }
+            let mut cur = rows[e.index].channel.as_str();
+            while let Some(&p) = parent_of.get(cur) {
+                if !app.avail_expanded.contains(p) {
+                    return false;
+                }
+                cur = p;
+            }
+            true
+        })
+        .collect();
+
+    // ── render table ──────────────────────────────────────────────────
+    let table_height = ui.available_height();
+    TableBuilder::new(ui)
+        .striped(true)
+        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+        .column(Column::initial(220.0).at_least(140.0).clip(true)) // Channel
+        .column(Column::remainder().at_least(120.0)) // Version
+        .column(Column::initial(110.0).at_least(80.0)) // Status
+        .column(Column::exact(100.0)) // Action
+        .min_scrolled_height(0.0)
+        .max_scroll_height(table_height)
+        .header(18.0, |mut header| {
+            header.col(|ui| {
+                ui.strong("Channel");
+            });
+            header.col(|ui| {
+                ui.strong("Version");
+            });
+            header.col(|ui| {
+                ui.strong("Status");
+            });
+            header.col(|ui| {
+                ui.strong("Action");
+            });
+        })
+        .body(|mut body| {
+            for entry in &visible {
+                let row = rows[entry.index].clone();
+                let is_popular = POPULAR.contains(&row.channel.as_str());
+                let depth = if filtering { 0 } else { entry.depth };
+                let has_children = entry.has_children;
+
+                body.row(22.0, |mut cells| {
+                    cells.col(|ui| {
+                        ui.horizontal(|ui| {
+                            if depth > 0 {
+                                ui.add_space(depth as f32 * 14.0);
+                            }
+                            if has_children && !filtering {
+                                let expanded = app.avail_expanded.contains(row.channel.as_str());
+                                let icon = if expanded { "v " } else { "> " };
+                                if ui
+                                    .add(
+                                        egui::Label::new(
+                                            RichText::new(icon).monospace().weak().size(11.0),
+                                        )
+                                        .sense(egui::Sense::click()),
+                                    )
+                                    .clicked()
+                                {
+                                    if expanded {
+                                        app.avail_expanded.remove(row.channel.as_str());
+                                    } else {
+                                        app.avail_expanded.insert(row.channel.clone());
+                                    }
+                                }
+                            } else if !filtering && depth > 0 {
+                                ui.add_space(16.0);
+                            }
+                            if is_popular {
+                                ui.add(
+                                    egui::Label::new(
+                                        RichText::new(format!("* {}", row.channel)).strong(),
+                                    )
+                                    .truncate(),
+                                );
+                            } else {
+                                ui.add(egui::Label::new(&row.channel).truncate());
+                            }
+                        });
+                    });
+                    cells.col(|ui| {
+                        ui.label(RichText::new(&row.version).weak());
+                    });
+                    cells.col(|ui| {
+                        if row.installed {
+                            ui.label(
+                                RichText::new("Installed").color(Color32::from_rgb(80, 190, 100)),
+                            );
+                        } else {
+                            ui.label(RichText::new("Not installed").weak());
+                        }
+                    });
+                    cells.col(|ui| {
+                        if !row.installed {
+                            let is_pr_template = row.channel.contains("{number}");
+                            if is_pr_template {
+                                if app.pr_prompt.as_deref() == Some(row.channel.as_str()) {
+                                    ui.horizontal(|ui| {
+                                        ui.add(
+                                            egui::TextEdit::singleline(&mut app.pr_number_input)
+                                                .hint_text("PR #")
+                                                .desired_width(60.0),
+                                        );
+                                        let valid = !app.busy
+                                            && !app.pr_number_input.trim().is_empty()
+                                            && app
+                                                .pr_number_input
+                                                .trim()
+                                                .chars()
+                                                .all(|c| c.is_ascii_digit());
+                                        if ui
+                                            .add_enabled(valid, egui::Button::new("Go").small())
+                                            .clicked()
+                                        {
+                                            let ch = row
+                                                .channel
+                                                .replace("{number}", app.pr_number_input.trim());
+                                            to_install = Some(ch);
+                                            app.pr_prompt = None;
+                                            app.pr_number_input.clear();
+                                        }
+                                        if ui.small_button("Cancel").clicked() {
+                                            app.pr_prompt = None;
+                                            app.pr_number_input.clear();
+                                        }
+                                    });
+                                } else if ui
+                                    .add_enabled(!app.busy, egui::Button::new("Install").small())
+                                    .clicked()
+                                {
+                                    app.pr_prompt = Some(row.channel.clone());
+                                    app.pr_number_input.clear();
+                                }
+                            } else if ui
+                                .add_enabled(!app.busy, egui::Button::new("Install").small())
+                                .clicked()
+                            {
+                                to_install = Some(row.channel.clone());
+                            }
+                        }
+                    });
+                });
+            }
+        });
+
+    if let Some(ch) = to_install {
+        app.send(Op::Add(ch));
+    }
+}
+
+// ── config tab ────────────────────────────────────────────────────────────────
+
+fn tab_config(app: &mut App, ui: &mut egui::Ui) {
+    let settings = match app.state.as_ref().map(|s| s.settings.clone()) {
+        Some(s) => s,
+        None => {
+            ui.spinner();
+            return;
+        }
+    };
+
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        ui.add_space(4.0);
+        ui.heading("Settings");
+        ui.add_space(8.0);
+
+        egui::Grid::new("cfg_grid")
+            .num_columns(2)
+            .spacing([24.0, 10.0])
+            .min_col_width(200.0)
+            .show(ui, |ui| {
+                // ── Versions DB update interval ──────────────────────────
+                ui.label("Versions DB update interval (minutes):")
+                    .on_hover_text(
+                        "How often juliaup refreshes the Julia versions database. 0 = disabled.",
+                    );
+                ui.horizontal(|ui| {
+                    let resp = ui.add(
+                        egui::TextEdit::singleline(&mut app.interval_input).desired_width(80.0),
+                    );
+                    if resp.lost_focus() {
+                        if let Ok(v) = app.interval_input.parse::<i64>() {
+                            if v != settings.versionsdb_update_interval {
+                                app.send(Op::SetVersionsDbInterval(v));
+                            }
+                        } else {
+                            // Reset to current value on invalid input
+                            app.interval_input = settings.versionsdb_update_interval.to_string();
+                        }
+                    }
+                });
+                ui.end_row();
+
+                // ── Auto-install channels ────────────────────────────────
+                ui.label("Auto-install channels:").on_hover_text(
+                    "Whether `julia +channel` automatically installs missing channels.",
+                );
+                {
+                    let mut idx: usize = match settings.auto_install_channels {
+                        None => 0,
+                        Some(true) => 1,
+                        Some(false) => 2,
+                    };
+                    let prev = idx;
+                    egui::ComboBox::from_id_salt("auto_install_cb")
+                        .selected_text(["Default (prompt)", "Always", "Never"][idx])
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut idx, 0, "Default (prompt)");
+                            ui.selectable_value(&mut idx, 1, "Always");
+                            ui.selectable_value(&mut idx, 2, "Never");
+                        });
+                    if idx != prev && !app.busy {
+                        let v = match idx {
+                            0 => None,
+                            1 => Some(true),
+                            _ => Some(false),
+                        };
+                        app.send(Op::SetAutoInstall(v));
+                    }
+                }
+                ui.end_row();
+
+                // ── Manifest version detect ──────────────────────────────
+                ui.label("Manifest version detect:").on_hover_text(
+                    "Pick the Julia version from Project.toml/Manifest.toml when present.",
+                );
+                {
+                    let mut v = settings.manifest_version_detect;
+                    if ui
+                        .add_enabled(!app.busy, egui::Checkbox::new(&mut v, "Enabled"))
+                        .changed()
+                    {
+                        app.send(Op::SetManifestDetect(v));
+                    }
+                }
+                ui.end_row();
+
+                // ── Channel symlinks (non-Windows) ───────────────────────
+                #[cfg(not(windows))]
+                {
+                    ui.label("Channel symlinks:")
+                        .on_hover_text("Create a separate symlink per installed channel.");
+                    let mut v = settings.create_channel_symlinks;
+                    if ui
+                        .add_enabled(!app.busy, egui::Checkbox::new(&mut v, "Enabled"))
+                        .changed()
+                    {
+                        app.send(Op::SetChannelSymlinks(v));
+                    }
+                    ui.end_row();
+                }
+
+                // ── Terminal application ──────────────────────────────
+                ui.label("Terminal application:").on_hover_text(
+                    "Terminal emulator to use for Launch. Leave blank for platform default.",
+                );
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        let resp = ui.add(
+                            egui::TextEdit::singleline(&mut app.terminal_app)
+                                .hint_text(default_terminal_hint())
+                                .desired_width(200.0),
+                        );
+                        if resp.lost_focus() {
+                            save_terminal_pref(&app.paths, &app.terminal_app);
+                        }
+                        if ui.button("Browse...").clicked() {
+                            #[allow(unused_mut)]
+                            let mut dialog = rfd::FileDialog::new();
+                            #[cfg(target_os = "macos")]
+                            {
+                                dialog = dialog.set_directory("/Applications");
+                            }
+                            #[cfg(target_os = "linux")]
+                            {
+                                dialog = dialog.set_directory("/usr/bin");
+                            }
+                            if let Some(path) = dialog.pick_file() {
+                                app.terminal_app = path.display().to_string();
+                                save_terminal_pref(&app.paths, &app.terminal_app);
+                            }
+                        }
+                    });
+                    ui.label(
+                        RichText::new(
+                            "App name or path (e.g. iTerm, Terminal, /usr/bin/xterm). Blank = platform default.",
+                        )
+                        .weak()
+                        .size(11.0),
+                    );
+                });
+                ui.end_row();
+            });
+
+        ui.add_space(16.0);
+        ui.separator();
+        ui.add_space(12.0);
+
+        ui.heading("Maintenance");
+        ui.add_space(8.0);
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(
+                    !app.busy,
+                    egui::Button::new(format!("Self-Update Juliaup  {}", app.juliaup_version)),
+                )
+                .on_hover_text("Update the juliaup tool itself to the latest release")
+                .clicked()
+            {
+                app.send(Op::SelfUpdate);
+            }
+            if ui
+                .add_enabled(!app.busy, egui::Button::new("Refresh Version Database"))
+                .on_hover_text("Download the latest Julia channel/version data from the server")
+                .clicked()
+            {
+                app.send(Op::UpdateVersionDb);
+            }
+            if ui
+                .add_enabled(!app.busy, egui::Button::new("Garbage Collect"))
+                .on_hover_text("Remove Julia versions no longer referenced by any channel")
+                .clicked()
+            {
+                app.send(Op::Gc);
+            }
+        });
+
+        ui.add_space(16.0);
+        ui.separator();
+        ui.add_space(12.0);
+
+        ui.heading("Directory Overrides");
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(
+                "Make juliaup use a specific Julia channel when invoked within a directory tree.",
+            )
+            .weak(),
+        );
+        ui.add_space(8.0);
+
+        let overrides = app
+            .state
+            .as_ref()
+            .map(|s| s.overrides.clone())
+            .unwrap_or_default();
+        if overrides.is_empty() {
+            ui.label(RichText::new("No overrides configured.").weak());
+        } else {
+            egui::Grid::new("ov_grid")
+                .num_columns(3)
+                .striped(true)
+                .spacing([12.0, 5.0])
+                .show(ui, |ui| {
+                    ui.label(RichText::new("Directory").strong());
+                    ui.label(RichText::new("Channel").strong());
+                    ui.label(RichText::new("Action").strong());
+                    ui.end_row();
+
+                    let mut to_unset: Option<String> = None;
+                    for ov in &overrides {
+                        ui.label(&ov.path);
+                        ui.label(&ov.channel);
+                        if ui
+                            .add_enabled(!app.busy, egui::Button::new("x Remove").small())
+                            .clicked()
+                        {
+                            to_unset = Some(ov.path.clone());
+                        }
+                        ui.end_row();
+                    }
+                    if let Some(p) = to_unset {
+                        app.send(Op::UnsetOverride(p));
+                    }
+                });
+        }
+
+        ui.add_space(6.0);
+        if ui
+            .add_enabled(
+                !app.busy,
+                egui::Button::new("Remove non-existent paths").small(),
+            )
+            .on_hover_text("Remove all overrides whose directories no longer exist on disk")
+            .clicked()
+        {
+            app.send(Op::UnsetNonexistentOverrides);
+        }
+
+        ui.add_space(10.0);
+        ui.label(RichText::new("Add override").strong());
+        ui.add_space(4.0);
+
+        egui::Grid::new("add_ov_grid")
+            .num_columns(2)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                ui.label("Directory path:");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.ov_path)
+                        .hint_text("/path/to/project")
+                        .desired_width(300.0),
+                );
+                ui.end_row();
+                ui.label("Julia channel:");
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.ov_channel)
+                        .hint_text("e.g. 1.10")
+                        .desired_width(120.0),
+                );
+                ui.end_row();
+            });
+        ui.add_space(4.0);
+
+        let can_add =
+            !app.busy && !app.ov_path.trim().is_empty() && !app.ov_channel.trim().is_empty();
+        if ui
+            .add_enabled(can_add, egui::Button::new("Add override"))
+            .clicked()
+        {
+            app.send(Op::SetOverride {
+                path: app.ov_path.trim().to_string(),
+                channel: app.ov_channel.trim().to_string(),
+            });
+            app.ov_path.clear();
+            app.ov_channel.clear();
+        }
+    });
+}
+
+// ── worker thread ─────────────────────────────────────────────────────────────
+
+/// Spawn `julia +channel` in a new terminal window (fire-and-forget).
+/// If `terminal_app` is non-empty it is used as the terminal emulator;
+/// otherwise platform-specific defaults are tried.
+/// `project` sets `--project=<dir>` and cds into it.
+/// `extra_args` are appended after the channel arg.
+/// `env_vars` is a space-separated list of KEY=VALUE pairs.
+fn launch_julia(
+    channel: &str,
+    terminal_app: &str,
+    project: &str,
+    extra_args: &str,
+    env_vars: &str,
+) {
+    let arg = format!("+{channel}");
+
+    let mut parts: Vec<String> = Vec::new();
+    if !project.trim().is_empty() {
+        let dir = project.trim().replace('\'', "'\\''");
+        parts.push(format!("cd '{dir}' &&"));
+    }
+    for tok in env_vars.split_whitespace() {
+        if tok.contains('=') {
+            parts.push(tok.to_string());
+        }
+    }
+    parts.push("julia".to_string());
+    parts.push(arg.clone());
+    if !project.trim().is_empty() {
+        let dir = project.trim().replace('\'', "'\\''");
+        parts.push(format!("--project='{dir}'"));
+    }
+    for tok in extra_args.split_whitespace() {
+        parts.push(tok.to_string());
+    }
+    let full_cmd = parts.join(" ");
+
+    // Escape for embedding inside AppleScript double-quoted strings
+    #[cfg(target_os = "macos")]
+    let full_cmd_as = full_cmd.replace('\\', "\\\\").replace('"', "\\\"");
+
+    if !terminal_app.trim().is_empty() {
+        let term = terminal_app.trim();
+
+        #[cfg(target_os = "macos")]
+        {
+            // Extract the app name from a bundle path or bare name
+            let app_name = std::path::Path::new(term)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(term);
+
+            let lower = app_name.to_lowercase();
+            let script = if lower == "iterm" || lower == "iterm2" {
+                format!(
+                    "tell application \"{app_name}\"\n  activate\n  \
+                     if (count of windows) = 0 then\n    \
+                     create window with default profile\n  \
+                     else\n    \
+                     tell current window\n      \
+                     create tab with default profile\n    \
+                     end tell\n  \
+                     end if\n  \
+                     tell current session of current window\n    \
+                     write text \"{full_cmd_as}\"\n  \
+                     end tell\n\
+                     end tell"
+                )
+            } else {
+                format!(
+                    "tell application \"{app_name}\"\n  activate\n  \
+                     do script \"{full_cmd_as}\"\n\
+                     end tell"
+                )
+            };
+            let _ = std::process::Command::new("osascript")
+                .args(["-e", &script])
+                .spawn();
+            return;
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = std::process::Command::new(term)
+                .args(["-e", "sh", "-c", &full_cmd])
+                .spawn();
+            return;
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
+            full_cmd_as
+        );
+        let _ = std::process::Command::new("osascript")
+            .args(["-e", &script])
+            .spawn();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Prefer Windows Terminal (opens a new tab by default)
+        let wt = std::process::Command::new("wt")
+            .args(["cmd", "/k", &full_cmd])
+            .spawn();
+        if wt.is_err() {
+            let _ = std::process::Command::new("cmd")
+                .args(["/c", "start", "cmd", "/k", &full_cmd])
+                .spawn();
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let terminals = [
+            ("x-terminal-emulator", vec!["-e"]),
+            ("gnome-terminal", vec!["--"]),
+            ("konsole", vec!["-e"]),
+            ("xfce4-terminal", vec!["-e"]),
+            ("xterm", vec!["-e"]),
+        ];
+        for (term, prefix_args) in &terminals {
+            let mut cmd = std::process::Command::new(term);
+            for a in prefix_args {
+                cmd.arg(a);
+            }
+            cmd.arg("sh").arg("-c").arg(&full_cmd);
+            if cmd.spawn().is_ok() {
+                return;
+            }
+        }
+        let _ = std::process::Command::new("sh")
+            .args(["-c", &full_cmd])
+            .spawn();
+    }
+}
+
+fn default_terminal_hint() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
+        "Terminal"
+    }
+    #[cfg(target_os = "windows")]
+    {
+        "cmd"
+    }
+    #[cfg(target_os = "linux")]
+    {
+        "x-terminal-emulator"
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        "xterm"
+    }
+}
+
+fn gui_prefs_path(paths: &GlobalPaths) -> std::path::PathBuf {
+    paths.juliauphome.join("juliaupgui_terminal")
+}
+
+fn load_terminal_pref(paths: &GlobalPaths) -> String {
+    std::fs::read_to_string(gui_prefs_path(paths))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
+fn save_terminal_pref(paths: &GlobalPaths, value: &str) {
+    let _ = std::fs::write(gui_prefs_path(paths), value.trim());
+}
+
+/// Path to the juliaup binary (same directory as juliaupgui).
+fn juliaup_binary() -> anyhow::Result<std::path::PathBuf> {
+    let exe = std::env::current_exe()?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("no parent dir"))?;
+    Ok(dir.join("juliaup"))
+}
+
+/// Strip ANSI escape codes and handle carriage-return overwriting.
+fn clean_line(s: &str) -> String {
+    // Take only the last segment when CR is used for in-place progress
+    let s = s.split('\r').next_back().unwrap_or(s);
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // ESC [ ... final_byte  (CSI sequences)
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for ch in chars.by_ref() {
+                    if ch.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                chars.next(); // skip 2-char ESC sequence
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Spawn the juliaup binary with `args`, send each output line as `Msg::Line`,
+/// return `Ok(())` on success or `Err` with the exit status / spawn error.
+fn spawn_and_stream(args: &[&str], tx: &mpsc::Sender<Msg>) -> anyhow::Result<()> {
+    use std::io::BufRead;
+    use std::process::Stdio;
+
+    let bin = juliaup_binary()?;
+    let mut child = std::process::Command::new(&bin)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("failed to spawn {}: {e}", bin.display()))?;
+
+    // Read stderr in a background thread to avoid deadlock
+    let stderr = child.stderr.take().unwrap();
+    let tx2 = tx.clone();
+    let stderr_thread = thread::spawn(move || {
+        for l in std::io::BufReader::new(stderr)
+            .lines()
+            .map_while(Result::ok)
+        {
+            let clean = clean_line(&l);
+            if !clean.trim().is_empty() {
+                let _ = tx2.send(Msg::Line(clean));
+            }
+        }
+    });
+
+    // Read stdout in this thread
+    let stdout = child.stdout.take().unwrap();
+    for l in std::io::BufReader::new(stdout)
+        .lines()
+        .map_while(Result::ok)
+    {
+        let clean = clean_line(&l);
+        if !clean.trim().is_empty() {
+            let _ = tx.send(Msg::Line(clean));
+        }
+    }
+
+    stderr_thread.join().ok();
+
+    let status = child.wait()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(anyhow::anyhow!("exited with {status}"))
+    }
+}
+
+fn op_label(op: &Op) -> String {
+    match op {
+        Op::Reload => "Reloading…".into(),
+        Op::Add(ch) => format!("Installing '{ch}'…"),
+        Op::Remove(ch) => format!("Removing '{ch}'…"),
+        Op::Update(Some(ch)) => format!("Updating '{ch}'…"),
+        Op::Update(None) => "Updating all channels…".into(),
+        Op::SetDefault(ch) => format!("Setting default to '{ch}'…"),
+        Op::SelfUpdate => "Updating juliaup…".into(),
+        Op::Gc => "Running garbage collection…".into(),
+        Op::UpdateVersionDb => "Refreshing version database…".into(),
+        Op::SetVersionsDbInterval(_) => "Saving interval setting…".into(),
+        Op::SetAutoInstall(_) => "Saving auto-install setting…".into(),
+        Op::SetManifestDetect(_) => "Saving manifest detect setting…".into(),
+        #[cfg(not(windows))]
+        Op::SetChannelSymlinks(_) => "Saving symlinks setting…".into(),
+        Op::SetOverride { path, channel } => format!("Setting override '{path}' -> '{channel}'…"),
+        Op::UnsetOverride(p) => format!("Removing override '{p}'…"),
+        Op::UnsetNonexistentOverrides => "Removing stale overrides…".into(),
+        Op::Link { channel, .. } => format!("Linking channel '{channel}'…"),
+    }
+}
+
+fn worker(rx: mpsc::Receiver<(Op, Arc<GlobalPaths>)>, tx: mpsc::Sender<Msg>) {
+    while let Ok((op, paths)) = rx.recv() {
+        let msg = exec(&op, &paths, &tx);
+        if tx.send(msg).is_err() {
+            break;
+        }
+    }
+}
+
+fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
+    match op {
+        Op::Reload => match load_state(paths) {
+            Ok(s) => Msg::Loaded(Box::new(s)),
+            Err(e) => Msg::Err(format!("Failed to load: {e}")),
+        },
+        Op::Add(ch) => match spawn_and_stream(&["add", ch], tx) {
+            Ok(_) => Msg::Ok(format!("Installed '{ch}'")),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::Remove(ch) => match spawn_and_stream(&["remove", ch], tx) {
+            Ok(_) => Msg::Ok(format!("Removed '{ch}'")),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::Update(ch) => {
+            let args: Vec<&str> = match ch {
+                Some(c) => vec!["update", c.as_str()],
+                None => vec!["update"],
+            };
+            match spawn_and_stream(&args, tx) {
+                Ok(_) => Msg::Ok(match ch {
+                    Some(c) => format!("Updated '{c}'"),
+                    None => "Updated all channels".to_string(),
+                }),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::SetDefault(ch) => match run_command_default(ch, paths) {
+            Ok(_) => Msg::Ok(format!("Default set to '{ch}'")),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::SelfUpdate => match spawn_and_stream(&["self", "update"], tx) {
+            Ok(_) => Msg::Ok("Juliaup updated successfully".to_string()),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::Gc => match spawn_and_stream(&["gc"], tx) {
+            Ok(_) => Msg::Ok("Garbage collection complete".to_string()),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::UpdateVersionDb => match run_command_update_version_db(paths) {
+            Ok(_) => Msg::Ok("Version database updated".to_string()),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::SetVersionsDbInterval(v) => {
+            match run_command_config_versionsdbupdate(Some(*v), false, paths) {
+                Ok(_) => Msg::Ok(format!("DB update interval set to {v} min")),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::SetAutoInstall(v) => {
+            let s = v.map(|b| {
+                if b {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                }
+            });
+            match run_command_config_autoinstall(s, false, paths) {
+                Ok(_) => Msg::Ok("Auto-install setting saved".to_string()),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::SetManifestDetect(v) => {
+            match run_command_config_manifestversiondetect(Some(*v), false, paths) {
+                Ok(_) => Msg::Ok("Manifest version detect updated".to_string()),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        #[cfg(not(windows))]
+        Op::SetChannelSymlinks(v) => match run_command_config_symlinks(Some(*v), false, paths) {
+            Ok(_) => Msg::Ok("Channel symlinks setting updated".to_string()),
+            Err(e) => Msg::Err(format!("{e}")),
+        },
+        Op::SetOverride { path, channel } => {
+            match run_command_override_set(paths, channel.clone(), Some(path.clone())) {
+                Ok(_) => Msg::Ok(format!("Override set: {path} → {channel}")),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::UnsetOverride(path) => {
+            match run_command_override_unset(paths, false, Some(path.clone())) {
+                Ok(_) => Msg::Ok(format!("Override removed for '{path}'")),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::UnsetNonexistentOverrides => {
+            let result = (|| -> anyhow::Result<()> {
+                let mut cfg = load_mut_config_db(paths)?;
+                cfg.data
+                    .overrides
+                    .retain(|o| std::path::Path::new(&o.path).is_dir());
+                save_config_db(&mut cfg)?;
+                Ok(())
+            })();
+            match result {
+                Ok(_) => Msg::Ok("Non-existent overrides removed".to_string()),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+        Op::Link {
+            channel,
+            target,
+            args,
+        } => {
+            let mut cli_args = vec!["link", channel.as_str(), target.as_str()];
+            let arg_strs: Vec<&str> = args.iter().map(String::as_str).collect();
+            cli_args.extend_from_slice(&arg_strs);
+            match spawn_and_stream(&cli_args, tx) {
+                Ok(_) => Msg::Ok(format!("Linked '{channel}' → '{target}'")),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
+    }
+}
+
+// ── data loading ──────────────────────────────────────────────────────────────
+
+fn load_state(paths: &GlobalPaths) -> anyhow::Result<AppState> {
+    let config = load_config_db(paths, None)?;
+    let versiondb = load_versions_db(paths)?;
+
+    let installed = build_installed(&config, &versiondb);
+    let installed_keys: std::collections::HashSet<_> =
+        config.data.installed_channels.keys().cloned().collect();
+    let available = build_available(&versiondb, &installed_keys)?;
+    let overrides = config
+        .data
+        .overrides
+        .iter()
+        .map(|o| OverrideRow {
+            path: o.path.clone(),
+            channel: o.channel.clone(),
+        })
+        .collect();
+
+    Ok(AppState {
+        installed,
+        available,
+        overrides,
+        settings: config.data.settings.clone(),
+    })
+}
+
+fn build_installed(
+    config: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    versiondb: &JuliaupVersionDB,
+) -> Vec<InstalledRow> {
+    config
+        .data
+        .installed_channels
+        .iter()
+        .sorted_by(|(a, _), (b, _)| cmp(a, b))
+        .map(|(name, ch)| InstalledRow {
+            version: fmt_version(ch),
+            is_default: config.data.default.as_deref() == Some(name.as_str()),
+            update: update_info(name, ch, config, versiondb),
+            name: name.clone(),
+        })
+        .collect()
+}
+
+fn build_available(
+    versiondb: &JuliaupVersionDB,
+    installed: &std::collections::HashSet<String>,
+) -> anyhow::Result<Vec<AvailableRow>> {
+    let non_db: Vec<String> = get_channel_variations("nightly")?
+        .into_iter()
+        .chain(get_channel_variations("x.y-nightly")?)
+        .chain(get_channel_variations("pr{number}")?)
+        .collect();
+
+    let rows: Vec<AvailableRow> = versiondb
+        .available_channels
+        .iter()
+        .sorted_by(|(a, _), (b, _)| cmp(a, b))
+        .map(|(ch, info)| AvailableRow {
+            channel: ch.clone(),
+            version: info.version.clone(),
+            installed: installed.contains(ch),
+        })
+        .chain(non_db.into_iter().map(|ch| AvailableRow {
+            installed: installed.contains(&ch),
+            version: "dynamic".to_string(),
+            channel: ch,
+        }))
+        .collect();
+
+    Ok(rows)
+}
+
+fn fmt_version(ch: &JuliaupConfigChannel) -> String {
+    match ch {
+        JuliaupConfigChannel::DirectDownloadChannel { version, .. } => {
+            format!("Dev {version}")
+        }
+        JuliaupConfigChannel::SystemChannel { version } => version.clone(),
+        JuliaupConfigChannel::LinkedChannel { command, args } => {
+            let suffix = args
+                .as_ref()
+                .map(|a| format!(" {}", a.join(" ")))
+                .unwrap_or_default();
+            format!("Linked → {command}{suffix}")
+        }
+        JuliaupConfigChannel::AliasChannel { target, args } => {
+            let suffix = args
+                .as_ref()
+                .filter(|a| !a.is_empty())
+                .map(|a| format!(" ({})", a.join(" ")))
+                .unwrap_or_default();
+            format!("Alias → {target}{suffix}")
+        }
+    }
+}
+
+fn update_info(
+    name: &str,
+    ch: &JuliaupConfigChannel,
+    config: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    versiondb: &JuliaupVersionDB,
+) -> Option<String> {
+    match ch {
+        JuliaupConfigChannel::DirectDownloadChannel {
+            local_etag,
+            server_etag,
+            ..
+        } => (local_etag != server_etag).then(|| "Update available".to_string()),
+        JuliaupConfigChannel::SystemChannel { version } => versiondb
+            .available_channels
+            .get(name)
+            .filter(|c| &c.version != version)
+            .map(|c| format!("→ {}", c.version)),
+        JuliaupConfigChannel::LinkedChannel { .. } => None,
+        JuliaupConfigChannel::AliasChannel { target, .. } => config
+            .data
+            .installed_channels
+            .get(target)
+            .and_then(|tc| update_info(target, tc, config, versiondb)),
+    }
+}
+
+// ── Julia logo ───────────────────────────────────────────────────────────────
+
+/// Paints the official Julia dots logo, faithfully reproduced from the SVG
+/// at https://github.com/JuliaLang/julia-logo-graphics (viewBox 0 0 350 350).
+///
+/// SVG circle data (cx, cy, r):
+///   Green  – (175, 100, 75)  top-centre
+///   Red    – ( 88, 250, 75)  bottom-left
+///   Purple – (262, 250, 75)  bottom-right
+fn julia_logo(ui: &mut egui::Ui, size: f32) {
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(size), egui::Sense::hover());
+    if !ui.is_rect_visible(rect) {
+        return;
+    }
+    let p = ui.painter_at(rect);
+    let s = size / 350.0; // scale factor from SVG units to pixels
+
+    // Official Julia brand colours (from SVG fill values)
+    let red = Color32::from_rgb(0xCB, 0x3C, 0x33);
+    let green = Color32::from_rgb(0x38, 0x98, 0x26);
+    let purple = Color32::from_rgb(0x95, 0x58, 0xB2);
+
+    let origin = rect.min;
+    let dot_r = 75.0 * s;
+
+    let green_c = origin + egui::Vec2::new(175.0 * s, 100.0 * s);
+    let red_c = origin + egui::Vec2::new(88.4 * s, 250.0 * s);
+    let purple_c = origin + egui::Vec2::new(261.6 * s, 250.0 * s);
+
+    p.circle_filled(red_c, dot_r, red);
+    p.circle_filled(green_c, dot_r, green);
+    p.circle_filled(purple_c, dot_r, purple);
+}
+
+// ── theme ─────────────────────────────────────────────────────────────────────
+
+fn apply_theme(ctx: &egui::Context) {
+    let mut visuals = egui::Visuals::dark();
+
+    // Soften the background
+    visuals.panel_fill = Color32::from_rgb(28, 30, 36);
+    visuals.window_fill = Color32::from_rgb(28, 30, 36);
+    visuals.faint_bg_color = Color32::from_rgb(34, 36, 44);
+
+    // Rounded controls
+    let r = egui::Rounding::same(5.0);
+    visuals.widgets.noninteractive.rounding = r;
+    visuals.widgets.inactive.rounding = r;
+    visuals.widgets.hovered.rounding = r;
+    visuals.widgets.active.rounding = r;
+    visuals.menu_rounding = r;
+    visuals.window_rounding = egui::Rounding::same(8.0);
+
+    // Accent colour for selected items (Julia purple-ish)
+    visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
+    visuals.selection.stroke = egui::Stroke::new(1.0, Color32::from_rgb(160, 120, 240));
+
+    ctx.set_visuals(visuals);
+
+    let mut style = (*ctx.style()).clone();
+    style.text_styles.insert(
+        egui::TextStyle::Body,
+        egui::FontId::new(13.0, egui::FontFamily::Proportional),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Button,
+        egui::FontId::new(12.0, egui::FontFamily::Proportional),
+    );
+    style.text_styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::new(16.0, egui::FontFamily::Proportional),
+    );
+    style.spacing.button_padding = egui::Vec2::new(7.0, 3.0);
+    style.spacing.item_spacing = egui::Vec2::new(6.0, 4.0);
+    style.spacing.window_margin = egui::Margin::same(8.0);
+    ctx.set_style(style);
+}
+
+// ── public API ────────────────────────────────────────────────────────────────
+
+/// Rasterise the Julia three-dot logo into a square RGBA icon.
+/// Uses the exact SVG circle positions (viewBox 0 0 350 350) with
+/// per-pixel anti-aliasing for smooth edges.
+fn julia_logo_icon(size: u32) -> egui::IconData {
+    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    let scale = 350.0 / size as f32;
+
+    // (cx, cy, r, R, G, B) in SVG coordinates
+    let circles: [(f32, f32, f32, u8, u8, u8); 3] = [
+        (88.4, 250.0, 75.0, 0xCB, 0x3C, 0x33),  // red
+        (175.0, 100.0, 75.0, 0x38, 0x98, 0x26), // green
+        (261.6, 250.0, 75.0, 0x95, 0x58, 0xB2), // purple
+    ];
+
+    for py in 0..size {
+        for px in 0..size {
+            let fx = (px as f32 + 0.5) * scale;
+            let fy = (py as f32 + 0.5) * scale;
+            let idx = ((py * size + px) * 4) as usize;
+
+            for &(cx, cy, r, red, green, blue) in &circles {
+                let dist = ((fx - cx).powi(2) + (fy - cy).powi(2)).sqrt() - r;
+                if dist < 1.0 {
+                    let alpha = ((1.0 - dist).clamp(0.0, 1.0) * 255.0) as u8;
+                    rgba[idx] = red;
+                    rgba[idx + 1] = green;
+                    rgba[idx + 2] = blue;
+                    rgba[idx + 3] = alpha;
+                    break;
+                }
+            }
+        }
+    }
+
+    egui::IconData {
+        rgba,
+        width: size,
+        height: size,
+    }
+}
+
+pub fn run(paths: GlobalPaths) -> anyhow::Result<()> {
+    let icon = std::sync::Arc::new(julia_logo_icon(256));
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title("Juliaup")
+            .with_icon(icon)
+            .with_inner_size([860.0, 540.0])
+            .with_min_inner_size([754.0, 380.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "juliaup",
+        options,
+        Box::new(|cc| Ok(Box::new(App::new(cc, paths)))),
+    )
+    .map_err(|e| anyhow::anyhow!("GUI error: {e}"))
+}

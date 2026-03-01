@@ -536,6 +536,14 @@ pub fn main() -> Result<()> {
         },
     )?;
 
+    // Register juliaupgui as a native application
+    let gui_bin = juliaupselfbin.join("juliaupgui");
+    if gui_bin.exists() {
+        if let Err(e) = juliaup::command_app_shortcut::create_app_shortcut(&gui_bin) {
+            eprintln!("Warning: could not create application shortcut: {e}");
+        }
+    }
+
     println!("Julia was successfully installed on your system.");
 
     if install_choices.modifypath {
