@@ -18,6 +18,7 @@ use numeric_sort::cmp;
 use std::collections::{HashMap, HashSet};
 use std::sync::{mpsc, Arc};
 use std::thread;
+use std::time::Instant;
 
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
@@ -110,6 +111,7 @@ enum Tab {
     Installed,
     Available,
     Config,
+    About,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -159,6 +161,9 @@ pub struct App {
     ov_path: String,
     ov_channel: String,
 
+    // Splash animation
+    splash_start: Instant,
+
     op_tx: mpsc::SyncSender<(Op, Arc<GlobalPaths>)>,
     msg_rx: mpsc::Receiver<Msg>,
     paths: Arc<GlobalPaths>,
@@ -207,6 +212,7 @@ impl App {
             terminal_app,
             ov_path: String::new(),
             ov_channel: String::new(),
+            splash_start: Instant::now(),
             op_tx,
             msg_rx,
             paths,
@@ -267,18 +273,30 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.poll();
-        if self.loading || self.busy {
+
+        let splash_t = self.splash_start.elapsed().as_secs_f32();
+        let splash_active = splash_t < SPLASH_DURATION;
+        if splash_active || self.loading || self.busy {
             ctx.request_repaint();
         }
 
         // ── title + tab bar ───────────────────────────────────────────────
+        // We need the header logo rect to animate the dots sliding there
+        let mut logo_screen_rect: Option<egui::Rect> = None;
         egui::TopBottomPanel::top("top")
             .min_height(40.0)
             .show(ctx, |ui| {
                 ui.add_space(5.0);
                 ui.horizontal_wrapped(|ui| {
                     ui.add_space(10.0);
-                    julia_logo(ui, 26.0);
+                    // Always allocate space for the logo so layout is stable
+                    let (rect, _) =
+                        ui.allocate_exact_size(egui::Vec2::splat(26.0), egui::Sense::hover());
+                    logo_screen_rect = Some(rect);
+                    // Only paint the static logo once splash is done
+                    if !splash_active && ui.is_rect_visible(rect) {
+                        paint_julia_dots(&ui.painter_at(rect), rect);
+                    }
                     ui.add_space(4.0);
                     ui.label(RichText::new("Juliaup").size(20.0).strong());
                     ui.add_space(8.0);
@@ -293,6 +311,7 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(10.0);
                         for (t, label) in [
+                            (Tab::About, "About"),
                             (Tab::Config, "Configuration"),
                             (Tab::Available, "Available"),
                             (Tab::Installed, "Installed"),
@@ -385,8 +404,14 @@ impl eframe::App for App {
                 Tab::Installed => tab_installed(self, ui),
                 Tab::Available => tab_available(self, ui),
                 Tab::Config => tab_config(self, ui),
+                Tab::About => tab_about(self, ui),
             }
         });
+
+        // ── splash overlay (renders on top, non-blocking) ─────────
+        if splash_active {
+            paint_splash(ctx, splash_t, logo_screen_rect);
+        }
 
         // ── custom launch popup ───────────────────────────────────────
         if self.custom_launch_channel.is_some() {
@@ -1423,16 +1448,6 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
         ui.add_space(8.0);
         ui.horizontal_wrapped(|ui| {
             if ui
-                .add_enabled(
-                    !app.busy,
-                    egui::Button::new(format!("Self-Update Juliaup  {}", app.juliaup_version)),
-                )
-                .on_hover_text("Update the juliaup tool itself to the latest release")
-                .clicked()
-            {
-                app.send(Op::SelfUpdate);
-            }
-            if ui
                 .add_enabled(!app.busy, egui::Button::new("Refresh Version Database"))
                 .on_hover_text("Download the latest Julia channel/version data from the server")
                 .clicked()
@@ -1549,6 +1564,147 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
             app.ov_channel.clear();
         }
     });
+}
+
+// ── about tab ─────────────────────────────────────────────────────────────────
+
+fn tab_about(app: &mut App, ui: &mut egui::Ui) {
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        ui.add_space(16.0);
+
+        ui.vertical_centered(|ui| {
+            julia_logo_large(ui, 80.0);
+            ui.add_space(10.0);
+            ui.label(RichText::new("Juliaup").size(28.0).strong());
+            ui.add_space(2.0);
+            ui.label(
+                RichText::new("Installation manager for the Julia programming language")
+                    .size(13.0)
+                    .color(Color32::from_rgb(150, 150, 170)),
+            );
+            if !app.juliaup_version.is_empty() {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    let version_text = format!("Version {}", app.juliaup_version);
+                    let btn_text = "Check for updates";
+                    let est_width = ui.fonts(|f| {
+                        f.layout_no_wrap(
+                            version_text.clone(),
+                            egui::FontId::proportional(12.0),
+                            Color32::WHITE,
+                        )
+                        .size()
+                        .x
+                    }) + 6.0
+                        + ui.fonts(|f| {
+                            f.layout_no_wrap(
+                                btn_text.into(),
+                                egui::FontId::proportional(11.0),
+                                Color32::WHITE,
+                            )
+                            .size()
+                            .x
+                        })
+                        + 14.0; // button padding
+                    let pad = ((ui.available_width() - est_width) / 2.0).max(0.0);
+                    ui.add_space(pad);
+                    ui.label(
+                        RichText::new(version_text).size(12.0).weak(),
+                    );
+                    ui.add_space(6.0);
+                    if ui
+                        .add_enabled(
+                            !app.busy,
+                            egui::Button::new(
+                                RichText::new(btn_text).size(11.0),
+                            )
+                            .small(),
+                        )
+                        .on_hover_text(
+                            "Check for and install the latest juliaup release",
+                        )
+                        .clicked()
+                    {
+                        app.send(Op::SelfUpdate);
+                    }
+                });
+            }
+        });
+
+        ui.add_space(20.0);
+        ui.separator();
+        ui.add_space(12.0);
+
+        ui.heading("Links");
+        ui.add_space(6.0);
+
+        egui::Grid::new("about_links")
+            .num_columns(2)
+            .spacing([16.0, 8.0])
+            .show(ui, |ui| {
+                ui.label("Julia language:");
+                ui.hyperlink_to("julialang.org", "https://julialang.org");
+                ui.end_row();
+
+                ui.label("Julia GitHub:");
+                ui.hyperlink_to(
+                    "github.com/JuliaLang/julia",
+                    "https://github.com/JuliaLang/julia",
+                );
+                ui.end_row();
+
+                ui.label("Juliaup GitHub:");
+                ui.hyperlink_to(
+                    "github.com/JuliaLang/juliaup",
+                    "https://github.com/JuliaLang/juliaup",
+                );
+                ui.end_row();
+
+                ui.label("Julia Discourse:");
+                ui.hyperlink_to("discourse.julialang.org", "https://discourse.julialang.org");
+                ui.end_row();
+            });
+
+        ui.add_space(16.0);
+        ui.separator();
+        ui.add_space(12.0);
+
+        ui.heading("Feedback & Issues");
+        ui.add_space(6.0);
+        ui.label(
+            "Found a bug or have a feature request? Please file an issue on the Juliaup repository:",
+        );
+        ui.add_space(4.0);
+        ui.hyperlink_to(
+            "github.com/JuliaLang/juliaup/issues",
+            "https://github.com/JuliaLang/juliaup/issues",
+        );
+        ui.add_space(4.0);
+        ui.label(
+            RichText::new(
+                "When reporting issues, include your OS, juliaup version, and steps to reproduce.",
+            )
+            .weak()
+            .size(11.5),
+        );
+
+        ui.add_space(16.0);
+        ui.separator();
+        ui.add_space(12.0);
+
+        ui.heading("License");
+        ui.add_space(6.0);
+        ui.label("Juliaup is open-source software released under the MIT license.");
+
+        ui.add_space(24.0);
+    });
+}
+
+fn julia_logo_large(ui: &mut egui::Ui, size: f32) {
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(size), egui::Sense::hover());
+    if ui.is_rect_visible(rect) {
+        paint_julia_dots(&ui.painter_at(rect), rect);
+    }
 }
 
 // ── worker thread ─────────────────────────────────────────────────────────────
@@ -2083,6 +2239,130 @@ fn update_info(
     }
 }
 
+// ── splash animation ──────────────────────────────────────────────────────────
+
+// Total animation: fly-out (0.5s) -> hold (0.2s) -> slide-to-header (0.5s)
+const SPLASH_DURATION: f32 = 1.2;
+
+fn ease_out_back(t: f32) -> f32 {
+    let c1: f32 = 1.70158;
+    let c3 = c1 + 1.0;
+    1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
+}
+
+fn ease_out_cubic(t: f32) -> f32 {
+    1.0 - (1.0 - t).powi(3)
+}
+
+fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
+    let screen = ctx.screen_rect();
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Foreground,
+        egui::Id::new("splash"),
+    ));
+
+    let center = screen.center();
+
+    // Phase durations
+    let fly_dur = 0.5; // dots fly from center to logo formation
+    let hold_dur = 0.2; // hold the center formation
+    let slide_dur = 0.5; // slide from center to header position
+
+    // Scrim: opaque at start, fades away once dots start sliding
+    let scrim_start = fly_dur + hold_dur * 0.5;
+    let scrim_fade_dur = slide_dur;
+    let scrim_alpha = if t < scrim_start {
+        200u8
+    } else {
+        let p = ((t - scrim_start) / scrim_fade_dur).clamp(0.0, 1.0);
+        (200.0 * (1.0 - ease_out_cubic(p))) as u8
+    };
+    if scrim_alpha > 0 {
+        painter.rect_filled(
+            screen,
+            0.0,
+            Color32::from_rgba_unmultiplied(28, 30, 36, scrim_alpha),
+        );
+    }
+
+    struct Dot {
+        cx: f32,
+        cy: f32,
+        color: Color32,
+        delay: f32,
+    }
+    let dots = [
+        Dot {
+            cx: 88.4,
+            cy: 250.0,
+            color: Color32::from_rgb(0xCB, 0x3C, 0x33),
+            delay: 0.0,
+        },
+        Dot {
+            cx: 175.0,
+            cy: 100.0,
+            color: Color32::from_rgb(0x38, 0x98, 0x26),
+            delay: 0.08,
+        },
+        Dot {
+            cx: 261.6,
+            cy: 250.0,
+            color: Color32::from_rgb(0x95, 0x58, 0xB2),
+            delay: 0.16,
+        },
+    ];
+
+    // Large logo in center of screen
+    let big_size: f32 = 120.0;
+    let big_s = big_size / 350.0;
+    let big_origin = center - egui::Vec2::new(175.0 * big_s, 175.0 * big_s);
+
+    // Small logo target in header (fall back to a sensible top-left default)
+    let header_rect = logo_rect.unwrap_or(egui::Rect::from_min_size(
+        egui::Pos2::new(10.0, 8.0),
+        egui::Vec2::splat(26.0),
+    ));
+    let small_size = header_rect.width();
+    let small_s = small_size / 350.0;
+    let small_origin = header_rect.min;
+
+    // Slide progress: 0 = center formation, 1 = header position
+    let slide_start = fly_dur + hold_dur;
+    let slide_raw = ((t - slide_start) / slide_dur).clamp(0.0, 1.0);
+    let slide_p = ease_out_cubic(slide_raw);
+
+    for dot in &dots {
+        let dt = (t - dot.delay).max(0.0);
+
+        // Big-formation target
+        let big_target = big_origin + egui::Vec2::new(dot.cx * big_s, dot.cy * big_s);
+        let big_r = 75.0 * big_s;
+
+        // Small-formation target
+        let small_target = small_origin + egui::Vec2::new(dot.cx * small_s, dot.cy * small_s);
+        let small_r = 75.0 * small_s;
+
+        // Phase 1: fly from screen center to big formation
+        let fly_progress = (dt / fly_dur).clamp(0.0, 1.0);
+        let eased = ease_out_back(fly_progress);
+        let fly_pos = egui::Pos2::new(
+            center.x + (big_target.x - center.x) * eased,
+            center.y + (big_target.y - center.y) * eased,
+        );
+        let fly_r = big_r * (0.3 + 0.7 * eased);
+
+        // Phase 2: slide from big formation to header
+        let pos = egui::Pos2::new(
+            fly_pos.x + (small_target.x - big_target.x) * slide_p,
+            fly_pos.y + (small_target.y - big_target.y) * slide_p,
+        );
+        let radius = fly_r + (small_r - big_r) * slide_p;
+
+        let col = Color32::from_rgba_unmultiplied(dot.color.r(), dot.color.g(), dot.color.b(), 255);
+        painter.circle_filled(pos, radius, col);
+    }
+}
+
 // ── Julia logo ───────────────────────────────────────────────────────────────
 
 /// Paints the official Julia dots logo, faithfully reproduced from the SVG
@@ -2092,29 +2372,19 @@ fn update_info(
 ///   Green  – (175, 100, 75)  top-centre
 ///   Red    – ( 88, 250, 75)  bottom-left
 ///   Purple – (262, 250, 75)  bottom-right
-fn julia_logo(ui: &mut egui::Ui, size: f32) {
-    let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(size), egui::Sense::hover());
-    if !ui.is_rect_visible(rect) {
-        return;
-    }
-    let p = ui.painter_at(rect);
-    let s = size / 350.0; // scale factor from SVG units to pixels
-
-    // Official Julia brand colours (from SVG fill values)
-    let red = Color32::from_rgb(0xCB, 0x3C, 0x33);
-    let green = Color32::from_rgb(0x38, 0x98, 0x26);
-    let purple = Color32::from_rgb(0x95, 0x58, 0xB2);
-
+/// Paint the three Julia dots into a given rect.
+fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
+    let s = rect.width() / 350.0;
     let origin = rect.min;
     let dot_r = 75.0 * s;
 
-    let green_c = origin + egui::Vec2::new(175.0 * s, 100.0 * s);
     let red_c = origin + egui::Vec2::new(88.4 * s, 250.0 * s);
+    let green_c = origin + egui::Vec2::new(175.0 * s, 100.0 * s);
     let purple_c = origin + egui::Vec2::new(261.6 * s, 250.0 * s);
 
-    p.circle_filled(red_c, dot_r, red);
-    p.circle_filled(green_c, dot_r, green);
-    p.circle_filled(purple_c, dot_r, purple);
+    p.circle_filled(red_c, dot_r, Color32::from_rgb(0xCB, 0x3C, 0x33));
+    p.circle_filled(green_c, dot_r, Color32::from_rgb(0x38, 0x98, 0x26));
+    p.circle_filled(purple_c, dot_r, Color32::from_rgb(0x95, 0x58, 0xB2));
 }
 
 // ── theme ─────────────────────────────────────────────────────────────────────
