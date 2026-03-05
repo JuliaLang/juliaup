@@ -24,6 +24,14 @@ use std::time::Instant;
 #[cfg(not(windows))]
 use juliaup::command_config_symlinks::run_command_config_symlinks;
 
+/// Julia logo circle data: (cx, cy, radius, R, G, B) in SVG coordinates (viewBox 0 0 350 350).
+/// Source: https://github.com/JuliaLang/julia-logo-graphics
+const JULIA_DOTS: [(f32, f32, f32, u8, u8, u8); 3] = [
+    (88.4, 250.0, 75.0, 0xCB, 0x3C, 0x33),  // red
+    (175.0, 100.0, 75.0, 0x38, 0x98, 0x26), // green
+    (261.6, 250.0, 75.0, 0x95, 0x58, 0xB2), // purple
+];
+
 // ── domain models ─────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -309,6 +317,7 @@ impl eframe::App for App {
                             .color(Color32::from_rgb(150, 150, 170)),
                     );
 
+                    // Tabs listed in reverse because the layout is right-to-left
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(10.0);
                         for (t, label) in [
@@ -1710,6 +1719,11 @@ fn julia_logo_large(ui: &mut egui::Ui, size: f32) {
 
 // ── worker thread ─────────────────────────────────────────────────────────────
 
+/// Shell-quote a string for POSIX shells.
+fn shell_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
 /// Spawn `julia +channel` in a new terminal window (fire-and-forget).
 /// If `terminal_app` is non-empty it is used as the terminal emulator;
 /// otherwise platform-specific defaults are tried.
@@ -1727,22 +1741,22 @@ fn launch_julia(
 
     let mut parts: Vec<String> = Vec::new();
     if !project.trim().is_empty() {
-        let dir = project.trim().replace('\'', "'\\''");
-        parts.push(format!("cd '{dir}' &&"));
+        parts.push(format!("cd {} &&", shell_quote(project.trim())));
     }
     for tok in env_vars.split_whitespace() {
-        if tok.contains('=') {
-            parts.push(tok.to_string());
+        if let Some((key, val)) = tok.split_once('=') {
+            if !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                parts.push(format!("{}={}", key, shell_quote(val)));
+            }
         }
     }
     parts.push("julia".to_string());
-    parts.push(arg.clone());
+    parts.push(shell_quote(&arg));
     if !project.trim().is_empty() {
-        let dir = project.trim().replace('\'', "'\\''");
-        parts.push(format!("--project='{dir}'"));
+        parts.push(format!("--project={}", shell_quote(project.trim())));
     }
     for tok in extra_args.split_whitespace() {
-        parts.push(tok.to_string());
+        parts.push(shell_quote(tok));
     }
     let full_cmd = parts.join(" ");
 
@@ -1932,7 +1946,10 @@ fn spawn_and_stream(args: &[&str], tx: &mpsc::Sender<Msg>) -> anyhow::Result<()>
         .map_err(|e| anyhow::anyhow!("failed to spawn {}: {e}", bin.display()))?;
 
     // Read stderr in a background thread to avoid deadlock
-    let stderr = child.stderr.take().unwrap();
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("failed to capture stderr"))?;
     let tx2 = tx.clone();
     let stderr_thread = thread::spawn(move || {
         for l in std::io::BufReader::new(stderr)
@@ -1947,7 +1964,10 @@ fn spawn_and_stream(args: &[&str], tx: &mpsc::Sender<Msg>) -> anyhow::Result<()>
     });
 
     // Read stdout in this thread
-    let stdout = child.stdout.take().unwrap();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("failed to capture stdout"))?;
     for l in std::io::BufReader::new(stdout)
         .lines()
         .map_while(Result::ok)
@@ -2000,6 +2020,9 @@ fn worker(rx: mpsc::Receiver<(Op, Arc<GlobalPaths>)>, tx: mpsc::Sender<Msg>) {
     }
 }
 
+// Operations that produce streaming output (add, remove, update, link, self-update)
+// spawn a juliaup subprocess to relay progress lines to the UI.
+// Quick config changes are called directly as library functions.
 fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
     match op {
         Op::Reload => match load_state(paths) {
@@ -2286,33 +2309,6 @@ fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
         );
     }
 
-    struct Dot {
-        cx: f32,
-        cy: f32,
-        color: Color32,
-        delay: f32,
-    }
-    let dots = [
-        Dot {
-            cx: 88.4,
-            cy: 250.0,
-            color: Color32::from_rgb(0xCB, 0x3C, 0x33),
-            delay: 0.0,
-        },
-        Dot {
-            cx: 175.0,
-            cy: 100.0,
-            color: Color32::from_rgb(0x38, 0x98, 0x26),
-            delay: 0.08,
-        },
-        Dot {
-            cx: 261.6,
-            cy: 250.0,
-            color: Color32::from_rgb(0x95, 0x58, 0xB2),
-            delay: 0.16,
-        },
-    ];
-
     // Large logo in center of screen
     let big_size: f32 = 120.0;
     let big_s = big_size / 350.0;
@@ -2332,16 +2328,17 @@ fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
     let slide_raw = ((t - slide_start) / slide_dur).clamp(0.0, 1.0);
     let slide_p = ease_out_cubic(slide_raw);
 
-    for dot in &dots {
-        let dt = (t - dot.delay).max(0.0);
+    for (i, &(cx, cy, dot_r, red, green, blue)) in JULIA_DOTS.iter().enumerate() {
+        let delay = i as f32 * 0.08;
+        let dt = (t - delay).max(0.0);
 
         // Big-formation target
-        let big_target = big_origin + egui::Vec2::new(dot.cx * big_s, dot.cy * big_s);
-        let big_r = 75.0 * big_s;
+        let big_target = big_origin + egui::Vec2::new(cx * big_s, cy * big_s);
+        let big_r = dot_r * big_s;
 
         // Small-formation target
-        let small_target = small_origin + egui::Vec2::new(dot.cx * small_s, dot.cy * small_s);
-        let small_r = 75.0 * small_s;
+        let small_target = small_origin + egui::Vec2::new(cx * small_s, cy * small_s);
+        let small_r = dot_r * small_s;
 
         // Phase 1: fly from screen center to big formation
         let fly_progress = (dt / fly_dur).clamp(0.0, 1.0);
@@ -2359,33 +2356,20 @@ fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
         );
         let radius = fly_r + (small_r - big_r) * slide_p;
 
-        let col = Color32::from_rgba_unmultiplied(dot.color.r(), dot.color.g(), dot.color.b(), 255);
-        painter.circle_filled(pos, radius, col);
+        painter.circle_filled(pos, radius, Color32::from_rgb(red, green, blue));
     }
 }
 
 // ── Julia logo ───────────────────────────────────────────────────────────────
 
-/// Paints the official Julia dots logo, faithfully reproduced from the SVG
-/// at https://github.com/JuliaLang/julia-logo-graphics (viewBox 0 0 350 350).
-///
-/// SVG circle data (cx, cy, r):
-///   Green  – (175, 100, 75)  top-centre
-///   Red    – ( 88, 250, 75)  bottom-left
-///   Purple – (262, 250, 75)  bottom-right
 /// Paint the three Julia dots into a given rect.
 fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
     let s = rect.width() / 350.0;
     let origin = rect.min;
-    let dot_r = 75.0 * s;
-
-    let red_c = origin + egui::Vec2::new(88.4 * s, 250.0 * s);
-    let green_c = origin + egui::Vec2::new(175.0 * s, 100.0 * s);
-    let purple_c = origin + egui::Vec2::new(261.6 * s, 250.0 * s);
-
-    p.circle_filled(red_c, dot_r, Color32::from_rgb(0xCB, 0x3C, 0x33));
-    p.circle_filled(green_c, dot_r, Color32::from_rgb(0x38, 0x98, 0x26));
-    p.circle_filled(purple_c, dot_r, Color32::from_rgb(0x95, 0x58, 0xB2));
+    for &(cx, cy, r, red, green, blue) in &JULIA_DOTS {
+        let center = origin + egui::Vec2::new(cx * s, cy * s);
+        p.circle_filled(center, r * s, Color32::from_rgb(red, green, blue));
+    }
 }
 
 // ── theme ─────────────────────────────────────────────────────────────────────
@@ -2441,20 +2425,13 @@ fn julia_logo_icon(size: u32) -> egui::IconData {
     let mut rgba = vec![0u8; (size * size * 4) as usize];
     let scale = 350.0 / size as f32;
 
-    // (cx, cy, r, R, G, B) in SVG coordinates
-    let circles: [(f32, f32, f32, u8, u8, u8); 3] = [
-        (88.4, 250.0, 75.0, 0xCB, 0x3C, 0x33),  // red
-        (175.0, 100.0, 75.0, 0x38, 0x98, 0x26), // green
-        (261.6, 250.0, 75.0, 0x95, 0x58, 0xB2), // purple
-    ];
-
     for py in 0..size {
         for px in 0..size {
             let fx = (px as f32 + 0.5) * scale;
             let fy = (py as f32 + 0.5) * scale;
             let idx = ((py * size + px) * 4) as usize;
 
-            for &(cx, cy, r, red, green, blue) in &circles {
+            for &(cx, cy, r, red, green, blue) in &JULIA_DOTS {
                 let dist = ((fx - cx).powi(2) + (fy - cy).powi(2)).sqrt() - r;
                 if dist < 1.0 {
                     let alpha = ((1.0 - dist).clamp(0.0, 1.0) * 255.0) as u8;

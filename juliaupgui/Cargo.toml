@@ -13,7 +13,7 @@ path = "src/main.rs"
 juliaup = { path = ".." }
 eframe = "0.29"
 egui = "0.29"
-egui_extras = { version = "0.29" }
+egui_extras = "0.29"
 anyhow = "1"
 human-panic = "2"
 itertools = "0.14"

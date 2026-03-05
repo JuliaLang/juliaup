@@ -105,7 +105,6 @@ dummy = []
 binjuliainstaller = []
 binjulialauncher = []
 winpkgidentityext = []
-gui = []
 
 [package.metadata.msix]
 winstoremsix = { file = "deploy/msix/PackagingLayout.xml", variables = [

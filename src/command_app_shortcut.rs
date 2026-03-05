@@ -35,13 +35,15 @@ pub fn remove_app_shortcut() -> Result<()> {
 // ── macOS ─────────────────────────────────────────────────────────────────────
 
 #[cfg(target_os = "macos")]
-fn app_bundle_path() -> PathBuf {
-    PathBuf::from("/Applications/Juliaup.app")
+fn app_bundle_path() -> Result<PathBuf> {
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    Ok(home.join("Applications").join("Juliaup.app"))
 }
 
 #[cfg(target_os = "macos")]
 fn create_macos_app(gui_bin: &std::path::Path) -> Result<()> {
-    let app = app_bundle_path();
+    let app = app_bundle_path()?;
     let contents = app.join("Contents");
     let macos = contents.join("MacOS");
     let resources = contents.join("Resources");
@@ -100,7 +102,7 @@ fn create_macos_app(gui_bin: &std::path::Path) -> Result<()> {
 
 #[cfg(target_os = "macos")]
 fn remove_macos_app() -> Result<()> {
-    let app = app_bundle_path();
+    let app = app_bundle_path()?;
     if app.exists() {
         std::fs::remove_dir_all(&app)
             .with_context(|| format!("Failed to remove {}", app.display()))?;
