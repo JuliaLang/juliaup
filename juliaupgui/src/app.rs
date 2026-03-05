@@ -5,6 +5,7 @@ use juliaup::command_config_autoinstall::run_command_config_autoinstall;
 use juliaup::command_config_manifestversiondetect::run_command_config_manifestversiondetect;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
 use juliaup::command_default::run_command_default;
+use juliaup::command_gc::run_command_gc;
 use juliaup::command_override::{run_command_override_set, run_command_override_unset};
 use juliaup::command_update_version_db::run_command_update_version_db;
 use juliaup::config_file::{
@@ -2034,7 +2035,7 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
             Ok(_) => Msg::Ok("Juliaup updated successfully".to_string()),
             Err(e) => Msg::Err(format!("{e}")),
         },
-        Op::Gc => match spawn_and_stream(&["gc"], tx) {
+        Op::Gc => match run_command_gc(false, paths) {
             Ok(_) => Msg::Ok("Garbage collection complete".to_string()),
             Err(e) => Msg::Err(format!("{e}")),
         },
