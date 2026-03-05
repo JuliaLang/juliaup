@@ -65,7 +65,7 @@ is-terminal = "0.4"
 path-absolutize = "3"
 numeric-sort = "0.1"
 regex = "1"
-toml = "0.9"
+toml = "1.0"
 retry = "2"
 
 [target.'cfg(windows)'.dependencies]
