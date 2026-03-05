@@ -160,10 +160,11 @@ fn main() -> Result<()> {
             generate_completion_for_command::<Juliaup>(shell, "juliaup")
         }
         Juliaup::Gui {} => {
+            let bin_name = format!("juliaupgui{}", std::env::consts::EXE_SUFFIX);
             let exe = std::env::current_exe()
                 .ok()
-                .and_then(|p| p.parent().map(|d| d.join("juliaupgui")))
-                .unwrap_or_else(|| std::path::PathBuf::from("juliaupgui"));
+                .and_then(|p| p.parent().map(|d| d.join(&bin_name)))
+                .unwrap_or_else(|| std::path::PathBuf::from(&bin_name));
             if !exe.exists() {
                 anyhow::bail!(
                     "GUI binary not found at '{}'. The juliaupgui component may not be installed.",

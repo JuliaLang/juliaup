@@ -537,7 +537,7 @@ pub fn main() -> Result<()> {
     )?;
 
     // Register juliaupgui as a native application
-    let gui_bin = juliaupselfbin.join("juliaupgui");
+    let gui_bin = juliaupselfbin.join(format!("juliaupgui{}", std::env::consts::EXE_SUFFIX));
     if gui_bin.exists() {
         if let Err(e) = juliaup::command_app_shortcut::create_app_shortcut(&gui_bin) {
             eprintln!("Warning: could not create application shortcut: {e}");

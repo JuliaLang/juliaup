@@ -344,6 +344,26 @@ fn create_linux_desktop(gui_bin: &std::path::Path) -> Result<()> {
     if let Some(parent) = desktop_dir.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // Desktop Entry spec: Exec= values are split on unquoted spaces.
+    // Quote the path if it contains special characters.
+    let exec_path = gui_bin.display().to_string();
+    let exec_value = if exec_path.contains(' ')
+        || exec_path.contains('"')
+        || exec_path.contains('`')
+        || exec_path.contains('$')
+        || exec_path.contains('\\')
+    {
+        format!(
+            "\"{}\"",
+            exec_path
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('`', "\\`")
+                .replace('$', "\\$")
+        )
+    } else {
+        exec_path
+    };
     let entry = format!(
         "[Desktop Entry]\n\
          Type=Application\n\
@@ -354,7 +374,7 @@ fn create_linux_desktop(gui_bin: &std::path::Path) -> Result<()> {
          Terminal=false\n\
          Categories=Development;\n\
          StartupWMClass=juliaup\n",
-        gui_bin.display()
+        exec_value
     );
     std::fs::write(&desktop_dir, &entry)
         .with_context(|| format!("Failed to write {}", desktop_dir.display()))?;

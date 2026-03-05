@@ -1719,26 +1719,16 @@ fn julia_logo_large(ui: &mut egui::Ui, size: f32) {
 
 // ── worker thread ─────────────────────────────────────────────────────────────
 
-/// Shell-quote a string for POSIX shells.
+/// Shell-quote a string for POSIX shells (wraps in single quotes).
+#[cfg(not(target_os = "windows"))]
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
 
-/// Spawn `julia +channel` in a new terminal window (fire-and-forget).
-/// If `terminal_app` is non-empty it is used as the terminal emulator;
-/// otherwise platform-specific defaults are tried.
-/// `project` sets `--project=<dir>` and cds into it.
-/// `extra_args` are appended after the channel arg.
-/// `env_vars` is a space-separated list of KEY=VALUE pairs.
-fn launch_julia(
-    channel: &str,
-    terminal_app: &str,
-    project: &str,
-    extra_args: &str,
-    env_vars: &str,
-) {
+/// Build a shell command string for POSIX systems.
+#[cfg(not(target_os = "windows"))]
+fn build_launch_cmd(channel: &str, project: &str, extra_args: &str, env_vars: &str) -> String {
     let arg = format!("+{channel}");
-
     let mut parts: Vec<String> = Vec::new();
     if !project.trim().is_empty() {
         parts.push(format!("cd {} &&", shell_quote(project.trim())));
@@ -1758,7 +1748,67 @@ fn launch_julia(
     for tok in extra_args.split_whitespace() {
         parts.push(shell_quote(tok));
     }
-    let full_cmd = parts.join(" ");
+    parts.join(" ")
+}
+
+/// Build a command line string for Windows cmd.exe.
+/// Uses double-quote escaping appropriate for cmd.
+#[cfg(target_os = "windows")]
+fn win_quote(s: &str) -> String {
+    if s.contains(' ')
+        || s.contains('"')
+        || s.contains('&')
+        || s.contains('^')
+        || s.contains('|')
+        || s.contains('<')
+        || s.contains('>')
+        || s.contains('%')
+    {
+        format!("\"{}\"", s.replace('"', "\\\""))
+    } else {
+        s.to_string()
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn build_launch_cmd(channel: &str, project: &str, extra_args: &str, env_vars: &str) -> String {
+    let arg = format!("+{channel}");
+    let mut parts: Vec<String> = Vec::new();
+    if !project.trim().is_empty() {
+        parts.push(format!("cd /d {} &", win_quote(project.trim())));
+    }
+    for tok in env_vars.split_whitespace() {
+        if let Some((key, val)) = tok.split_once('=') {
+            if !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                parts.push(format!("set {}={} &", key, win_quote(val)));
+            }
+        }
+    }
+    parts.push("julia".to_string());
+    parts.push(win_quote(&arg));
+    if !project.trim().is_empty() {
+        parts.push(format!("--project={}", win_quote(project.trim())));
+    }
+    for tok in extra_args.split_whitespace() {
+        parts.push(win_quote(tok));
+    }
+    parts.join(" ")
+}
+
+/// Spawn `julia +channel` in a new terminal window (fire-and-forget).
+/// If `terminal_app` is non-empty it is used as the terminal emulator;
+/// otherwise platform-specific defaults are tried.
+/// `project` sets `--project=<dir>` and cds into it.
+/// `extra_args` are appended after the channel arg.
+/// `env_vars` is a space-separated list of KEY=VALUE pairs.
+fn launch_julia(
+    channel: &str,
+    terminal_app: &str,
+    project: &str,
+    extra_args: &str,
+    env_vars: &str,
+) {
+    let full_cmd = build_launch_cmd(channel, project, extra_args, env_vars);
 
     // Escape for embedding inside AppleScript double-quoted strings
     #[cfg(target_os = "macos")]
@@ -1804,7 +1854,15 @@ fn launch_julia(
             return;
         }
 
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let _ = std::process::Command::new(term)
+                .args(["cmd", "/k", &full_cmd])
+                .spawn();
+            return;
+        }
+
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = std::process::Command::new(term)
                 .args(["-e", "sh", "-c", &full_cmd])
@@ -2469,4 +2527,202 @@ pub fn run(paths: GlobalPaths) -> anyhow::Result<()> {
         Box::new(|cc| Ok(Box::new(App::new(cc, paths)))),
     )
     .map_err(|e| anyhow::anyhow!("GUI error: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── clean_line ────────────────────────────────────────────────────────
+
+    #[test]
+    fn clean_line_plain_text() {
+        assert_eq!(clean_line("hello world"), "hello world");
+    }
+
+    #[test]
+    fn clean_line_empty() {
+        assert_eq!(clean_line(""), "");
+    }
+
+    #[test]
+    fn clean_line_strips_ansi_color() {
+        assert_eq!(clean_line("\x1b[32mOK\x1b[0m"), "OK");
+    }
+
+    #[test]
+    fn clean_line_strips_multipart_ansi() {
+        assert_eq!(
+            clean_line("\x1b[1;34mblue\x1b[0m and \x1b[31mred\x1b[0m"),
+            "blue and red"
+        );
+    }
+
+    #[test]
+    fn clean_line_handles_cr_overwrite() {
+        assert_eq!(clean_line("old\rnew"), "new");
+    }
+
+    #[test]
+    fn clean_line_cr_with_ansi() {
+        assert_eq!(clean_line("first\r\x1b[32msecond\x1b[0m"), "second");
+    }
+
+    // ── shell_quote / build_launch_cmd (POSIX) ───────────────────────────
+
+    #[cfg(not(target_os = "windows"))]
+    mod posix {
+        use super::super::*;
+
+        #[test]
+        fn shell_quote_simple() {
+            assert_eq!(shell_quote("hello"), "'hello'");
+        }
+
+        #[test]
+        fn shell_quote_with_spaces() {
+            assert_eq!(shell_quote("hello world"), "'hello world'");
+        }
+
+        #[test]
+        fn shell_quote_with_single_quotes() {
+            assert_eq!(shell_quote("it's"), "'it'\\''s'");
+        }
+
+        #[test]
+        fn shell_quote_empty() {
+            assert_eq!(shell_quote(""), "''");
+        }
+
+        #[test]
+        fn build_cmd_basic_channel() {
+            let cmd = build_launch_cmd("release", "", "", "");
+            assert_eq!(cmd, "julia '+release'");
+        }
+
+        #[test]
+        fn build_cmd_with_project() {
+            let cmd = build_launch_cmd("1.10", "/tmp/my project", "", "");
+            assert_eq!(
+                cmd,
+                "cd '/tmp/my project' && julia '+1.10' --project='/tmp/my project'"
+            );
+        }
+
+        #[test]
+        fn build_cmd_with_env_vars() {
+            let cmd = build_launch_cmd("release", "", "", "JULIA_NUM_THREADS=4");
+            assert_eq!(cmd, "JULIA_NUM_THREADS='4' julia '+release'");
+        }
+
+        #[test]
+        fn build_cmd_skips_invalid_env_key() {
+            let cmd = build_launch_cmd("release", "", "", "BAD-KEY=val GOOD_KEY=ok");
+            assert_eq!(cmd, "GOOD_KEY='ok' julia '+release'");
+        }
+
+        #[test]
+        fn build_cmd_with_extra_args() {
+            let cmd = build_launch_cmd("release", "", "--threads=4 -q", "");
+            assert_eq!(cmd, "julia '+release' '--threads=4' '-q'");
+        }
+
+        #[test]
+        fn build_cmd_full() {
+            let cmd = build_launch_cmd(
+                "1.10",
+                "/home/user/proj",
+                "-q --startup-file=no",
+                "JULIA_NUM_THREADS=auto",
+            );
+            assert!(cmd.starts_with("cd '/home/user/proj' && JULIA_NUM_THREADS='auto' julia"));
+            assert!(cmd.contains("--project='/home/user/proj'"));
+            assert!(cmd.contains("'-q'"));
+            assert!(cmd.contains("'--startup-file=no'"));
+        }
+    }
+
+    // ── win_quote / build_launch_cmd (Windows) ───────────────────────────
+
+    #[cfg(target_os = "windows")]
+    mod windows {
+        use super::super::*;
+
+        #[test]
+        fn win_quote_simple() {
+            assert_eq!(win_quote("hello"), "hello");
+        }
+
+        #[test]
+        fn win_quote_with_spaces() {
+            assert_eq!(win_quote("hello world"), "\"hello world\"");
+        }
+
+        #[test]
+        fn win_quote_with_ampersand() {
+            assert_eq!(win_quote("a&b"), "\"a&b\"");
+        }
+
+        #[test]
+        fn build_cmd_basic_channel() {
+            let cmd = build_launch_cmd("release", "", "", "");
+            assert_eq!(cmd, "julia +release");
+        }
+
+        #[test]
+        fn build_cmd_with_project() {
+            let cmd = build_launch_cmd("1.10", "C:\\my project", "", "");
+            assert!(cmd.starts_with("cd /d \"C:\\my project\" &"));
+            assert!(cmd.contains("julia"));
+            assert!(cmd.contains("--project=\"C:\\my project\""));
+        }
+
+        #[test]
+        fn build_cmd_with_env_vars() {
+            let cmd = build_launch_cmd("release", "", "", "JULIA_NUM_THREADS=4");
+            assert_eq!(cmd, "set JULIA_NUM_THREADS=4 & julia +release");
+        }
+    }
+
+    // ── julia_logo_icon ──────────────────────────────────────────────────
+
+    #[test]
+    fn logo_icon_correct_dimensions() {
+        let icon = julia_logo_icon(64);
+        assert_eq!(icon.width, 64);
+        assert_eq!(icon.height, 64);
+        assert_eq!(icon.rgba.len(), 64 * 64 * 4);
+    }
+
+    #[test]
+    fn logo_icon_has_nonzero_pixels() {
+        let icon = julia_logo_icon(64);
+        let nonzero = icon.rgba.chunks(4).any(|px| px[3] > 0);
+        assert!(
+            nonzero,
+            "icon should contain at least one non-transparent pixel"
+        );
+    }
+
+    // ── JULIA_DOTS constant ──────────────────────────────────────────────
+
+    #[test]
+    fn julia_dots_has_three_entries() {
+        assert_eq!(JULIA_DOTS.len(), 3);
+    }
+
+    #[test]
+    fn julia_dots_colors_are_distinct() {
+        let colors: Vec<_> = JULIA_DOTS.iter().map(|d| (d.3, d.4, d.5)).collect();
+        assert_ne!(colors[0], colors[1]);
+        assert_ne!(colors[1], colors[2]);
+        assert_ne!(colors[0], colors[2]);
+    }
+
+    // ── default_terminal_hint ────────────────────────────────────────────
+
+    #[test]
+    fn default_terminal_hint_is_nonempty() {
+        assert!(!default_terminal_hint().is_empty());
+    }
 }
