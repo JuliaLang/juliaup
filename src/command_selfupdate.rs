@@ -84,6 +84,15 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         );
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
+
+        let new_juliaup = my_own_folder.join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+        if let Err(e) = std::process::Command::new(&new_juliaup)
+            .arg("_post-update")
+            .status()
+        {
+            eprintln!("Warning: post-update hook failed: {e}");
+        }
+
         eprintln!("Updated Juliaup to version {}.", version);
     }
 
