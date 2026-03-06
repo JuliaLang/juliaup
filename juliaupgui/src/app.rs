@@ -159,8 +159,8 @@ pub struct App {
 
     // Available tab inputs
     filter: String,
-    pr_prompt: Option<String>,
-    pr_number_input: String,
+    channel_prompt: Option<String>,
+    channel_prompt_input: String,
     avail_expanded: HashSet<String>,
 
     // Custom launch prompt
@@ -223,8 +223,8 @@ impl App {
             link_target: String::new(),
             link_args: String::new(),
             filter: String::new(),
-            pr_prompt: None,
-            pr_number_input: String::new(),
+            channel_prompt: None,
+            channel_prompt_input: String::new(),
             avail_expanded: HashSet::new(),
             custom_launch_channel: None,
             custom_launch_project: String::new(),
@@ -1213,7 +1213,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
         .column(Column::initial(220.0).at_least(140.0).clip(true)) // Channel
         .column(Column::remainder().at_least(120.0)) // Version
         .column(Column::initial(110.0).at_least(80.0)) // Status
-        .column(Column::exact(100.0)) // Action
+        .column(Column::exact(190.0)) // Action
         .min_scrolled_height(0.0)
         .max_scroll_height(table_height)
         .header(18.0, |mut header| {
@@ -1280,44 +1280,58 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                     });
                     cells.col(|ui| {
                         if !row.installed {
-                            let is_pr_template = row.channel.contains("{number}");
-                            if is_pr_template {
-                                if app.pr_prompt.as_deref() == Some(row.channel.as_str()) {
+                            let is_template =
+                                row.channel.contains("{number}") || row.channel.starts_with("x.y");
+                            if is_template {
+                                if app.channel_prompt.as_deref() == Some(row.channel.as_str()) {
                                     ui.horizontal(|ui| {
+                                        let (hint, placeholder) =
+                                            if row.channel.contains("{number}") {
+                                                ("PR #", "{number}")
+                                            } else {
+                                                ("e.g. 1.12", "x.y")
+                                            };
                                         ui.add(
-                                            egui::TextEdit::singleline(&mut app.pr_number_input)
-                                                .hint_text("PR #")
-                                                .desired_width(60.0),
+                                            egui::TextEdit::singleline(
+                                                &mut app.channel_prompt_input,
+                                            )
+                                            .hint_text(hint)
+                                            .desired_width(60.0),
                                         );
+                                        let input = app.channel_prompt_input.trim();
                                         let valid = !app.busy
-                                            && !app.pr_number_input.trim().is_empty()
-                                            && app
-                                                .pr_number_input
-                                                .trim()
-                                                .chars()
-                                                .all(|c| c.is_ascii_digit());
+                                            && !input.is_empty()
+                                            && if placeholder == "{number}" {
+                                                input.chars().all(|c| c.is_ascii_digit())
+                                            } else {
+                                                // x.y format: digits.digits
+                                                input.split_once('.').is_some_and(|(a, b)| {
+                                                    !a.is_empty()
+                                                        && !b.is_empty()
+                                                        && a.chars().all(|c| c.is_ascii_digit())
+                                                        && b.chars().all(|c| c.is_ascii_digit())
+                                                })
+                                            };
                                         if ui
                                             .add_enabled(valid, egui::Button::new("Go").small())
                                             .clicked()
                                         {
-                                            let ch = row
-                                                .channel
-                                                .replace("{number}", app.pr_number_input.trim());
+                                            let ch = row.channel.replace(placeholder, input);
                                             to_install = Some(ch);
-                                            app.pr_prompt = None;
-                                            app.pr_number_input.clear();
+                                            app.channel_prompt = None;
+                                            app.channel_prompt_input.clear();
                                         }
                                         if ui.small_button("Cancel").clicked() {
-                                            app.pr_prompt = None;
-                                            app.pr_number_input.clear();
+                                            app.channel_prompt = None;
+                                            app.channel_prompt_input.clear();
                                         }
                                     });
                                 } else if ui
-                                    .add_enabled(!app.busy, egui::Button::new("Install").small())
+                                    .add_enabled(!app.busy, egui::Button::new("Install…").small())
                                     .clicked()
                                 {
-                                    app.pr_prompt = Some(row.channel.clone());
-                                    app.pr_number_input.clear();
+                                    app.channel_prompt = Some(row.channel.clone());
+                                    app.channel_prompt_input.clear();
                                 }
                             } else if ui
                                 .add_enabled(!app.busy, egui::Button::new("Install").small())
@@ -1508,6 +1522,9 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                     save_bool_pref(&app.paths, "juliaupgui_list_tip_dismissed", false);
                     app.installed_view = InstalledView::Tile;
                     save_view_pref(&app.paths, app.installed_view);
+                    app.theme_mode = ThemeMode::System;
+                    save_theme_pref(&app.paths, app.theme_mode);
+                    apply_theme(ui.ctx(), app.theme_mode);
                 }
                 ui.end_row();
             });
