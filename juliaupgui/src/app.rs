@@ -582,7 +582,6 @@ fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
                                 ui.spacing_mut().item_spacing.x = 6.0;
                                 ui.label(
                                     RichText::new("Tip: Try List view for many channels")
-                                        .weak()
                                         .size(12.0),
                                 );
                                 if ui.small_button("x").clicked() {
@@ -1499,6 +1498,16 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                         save_theme_pref(&app.paths, app.theme_mode);
                         apply_theme(ui.ctx(), app.theme_mode);
                     }
+                }
+                ui.end_row();
+
+                // ── Reset UI ──────────────────────────────────────────
+                ui.label("");
+                if ui.button("Reset UI").clicked() {
+                    app.list_tip_dismissed = false;
+                    save_bool_pref(&app.paths, "juliaupgui_list_tip_dismissed", false);
+                    app.installed_view = InstalledView::Tile;
+                    save_view_pref(&app.paths, app.installed_view);
                 }
                 ui.end_row();
             });
@@ -2592,14 +2601,7 @@ fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
 
     // Accent colour for selected items (Julia purple-ish)
     visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
-    visuals.selection.stroke = egui::Stroke::new(
-        1.0,
-        if dark {
-            Color32::WHITE
-        } else {
-            Color32::from_gray(20)
-        },
-    );
+    visuals.selection.stroke = egui::Stroke::new(1.0, Color32::WHITE);
 
     // Ensure text on the purple selection background is always legible
     visuals.widgets.active.fg_stroke = egui::Stroke::new(
