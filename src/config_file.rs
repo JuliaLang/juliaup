@@ -390,14 +390,10 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     Ok(result)
 }
 
-pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()> {
-    // Get the path to the config file from the file descriptor
-    // We need to use a temporary file and atomic rename to avoid corruption
-    // in case of disk quota or other I/O errors
-
-    // Get the paths from the global state
-    let paths = crate::global_paths::get_paths()?;
-
+pub fn save_config_db(
+    juliaup_config_file: &mut JuliaupConfigFile,
+    paths: &crate::global_paths::GlobalPaths,
+) -> Result<()> {
     // Write to a temporary file in the same directory as the target file
     // This ensures we're on the same filesystem for atomic rename
     let config_dir = paths
