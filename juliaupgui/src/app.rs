@@ -317,8 +317,8 @@ impl eframe::App for App {
                     let (rect, _) =
                         ui.allocate_exact_size(egui::Vec2::splat(26.0), egui::Sense::hover());
                     logo_screen_rect = Some(rect);
-                    // Only paint the static logo once splash is done
-                    if !splash_active && ui.is_rect_visible(rect) {
+                    // Always paint the static logo
+                    if ui.is_rect_visible(rect) {
                         paint_julia_dots(&ui.painter_at(rect), rect);
                     }
                     ui.add_space(4.0);
@@ -2471,99 +2471,58 @@ fn update_info(
 
 // ── splash animation ──────────────────────────────────────────────────────────
 
-// Total animation: fly-out (0.5s) -> hold (0.2s) -> slide-to-header (0.5s)
-const SPLASH_DURATION: f32 = 1.2;
-
-fn ease_out_back(t: f32) -> f32 {
-    let c1: f32 = 1.70158;
-    let c3 = c1 + 1.0;
-    1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
-}
+// Total animation: hold (0.3s) -> fade out (0.4s)
+const SPLASH_DURATION: f32 = 0.7;
 
 fn ease_out_cubic(t: f32) -> f32 {
     1.0 - (1.0 - t).powi(3)
 }
 
-fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
+fn paint_splash(ctx: &egui::Context, t: f32, _logo_rect: Option<egui::Rect>) {
     let screen = ctx.screen_rect();
     let painter = ctx.layer_painter(egui::LayerId::new(
         egui::Order::Foreground,
         egui::Id::new("splash"),
     ));
 
-    let center = screen.center();
+    let hold_dur = 0.3;
+    let fade_dur = 0.4;
 
-    // Phase durations
-    let fly_dur = 0.5; // dots fly from center to logo formation
-    let hold_dur = 0.2; // hold the center formation
-    let slide_dur = 0.5; // slide from center to header position
-
-    // Scrim: opaque at start, fades away once dots start sliding
-    let scrim_start = fly_dur + hold_dur * 0.5;
-    let scrim_fade_dur = slide_dur;
-    let scrim_alpha = if t < scrim_start {
+    // Scrim: opaque during hold, fades out
+    let alpha = if t < hold_dur {
         200u8
     } else {
-        let p = ((t - scrim_start) / scrim_fade_dur).clamp(0.0, 1.0);
+        let p = ((t - hold_dur) / fade_dur).clamp(0.0, 1.0);
         (200.0 * (1.0 - ease_out_cubic(p))) as u8
     };
-    if scrim_alpha > 0 {
+    if alpha > 0 {
         let (sr, sg, sb) = scrim_base(ctx.style().visuals.dark_mode);
         painter.rect_filled(
             screen,
             0.0,
-            Color32::from_rgba_unmultiplied(sr, sg, sb, scrim_alpha),
+            Color32::from_rgba_unmultiplied(sr, sg, sb, alpha),
         );
     }
 
-    // Large logo in center of screen
+    // Centered logo, fading with the scrim
+    let center = screen.center();
     let big_size: f32 = 120.0;
-    let big_s = big_size / 350.0;
-    let big_origin = center - egui::Vec2::new(175.0 * big_s, 175.0 * big_s);
-
-    // Small logo target in header (fall back to a sensible top-left default)
-    let header_rect = logo_rect.unwrap_or(egui::Rect::from_min_size(
-        egui::Pos2::new(10.0, 8.0),
-        egui::Vec2::splat(26.0),
-    ));
-    let small_size = header_rect.width();
-    let small_s = small_size / 350.0;
-    let small_origin = header_rect.min;
-
-    // Slide progress: 0 = center formation, 1 = header position
-    let slide_start = fly_dur + hold_dur;
-    let slide_raw = ((t - slide_start) / slide_dur).clamp(0.0, 1.0);
-    let slide_p = ease_out_cubic(slide_raw);
+    let s = big_size / 350.0;
+    let origin = center - egui::Vec2::new(175.0 * s, 175.0 * s);
 
     for (i, &(cx, cy, dot_r, red, green, blue)) in JULIA_DOTS.iter().enumerate() {
-        let delay = i as f32 * 0.08;
+        let delay = i as f32 * 0.06;
         let dt = (t - delay).max(0.0);
+        let grow = ease_out_cubic((dt / 0.3).clamp(0.0, 1.0));
 
-        // Big-formation target
-        let big_target = big_origin + egui::Vec2::new(cx * big_s, cy * big_s);
-        let big_r = dot_r * big_s;
-
-        // Small-formation target
-        let small_target = small_origin + egui::Vec2::new(cx * small_s, cy * small_s);
-        let small_r = dot_r * small_s;
-
-        // Phase 1: fly from screen center to big formation
-        let fly_progress = (dt / fly_dur).clamp(0.0, 1.0);
-        let eased = ease_out_back(fly_progress);
-        let fly_pos = egui::Pos2::new(
-            center.x + (big_target.x - center.x) * eased,
-            center.y + (big_target.y - center.y) * eased,
-        );
-        let fly_r = big_r * (0.3 + 0.7 * eased);
-
-        // Phase 2: slide from big formation to header
-        let pos = egui::Pos2::new(
-            fly_pos.x + (small_target.x - big_target.x) * slide_p,
-            fly_pos.y + (small_target.y - big_target.y) * slide_p,
-        );
-        let radius = fly_r + (small_r - big_r) * slide_p;
-
-        painter.circle_filled(pos, radius, Color32::from_rgb(red, green, blue));
+        let pos = origin + egui::Vec2::new(cx * s, cy * s);
+        let r = dot_r * s * (0.3 + 0.7 * grow);
+        let col = if alpha >= 200 {
+            Color32::from_rgb(red, green, blue)
+        } else {
+            Color32::from_rgba_unmultiplied(red, green, blue, alpha)
+        };
+        painter.circle_filled(pos, r, col);
     }
 }
 
