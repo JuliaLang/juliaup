@@ -71,6 +71,8 @@ pub enum Juliaup {
         #[arg(value_enum, value_name = "SHELL")]
         shell: CompletionShell,
     },
+    /// Launch the graphical user interface
+    Gui {},
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
