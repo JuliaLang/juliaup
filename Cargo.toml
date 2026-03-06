@@ -1,5 +1,6 @@
 [workspace]
 members = [".", "juliaupgui"]
+default-members = [".", "juliaupgui"]
 resolver = "2"
 
 [package]

@@ -129,6 +129,13 @@ enum InstalledView {
     List,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+enum ThemeMode {
+    System,
+    Dark,
+    Light,
+}
+
 // ── app ───────────────────────────────────────────────────────────────────────
 
 pub struct App {
@@ -165,6 +172,10 @@ pub struct App {
     // Config tab inputs
     interval_input: String,
     terminal_app: String,
+    theme_mode: ThemeMode,
+
+    // Show-once tips
+    list_tip_dismissed: bool,
 
     // Override tab inputs
     ov_path: String,
@@ -180,9 +191,9 @@ pub struct App {
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>, paths: GlobalPaths) -> Self {
-        apply_theme(&cc.egui_ctx);
-
         let paths = Arc::new(paths);
+        let theme_mode = load_theme_pref(&paths);
+        apply_theme(&cc.egui_ctx, theme_mode);
         let (op_tx, op_rx) = mpsc::sync_channel::<(Op, Arc<GlobalPaths>)>(8);
         let (msg_tx, msg_rx) = mpsc::channel::<Msg>();
 
@@ -194,10 +205,12 @@ impl App {
             .unwrap_or_default();
 
         let terminal_app = load_terminal_pref(&paths);
+        let installed_view = load_view_pref(&paths);
+        let list_tip_dismissed = load_bool_pref(&paths, "juliaupgui_list_tip_dismissed");
 
         Self {
             tab: Tab::Installed,
-            installed_view: InstalledView::Tile,
+            installed_view,
             state: None,
             loading: true,
             busy: true,
@@ -219,6 +232,8 @@ impl App {
             custom_launch_env: String::new(),
             interval_input: String::new(),
             terminal_app,
+            theme_mode,
+            list_tip_dismissed,
             ov_path: String::new(),
             ov_channel: String::new(),
             splash_start: Instant::now(),
@@ -314,7 +329,7 @@ impl eframe::App for App {
                     ui.label(
                         RichText::new("Installation manager for the Julia programming language")
                             .size(12.0)
-                            .color(Color32::from_rgb(150, 150, 170)),
+                            .color(subtle_text(ui.visuals().dark_mode)),
                     );
 
                     // Tabs listed in reverse because the layout is right-to-left
@@ -389,7 +404,7 @@ impl eframe::App for App {
                             ui.add_space(2.0);
                             for entry in &self.log {
                                 let (col, prefix) = match entry.kind {
-                                    LogKind::Output => (Color32::from_rgb(180, 185, 190), ""),
+                                    LogKind::Output => (subtle_text(ui.visuals().dark_mode), ""),
                                     LogKind::Ok => (Color32::from_rgb(80, 190, 100), "ok "),
                                     LogKind::Err => (Color32::from_rgb(220, 80, 60), "x  "),
                                 };
@@ -477,7 +492,7 @@ impl eframe::App for App {
                         ui.label(
                             RichText::new(format!("julia +{ch}"))
                                 .monospace()
-                                .color(Color32::from_rgb(130, 135, 155)),
+                                .color(muted_text(ui.visuals().dark_mode)),
                         );
                         ui.add(
                             egui::TextEdit::singleline(&mut self.custom_launch_args)
@@ -540,8 +555,48 @@ fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
         }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let prev = app.installed_view;
             ui.selectable_value(&mut app.installed_view, InstalledView::List, "List");
-            ui.selectable_value(&mut app.installed_view, InstalledView::Tile, "Tiles");
+            let tiles_resp =
+                ui.selectable_value(&mut app.installed_view, InstalledView::Tile, "Tiles");
+            if app.installed_view != prev {
+                save_view_pref(&app.paths, app.installed_view);
+                app.list_tip_dismissed = true;
+                save_bool_pref(&app.paths, "juliaupgui_list_tip_dismissed", true);
+            }
+
+            // Show-once tip bubble to the left of the view selector
+            if !app.list_tip_dismissed
+                && app.installed_view == InstalledView::Tile
+                && app.state.as_ref().is_some_and(|s| s.installed.len() > 5)
+            {
+                let anchor = tiles_resp.rect.left_center() - egui::Vec2::new(6.0, 0.0);
+                egui::Area::new(egui::Id::new("list_tip_bubble"))
+                    .fixed_pos(anchor)
+                    .constrain(true)
+                    .pivot(egui::Align2::RIGHT_CENTER)
+                    .order(egui::Order::Foreground)
+                    .show(ui.ctx(), |ui| {
+                        egui::Frame::popup(ui.style()).show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.spacing_mut().item_spacing.x = 6.0;
+                                ui.label(
+                                    RichText::new("Tip: Try List view for many channels")
+                                        .weak()
+                                        .size(12.0),
+                                );
+                                if ui.small_button("x").clicked() {
+                                    app.list_tip_dismissed = true;
+                                    save_bool_pref(
+                                        &app.paths,
+                                        "juliaupgui_list_tip_dismissed",
+                                        true,
+                                    );
+                                }
+                            });
+                        });
+                    });
+            }
         });
     });
 
@@ -598,7 +653,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         let border_col = if row.is_default {
                             Color32::from_rgb(80, 190, 100)
                         } else {
-                            Color32::from_rgb(55, 58, 72)
+                            tile_border(ui.visuals().dark_mode)
                         };
 
                         // Allocate a fixed rect for hit-testing the whole tile
@@ -614,11 +669,8 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         }
 
                         // Subtle hover effects
-                        let fill = if hovered {
-                            Color32::from_rgb(42, 45, 58)
-                        } else {
-                            Color32::from_rgb(36, 38, 50)
-                        };
+                        let dark = ui.visuals().dark_mode;
+                        let fill = tile_bg(dark, hovered);
                         let stroke_w = if hovered { 2.0 } else { 1.5 };
                         let rounding = egui::Rounding::same(8.0);
 
@@ -654,7 +706,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                 egui::Label::new(
                                     RichText::new(&row.version)
                                         .size(11.0)
-                                        .color(Color32::from_rgb(130, 135, 155)),
+                                        .color(muted_text(ui.visuals().dark_mode)),
                                 )
                                 .truncate(),
                             );
@@ -782,17 +834,14 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         if add_hov {
                             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         }
-                        let add_fill = if add_hov {
-                            Color32::from_rgb(36, 38, 50)
-                        } else {
-                            Color32::from_rgb(30, 32, 42)
-                        };
+                        let add_dark = ui.visuals().dark_mode;
+                        let add_fill = tile_bg(add_dark, add_hov);
                         let add_stroke_w = if add_hov { 2.0 } else { 1.5 };
                         ui.painter().rect(
                             add_rect,
                             egui::Rounding::same(8.0),
                             add_fill,
-                            egui::Stroke::new(add_stroke_w, Color32::from_rgb(55, 58, 72)),
+                            egui::Stroke::new(add_stroke_w, tile_border(add_dark)),
                         );
                         // Center the label in the tile
                         ui.painter().text(
@@ -800,7 +849,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             egui::Align2::CENTER_CENTER,
                             "+ Add channel",
                             egui::FontId::proportional(14.0),
-                            Color32::from_rgb(150, 150, 170),
+                            subtle_text(add_dark),
                         );
                         if add_resp.clicked() {
                             go_available = true;
@@ -955,7 +1004,8 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                 && ui
                                     .add_enabled(
                                         !app.busy,
-                                        egui::Button::new(RichText::new("x").size(11.0)).small(),
+                                        egui::Button::new(RichText::new("Remove").size(11.0))
+                                            .small(),
                                     )
                                     .on_hover_text("Remove this channel")
                                     .clicked()
@@ -1011,22 +1061,13 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
 
     let filter = app.filter.to_lowercase();
 
-    const POPULAR: &[&str] = &["release", "lts", "beta", "rc", "nightly"];
-    fn channel_priority(ch: &str) -> usize {
-        POPULAR.iter().position(|&p| ch == p).unwrap_or(usize::MAX)
-    }
-
     let mut rows: Vec<AvailableRow> = state
         .available
         .iter()
         .filter(|r| filter.is_empty() || r.channel.to_lowercase().contains(&filter))
         .cloned()
         .collect();
-    rows.sort_by(|a, b| {
-        channel_priority(&a.channel)
-            .cmp(&channel_priority(&b.channel))
-            .then_with(|| cmp(&a.channel, &b.channel))
-    });
+    rows.sort_by(|a, b| cmp(&a.channel, &b.channel));
 
     let mut to_install: Option<String> = None;
 
@@ -1193,7 +1234,6 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
         .body(|mut body| {
             for entry in &visible {
                 let row = rows[entry.index].clone();
-                let is_popular = POPULAR.contains(&row.channel.as_str());
                 let depth = if filtering { 0 } else { entry.depth };
                 let has_children = entry.has_children;
 
@@ -1224,16 +1264,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                             } else if !filtering && depth > 0 {
                                 ui.add_space(16.0);
                             }
-                            if is_popular {
-                                ui.add(
-                                    egui::Label::new(
-                                        RichText::new(format!("* {}", row.channel)).strong(),
-                                    )
-                                    .truncate(),
-                                );
-                            } else {
-                                ui.add(egui::Label::new(&row.channel).truncate());
-                            }
+                            ui.add(egui::Label::new(&row.channel).truncate());
                         });
                     });
                     cells.col(|ui| {
@@ -1448,6 +1479,28 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                     );
                 });
                 ui.end_row();
+
+                // ── Theme ────────────────────────────────────────────────
+                ui.label("Appearance:").on_hover_text("Color theme for the GUI.");
+                {
+                    let prev = app.theme_mode;
+                    egui::ComboBox::from_id_salt("theme_cb")
+                        .selected_text(match app.theme_mode {
+                            ThemeMode::System => "System",
+                            ThemeMode::Dark => "Dark",
+                            ThemeMode::Light => "Light",
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut app.theme_mode, ThemeMode::System, "System");
+                            ui.selectable_value(&mut app.theme_mode, ThemeMode::Dark, "Dark");
+                            ui.selectable_value(&mut app.theme_mode, ThemeMode::Light, "Light");
+                        });
+                    if app.theme_mode != prev {
+                        save_theme_pref(&app.paths, app.theme_mode);
+                        apply_theme(ui.ctx(), app.theme_mode);
+                    }
+                }
+                ui.end_row();
             });
 
         ui.add_space(16.0);
@@ -1590,7 +1643,7 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
             ui.label(
                 RichText::new("Installation manager for the Julia programming language")
                     .size(13.0)
-                    .color(Color32::from_rgb(150, 150, 170)),
+                    .color(subtle_text(ui.visuals().dark_mode)),
             );
             if !app.juliaup_version.is_empty() {
                 ui.add_space(4.0);
@@ -1952,6 +2005,101 @@ fn load_terminal_pref(paths: &GlobalPaths) -> String {
 
 fn save_terminal_pref(paths: &GlobalPaths, value: &str) {
     let _ = std::fs::write(gui_prefs_path(paths), value.trim());
+}
+
+fn load_view_pref(paths: &GlobalPaths) -> InstalledView {
+    match std::fs::read_to_string(paths.juliauphome.join("juliaupgui_viewmode"))
+        .unwrap_or_default()
+        .trim()
+    {
+        "list" => InstalledView::List,
+        _ => InstalledView::Tile,
+    }
+}
+
+fn save_view_pref(paths: &GlobalPaths, view: InstalledView) {
+    let v = match view {
+        InstalledView::Tile => "tile",
+        InstalledView::List => "list",
+    };
+    let _ = std::fs::write(paths.juliauphome.join("juliaupgui_viewmode"), v);
+}
+
+fn load_theme_pref(paths: &GlobalPaths) -> ThemeMode {
+    match std::fs::read_to_string(paths.juliauphome.join("juliaupgui_theme"))
+        .unwrap_or_default()
+        .trim()
+    {
+        "dark" => ThemeMode::Dark,
+        "light" => ThemeMode::Light,
+        _ => ThemeMode::System,
+    }
+}
+
+fn save_theme_pref(paths: &GlobalPaths, mode: ThemeMode) {
+    let v = match mode {
+        ThemeMode::System => "system",
+        ThemeMode::Dark => "dark",
+        ThemeMode::Light => "light",
+    };
+    let _ = std::fs::write(paths.juliauphome.join("juliaupgui_theme"), v);
+}
+
+fn load_bool_pref(paths: &GlobalPaths, name: &str) -> bool {
+    std::fs::read_to_string(paths.juliauphome.join(name))
+        .unwrap_or_default()
+        .trim()
+        == "true"
+}
+
+fn save_bool_pref(paths: &GlobalPaths, name: &str, val: bool) {
+    let _ = std::fs::write(
+        paths.juliauphome.join(name),
+        if val { "true" } else { "false" },
+    );
+}
+
+// ── theme-aware colors ───────────────────────────────────────────────────────
+
+fn tile_bg(dark: bool, hovered: bool) -> Color32 {
+    match (dark, hovered) {
+        (true, true) => Color32::from_rgb(42, 45, 58),
+        (true, false) => Color32::from_rgb(36, 38, 50),
+        (false, true) => Color32::from_rgb(222, 224, 230),
+        (false, false) => Color32::from_rgb(240, 241, 245),
+    }
+}
+
+fn tile_border(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(55, 58, 72)
+    } else {
+        Color32::from_rgb(195, 198, 210)
+    }
+}
+
+fn muted_text(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(130, 135, 155)
+    } else {
+        Color32::from_rgb(100, 100, 115)
+    }
+}
+
+fn subtle_text(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(150, 150, 170)
+    } else {
+        Color32::from_rgb(110, 110, 125)
+    }
+}
+
+fn scrim_base(dark: bool) -> (u8, u8, u8) {
+    if dark {
+        (28, 30, 36)
+    } else {
+        (220, 222, 228)
+    }
 }
 
 /// Path to the juliaup binary (same directory as juliaupgui).
@@ -2360,10 +2508,11 @@ fn paint_splash(ctx: &egui::Context, t: f32, logo_rect: Option<egui::Rect>) {
         (200.0 * (1.0 - ease_out_cubic(p))) as u8
     };
     if scrim_alpha > 0 {
+        let (sr, sg, sb) = scrim_base(ctx.style().visuals.dark_mode);
         painter.rect_filled(
             screen,
             0.0,
-            Color32::from_rgba_unmultiplied(28, 30, 36, scrim_alpha),
+            Color32::from_rgba_unmultiplied(sr, sg, sb, scrim_alpha),
         );
     }
 
@@ -2432,13 +2581,46 @@ fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
 
 // ── theme ─────────────────────────────────────────────────────────────────────
 
-fn apply_theme(ctx: &egui::Context) {
-    let mut visuals = egui::Visuals::dark();
+fn resolve_dark(mode: ThemeMode) -> bool {
+    match mode {
+        ThemeMode::Dark => true,
+        ThemeMode::Light => false,
+        ThemeMode::System => {
+            #[cfg(target_os = "macos")]
+            {
+                // AppleInterfaceStyle is only set when dark mode is active
+                std::process::Command::new("defaults")
+                    .args(["read", "-g", "AppleInterfaceStyle"])
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(true)
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                true
+            }
+        }
+    }
+}
 
-    // Soften the background
-    visuals.panel_fill = Color32::from_rgb(28, 30, 36);
-    visuals.window_fill = Color32::from_rgb(28, 30, 36);
-    visuals.faint_bg_color = Color32::from_rgb(34, 36, 44);
+fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
+    let dark = resolve_dark(mode);
+
+    let mut visuals = if dark {
+        egui::Visuals::dark()
+    } else {
+        egui::Visuals::light()
+    };
+
+    if dark {
+        visuals.panel_fill = Color32::from_rgb(28, 30, 36);
+        visuals.window_fill = Color32::from_rgb(28, 30, 36);
+        visuals.faint_bg_color = Color32::from_rgb(34, 36, 44);
+    } else {
+        visuals.panel_fill = Color32::from_rgb(248, 249, 252);
+        visuals.window_fill = Color32::WHITE;
+        visuals.faint_bg_color = Color32::from_rgb(238, 240, 245);
+    }
 
     // Rounded controls
     let r = egui::Rounding::same(5.0);
@@ -2451,7 +2633,32 @@ fn apply_theme(ctx: &egui::Context) {
 
     // Accent colour for selected items (Julia purple-ish)
     visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
-    visuals.selection.stroke = egui::Stroke::new(1.0, Color32::from_rgb(160, 120, 240));
+    visuals.selection.stroke = egui::Stroke::new(
+        1.0,
+        if dark {
+            Color32::WHITE
+        } else {
+            Color32::from_gray(20)
+        },
+    );
+
+    // Ensure text on the purple selection background is always legible
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(
+        1.0,
+        if dark {
+            Color32::WHITE
+        } else {
+            Color32::from_gray(20)
+        },
+    );
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(
+        1.0,
+        if dark {
+            Color32::WHITE
+        } else {
+            Color32::from_gray(30)
+        },
+    );
 
     ctx.set_visuals(visuals);
 
