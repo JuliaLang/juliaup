@@ -95,8 +95,12 @@ pub fn run_command_link(
     #[cfg(not(windows))]
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(&mut config_file)
-        .with_context(|| "`link` command failed to save configuration db.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "`link` command failed to save configuration db at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     #[cfg(not(windows))]
     if create_symlinks && !target.starts_with('+') {

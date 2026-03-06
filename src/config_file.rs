@@ -174,8 +174,12 @@ pub struct JuliaupReadonlyConfigFile {
 }
 
 pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
-    std::fs::create_dir_all(&paths.juliauphome)
-        .with_context(|| "Could not create juliaup home folder.")?;
+    std::fs::create_dir_all(&paths.juliauphome).with_context(|| {
+        format!(
+            "Could not create juliaup home folder `{}`.",
+            paths.juliauphome.display()
+        )
+    })?;
 
     let lock_file = match OpenOptions::new()
         .read(true)
@@ -185,7 +189,13 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
         .open(&paths.lockfile)
     {
         Ok(file) => file,
-        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e)),
+        Err(e) => {
+            return Err(anyhow!(
+                "Could not create lockfile `{}`: {}.",
+                paths.lockfile.display(),
+                e
+            ));
+        }
     };
 
     let file_lock = match SharedFlock::try_lock(lock_file) {
@@ -272,9 +282,12 @@ pub fn load_config_db(
     }
 
     if let Some(file_lock) = file_lock {
-        file_lock
-            .unlock()
-            .with_context(|| "Failed to unlock configuration file.")?;
+        file_lock.unlock().with_context(|| {
+            format!(
+                "Failed to unlock configuration lock file `{}`.",
+                paths.lockfile.display()
+            )
+        })?;
     }
 
     Ok(JuliaupReadonlyConfigFile {
@@ -285,8 +298,12 @@ pub fn load_config_db(
 }
 
 pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
-    std::fs::create_dir_all(&paths.juliauphome)
-        .with_context(|| "Could not create juliaup home folder.")?;
+    std::fs::create_dir_all(&paths.juliauphome).with_context(|| {
+        format!(
+            "Could not create juliaup home folder `{}`.",
+            paths.juliauphome.display()
+        )
+    })?;
 
     let lock_file = match OpenOptions::new()
         .read(true)
@@ -296,7 +313,13 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         .open(&paths.lockfile)
     {
         Ok(file) => file,
-        Err(e) => return Err(anyhow!("Could not create lockfile: {}.", e)),
+        Err(e) => {
+            return Err(anyhow!(
+                "Could not create lockfile `{}`: {}.",
+                paths.lockfile.display(),
+                e
+            ));
+        }
     };
 
     let file_lock = match ExclusiveFlock::try_lock(lock_file) {
@@ -316,11 +339,19 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         .create(true)
         .truncate(false)
         .open(&paths.juliaupconfig)
-        .with_context(|| "Failed to open juliaup config file.")?;
+        .with_context(|| {
+            format!(
+                "Failed to open juliaup config file `{}`.",
+                paths.juliaupconfig.display()
+            )
+        })?;
 
-    let stream_len = file
-        .seek(SeekFrom::End(0))
-        .with_context(|| "Failed to determine the length of the configuration file.")?;
+    let stream_len = file.seek(SeekFrom::End(0)).with_context(|| {
+        format!(
+            "Failed to determine the length of configuration file `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     let data = match stream_len {
         0 => {
@@ -333,25 +364,45 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
                 last_version_db_update: None,
             };
 
-            serde_json::to_writer_pretty(&file, &new_config)
-                .with_context(|| "Failed to write configuration file.")?;
+            serde_json::to_writer_pretty(&file, &new_config).with_context(|| {
+                format!(
+                    "Failed to write configuration file `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
 
-            file.sync_all()
-                .with_context(|| "Failed to write configuration data to disc.")?;
+            file.sync_all().with_context(|| {
+                format!(
+                    "Failed to sync configuration file `{}` to disk.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
 
-            file.rewind()
-                .with_context(|| "Failed to rewind config file after initial write of data.")?;
+            file.rewind().with_context(|| {
+                format!(
+                    "Failed to rewind config file `{}` after initial write.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
 
             new_config
         }
         _ => {
-            file.rewind()
-                .with_context(|| "Failed to rewind existing config file.")?;
+            file.rewind().with_context(|| {
+                format!(
+                    "Failed to rewind existing config file `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
 
             let reader = BufReader::new(&file);
 
-            serde_json::from_reader(reader)
-                .with_context(|| "Failed to parse configuration file.")?
+            serde_json::from_reader(reader).with_context(|| {
+                format!(
+                    "Failed to parse configuration file `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?
         }
     };
 
@@ -365,7 +416,12 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
             .read(true)
             .write(true)
             .open(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to open juliaup config file.")?;
+            .with_context(|| {
+                format!(
+                    "Failed to open juliaup self config file `{}`.",
+                    paths.juliaupselfconfig.display()
+                )
+            })?;
 
         let reader = BufReader::new(&self_file);
 
@@ -400,49 +456,73 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
 
     // Write to a temporary file in the same directory as the target file
     // This ensures we're on the same filesystem for atomic rename
-    let config_dir = paths
-        .juliaupconfig
-        .parent()
-        .ok_or_else(|| anyhow!("Config file path has no parent directory"))?;
+    let config_dir = paths.juliaupconfig.parent().ok_or_else(|| {
+        anyhow!(
+            "Config file path `{}` has no parent directory.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
-    let mut temp_file = NamedTempFile::new_in(config_dir)
-        .with_context(|| "Failed to create temporary config file.")?;
+    let mut temp_file = NamedTempFile::new_in(config_dir).with_context(|| {
+        format!(
+            "Failed to create temporary config file in directory `{}`.",
+            config_dir.display()
+        )
+    })?;
 
     // Write the configuration data to the temporary file
-    serde_json::to_writer_pretty(&mut temp_file, &juliaup_config_file.data)
-        .with_context(|| "Failed to write configuration data to temporary file.")?;
+    serde_json::to_writer_pretty(&mut temp_file, &juliaup_config_file.data).with_context(|| {
+        format!(
+            "Failed to write configuration data for `{}` to temporary file.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     // Ensure all data is written to disk before persisting
-    temp_file
-        .flush()
-        .with_context(|| "Failed to flush configuration data to temporary file.")?;
+    temp_file.flush().with_context(|| {
+        format!(
+            "Failed to flush temporary configuration data for `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
-    temp_file
-        .as_file()
-        .sync_all()
-        .with_context(|| "Failed to sync configuration data to disc.")?;
+    temp_file.as_file().sync_all().with_context(|| {
+        format!(
+            "Failed to sync temporary configuration data for `{}` to disk.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     // On Windows, we must close the file before replacing it
     // On Unix, the file can remain open during atomic rename
     #[cfg(target_os = "windows")]
     {
+        let dummy_path = config_dir.join(".dummy");
         // Create a dummy file to replace the handle we need to close
         let dummy = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
-            .open(config_dir.join(".dummy"))
-            .with_context(|| "Failed to create dummy file handle.")?;
+            .open(&dummy_path)
+            .with_context(|| {
+                format!(
+                    "Failed to create dummy file handle `{}`.",
+                    dummy_path.display()
+                )
+            })?;
 
         // Replace the file handle with the dummy, dropping the old handle
         let _ = mem::replace(&mut juliaup_config_file.file, dummy);
     }
 
     // Atomically replace the old config file with the new one
-    temp_file
-        .persist(&paths.juliaupconfig)
-        .with_context(|| "Failed to persist configuration file.")?;
+    temp_file.persist(&paths.juliaupconfig).with_context(|| {
+        format!(
+            "Failed to persist configuration file `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     // Reopen the file to update our file handle (Windows only, since we closed it)
     #[cfg(target_os = "windows")]
@@ -451,43 +531,70 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
             .read(true)
             .write(true)
             .open(&paths.juliaupconfig)
-            .with_context(|| "Failed to reopen configuration file after save.")?;
+            .with_context(|| {
+                format!(
+                    "Failed to reopen configuration file `{}` after save.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
     }
 
     #[cfg(feature = "selfupdate")]
     {
         // Use the same atomic write pattern for the self config file
-        let self_config_dir = paths
-            .juliaupselfconfig
-            .parent()
-            .ok_or_else(|| anyhow!("Self config file path has no parent directory"))?;
+        let self_config_dir = paths.juliaupselfconfig.parent().ok_or_else(|| {
+            anyhow!(
+                "Self config file path `{}` has no parent directory.",
+                paths.juliaupselfconfig.display()
+            )
+        })?;
 
-        let mut temp_self_file = NamedTempFile::new_in(self_config_dir)
-            .with_context(|| "Failed to create temporary self config file.")?;
+        let mut temp_self_file = NamedTempFile::new_in(self_config_dir).with_context(|| {
+            format!(
+                "Failed to create temporary self config file in directory `{}`.",
+                self_config_dir.display()
+            )
+        })?;
 
         serde_json::to_writer_pretty(&mut temp_self_file, &juliaup_config_file.self_data)
-            .with_context(|| "Failed to write self configuration data to temporary file.")?;
+            .with_context(|| {
+                format!(
+                    "Failed to write self configuration data for `{}` to temporary file.",
+                    paths.juliaupselfconfig.display()
+                )
+            })?;
 
-        temp_self_file
-            .flush()
-            .with_context(|| "Failed to flush self configuration data to temporary file.")?;
+        temp_self_file.flush().with_context(|| {
+            format!(
+                "Failed to flush temporary self configuration data for `{}`.",
+                paths.juliaupselfconfig.display()
+            )
+        })?;
 
-        temp_self_file
-            .as_file()
-            .sync_all()
-            .with_context(|| "Failed to sync self configuration data to disc.")?;
+        temp_self_file.as_file().sync_all().with_context(|| {
+            format!(
+                "Failed to sync temporary self configuration data for `{}` to disk.",
+                paths.juliaupselfconfig.display()
+            )
+        })?;
 
         // On Windows, we must close the file before replacing it
         #[cfg(target_os = "windows")]
         {
+            let dummy_self_path = self_config_dir.join(".dummy_self");
             // Create a dummy file to replace the handle we need to close
             let dummy = OpenOptions::new()
                 .read(true)
                 .write(true)
                 .create(true)
                 .truncate(false)
-                .open(self_config_dir.join(".dummy_self"))
-                .with_context(|| "Failed to create dummy self config file handle.")?;
+                .open(&dummy_self_path)
+                .with_context(|| {
+                    format!(
+                        "Failed to create dummy self config file handle `{}`.",
+                        dummy_self_path.display()
+                    )
+                })?;
 
             // Replace the file handle with the dummy, dropping the old handle
             let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
@@ -495,7 +602,12 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
 
         temp_self_file
             .persist(&paths.juliaupselfconfig)
-            .with_context(|| "Failed to persist self configuration file.")?;
+            .with_context(|| {
+                format!(
+                    "Failed to persist self configuration file `{}`.",
+                    paths.juliaupselfconfig.display()
+                )
+            })?;
 
         // Reopen the self config file (Windows only, since we closed it)
         #[cfg(target_os = "windows")]
@@ -504,7 +616,12 @@ pub fn save_config_db(juliaup_config_file: &mut JuliaupConfigFile) -> Result<()>
                 .read(true)
                 .write(true)
                 .open(&paths.juliaupselfconfig)
-                .with_context(|| "Failed to reopen self configuration file after save.")?;
+                .with_context(|| {
+                    format!(
+                        "Failed to reopen self configuration file `{}` after save.",
+                        paths.juliaupselfconfig.display()
+                    )
+                })?;
         }
     }
 

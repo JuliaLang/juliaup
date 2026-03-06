@@ -65,8 +65,10 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
         let display = path_to_delete.display();
 
-        if std::fs::remove_dir_all(&path_to_delete).is_err() {
-            eprintln!("WARNING: Failed to delete {display}. You can try to delete at a later point by running `juliaup gc`.")
+        if let Err(e) = std::fs::remove_dir_all(&path_to_delete) {
+            eprintln!(
+                "WARNING: Failed to delete {display}: {e}. You can try to delete at a later point by running `juliaup gc`."
+            )
         }
     };
 
@@ -79,7 +81,8 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     save_config_db(&mut config_file).with_context(|| {
         format!(
-            "Failed to save configuration file from `remove` command after '{channel}' was removed."
+            "Failed to save configuration file from `remove` command after '{channel}' was removed at `{}`.",
+            paths.juliaupconfig.display()
         )
     })?;
 

@@ -24,8 +24,12 @@ pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     config_file.data.default = Some(channel.to_string());
 
-    save_config_db(&mut config_file)
-        .with_context(|| "`default` command failed to save configuration db.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "`default` command failed to save configuration db at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     print_juliaup_style(
         "Configure",

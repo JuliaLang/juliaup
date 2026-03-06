@@ -46,7 +46,12 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "Failed to save configuration file at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     if version == get_own_version().unwrap() {
         eprintln!(
