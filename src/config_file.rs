@@ -155,6 +155,17 @@ pub struct JuliaupSelfConfig {
     pub juliaup_channel: Option<String>,
     #[serde(rename = "LastSelfUpdate", skip_serializing_if = "Option::is_none")]
     pub last_selfupdate: Option<DateTime<Utc>>,
+    #[serde(
+        rename = "LastUpdateNotificationVersion",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last_update_notification_version: Option<String>,
+    #[serde(
+        rename = "ShownNotifications",
+        default,
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub shown_notifications: Vec<String>,
 }
 
 pub struct JuliaupConfigFile {
