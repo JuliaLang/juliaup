@@ -180,8 +180,12 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
 
     garbage_collect_versions(false, &mut config_file.data, paths)?;
 
-    save_config_db(&mut config_file)
-        .with_context(|| "`update` command failed to save configuration db.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "`update` command failed to save configuration db at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     Ok(())
 }

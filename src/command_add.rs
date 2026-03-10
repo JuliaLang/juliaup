@@ -61,8 +61,9 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     save_config_db(&mut config_file).with_context(|| {
         format!(
-            "Failed to save configuration file from `add` command after '{}' was installed.",
-            channel
+            "Failed to save configuration file from `add` command after '{}' was installed at `{}`.",
+            channel,
+            paths.juliaupconfig.display()
         )
     })?;
 
@@ -121,7 +122,8 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     save_config_db(&mut config_file).with_context(|| {
         format!(
-            "Failed to save configuration file from `add` command after '{channel}' was installed.",
+            "Failed to save configuration file from `add` command after '{channel}' was installed at `{}`.",
+            paths.juliaupconfig.display()
         )
     })?;
 

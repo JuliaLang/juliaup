@@ -15,7 +15,12 @@ pub fn run_command_selfchannel(
     match channel {
         Some(chan) => {
             config_file.self_data.juliaup_channel = Some(chan.to_lowercase().to_string());
-            save_config_db(&mut config_file)?;
+            save_config_db(&mut config_file).with_context(|| {
+                format!(
+                    "`self channel` command failed to save configuration db at `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
         }
         None => {
             let channel_name = config_file

@@ -102,7 +102,10 @@ pub fn run_command_override_set(
             i.channel = channel.clone();
 
             save_config_db(&mut config_file).with_context(|| {
-                "Failed to save configuration file from `override set` command."
+                format!(
+                    "Failed to save configuration file from `override set` command at `{}`.",
+                    paths.juliaupconfig.display()
+                )
             })?;
             return Ok(());
         }
@@ -118,8 +121,12 @@ pub fn run_command_override_set(
         path.to_string_lossy()
     );
 
-    save_config_db(&mut config_file)
-        .with_context(|| "Failed to save configuration file from `override set` command.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "Failed to save configuration file from `override set` command at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -151,8 +158,12 @@ pub fn run_command_override_unset(
             .retain(|x| Path::new(&x.path) != path);
     }
 
-    save_config_db(&mut config_file)
-        .with_context(|| "Failed to save configuration file from `override add` command.")?;
+    save_config_db(&mut config_file).with_context(|| {
+        format!(
+            "Failed to save configuration file from `override add` command at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     Ok(())
 }

@@ -24,8 +24,12 @@ pub fn run_command_config_versionsdbupdate(
                 value_changed = true;
             }
 
-            save_config_db(&mut config_file)
-                .with_context(|| "Failed to save configuration file from `config` command.")?;
+            save_config_db(&mut config_file).with_context(|| {
+                format!(
+                    "Failed to save configuration file from `config` command at `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
 
             if !quiet {
                 if value_changed {
