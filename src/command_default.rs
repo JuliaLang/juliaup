@@ -24,7 +24,7 @@ pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     config_file.data.default = Some(channel.to_string());
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "`default` command failed to save configuration db.")?;
 
     print_juliaup_style(

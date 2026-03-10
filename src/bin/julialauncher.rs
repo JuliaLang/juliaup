@@ -234,7 +234,7 @@ fn set_auto_install_preference(
 
     config_file.data.settings.auto_install_channels = Some(auto_install);
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "Failed to save auto-install preference to configuration.")?;
 
     print_juliaup_style(

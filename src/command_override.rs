@@ -101,7 +101,7 @@ pub fn run_command_override_set(
             );
             i.channel = channel.clone();
 
-            save_config_db(&mut config_file).with_context(|| {
+            save_config_db(&mut config_file, paths).with_context(|| {
                 "Failed to save configuration file from `override set` command."
             })?;
             return Ok(());
@@ -118,7 +118,7 @@ pub fn run_command_override_set(
         path.to_string_lossy()
     );
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "Failed to save configuration file from `override set` command.")?;
 
     Ok(())
@@ -151,7 +151,7 @@ pub fn run_command_override_unset(
             .retain(|x| Path::new(&x.path) != path);
     }
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "Failed to save configuration file from `override add` command.")?;
 
     Ok(())

@@ -9,7 +9,7 @@ pub fn run_command_gc(prune_linked: bool, paths: &GlobalPaths) -> Result<()> {
 
     garbage_collect_versions(prune_linked, &mut config_file.data, paths)?;
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "`gc` command failed to save configuration db.")?;
 
     Ok(())

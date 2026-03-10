@@ -32,7 +32,7 @@ pub fn run_command_config_autoinstall(
                 value_changed = true;
             }
 
-            save_config_db(&mut config_file)
+            save_config_db(&mut config_file, paths)
                 .with_context(|| "Failed to save configuration file from `config` command.")?;
 
             if !quiet {

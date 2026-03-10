@@ -1931,7 +1931,8 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         let _ = std::fs::remove_file(&paths.versiondb);
     }
 
-    save_config_db(&mut new_config_file).with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut new_config_file, paths)
+        .with_context(|| "Failed to save configuration file.")?;
 
     Ok(())
 }
