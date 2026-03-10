@@ -537,6 +537,12 @@
         "1.10.10+0.x64.w64.mingw32": {
             "UrlPath": "bin/winnt/x64/1.10/julia-1.10.10-win64.tar.gz"
         },
+        "1.10.11+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.10/julia-1.10.11-win32.tar.gz"
+        },
+        "1.10.11+0.x64.w64.mingw32": {
+            "UrlPath": "bin/winnt/x64/1.10/julia-1.10.11-win64.tar.gz"
+        },
         "1.11.0-alpha1+0.x86.w64.mingw32": {
             "UrlPath": "bin/winnt/x86/1.11/julia-1.11.0-alpha1-win32.tar.gz"
         },
@@ -858,7 +864,7 @@
             "Version": "1.1.1+0.x86.w64.mingw32"
         },
         "1.10": {
-            "Version": "1.10.10+0.x64.w64.mingw32"
+            "Version": "1.10.11+0.x64.w64.mingw32"
         },
         "1.10.0": {
             "Version": "1.10.0+0.x64.w64.mingw32"
@@ -944,6 +950,15 @@
         "1.10.10~x86": {
             "Version": "1.10.10+0.x86.w64.mingw32"
         },
+        "1.10.11": {
+            "Version": "1.10.11+0.x64.w64.mingw32"
+        },
+        "1.10.11~x64": {
+            "Version": "1.10.11+0.x64.w64.mingw32"
+        },
+        "1.10.11~x86": {
+            "Version": "1.10.11+0.x86.w64.mingw32"
+        },
         "1.10.1~x64": {
             "Version": "1.10.1+0.x64.w64.mingw32"
         },
@@ -1023,10 +1038,10 @@
             "Version": "1.10.9+0.x86.w64.mingw32"
         },
         "1.10~x64": {
-            "Version": "1.10.10+0.x64.w64.mingw32"
+            "Version": "1.10.11+0.x64.w64.mingw32"
         },
         "1.10~x86": {
-            "Version": "1.10.10+0.x86.w64.mingw32"
+            "Version": "1.10.11+0.x86.w64.mingw32"
         },
         "1.11": {
             "Version": "1.11.9+0.x64.w64.mingw32"
@@ -2028,13 +2043,13 @@
             "Version": "1.13.0-beta2+0.x86.w64.mingw32"
         },
         "lts": {
-            "Version": "1.10.10+0.x64.w64.mingw32"
+            "Version": "1.10.11+0.x64.w64.mingw32"
         },
         "lts~x64": {
-            "Version": "1.10.10+0.x64.w64.mingw32"
+            "Version": "1.10.11+0.x64.w64.mingw32"
         },
         "lts~x86": {
-            "Version": "1.10.10+0.x86.w64.mingw32"
+            "Version": "1.10.11+0.x86.w64.mingw32"
         },
         "rc": {
             "Version": "1.12.5+0.x64.w64.mingw32"
@@ -2055,5 +2070,5 @@
             "Version": "1.12.5+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.83"
+    "Version": "1.0.84"
 }
