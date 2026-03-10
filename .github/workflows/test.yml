@@ -275,3 +275,20 @@ jobs:
           df -h
           export CARGO_INCREMENTAL=0
           cargo test --verbose --target ${{matrix.target}} --features ${{matrix.features}}
+
+  test-juliaupgui:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: ${{ github.ref != 'refs/heads/main' }}
+      matrix:
+        include:
+          - runner: ubuntu-latest
+          - runner: macos-latest
+          - runner: windows-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+    - name: Test juliaupgui
+      run: cargo test -p juliaupgui

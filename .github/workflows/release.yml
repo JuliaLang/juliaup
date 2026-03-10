@@ -239,6 +239,9 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+    - name: Build juliaupgui
+      if: ${{ ! contains(matrix.target, 'freebsd') && ! contains(matrix.label, 'portable') && matrix.os != 'ubuntu' }}
+      run: cargo build --release -p juliaupgui --target ${{matrix.target}}
     - name: Free Disk Space
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
@@ -277,9 +280,11 @@ jobs:
           target/${{matrix.target}}/release/juliaup
           target/${{matrix.target}}/release/julialauncher
           target/${{matrix.target}}/release/julia
+          target/${{matrix.target}}/release/juliaupgui
           target/${{matrix.target}}/release/juliaup.exe
           target/${{matrix.target}}/release/julialauncher.exe
           target/${{matrix.target}}/release/julia.exe
+          target/${{matrix.target}}/release/juliaupgui.exe
     - uses: actions/upload-artifact@v7
       if: ${{ contains(matrix.bins, 'juliainstaller') }}
       with:
@@ -513,8 +518,10 @@ jobs:
         chmod a+rx target/i686-unknown-linux-musl/julialauncher
         chmod a+rx target/x86_64-apple-darwin/juliaup
         chmod a+rx target/x86_64-apple-darwin/julialauncher
+        chmod a+rx -f target/x86_64-apple-darwin/juliaupgui || true
         chmod a+rx target/aarch64-apple-darwin/juliaup
         chmod a+rx target/aarch64-apple-darwin/julialauncher
+        chmod a+rx -f target/aarch64-apple-darwin/juliaupgui || true
         chmod a+rx target/aarch64-unknown-linux-gnu/juliaup
         chmod a+rx target/aarch64-unknown-linux-gnu/julialauncher
         chmod a+rx target/aarch64-unknown-linux-musl/juliaup
