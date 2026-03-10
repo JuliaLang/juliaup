@@ -127,7 +127,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup override set --path foo/bar lts` sets a directory override for the path `foo/bar` to the `lts` channel.
 - `juliaup override unset --path foo/bar` removes a directory override for the path `foo/bar`.
 - `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
-- `juliaup completions bash > ~/.local/share/bash-completion/completions/juliaup` generates Bash completions for `juliaup` and saves them to a file. To use them, simply source this file in your `~/.bashrc`. Other supported shells are `zsh`, `fish`, `elvish` and `powershell`.
+- `juliaup completions bash > ~/.local/share/bash-completion/completions/juliaup` generates Bash completions for `juliaup` and saves them to a file. To use them, simply source this file in your `~/.bashrc`. Other supported shells are `zsh`, `fish`, `elvish`, `powershell`, and `nushell`. For experimantal dynamic completions that generate dynamically, see the "Dynamic Shell Completions" section of the readme below.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
@@ -195,6 +195,22 @@ If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juli
 
 **Note:** Nightly and PR channels (e.g., `nightly`, `pr123`) require the server to provide `etag` headers in HTTP responses for version tracking.
 If your custom mirror server does not support `etag` headers, these channels will not be available. Regular versioned Julia releases will still work normally.
+
+## Dynamic Shell completions
+
+This is an experimental feature that is not yet stable.
+
+To generate dynamic shell completions on supported shells (see [this](https://github.com/clap-rs/clap/issues/3166) issue to see if your shell is supported), load `COMPLETE=$SHELL juliaup` at shell launch. For example, with bash, it could look like `source <(COMPLETE=bash juliaup)`.
+
+For more specific information on adding completions to your shell, see https://docs.rs/clap_complete/latest/clap_complete/env/index.html
+
+Note: MacOS ships with an ancient version of bash that does not support process substitution. To work around this, you can create a temporary file and `source` that instead like:
+
+```bash
+COMPLETE=bash juliaup > /tmp/juliaup_completion.sh
+source /tmp/juliaup_completion.sh
+```
+
 
 ## Development guides
 
