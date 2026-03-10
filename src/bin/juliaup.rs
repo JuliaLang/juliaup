@@ -14,7 +14,9 @@ use juliaup::command_info::run_command_info;
 use juliaup::command_initial_setup_from_launcher::run_command_initial_setup_from_launcher;
 use juliaup::command_link::run_command_link;
 use juliaup::command_list::run_command_list;
+use juliaup::command_list_channels::run_command_list_channels;
 use juliaup::command_override::{run_command_override_status, run_command_override_unset};
+use juliaup::command_post_update::run_command_post_update;
 use juliaup::command_remove::run_command_remove;
 use juliaup::command_selfupdate::run_command_selfupdate;
 use juliaup::command_status::run_command_status;
@@ -156,6 +158,8 @@ fn main() -> Result<()> {
             #[cfg(not(feature = "selfupdate"))]
             SelfSubCmd::Uninstall {} => run_command_selfuninstall_unavailable(),
         },
+        Juliaup::ListChannels {} => run_command_list_channels(&paths),
+        Juliaup::PostUpdate {} => run_command_post_update(&paths),
         Juliaup::Completions { shell } => {
             generate_completion_for_command::<Juliaup>(shell, "juliaup")
         }
