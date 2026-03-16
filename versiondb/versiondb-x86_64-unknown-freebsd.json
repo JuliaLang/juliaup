@@ -434,6 +434,9 @@
         },
         "1.13.0-beta2+0.x64.unknown.freebsd11.1": {
             "UrlPath": "bin/freebsd/x64/1.13/julia-1.13.0-beta2-freebsd-x86_64.tar.gz"
+        },
+        "1.13.0-beta3+0.x64.unknown.freebsd11.1": {
+            "UrlPath": "bin/freebsd/x64/1.13/julia-1.13.0-beta3-freebsd-x86_64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -888,7 +891,7 @@
             "Version": "1.12.5+0.x64.unknown.freebsd11.1"
         },
         "1.13": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "1.13.0-alpha2": {
             "Version": "1.13.0-alpha2+0.x64.unknown.freebsd11.1"
@@ -908,8 +911,14 @@
         "1.13.0-beta2~x64": {
             "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
         },
+        "1.13.0-beta3": {
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
+        },
+        "1.13.0-beta3~x64": {
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
+        },
         "1.13~x64": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "1.1~x64": {
             "Version": "1.1.1+0.x64.unknown.freebsd11.1"
@@ -1410,16 +1419,16 @@
             "Version": "1.12.5+0.x64.unknown.freebsd11.1"
         },
         "alpha": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "alpha~x64": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "beta": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "beta~x64": {
-            "Version": "1.13.0-beta2+0.x64.unknown.freebsd11.1"
+            "Version": "1.13.0-beta3+0.x64.unknown.freebsd11.1"
         },
         "lts": {
             "Version": "1.10.11+0.x64.unknown.freebsd11.1"
@@ -1440,5 +1449,5 @@
             "Version": "1.12.5+0.x64.unknown.freebsd11.1"
         }
     },
-    "Version": "1.0.84"
+    "Version": "1.0.85"
 }
