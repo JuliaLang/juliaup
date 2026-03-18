@@ -679,7 +679,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@v3
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -785,7 +785,7 @@ jobs:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@v3
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -885,7 +885,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@v3
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
