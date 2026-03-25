@@ -560,6 +560,10 @@ jobs:
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-freebsd.tar.gz .
 
         cd ../..
+    - name: Generate SHA256SUMS
+      run: |
+        cd public/bin
+        sha256sum juliaup-${{ env.VERSION }}-*.tar.gz > juliaup-${{ env.VERSION }}-SHA256SUMS
     - name: Rename and move juliainstaller
       run: |
         mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin

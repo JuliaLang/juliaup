@@ -5,7 +5,9 @@ use anyhow::{Context, Result};
 #[cfg(feature = "selfupdate")]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::config_file::{load_mut_config_db, save_config_db};
-    use crate::operations::{download_extract_sans_parent, download_juliaup_version};
+    use crate::operations::{
+        download_extract_sans_parent_verified, download_juliaup_version, download_sha256sums_entry,
+    };
     use crate::utils::get_juliaserver_base_url;
     use crate::{get_juliaup_target, get_own_version};
     use anyhow::{anyhow, bail};
@@ -83,7 +85,25 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
             version, juliaup_channel
         );
 
-        download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
+        let tarball_filename = format!("juliaup-{}-{}.tar.gz", version, juliaup_target);
+        let sha256sums_url_path = format!("juliaup/bin/juliaup-{}-SHA256SUMS", version);
+        let sha256sums_url = juliaupserver_base
+            .join(&sha256sums_url_path)
+            .with_context(|| {
+                format!(
+                    "Failed to construct SHA256SUMS url from '{}' and '{}'.",
+                    juliaupserver_base, sha256sums_url_path
+                )
+            })?;
+        let expected_sha256 = download_sha256sums_entry(sha256sums_url.as_ref(), &tarball_filename)
+            .with_context(|| "Failed to obtain SHA256 checksum for the juliaup update.")?;
+
+        download_extract_sans_parent_verified(
+            new_juliaup_url.as_ref(),
+            my_own_folder,
+            0,
+            &expected_sha256,
+        )?;
         eprintln!("Updated Juliaup to version {}.", version);
     }
 

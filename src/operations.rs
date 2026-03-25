@@ -583,6 +583,111 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Downloads a `SHA256SUMS`-formatted text file and returns the hex hash for
+/// `tarball_filename`.  The expected line format is `"<hash>  <filename>"` or
+/// `"<hash> *<filename>"` (standard GNU `sha256sum` output).
+#[cfg(not(windows))]
+pub fn download_sha256sums_entry(sha256sums_url: &str, tarball_filename: &str) -> Result<String> {
+    log::debug!("Downloading SHA256SUMS from `{}`.", sha256sums_url);
+    let response = http_client()?
+        .get(sha256sums_url)
+        .send()
+        .with_context(|| format!("Failed to download SHA256SUMS from `{}`.", sha256sums_url))?;
+
+    if !response.status().is_success() {
+        bail!(
+            "Failed to download SHA256SUMS from `{}`: HTTP {}",
+            sha256sums_url,
+            response.status()
+        );
+    }
+
+    let body = response
+        .text()
+        .with_context(|| "Failed to read SHA256SUMS response body")?;
+
+    for line in body.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        // Split on the first double-space (text mode) or space-asterisk (binary mode).
+        let (hash, name) = if let Some(pair) = line.split_once("  ") {
+            (pair.0.trim(), pair.1.trim().trim_start_matches('*'))
+        } else if let Some(pair) = line.split_once(" *") {
+            (pair.0.trim(), pair.1.trim())
+        } else {
+            continue;
+        };
+
+        if name == tarball_filename {
+            if hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+                bail!(
+                    "SHA256SUMS entry for '{}' has an invalid hash '{}'",
+                    tarball_filename,
+                    hash
+                );
+            }
+            return Ok(hash.to_string());
+        }
+    }
+
+    bail!(
+        "No SHA256SUMS entry found for '{}' in `{}`",
+        tarball_filename,
+        sha256sums_url
+    )
+}
+
+/// Downloads `url` into memory, verifies the SHA-256 hash against
+/// `expected_sha256` (lower-case hex), then extracts using
+/// `unpack_sans_parent`.  Bails before touching disk if the hash mismatches.
+#[cfg(not(windows))]
+pub fn download_extract_sans_parent_verified(
+    url: &str,
+    target_path: &Path,
+    levels_to_skip: usize,
+    expected_sha256: &str,
+) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+
+    log::debug!("Downloading (with hash verification) from url `{}`.", url);
+    let response = http_client()?
+        .get(url)
+        .send()
+        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+
+    let content_length = response.content_length();
+    let pb = match content_length {
+        Some(len) => ProgressBar::new(len),
+        None => ProgressBar::new_spinner(),
+    };
+    pb.set_prefix(DOWNLOADING_PREFIX);
+    pb.set_style(bar_style());
+
+    let mut buf = Vec::with_capacity(content_length.unwrap_or(0) as usize);
+    pb.wrap_read(response)
+        .read_to_end(&mut buf)
+        .with_context(|| format!("Failed to read response from `{}`.", url))?;
+
+    let actual_sha256 = hex::encode(Sha256::digest(&buf));
+    if actual_sha256 != expected_sha256.to_ascii_lowercase() {
+        bail!(
+            "SHA256 mismatch for `{}`:\n  expected {}\n  got      {}\n\
+             The downloaded archive may have been tampered with.",
+            url,
+            expected_sha256,
+            actual_sha256
+        );
+    }
+
+    unpack_sans_parent(buf.as_slice(), target_path, levels_to_skip)
+        .with_context(|| format!("Failed to extract verified archive from `{}`.", url))?;
+
+    Ok(())
+}
+
 #[cfg(windows)]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
     let http_client = http_client()?;
