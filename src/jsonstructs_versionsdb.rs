@@ -16,6 +16,10 @@ use std::collections::HashMap;
 pub struct JuliaupVersionDBVersion {
     #[serde(rename = "UrlPath")]
     pub url_path: String,
+    /// SHA-256 hex digest of the tarball, if present in the version DB.
+    /// Absent in older DB entries generated before this field was added.
+    #[serde(rename = "Sha256", default, skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -93,7 +93,7 @@ function get_available_versions(data, platform)
         @mutate(version=VersionNumber(_.version), url_path=remove_prefix(_.url, "https://julialang-s3.julialang.org/")) |>
         @orderby(_.version) |>
         @thenby(_.triplet) |>
-        @map("$(_.version)+0.$(triplet2semverbuild(_.triplet))" => OrderedDict("UrlPath" => _.url_path)) |>
+        @map("$(_.version)+0.$(triplet2semverbuild(_.triplet))" => OrderedDict("UrlPath" => _.url_path, "Sha256" => _.sha256)) |>
         OrderedDict
 
     available_channels = Dict()

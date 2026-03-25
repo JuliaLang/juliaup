@@ -583,11 +583,36 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Downloads a `SHA256SUMS`-formatted text file and returns the hex hash for
-/// `tarball_filename`.  The expected line format is `"<hash>  <filename>"` or
+// Ed25519 public key for juliaup release signing (minisign format).
+#[cfg(not(windows))]
+const JULIAUP_MINISIGN_PUBLIC_KEY: &str = "\
+untrusted comment: juliaup release signing key\n\
+RWRGa/l9FVQv8Bp1H6w855dpvZ4MNK/r7D2KJls2pPR/zHVcGk7xwcFa\n";
+
+/// Downloads a `SHA256SUMS`-formatted text file, verifies its minisign
+/// signature against the embedded public key, and returns the hex hash for
+/// `tarball_filename`.  The signature file is fetched from `<url>.minisig`.
+/// The expected line format is `"<hash>  <filename>"` or
 /// `"<hash> *<filename>"` (standard GNU `sha256sum` output).
 #[cfg(not(windows))]
 pub fn download_sha256sums_entry(sha256sums_url: &str, tarball_filename: &str) -> Result<String> {
+    use minisign_verify::{PublicKey, Signature};
+
+    let minisig_url = format!("{}.minisig", sha256sums_url);
+
+    log::debug!("Downloading SHA256SUMS signature from `{}`.", minisig_url);
+    let minisig_body = http_client()?
+        .get(&minisig_url)
+        .send()
+        .with_context(|| {
+            format!(
+                "Failed to download SHA256SUMS signature from `{}`.",
+                minisig_url
+            )
+        })?
+        .text()
+        .with_context(|| "Failed to read SHA256SUMS signature response body")?;
+
     log::debug!("Downloading SHA256SUMS from `{}`.", sha256sums_url);
     let response = http_client()?
         .get(sha256sums_url)
@@ -602,9 +627,38 @@ pub fn download_sha256sums_entry(sha256sums_url: &str, tarball_filename: &str) -
         );
     }
 
-    let body = response
-        .text()
+    let body_bytes = response
+        .bytes()
         .with_context(|| "Failed to read SHA256SUMS response body")?;
+
+    let pk = PublicKey::from_base64(
+        JULIAUP_MINISIGN_PUBLIC_KEY
+            .lines()
+            .nth(1)
+            .unwrap_or("")
+            .trim(),
+    )
+    .with_context(|| "Failed to parse embedded juliaup signing public key")?;
+
+    let sig = Signature::decode(minisig_body.trim()).with_context(|| {
+        format!(
+            "Failed to parse SHA256SUMS signature from `{}`",
+            minisig_url
+        )
+    })?;
+
+    pk.verify(&body_bytes, &sig, false)
+        .with_context(|| {
+            format!(
+                "SHA256SUMS signature verification failed for `{}` — the file may have been tampered with",
+                sha256sums_url
+            )
+        })?;
+
+    log::debug!("SHA256SUMS signature verified OK.");
+
+    let body =
+        String::from_utf8(body_bytes.to_vec()).with_context(|| "SHA256SUMS is not valid UTF-8")?;
 
     for line in body.lines() {
         let line = line.trim();
@@ -855,7 +909,21 @@ pub fn install_version(
 
         #[cfg(not(target_os = "macos"))]
         {
-            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+            let version_entry = version_db
+                .available_versions
+                .get(fullversion)
+                .ok_or_else(|| anyhow!("Version '{}' not found in version DB.", fullversion))?;
+
+            if let Some(expected_sha256) = &version_entry.sha256 {
+                download_extract_sans_parent_verified(
+                    download_url.as_ref(),
+                    &target_path,
+                    1,
+                    expected_sha256,
+                )?;
+            } else {
+                download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+            }
         }
     }
 

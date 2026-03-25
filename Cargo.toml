@@ -77,6 +77,7 @@ reqwest = { version = "0.13", default-features = false, features = ["blocking", 
 
 [target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.31", features = ["process"] }
+minisign-verify = "0.2"
 
 [build-dependencies]
 anyhow = "1"
