@@ -53,6 +53,9 @@ pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
 /// This is used to avoid repeated HTTP requests to check server capabilities.
 static NIGHTLY_SERVER_SUPPORTS_ETAG: OnceLock<bool> = OnceLock::new();
 
+static CUSTOM_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+static CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+
 /// Checks if the nightly server supports etag headers.
 /// This is required for nightly and PR channel support because we use etags
 /// to track versions of these builds.
@@ -230,6 +233,13 @@ pub fn check_server_supports_nightlies() -> Result<bool> {
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
+        CUSTOM_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!("Using custom server '{}' (JULIAUP_SERVER).", val),
+                JuliaupMessageType::Progress,
+            );
+        });
         if val.ends_with('/') {
             val
         } else {
@@ -246,11 +256,25 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
         )
     })?;
 
+    if parsed_url.scheme() != "https" {
+        bail!("The value of JULIAUP_SERVER '{}' must use HTTPS.", base_url);
+    }
+
     Ok(parsed_url)
 }
 
 pub fn get_julianightlies_base_url() -> Result<Url> {
     let base_url = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
+        CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Using custom nightly server '{}' (JULIAUP_NIGHTLY_SERVER).",
+                    val
+                ),
+                JuliaupMessageType::Progress,
+            );
+        });
         if val.ends_with('/') {
             val
         } else {
@@ -266,6 +290,13 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
             base_url
         )
     })?;
+
+    if parsed_url.scheme() != "https" {
+        bail!(
+            "The value of JULIAUP_NIGHTLY_SERVER '{}' must use HTTPS.",
+            base_url
+        );
+    }
 
     Ok(parsed_url)
 }
