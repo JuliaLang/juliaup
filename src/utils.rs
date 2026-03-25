@@ -415,6 +415,32 @@ mod tests {
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 10, 10));
     }
+
+    #[test]
+    fn juliaup_server_rejects_http() {
+        std::env::set_var("JULIAUP_SERVER", "http://evil.example.com");
+        let result = get_juliaserver_base_url();
+        std::env::remove_var("JULIAUP_SERVER");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
+    }
+
+    #[test]
+    fn juliaup_nightly_server_rejects_http() {
+        std::env::set_var("JULIAUP_NIGHTLY_SERVER", "http://evil.example.com");
+        let result = get_julianightlies_base_url();
+        std::env::remove_var("JULIAUP_NIGHTLY_SERVER");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
+    }
+
+    #[test]
+    fn juliaup_server_accepts_https() {
+        std::env::set_var("JULIAUP_SERVER", "https://mirror.example.com");
+        let result = get_juliaserver_base_url();
+        std::env::remove_var("JULIAUP_SERVER");
+        assert!(result.is_ok());
+    }
 }
 
 // Message formatting constants and functions

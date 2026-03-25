@@ -2504,4 +2504,65 @@ mod tests {
         let _ = handle.join();
         Ok(())
     }
+
+    // unpack_sans_parent is only compiled for non-freebsd targets
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_rejects_path_traversal_dotdot() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use tar::Builder;
+
+        let tarball = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut archive = Builder::new(&mut encoder);
+                let data = b"evil";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                // Path that would traverse upward after stripping the top-level dir
+                archive.append_data(&mut header, "top/../../../evil.txt", &data[..])?;
+                archive.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dst = tempfile::TempDir::new()?;
+        let result = unpack_sans_parent(tarball.as_slice(), dst.path(), 1);
+        assert!(
+            result.is_err(),
+            "Expected extraction to fail on path traversal attempt"
+        );
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_accepts_normal_paths() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use tar::Builder;
+
+        let tarball = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut archive = Builder::new(&mut encoder);
+                let data = b"hello";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                archive.append_data(&mut header, "top/bin/julia", &data[..])?;
+                archive.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dst = tempfile::TempDir::new()?;
+        unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
+        assert!(dst.path().join("bin/julia").exists());
+        Ok(())
+    }
 }
