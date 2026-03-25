@@ -86,12 +86,18 @@ where
     let mut archive = Archive::new(tar);
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let path: PathBuf = entry
-            .path()?
-            .components()
-            .skip(levels_to_skip) // strip top-level directory
-            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
-            .collect();
+        let raw_path = entry.path()?.into_owned();
+        let mut path = PathBuf::new();
+        for component in raw_path.components().skip(levels_to_skip) {
+            if matches!(component, Normal(_)) {
+                path.push(component);
+            } else {
+                bail!(
+                    "Refusing to extract archive entry with unsafe path component in '{}'",
+                    raw_path.display()
+                );
+            }
+        }
         entry.unpack(dst.as_ref().join(path))?;
     }
     Ok(())
