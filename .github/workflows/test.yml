@@ -128,7 +128,7 @@ jobs:
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@v6
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
@@ -222,7 +222,7 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@v6
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
