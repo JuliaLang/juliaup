@@ -63,6 +63,8 @@ numeric-sort = "0.1"
 regex = "1"
 toml = "1.0"
 retry = "2"
+sha2 = "0.10"
+hex = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Threading", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams", "Management_Deployment"] }

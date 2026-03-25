@@ -229,7 +229,10 @@ pub fn main() -> Result<()> {
         config_file::JuliaupSelfConfig,
         get_juliaup_target, get_own_version,
         global_paths::get_paths,
-        operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified},
+        operations::{
+            download_extract_sans_parent_verified, download_sha256sums_entry,
+            find_shell_scripts_to_be_modified,
+        },
         utils::get_juliaserver_base_url,
     };
     use std::io::Seek;
@@ -450,7 +453,9 @@ pub fn main() -> Result<()> {
     let version = get_own_version().unwrap();
     // let version = semver::Version::parse("1.5.29").unwrap();
 
-    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
+    let tarball_filename = format!("juliaup-{}-{}.tar.gz", version, juliaup_target);
+    let download_url_path = format!("juliaup/bin/{}", tarball_filename);
+    let sha256sums_url_path = format!("juliaup/bin/juliaup-{}-SHA256SUMS", version);
 
     let new_juliaup_url = juliaupserver_base
         .join(&download_url_path)
@@ -461,7 +466,23 @@ pub fn main() -> Result<()> {
             )
         })?;
 
-    download_extract_sans_parent(new_juliaup_url.as_ref(), &juliaupselfbin, 0)?;
+    let sha256sums_url = juliaupserver_base
+        .join(&sha256sums_url_path)
+        .with_context(|| {
+            format!(
+                "Failed to construct SHA256SUMS url from '{}' and '{}'.",
+                juliaupserver_base, sha256sums_url_path
+            )
+        })?;
+    let expected_sha256 = download_sha256sums_entry(sha256sums_url.as_ref(), &tarball_filename)
+        .with_context(|| "Failed to obtain SHA256 checksum for the juliaup installer.")?;
+
+    download_extract_sans_parent_verified(
+        new_juliaup_url.as_ref(),
+        &juliaupselfbin,
+        0,
+        &expected_sha256,
+    )?;
 
     {
         let new_selfconfig_data = JuliaupSelfConfig {
