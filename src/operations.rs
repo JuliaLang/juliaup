@@ -29,8 +29,7 @@ use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(not(target_os = "freebsd"))]
-use std::path::Component::Normal;
+
 use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
@@ -82,25 +81,31 @@ where
     R: Read,
     P: AsRef<Path>,
 {
+    let dst = dst.as_ref();
     let tar = GzDecoder::new(src);
     let mut archive = Archive::new(tar);
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let raw_path = entry.path()?.into_owned();
-        let mut path = PathBuf::new();
-        for component in raw_path.components().skip(levels_to_skip) {
-            if matches!(component, Normal(_)) {
-                path.push(component);
-            } else {
-                bail!(
-                    "Refusing to extract archive entry with unsafe path component in '{}'",
-                    raw_path.display()
-                );
-            }
-        }
-        entry.unpack(dst.as_ref().join(path))?;
+    // Extract to a sibling temp dir (same filesystem as dst) so the final rename
+    // is atomic and avoids a cross-device copy. Archive::unpack uses unpack_in
+    // internally, which rejects path-traversal components (e.g. `..`).
+    let temp_dir =
+        tempfile::Builder::new().tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+    archive.unpack(temp_dir.path())?;
+    // Walk down `levels_to_skip` directory levels to reach the payload.
+    let mut source = temp_dir.path().to_path_buf();
+    for _ in 0..levels_to_skip {
+        source = std::fs::read_dir(&source)?
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+            .with_context(|| {
+                format!(
+                    "Archive contained no subdirectory to skip in '{}'",
+                    source.display()
+                )
+            })?
+            .path();
     }
-    Ok(())
+    std::fs::rename(&source, dst)
+        .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))
 }
 
 // As of this writing, the Rust `tar` library does not fully implement reading the
