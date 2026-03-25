@@ -2507,27 +2507,44 @@ mod tests {
 
     // unpack_sans_parent is only compiled for non-freebsd targets
     #[cfg(not(target_os = "freebsd"))]
-    #[test]
-    fn unpack_rejects_path_traversal_dotdot() -> Result<()> {
+    /// Builds a minimal `.tar.gz` in memory with a single entry whose path is given
+    /// as raw bytes, bypassing the `tar::Builder` safety checks so we can place
+    /// dangerous components (e.g. `..`) directly in the archive header.
+    fn make_tar_gz_with_raw_path(path: &[u8]) -> Vec<u8> {
         use flate2::write::GzEncoder;
         use flate2::Compression;
-        use tar::Builder;
+        use std::io::Write;
 
-        let tarball = {
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            {
-                let mut archive = Builder::new(&mut encoder);
-                let data = b"evil";
-                let mut header = tar::Header::new_gnu();
-                header.set_size(data.len() as u64);
-                header.set_mode(0o644);
-                header.set_cksum();
-                // Path that would traverse upward after stripping the top-level dir
-                archive.append_data(&mut header, "top/../../../evil.txt", &data[..])?;
-                archive.finish()?;
-            }
-            encoder.finish()?
-        };
+        let mut header = [0u8; 512];
+        let path_len = path.len().min(100);
+        header[..path_len].copy_from_slice(&path[..path_len]);
+        header[100..108].copy_from_slice(b"0000644\0"); // mode
+        header[108..116].copy_from_slice(b"0000000\0"); // uid
+        header[116..124].copy_from_slice(b"0000000\0"); // gid
+        header[124..136].copy_from_slice(b"00000000000\0"); // size = 0
+        header[136..148].copy_from_slice(b"00000000000\0"); // mtime
+        for b in &mut header[148..156] {
+            *b = b' '; // checksum placeholder
+        }
+        header[156] = b'0'; // regular file
+        let sum: u32 = header.iter().map(|&b| b as u32).sum();
+        let cksum = format!("{:06o}\0 ", sum);
+        header[148..156].copy_from_slice(cksum.as_bytes());
+
+        let mut tar_bytes = header.to_vec();
+        tar_bytes.extend([0u8; 1024]); // end-of-archive
+
+        let mut enc = GzEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(&tar_bytes).unwrap();
+        enc.finish().unwrap()
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_rejects_path_traversal_dotdot() -> Result<()> {
+        // Use raw tar bytes so the ParentDir component reaches our code rather
+        // than being caught by the tar::Builder's own safety check.
+        let tarball = make_tar_gz_with_raw_path(b"top/../evil.txt");
 
         let dst = tempfile::TempDir::new()?;
         let result = unpack_sans_parent(tarball.as_slice(), dst.path(), 1);
@@ -2549,6 +2566,13 @@ mod tests {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             {
                 let mut archive = Builder::new(&mut encoder);
+                // Directory entry must come first so entry.unpack() can create the file
+                let mut dir_header = tar::Header::new_gnu();
+                dir_header.set_entry_type(tar::EntryType::Directory);
+                dir_header.set_mode(0o755);
+                dir_header.set_size(0);
+                dir_header.set_cksum();
+                archive.append_data(&mut dir_header, "top/bin", std::io::empty())?;
                 let data = b"hello";
                 let mut header = tar::Header::new_gnu();
                 header.set_size(data.len() as u64);
