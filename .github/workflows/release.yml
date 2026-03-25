@@ -572,14 +572,11 @@ jobs:
         mv target/installer/aarch64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-musl
         mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
     - name: Upload to S3
-      uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-      with:
-        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
+      run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'public'
 
   package-unix-portable:
     needs: [build-juliaup,test-juliaup]
@@ -1159,23 +1156,17 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+        run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --cache-control public,max-age=0 --metadata-directive REPLACE
+        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=0 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'publicscript'
 
   deploy-releasepreview-channel-s3:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1204,23 +1195,17 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --acl public-read --cache-control public,max-age=300 --metadata-directive REPLACE
+        run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=300 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --cache-control public,max-age=300 --metadata-directive REPLACE
+        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=300 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-s3:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1259,23 +1244,17 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
+        run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
-        with:
-          args: --cache-control public,max-age=3600 --metadata-directive REPLACE
+        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=3600 --metadata-directive REPLACE
         env:
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: 'publicscript'
 
   deploy-release-channel-github:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
