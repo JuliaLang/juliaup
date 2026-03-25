@@ -501,6 +501,8 @@ jobs:
       with:
         name: juliainstaller-x86_64-unknown-freebsd
         path: target/installer/x86_64-unknown-freebsd
+    - name: Install minisign
+      run: sudo apt-get install -y minisign
     - name: Set permissions
       run: |
         chmod a+rx target/x86_64-unknown-linux-gnu/juliaup
@@ -564,6 +566,13 @@ jobs:
       run: |
         cd public/bin
         sha256sum juliaup-${{ env.VERSION }}-*.tar.gz > juliaup-${{ env.VERSION }}-SHA256SUMS
+    - name: Sign SHA256SUMS with minisign
+      env:
+        MINISIGN_SECRET_KEY: ${{ secrets.JULIAUP_MINISIGN_SECRET_KEY }}
+      run: |
+        echo "$MINISIGN_SECRET_KEY" > /tmp/juliaup-signing.key
+        minisign -S -s /tmp/juliaup-signing.key -m public/bin/juliaup-${{ env.VERSION }}-SHA256SUMS
+        rm -f /tmp/juliaup-signing.key
     - name: Rename and move juliainstaller
       run: |
         mv target/installer/x86_64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-x86_64-apple-darwin
