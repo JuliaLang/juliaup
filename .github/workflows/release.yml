@@ -215,22 +215,22 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@v3
+    - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v4
+      uses: clechasseur/rs-cargo@2a8aa939121c79dd2b4305ed6bf83bc400ce1036 # v4.0.2
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -249,7 +249,7 @@ jobs:
         large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@492b0c80085400348c599edace11141a4ee73524 # v0.32.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -270,7 +270,7 @@ jobs:
           df -h
           export CARGO_INCREMENTAL=0
           cargo build --verbose --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: juliaup-${{matrix.label}}
         path: |
@@ -280,7 +280,7 @@ jobs:
           target/${{matrix.target}}/release/juliaup.exe
           target/${{matrix.target}}/release/julialauncher.exe
           target/${{matrix.target}}/release/julia.exe
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       if: ${{ contains(matrix.bins, 'juliainstaller') }}
       with:
         name: juliainstaller-${{matrix.label}}
@@ -350,22 +350,22 @@ jobs:
             rustflags:
             toolchain: stable-i686-gnu
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@v3
+    - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@v4
+      uses: clechasseur/rs-cargo@2a8aa939121c79dd2b4305ed6bf83bc400ce1036 # v4.0.2
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -384,7 +384,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@492b0c80085400348c599edace11141a4ee73524 # v0.32.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -412,92 +412,92 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download Linux x64 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-unknown-linux-gnu
         path: target/x86_64-unknown-linux-gnu
     - name: Download Linux x64 musl juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-unknown-linux-musl
         path: target/x86_64-unknown-linux-musl
     - name: Download Linux x86 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-unknown-linux-gnu
         path: target/i686-unknown-linux-gnu
     - name: Download Linux x86 musl juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-unknown-linux-musl
         path: target/i686-unknown-linux-musl
     - name: Download MacOS x64 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-apple-darwin
         path: target/x86_64-apple-darwin
     - name: Download MacOS aarch64 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-aarch64-apple-darwin
         path: target/aarch64-apple-darwin
     - name: Download Linux aarch64 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-aarch64-unknown-linux-gnu
         path: target/aarch64-unknown-linux-gnu
     - name: Download Linux aarch64 musl juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-aarch64-unknown-linux-musl
         path: target/aarch64-unknown-linux-musl
     - name: Download FreeBSD x64 juliaup artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-unknown-freebsd
         path: target/x86_64-unknown-freebsd
     - name: Download installer artifacts for x86_64-apple-darwin
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-x86_64-apple-darwin
         path: target/installer/x86_64-apple-darwin
     - name: Download installer artifacts for x86_64-unknown-linux-gnu
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-x86_64-unknown-linux-gnu
         path: target/installer/x86_64-unknown-linux-gnu
     - name: Download installer artifacts for x86_64-unknown-linux-musl
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-x86_64-unknown-linux-musl
         path: target/installer/x86_64-unknown-linux-musl
     - name: Download installer artifacts for i686-unknown-linux-gnu
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-i686-unknown-linux-gnu
         path: target/installer/i686-unknown-linux-gnu
     - name: Download installer artifacts for i686-unknown-linux-musl
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-i686-unknown-linux-musl
         path: target/installer/i686-unknown-linux-musl
     - name: Download installer artifacts for aarch64-unknown-linux-gnu
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-aarch64-unknown-linux-gnu
         path: target/installer/aarch64-unknown-linux-gnu
     - name: Download installer artifacts for aarch64-unknown-linux-musl
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-aarch64-unknown-linux-musl
         path: target/installer/aarch64-unknown-linux-musl
     - name: Download installer artifacts for aarch64-apple-darwin
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/installer/aarch64-apple-darwin
     - name: Download installer artifacts for x86_64-unknown-freebsd
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliainstaller-x86_64-unknown-freebsd
         path: target/installer/x86_64-unknown-freebsd
@@ -572,7 +572,7 @@ jobs:
         mv target/installer/aarch64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-musl
         mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
     - name: Upload to S3
-      uses: jakejarvis/s3-sync-action@master
+      uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
       with:
         args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
       env:
@@ -588,27 +588,27 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download x86_64-apple-darwin-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-apple-darwin-portable
         path: target/x86_64-apple-darwin-portable
     - name: Download x86_64-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-unknown-linux-musl-portable
         path: target/x86_64-unknown-linux-musl-portable
     - name: Download i686-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-unknown-linux-musl-portable
         path: target/i686-unknown-linux-musl-portable
     - name: Download aarch64-unknown-linux-musl-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-aarch64-unknown-linux-musl-portable
         path: target/aarch64-unknown-linux-musl-portable
     - name: Download aarch64-apple-darwin-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-aarch64-apple-darwin-portable
         path: target/aarch64-apple-darwin-portable
@@ -650,7 +650,7 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-apple-darwin-portable.tar.gz .
 
         cd ../..
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: portable-mac-linux
         path: public/*.*
@@ -662,12 +662,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download x86_64-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-pc-windows-gnu-portable
         path: target/x86_64-pc-windows-gnu-portable
     - name: Download i686-pc-windows-gnu-portable artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-pc-windows-gnu-portable
         path: target/i686-pc-windows-gnu-portable
@@ -679,13 +679,13 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Windows x64 files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -696,7 +696,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Windows x86 files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -718,7 +718,7 @@ jobs:
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-i686-pc-windows-gnu-portable.tar.gz .
 
         cd ../..
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: portable-windows
         path: public/*.*
@@ -737,8 +737,8 @@ jobs:
     #     RMDIR "%extractPath%" /S /Q
     #     7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
     #     pwsh --version
-    - uses: actions/checkout@v6
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
@@ -765,33 +765,33 @@ jobs:
         Invoke-WebRequest "https://julialang-s3.julialang.org/$x86DownloadUrl" -OutFile "target\bundledjulia\downloads\$x86Filename"
         tar -xvzf "target\bundledjulia\downloads\$x86Filename" -C target\bundledjulia\extracted\x86 --strip-components=1
     - name: Download x86 Juliaup Windows Store artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-pc-windows-msvc-windowsstore
         path: target\windowsstore\i686-pc-windows-msvc\release
     - name: Download x64 Juliaup Windows Store artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsstore
         path: target\windowsstore\x86_64-pc-windows-msvc\release
     - name: Download x86 Juliaup Windows AppInstaller artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\i686-pc-windows-msvc\release
     - name: Download x64 Juliaup Windows AppInstaller artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Store binary files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -803,7 +803,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Appinstaller binary files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -819,7 +819,7 @@ jobs:
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -843,11 +843,11 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: storepackage
         path: storepackage\*.*
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: winappinstaller
         path: target\msix\winappinstaller\Julia.appinstaller
@@ -858,18 +858,18 @@ jobs:
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - name: Install Wix
       run: dotnet tool install --global wix --version 4.0.4
     - name: Install Wix UI extensions
       run: wix extension add -g WixToolset.UI.wixext/4.0.4
     - name: Download x86 Juliaup Windows MSI artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-i686-pc-windows-gnu-msi
         path: target\msi\i686-pc-windows-gnu\release
     - name: Download x64 Juliaup Windows MSI artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: juliaup-x86_64-pc-windows-gnu-msi
         path: target\msi\x86_64-pc-windows-gnu\release
@@ -885,13 +885,13 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@v2
+      uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign x64 binary files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -902,7 +902,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign x86 binary files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -917,7 +917,7 @@ jobs:
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
-      uses: azure/trusted-signing-action@v1.1.0
+      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -927,7 +927,7 @@ jobs:
         file-digest: SHA256
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: msiinstallers
         path: target\msi\Julia*.msi
@@ -948,7 +948,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Release
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: true
@@ -959,16 +959,16 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: portable-mac-linux
         path: public
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: portable-windows
         path: public
     - name: Release
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: "public/*.*"
@@ -992,7 +992,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: storepackage
     - name: Authenticate with store
@@ -1025,7 +1025,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: storepackage
     - name: Authenticate with store
@@ -1058,7 +1058,7 @@ jobs:
     #     pwsh --version
     - name: Install StoreBroker
       run: Install-Module -Name StoreBroker -Force
-    - uses: actions/download-artifact@v8
+    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: storepackage
     - name: Authenticate with store
@@ -1082,7 +1082,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Update Homebrew formula
-      uses: dawidd6/action-homebrew-bump-formula@v7
+      uses: dawidd6/action-homebrew-bump-formula@1446dca236b0440c6f02723a3f14f13be2c04ab0 # v7
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup
@@ -1112,7 +1112,7 @@ jobs:
         env:
           GH_REF: ${{ github.ref }}
       - name: Update .SRCINFO and checksum
-        uses: heyhusen/archlinux-package-action@v3.0.0
+        uses: heyhusen/archlinux-package-action@c9f94059ccbebe8710d31d582f33ef4e84fe575c # v3.0.0
         with:
           flags: ''
           namcap: false
@@ -1134,7 +1134,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create output dirs
         run: |
           mkdir public
@@ -1147,7 +1147,7 @@ jobs:
           echo "$VERSION" > public/DEVCHANNELVERSION
         env:
           GH_REF: ${{ github.ref }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: winappinstaller
           path: publicscript
@@ -1159,7 +1159,7 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
         env:
@@ -1168,7 +1168,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --cache-control public,max-age=0 --metadata-directive REPLACE
         env:
@@ -1183,7 +1183,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create output dirs
         run: |
           mkdir public
@@ -1204,7 +1204,7 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --acl public-read --cache-control public,max-age=300 --metadata-directive REPLACE
         env:
@@ -1213,7 +1213,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --cache-control public,max-age=300 --metadata-directive REPLACE
         env:
@@ -1228,12 +1228,12 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create output dirs
         run: |
           mkdir public
           mkdir publicscript
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: msiinstallers
           path: publicscript
@@ -1259,7 +1259,7 @@ jobs:
         env:
           VERSION: ${{ env.VERSION }}
       - name: Upload to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
         env:
@@ -1268,7 +1268,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SOURCE_DIR: 'public'
       - name: Upload install script to S3
-        uses: jakejarvis/s3-sync-action@master
+        uses: jakejarvis/s3-sync-action@7ed8b112447abb09f1da74f3466e4194fc7a6311 # master
         with:
           args: --cache-control public,max-age=3600 --metadata-directive REPLACE
         env:
@@ -1284,7 +1284,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Release
-      uses: ncipollo/release-action@v1
+      uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         prerelease: false
@@ -1297,8 +1297,8 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       - name: Publish to creates.io
         run: cargo publish
         env:

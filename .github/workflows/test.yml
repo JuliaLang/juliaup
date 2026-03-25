@@ -128,19 +128,19 @@ jobs:
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       with:
         toolchain: stable
         target: ${{matrix.target}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@v2
+      uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
       with:
         tool: cross
     - name: Check build
-      uses: clechasseur/rs-cargo@v4
+      uses: clechasseur/rs-cargo@2a8aa939121c79dd2b4305ed6bf83bc400ce1036 # v4.0.2
       with:
         command: check
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -222,15 +222,15 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@v3
+    - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
@@ -252,7 +252,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@492b0c80085400348c599edace11141a4ee73524 # v0.32.0
       with:
         operating_system: freebsd
         version: '13.4'
