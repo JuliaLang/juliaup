@@ -393,6 +393,10 @@ pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Env-var mutation is process-global; serialise tests that set/remove it.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_parse_versionstring() {
@@ -418,6 +422,7 @@ mod tests {
 
     #[test]
     fn juliaup_server_rejects_http() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("JULIAUP_SERVER", "http://evil.example.com");
         let result = get_juliaserver_base_url();
         std::env::remove_var("JULIAUP_SERVER");
@@ -427,6 +432,7 @@ mod tests {
 
     #[test]
     fn juliaup_nightly_server_rejects_http() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("JULIAUP_NIGHTLY_SERVER", "http://evil.example.com");
         let result = get_julianightlies_base_url();
         std::env::remove_var("JULIAUP_NIGHTLY_SERVER");
@@ -436,6 +442,7 @@ mod tests {
 
     #[test]
     fn juliaup_server_accepts_https() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("JULIAUP_SERVER", "https://mirror.example.com");
         let result = get_juliaserver_base_url();
         std::env::remove_var("JULIAUP_SERVER");
