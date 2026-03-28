@@ -104,6 +104,10 @@ where
             })?
             .path();
     }
+    if dst.exists() {
+        std::fs::remove_dir_all(dst)
+            .with_context(|| format!("Failed to remove existing directory '{}'", dst.display()))?;
+    }
     std::fs::rename(&source, dst)
         .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))
 }

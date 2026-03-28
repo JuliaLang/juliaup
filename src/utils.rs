@@ -232,21 +232,15 @@ pub fn check_server_supports_nightlies() -> Result<bool> {
 }
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
-        CUSTOM_SERVER_WARNING_SHOWN.get_or_init(|| {
-            print_juliaup_style(
-                "Info",
-                &format!("Using custom server '{}' (JULIAUP_SERVER).", val),
-                JuliaupMessageType::Progress,
-            );
-        });
-        if val.ends_with('/') {
+    let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
+        let url = if val.ends_with('/') {
             val
         } else {
             format!("{}/", val)
-        }
+        };
+        (url, true)
     } else {
-        "https://julialang-s3.julialang.org".to_string()
+        ("https://julialang-s3.julialang.org".to_string(), false)
     };
 
     let parsed_url = Url::parse(&base_url).with_context(|| {
@@ -260,28 +254,32 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
         bail!("The value of JULIAUP_SERVER '{}' must use HTTPS.", base_url);
     }
 
+    if is_custom {
+        CUSTOM_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!("Using custom server '{}' (JULIAUP_SERVER).", parsed_url),
+                JuliaupMessageType::Progress,
+            );
+        });
+    }
+
     Ok(parsed_url)
 }
 
 pub fn get_julianightlies_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
-        CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN.get_or_init(|| {
-            print_juliaup_style(
-                "Info",
-                &format!(
-                    "Using custom nightly server '{}' (JULIAUP_NIGHTLY_SERVER).",
-                    val
-                ),
-                JuliaupMessageType::Progress,
-            );
-        });
-        if val.ends_with('/') {
+    let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
+        let url = if val.ends_with('/') {
             val
         } else {
             format!("{}/", val)
-        }
+        };
+        (url, true)
     } else {
-        "https://julialangnightlies-s3.julialang.org".to_string()
+        (
+            "https://julialangnightlies-s3.julialang.org".to_string(),
+            false,
+        )
     };
 
     let parsed_url = Url::parse(&base_url).with_context(|| {
@@ -296,6 +294,19 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
             "The value of JULIAUP_NIGHTLY_SERVER '{}' must use HTTPS.",
             base_url
         );
+    }
+
+    if is_custom {
+        CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Using custom nightly server '{}' (JULIAUP_NIGHTLY_SERVER).",
+                    parsed_url
+                ),
+                JuliaupMessageType::Progress,
+            );
+        });
     }
 
     Ok(parsed_url)
