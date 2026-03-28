@@ -240,3 +240,36 @@ fn end_to_end_manifest_selection() {
         .success()
         .stdout("1.8.2");
 }
+
+// https://github.com/JuliaLang/juliaup/issues/1464
+// If "1.8" is installed (providing Julia 1.8.5), a manifest requesting "1.8.5"
+// should reuse the already-installed version without prompting to install channel "1.8.5".
+#[test]
+fn manifest_reuses_version_from_other_channel() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8");
+
+    // Enable manifest version detection (defaults to false)
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+
+    let project_dir = env.depot_path().join("manifest_reuse_project");
+    write_project(&project_dir, "1.8.5", None);
+
+    env.julia()
+        .arg(format!(
+            "--project={}",
+            project_dir.as_os_str().to_string_lossy()
+        ))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5")
+        .stderr("");
+}
