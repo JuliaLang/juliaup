@@ -105,11 +105,44 @@ where
             .path();
     }
     if dst.exists() {
-        std::fs::remove_dir_all(dst)
-            .with_context(|| format!("Failed to remove existing directory '{}'", dst.display()))?;
+        // Move the existing installation aside so we can restore it on failure.
+        let backup = tempfile::Builder::new()
+            .prefix(".juliaup-backup-")
+            .tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+        let backup_path = backup.path().join("old");
+        std::fs::rename(dst, &backup_path).with_context(|| {
+            format!(
+                "Failed to back up existing directory '{}' before update.",
+                dst.display()
+            )
+        })?;
+
+        if let Err(e) = std::fs::rename(&source, dst) {
+            // Restore the previous installation.
+            if let Err(restore_err) = std::fs::rename(&backup_path, dst) {
+                bail!(
+                    "Failed to install to '{}': {:#}. \
+                     Additionally, restoring the previous installation failed: {:#}. \
+                     A backup may remain at '{}'.",
+                    dst.display(),
+                    e,
+                    restore_err,
+                    backup_path.display()
+                );
+            }
+            return Err(e).with_context(|| {
+                format!(
+                    "Failed to move extracted archive to '{}'. Previous installation has been restored.",
+                    dst.display()
+                )
+            });
+        }
+        // Success — backup is cleaned up automatically when `backup` is dropped.
+    } else {
+        std::fs::rename(&source, dst)
+            .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))?;
     }
-    std::fs::rename(&source, dst)
-        .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))
+    Ok(())
 }
 
 // As of this writing, the Rust `tar` library does not fully implement reading the
