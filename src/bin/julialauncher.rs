@@ -289,16 +289,11 @@ fn check_channel_uptodate(
     current_version: &str,
     versions_db: &JuliaupVersionDB,
 ) -> Result<()> {
-    let latest_version = &versions_db
-        .available_channels
-        .get(channel)
-        .ok_or_else(|| UserError {
-            msg: format!(
-                "The channel `{}` does not exist in the versions database.",
-                channel
-            ),
-        })?
-        .version;
+    let Some(channel_info) = versions_db.available_channels.get(channel) else {
+        // Channel not in versions DB (e.g. from a custom depot), skip the update check
+        return Ok(());
+    };
+    let latest_version = &channel_info.version;
 
     if latest_version != current_version {
         print_juliaup_style(
