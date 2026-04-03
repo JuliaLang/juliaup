@@ -13,7 +13,7 @@ pub enum CompletionShell {
 }
 
 #[derive(Parser)]
-#[clap(name = "Juliaup", version)]
+#[clap(name = "juliaup", version)]
 #[command(
     styles = cli_styles::get_styles(),
     after_help = "To launch a specific Julia version, use `julia +{channel}` e.g. `julia +1.6`.
