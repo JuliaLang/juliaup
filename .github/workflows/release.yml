@@ -682,7 +682,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Windows x64 files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -693,7 +693,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Windows x86 files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -788,7 +788,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Store binary files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -800,7 +800,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Appinstaller binary files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -816,7 +816,7 @@ jobs:
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -888,7 +888,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign x64 binary files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -899,7 +899,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign x86 binary files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -914,7 +914,7 @@ jobs:
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
-      uses: azure/trusted-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
