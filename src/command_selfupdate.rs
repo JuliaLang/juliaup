@@ -1,6 +1,42 @@
 use crate::global_paths::GlobalPaths;
 use crate::operations::update_version_db;
+#[cfg(feature = "selfupdate")]
+use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use anyhow::{Context, Result};
+
+#[cfg(feature = "selfupdate")]
+struct UpdateNotification {
+    id: &'static str,
+    message: &'static str,
+}
+
+#[cfg(feature = "selfupdate")]
+static NOTIFICATIONS: &[UpdateNotification] = &[
+    UpdateNotification {
+        id: "v1.20.0-manifest-detect",
+        message: "Note: As of juliaup v1.20.0 launching julia into a specific environment will automatically detect if a manifest exists and launch the julia version that the manifest was resolved by. Disable this via `juliaup config manifestversiondetect false`",
+    },
+];
+
+#[cfg(feature = "selfupdate")]
+fn display_update_notification(old_version: &str, new_version: &str) {
+    print_juliaup_style(
+        "Updated",
+        &format!(
+            "juliaup to {}: https://github.com/JuliaLang/juliaup/releases/tag/v{}",
+            new_version, new_version
+        ),
+        JuliaupMessageType::Success,
+    );
+}
+
+#[cfg(feature = "selfupdate")]
+fn get_notifications_to_show(shown_notifications: &[String]) -> Vec<&'static UpdateNotification> {
+    NOTIFICATIONS
+        .iter()
+        .filter(|notif| !shown_notifications.contains(&notif.id.to_string()))
+        .collect()
+}
 
 #[cfg(feature = "selfupdate")]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
@@ -46,9 +82,18 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
+    let old_version = get_own_version().unwrap();
+    let is_upgrade = version != old_version;
+    let should_show_notification = is_upgrade
+        && config_file
+            .self_data
+            .last_update_notification_version
+            .as_ref()
+            .map_or(true, |last_notified| last_notified != &version);
+
     save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
 
-    if version == get_own_version().unwrap() {
+    if version == old_version {
         eprintln!(
             "Juliaup unchanged on channel '{}' - {}",
             juliaup_channel, version
@@ -85,6 +130,37 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
         eprintln!("Updated Juliaup to version {}.", version);
+
+        if should_show_notification {
+            display_update_notification(&old_version, &version);
+
+            let mut config_file = load_mut_config_db(paths)
+                .with_context(|| "Failed to load configuration db for notification update.")?;
+
+            // Get notifications that should be shown for this upgrade
+            let notifications_to_show =
+                get_notifications_to_show(&config_file.self_data.shown_notifications);
+
+            // Display custom notifications
+            if !notifications_to_show.is_empty() {
+                for notif in &notifications_to_show {
+                    eprintln!("{}", notif.message);
+                    eprintln!();
+                }
+
+                // Mark these notifications as shown
+                for notif in notifications_to_show {
+                    config_file
+                        .self_data
+                        .shown_notifications
+                        .push(notif.id.to_string());
+                }
+            }
+
+            config_file.self_data.last_update_notification_version = Some(version.clone());
+            save_config_db(&mut config_file)
+                .with_context(|| "Failed to save notification version.")?;
+        }
     }
 
     Ok(())
