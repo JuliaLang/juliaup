@@ -250,7 +250,11 @@ impl App {
         self.busy = true;
         self.status = None;
         self.current_op = Some(op_label(&op));
-        let _ = self.op_tx.try_send((op, self.paths.clone()));
+        if self.op_tx.try_send((op, self.paths.clone())).is_err() {
+            self.status = Some(("Internal error: operation channel full".to_string(), true));
+            self.busy = false;
+            self.current_op = None;
+        }
     }
 
     fn poll(&mut self) {
@@ -278,7 +282,14 @@ impl App {
                     self.status = Some((m, false));
                     self.current_op = Some("Reloading…".to_string());
                     self.busy = true;
-                    let _ = self.op_tx.try_send((Op::Reload, self.paths.clone()));
+                    if self
+                        .op_tx
+                        .try_send((Op::Reload, self.paths.clone()))
+                        .is_err()
+                    {
+                        self.busy = false;
+                        self.current_op = None;
+                    }
                 }
                 Msg::Err(m) => {
                     self.log.push(LogEntry {
@@ -508,13 +519,15 @@ impl eframe::App for App {
                             .button(RichText::new("Launch").color(Color32::from_rgb(80, 190, 100)))
                             .clicked()
                         {
-                            launch_julia(
+                            if let Err(e) = launch_julia(
                                 &ch,
                                 &self.terminal_app,
                                 &self.custom_launch_project,
                                 &self.custom_launch_args,
                                 &self.custom_launch_env,
-                            );
+                            ) {
+                                self.status = Some((e, true));
+                            }
                             self.custom_launch_channel = None;
                         }
                         if ui.button("Cancel").clicked() {
@@ -864,7 +877,9 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         app.tab = Tab::Available;
     }
     if let Some(ch) = do_launch {
-        launch_julia(&ch, &app.terminal_app, "", "", "");
+        if let Err(e) = launch_julia(&ch, &app.terminal_app, "", "", "") {
+            app.status = Some((e, true));
+        }
     }
     if let Some(ch) = set_def {
         app.send(Op::SetDefault(ch));
@@ -1018,7 +1033,9 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         });
 
     if let Some(ch) = do_launch {
-        launch_julia(&ch, &app.terminal_app, "", "", "");
+        if let Err(e) = launch_julia(&ch, &app.terminal_app, "", "", "") {
+            app.status = Some((e, true));
+        }
     }
     if let Some(ch) = set_def {
         app.send(Op::SetDefault(ch));
@@ -1886,7 +1903,7 @@ fn launch_julia(
     project: &str,
     extra_args: &str,
     env_vars: &str,
-) {
+) -> Result<(), String> {
     let full_cmd = build_launch_cmd(channel, project, extra_args, env_vars);
 
     // Escape for embedding inside AppleScript double-quoted strings
@@ -1927,26 +1944,29 @@ fn launch_julia(
                      end tell"
                 )
             };
-            let _ = std::process::Command::new("osascript")
+            return std::process::Command::new("osascript")
                 .args(["-e", &script])
-                .spawn();
-            return;
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to launch via {app_name}: {e}"));
         }
 
         #[cfg(target_os = "windows")]
         {
-            let _ = std::process::Command::new(term)
+            return std::process::Command::new(term)
                 .args(["cmd", "/k", &full_cmd])
-                .spawn();
-            return;
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to launch {term}: {e}"));
         }
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
-            let _ = std::process::Command::new(term)
+            return std::process::Command::new(term)
                 .args(["-e", "sh", "-c", &full_cmd])
-                .spawn();
-            return;
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| format!("Failed to launch {term}: {e}"));
         }
     }
 
@@ -1956,9 +1976,11 @@ fn launch_julia(
             "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
             full_cmd_as
         );
-        let _ = std::process::Command::new("osascript")
+        std::process::Command::new("osascript")
             .args(["-e", &script])
-            .spawn();
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to launch Terminal: {e}"))
     }
 
     #[cfg(target_os = "windows")]
@@ -1967,11 +1989,14 @@ fn launch_julia(
         let wt = std::process::Command::new("wt")
             .args(["cmd", "/k", &full_cmd])
             .spawn();
-        if wt.is_err() {
-            let _ = std::process::Command::new("cmd")
-                .args(["/c", "start", "cmd", "/k", &full_cmd])
-                .spawn();
+        if wt.is_ok() {
+            return Ok(());
         }
+        return std::process::Command::new("cmd")
+            .args(["/c", "start", "cmd", "/k", &full_cmd])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to launch terminal: {e}"));
     }
 
     #[cfg(target_os = "linux")]
@@ -1990,12 +2015,14 @@ fn launch_julia(
             }
             cmd.arg("sh").arg("-c").arg(&full_cmd);
             if cmd.spawn().is_ok() {
-                return;
+                return Ok(());
             }
         }
-        let _ = std::process::Command::new("sh")
+        return std::process::Command::new("sh")
             .args(["-c", &full_cmd])
-            .spawn();
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Could not find a terminal emulator: {e}"));
     }
 }
 
@@ -2030,7 +2057,9 @@ fn load_terminal_pref(paths: &GlobalPaths) -> String {
 }
 
 fn save_terminal_pref(paths: &GlobalPaths, value: &str) {
-    let _ = std::fs::write(gui_prefs_path(paths), value.trim());
+    if let Err(e) = std::fs::write(gui_prefs_path(paths), value.trim()) {
+        eprintln!("Warning: could not save terminal preference: {e}");
+    }
 }
 
 fn load_view_pref(paths: &GlobalPaths) -> InstalledView {
@@ -2048,7 +2077,9 @@ fn save_view_pref(paths: &GlobalPaths, view: InstalledView) {
         InstalledView::Tile => "tile",
         InstalledView::List => "list",
     };
-    let _ = std::fs::write(paths.juliauphome.join("juliaupgui_viewmode"), v);
+    if let Err(e) = std::fs::write(paths.juliauphome.join("juliaupgui_viewmode"), v) {
+        eprintln!("Warning: could not save view preference: {e}");
+    }
 }
 
 fn load_theme_pref(paths: &GlobalPaths) -> ThemeMode {
@@ -2068,7 +2099,9 @@ fn save_theme_pref(paths: &GlobalPaths, mode: ThemeMode) {
         ThemeMode::Dark => "dark",
         ThemeMode::Light => "light",
     };
-    let _ = std::fs::write(paths.juliauphome.join("juliaupgui_theme"), v);
+    if let Err(e) = std::fs::write(paths.juliauphome.join("juliaupgui_theme"), v) {
+        eprintln!("Warning: could not save theme preference: {e}");
+    }
 }
 
 fn load_bool_pref(paths: &GlobalPaths, name: &str) -> bool {
@@ -2079,10 +2112,12 @@ fn load_bool_pref(paths: &GlobalPaths, name: &str) -> bool {
 }
 
 fn save_bool_pref(paths: &GlobalPaths, name: &str, val: bool) {
-    let _ = std::fs::write(
+    if let Err(e) = std::fs::write(
         paths.juliauphome.join(name),
         if val { "true" } else { "false" },
-    );
+    ) {
+        eprintln!("Warning: could not save preference '{name}': {e}");
+    }
 }
 
 // ── theme-aware colors ───────────────────────────────────────────────────────
