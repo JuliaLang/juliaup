@@ -1593,7 +1593,7 @@ fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
     // csh specific syntax for path extension
     let content = formatdoc!(
         "
-            set path = ($path {})
+            set path = ({} $path)
         ",
         path_str
     );
