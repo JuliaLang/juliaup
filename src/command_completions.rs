@@ -58,7 +58,7 @@ compdef _julia_channel julia
         }
         CompletionShell::Fish => {
             r#"
-complete -c julia -a '(juliaup _list-channels 2>/dev/null | string replace -r "^" "+")' -d 'Julia channel'
+complete -c julia -n '__fish_is_first_token' -a '(juliaup _list-channels 2>/dev/null | string replace -r "^" "+")' -d 'Julia channel'
 "#
         }
         CompletionShell::PowerShell => {
@@ -131,7 +131,7 @@ pub fn write_completion_files<T: CommandFactory>(juliauphome: &Path, app_name: &
 
     let shells = [
         (CompletionShell::Bash, "bash.sh"),
-        (CompletionShell::Zsh, "zsh.sh"),
+        (CompletionShell::Zsh, "zsh.zsh"),
         (CompletionShell::Fish, "fish.fish"),
         (CompletionShell::PowerShell, "powershell.ps1"),
         (CompletionShell::Elvish, "elvish.elv"),

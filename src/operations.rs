@@ -1674,11 +1674,15 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
 }
 
 fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
-    let shell = if file_name == ".zshrc" { "zsh" } else { "bash" };
+    let (shell, ext) = if file_name == ".zshrc" {
+        ("zsh", "zsh")
+    } else {
+        ("bash", "sh")
+    };
     let content = formatdoc!(
         r#"
             # Tab completion for juliaup and julia channel selection
-            [ -f "{juliauphome}/completions/{shell}.sh" ] && source "{juliauphome}/completions/{shell}.sh"
+            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
         "#,
     );
     buf.extend_from_slice(content.as_bytes());
@@ -1750,13 +1754,17 @@ fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -
         }
     };
 
-    file.rewind().unwrap();
+    file.rewind()
+        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
 
-    file.set_len(0).unwrap();
+    file.set_len(0)
+        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
 
-    file.write_all(&buffer).unwrap();
+    file.write_all(&buffer)
+        .with_context(|| format!("Failed to write file {}.", path.display()))?;
 
-    file.sync_all().unwrap();
+    file.sync_all()
+        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
 
     Ok(())
 }

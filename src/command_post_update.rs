@@ -5,10 +5,12 @@ use crate::operations::refresh_existing_shell_init_blocks;
 use anyhow::Result;
 
 pub fn run_command_post_update(paths: &GlobalPaths) -> Result<()> {
-    let bin_path = std::env::current_exe()?
-        .parent()
-        .expect("Could not determine parent of current exe")
-        .to_path_buf();
+    // Silently return if we can't determine the bin directory — this runs as a
+    // best-effort hook after self-update and should never block the update.
+    let bin_path = match std::env::current_exe()?.parent() {
+        Some(p) => p.to_path_buf(),
+        None => return Ok(()),
+    };
 
     if let Err(e) = write_completion_files::<Juliaup>(&paths.juliauphome, "juliaup") {
         eprintln!("Warning: failed to write completion files: {e}");
