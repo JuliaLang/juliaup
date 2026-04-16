@@ -95,7 +95,7 @@ pub fn run_command_link(
     #[cfg(not(windows))]
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "`link` command failed to save configuration db.")?;
 
     #[cfg(not(windows))]
