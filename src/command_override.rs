@@ -160,7 +160,7 @@ pub fn run_command_override_unset(
 
     save_config_db(&mut config_file, paths).with_context(|| {
         format!(
-            "Failed to save configuration file from `override add` command at `{}`.",
+            "Failed to save configuration file from `override unset` command at `{}`.",
             paths.juliaupconfig.display()
         )
     })?;

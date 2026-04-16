@@ -13,7 +13,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
     let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`selfupdate` command failed to load configuration db.")?;
+        .with_context(|| "`self update` command failed to load configuration db.")?;
 
     let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),

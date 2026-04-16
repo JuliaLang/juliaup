@@ -10,7 +10,7 @@ pub fn run_command_selfchannel(
     use anyhow::Context;
 
     let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`self update` command failed to load configuration data.")?;
+        .with_context(|| "`self channel` command failed to load configuration data.")?;
 
     match channel {
         Some(chan) => {
