@@ -10,12 +10,17 @@ pub fn run_command_selfchannel(
     use anyhow::Context;
 
     let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`self update` command failed to load configuration data.")?;
+        .with_context(|| "`self channel` command failed to load configuration data.")?;
 
     match channel {
         Some(chan) => {
             config_file.self_data.juliaup_channel = Some(chan.to_lowercase().to_string());
-            save_config_db(&mut config_file, paths)?;
+            save_config_db(&mut config_file, paths).with_context(|| {
+                format!(
+                    "`self channel` command failed to save configuration db at `{}`.",
+                    paths.juliaupconfig.display()
+                )
+            })?;
         }
         None => {
             let channel_name = config_file

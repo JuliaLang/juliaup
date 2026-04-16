@@ -436,11 +436,20 @@ pub fn main() -> Result<()> {
     println!("Now installing Juliaup");
 
     if paths.juliaupconfig.exists() {
-        std::fs::remove_file(&paths.juliaupconfig).unwrap();
+        std::fs::remove_file(&paths.juliaupconfig).with_context(|| {
+            format!(
+                "Failed to remove existing Juliaup configuration file `{}`.",
+                paths.juliaupconfig.display()
+            )
+        })?;
     }
 
-    std::fs::create_dir_all(&juliaupselfbin)
-        .with_context(|| "Failed to create install folder for Juliaup.")?;
+    std::fs::create_dir_all(&juliaupselfbin).with_context(|| {
+        format!(
+            "Failed to create install folder for Juliaup at `{}`.",
+            juliaupselfbin.display()
+        )
+    })?;
 
     let juliaup_target = get_juliaup_target();
 
@@ -479,22 +488,40 @@ pub fn main() -> Result<()> {
             .write(true)
             .truncate(true)
             .open(&self_config_path)
-            .with_context(|| "Failed to open juliaup config file.")?;
+            .with_context(|| {
+                format!(
+                    "Failed to open Juliaup self configuration file `{}`.",
+                    self_config_path.display()
+                )
+            })?;
 
-        self_file
-            .rewind()
-            .with_context(|| "Failed to rewind self config file for write.")?;
-
-        self_file.set_len(0).with_context(|| {
-            "Failed to set len to 0 for self config file before writing new content."
+        self_file.rewind().with_context(|| {
+            format!(
+                "Failed to rewind Juliaup self configuration file `{}` for write.",
+                self_config_path.display()
+            )
         })?;
 
-        serde_json::to_writer_pretty(&self_file, &new_selfconfig_data)
-            .with_context(|| "Failed to write self configuration file.".to_string())?;
+        self_file.set_len(0).with_context(|| {
+            format!(
+                "Failed to truncate Juliaup self configuration file `{}` before writing new content.",
+                self_config_path.display()
+            )
+        })?;
 
-        self_file
-            .sync_all()
-            .with_context(|| "Failed to write config data to disc.")?;
+        serde_json::to_writer_pretty(&self_file, &new_selfconfig_data).with_context(|| {
+            format!(
+                "Failed to write Juliaup self configuration file `{}`.",
+                self_config_path.display()
+            )
+        })?;
+
+        self_file.sync_all().with_context(|| {
+            format!(
+                "Failed to sync Juliaup self configuration file `{}` to disk.",
+                self_config_path.display()
+            )
+        })?;
 
         paths.juliaupselfbin = juliaupselfbin.clone();
         paths.juliaupselfconfig = self_config_path.clone();

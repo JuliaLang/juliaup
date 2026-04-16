@@ -618,11 +618,20 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
     let mut buf: Vec<u8> = vec![];
     response.copy_to(&mut buf)?;
-    file.write_all(buf.as_slice())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(buf.as_slice()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -674,10 +683,19 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
 
-    file.write_all(response.as_bytes())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(response.as_bytes()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -733,7 +751,19 @@ pub fn install_version(
 
     let child_target_foldername = format!("julia-{}", fullversion);
     let target_path = paths.juliauphome.join(&child_target_foldername);
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
+    let target_parent = target_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Target installation path `{}` has no parent directory.",
+            target_path.display()
+        )
+    })?;
+    std::fs::create_dir_all(target_parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for installation path `{}`.",
+            target_parent.display(),
+            target_path.display()
+        )
+    })?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
@@ -1269,11 +1299,34 @@ pub fn garbage_collect_versions(
 }
 
 fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
-    std::fs::create_dir_all(symlink_path.parent().unwrap())?;
+    let parent = symlink_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Symlink path `{}` has no parent directory.",
+            symlink_path.display()
+        )
+    })?;
+
+    std::fs::create_dir_all(parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for symlink `{}`.",
+            parent.display(),
+            symlink_path.display()
+        )
+    })?;
 
     if symlink_path.exists() {
-        let prev_target = std::fs::read_link(symlink_path)?;
-        std::fs::remove_file(symlink_path)?;
+        let prev_target = std::fs::read_link(symlink_path).with_context(|| {
+            format!(
+                "Failed to read existing symlink target at `{}`.",
+                symlink_path.display()
+            )
+        })?;
+        std::fs::remove_file(symlink_path).with_context(|| {
+            format!(
+                "Failed to remove existing symlink `{}`.",
+                symlink_path.display()
+            )
+        })?;
         return Ok(Some(prev_target));
     }
 
@@ -1901,7 +1954,12 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
     // This scope makes sure the lock file gets closed after we release the lock
     {
         let (_, res) = file_lock.data_unlock();
-        res.with_context(|| "Failed to unlock configuration file.")?;
+        res.with_context(|| {
+            format!(
+                "Failed to unlock configuration lock file `{}`.",
+                paths.lockfile.display()
+            )
+        })?;
     }
 
     #[cfg(feature = "selfupdate")]
@@ -1952,8 +2010,20 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            let temp_path = tempfile::NamedTempFile::new_in(paths.versiondb.parent().unwrap())
-                .unwrap()
+            let versiondb_parent = paths.versiondb.parent().ok_or_else(|| {
+                anyhow!(
+                    "Version db path `{}` has no parent directory.",
+                    paths.versiondb.display()
+                )
+            })?;
+
+            let temp_path = tempfile::NamedTempFile::new_in(versiondb_parent)
+                .with_context(|| {
+                    format!(
+                        "Failed to create temporary version db file in `{}`.",
+                        versiondb_parent.display()
+                    )
+                })?
                 .into_temp_path();
 
             download_versiondb(onlineversiondburl.as_ref(), &temp_path).with_context(|| {
