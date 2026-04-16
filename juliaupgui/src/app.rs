@@ -2346,7 +2346,7 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
                 cfg.data
                     .overrides
                     .retain(|o| std::path::Path::new(&o.path).is_dir());
-                save_config_db(&mut cfg)?;
+                save_config_db(&mut cfg, paths)?;
                 Ok(())
             })();
             match result {

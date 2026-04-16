@@ -1,3 +1,5 @@
+use crate::cli::Juliaup;
+use crate::command_completions::write_completion_files;
 use crate::config_file::get_read_lock;
 use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
@@ -616,11 +618,20 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
     let mut buf: Vec<u8> = vec![];
     response.copy_to(&mut buf)?;
-    file.write_all(buf.as_slice())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(buf.as_slice()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -672,10 +683,19 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
 
-    file.write_all(response.as_bytes())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(response.as_bytes()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -731,7 +751,19 @@ pub fn install_version(
 
     let child_target_foldername = format!("julia-{}", fullversion);
     let target_path = paths.juliauphome.join(&child_target_foldername);
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
+    let target_parent = target_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Target installation path `{}` has no parent directory.",
+            target_path.display()
+        )
+    })?;
+    std::fs::create_dir_all(target_parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for installation path `{}`.",
+            target_parent.display(),
+            target_path.display()
+        )
+    })?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
@@ -1267,11 +1299,34 @@ pub fn garbage_collect_versions(
 }
 
 fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
-    std::fs::create_dir_all(symlink_path.parent().unwrap())?;
+    let parent = symlink_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Symlink path `{}` has no parent directory.",
+            symlink_path.display()
+        )
+    })?;
+
+    std::fs::create_dir_all(parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for symlink `{}`.",
+            parent.display(),
+            symlink_path.display()
+        )
+    })?;
 
     if symlink_path.exists() {
-        let prev_target = std::fs::read_link(symlink_path)?;
-        std::fs::remove_file(symlink_path)?;
+        let prev_target = std::fs::read_link(symlink_path).with_context(|| {
+            format!(
+                "Failed to read existing symlink target at `{}`.",
+                symlink_path.display()
+            )
+        })?;
+        std::fs::remove_file(symlink_path).with_context(|| {
+            format!(
+                "Failed to remove existing symlink `{}`.",
+                symlink_path.display()
+            )
+        })?;
         return Ok(Some(prev_target));
     }
 
@@ -1601,7 +1656,11 @@ const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
-fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<u8>> {
+fn get_shell_script_juliaup_content(
+    bin_path: &Path,
+    juliauphome: &Path,
+    path: &Path,
+) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
 
     let bin_path_str = match bin_path.to_str() {
@@ -1609,12 +1668,24 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
         None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
     };
 
+    let juliauphome_str = match juliauphome.to_str() {
+        Some(s) => s,
+        None => bail!("Could not create UTF-8 string from juliaup home path."),
+    };
+
     result.extend_from_slice(S_MARKER);
     result.extend_from_slice(HEADER);
-    if path.file_name().unwrap() == ".zshrc" {
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow!("Could not determine file name for path: {}", path.display()))?;
+    if file_name == ".zshrc" {
         append_zsh_content(&mut result, bin_path_str);
     } else {
         append_sh_content(&mut result, bin_path_str);
+    }
+    if file_name == ".zshrc" || file_name.starts_with(".bash") {
+        append_completions_content(&mut result, file_name, juliauphome_str);
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
@@ -1655,6 +1726,21 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
+fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
+    let (shell, ext) = if file_name == ".zshrc" {
+        ("zsh", "zsh")
+    } else {
+        ("bash", "sh")
+    };
+    let content = formatdoc!(
+        r#"
+            # Tab completion for juliaup and julia channel selection
+            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
+        "#,
+    );
+    buf.extend_from_slice(content.as_bytes());
+}
+
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
@@ -1681,7 +1767,7 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
-fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
+fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1702,12 +1788,13 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         )
     })?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, path).with_context(|| {
-        format!(
-            "Error occured while generating juliaup shell startup script section for {}",
-            path.display()
-        )
-    })?;
+    let new_content =
+        get_shell_script_juliaup_content(bin_path, juliauphome, path).with_context(|| {
+            format!(
+                "Error occured while generating juliaup shell startup script section for {}",
+                path.display()
+            )
+        })?;
 
     match existing_code_pos {
         Some(pos) => {
@@ -1720,13 +1807,17 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         }
     };
 
-    file.rewind().unwrap();
+    file.rewind()
+        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
 
-    file.set_len(0).unwrap();
+    file.set_len(0)
+        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
 
-    file.write_all(&buffer).unwrap();
+    file.write_all(&buffer)
+        .with_context(|| format!("Failed to write file {}.", path.display()))?;
 
-    file.sync_all().unwrap();
+    file.sync_all()
+        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
 
     Ok(())
 }
@@ -1790,11 +1881,14 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     Ok(result)
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path) -> Result<()> {
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    write_completion_files::<Juliaup>(juliauphome, "juliaup")
+        .with_context(|| "Failed to write completion files.")?;
+
     let paths = find_shell_scripts_to_be_modified(true)?;
 
     paths.into_iter().for_each(|p| {
-        add_path_to_specific_file(bin_path, &p).unwrap();
+        add_path_to_specific_file(bin_path, juliauphome, &p).unwrap();
     });
     Ok(())
 }
@@ -1805,6 +1899,21 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     paths.into_iter().for_each(|p| {
         remove_path_from_specific_file(&p).unwrap();
     });
+    Ok(())
+}
+
+/// Re-generate the juliaup init block in any shell rc files that already contain it.
+/// This is called during self-update to propagate changes (e.g. new completions)
+/// to existing users without requiring them to re-run `juliaup config modifypath true`.
+pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified(false)?;
+
+    for p in paths {
+        let content = std::fs::read(&p).unwrap_or_default();
+        if match_markers(&content).unwrap_or(None).is_some() {
+            add_path_to_specific_file(bin_path, juliauphome, &p).ok();
+        }
+    }
     Ok(())
 }
 
@@ -1845,7 +1954,12 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
     // This scope makes sure the lock file gets closed after we release the lock
     {
         let (_, res) = file_lock.data_unlock();
-        res.with_context(|| "Failed to unlock configuration file.")?;
+        res.with_context(|| {
+            format!(
+                "Failed to unlock configuration lock file `{}`.",
+                paths.lockfile.display()
+            )
+        })?;
     }
 
     #[cfg(feature = "selfupdate")]
@@ -1896,8 +2010,20 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            let temp_path = tempfile::NamedTempFile::new_in(paths.versiondb.parent().unwrap())
-                .unwrap()
+            let versiondb_parent = paths.versiondb.parent().ok_or_else(|| {
+                anyhow!(
+                    "Version db path `{}` has no parent directory.",
+                    paths.versiondb.display()
+                )
+            })?;
+
+            let temp_path = tempfile::NamedTempFile::new_in(versiondb_parent)
+                .with_context(|| {
+                    format!(
+                        "Failed to create temporary version db file in `{}`.",
+                        versiondb_parent.display()
+                    )
+                })?
                 .into_temp_path();
 
             download_versiondb(onlineversiondburl.as_ref(), &temp_path).with_context(|| {
@@ -1979,7 +2105,8 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         let _ = std::fs::remove_file(&paths.versiondb);
     }
 
-    save_config_db(&mut new_config_file).with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut new_config_file, paths)
+        .with_context(|| "Failed to save configuration file.")?;
 
     Ok(())
 }

@@ -73,6 +73,12 @@ pub enum Juliaup {
     },
     /// Launch the graphical user interface
     Gui {},
+    #[clap(name = "_list-channels", hide = true)]
+    /// List installed channel names (used internally for shell completions)
+    ListChannels {},
+    #[clap(name = "_post-update", hide = true)]
+    /// Run post-update tasks (called by the old binary after extracting the new one)
+    PostUpdate {},
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]
