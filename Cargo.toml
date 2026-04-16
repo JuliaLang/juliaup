@@ -5,7 +5,7 @@ resolver = "2"
 
 [package]
 name = "juliaup"
-version = "1.19.10"
+version = "1.20.0"
 description = "Julia installer and version multiplexer"
 repository = "https://github.com/julialang/juliaup"
 license = "MIT"
