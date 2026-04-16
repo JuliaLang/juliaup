@@ -2018,11 +2018,11 @@ fn launch_julia(
                 return Ok(());
             }
         }
-        return std::process::Command::new("sh")
+        std::process::Command::new("sh")
             .args(["-c", &full_cmd])
             .spawn()
             .map(|_| ())
-            .map_err(|e| format!("Could not find a terminal emulator: {e}"));
+            .map_err(|e| format!("Could not find a terminal emulator: {e}"))
     }
 }
 

@@ -4,3 +4,19 @@
 # See: https://github.com/cross-rs/cross/issues/724
 [target.i686-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/i686-unknown-linux-gnu@sha256:dbaac6e686550f3704402c126c60b82ca9a9c7329e89ea115289ecc7ba0bdbce"
+pre-build = [
+    "dpkg --add-architecture i386",
+    "apt-get update && apt-get install -y libxcb-render0-dev:i386 libxcb-shape0-dev:i386 libxcb-xfixes0-dev:i386 libxkbcommon-dev:i386 libgl-dev:i386"
+]
+
+# GUI dependencies for eframe (X11 + OpenGL) needed by juliaupgui
+[target.x86_64-unknown-linux-gnu]
+pre-build = [
+    "apt-get update && apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libgl-dev"
+]
+
+[target.aarch64-unknown-linux-gnu]
+pre-build = [
+    "dpkg --add-architecture $CROSS_DEB_ARCH",
+    "apt-get update && apt-get install -y libxcb-render0-dev:$CROSS_DEB_ARCH libxcb-shape0-dev:$CROSS_DEB_ARCH libxcb-xfixes0-dev:$CROSS_DEB_ARCH libxkbcommon-dev:$CROSS_DEB_ARCH libgl-dev:$CROSS_DEB_ARCH"
+]
