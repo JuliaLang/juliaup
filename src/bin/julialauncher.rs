@@ -5,6 +5,7 @@ use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{
     load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
+    JuliaupConfigVersion,
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -234,7 +235,7 @@ fn set_auto_install_preference(
 
     config_file.data.settings.auto_install_channels = Some(auto_install);
 
-    save_config_db(&mut config_file)
+    save_config_db(&mut config_file, paths)
         .with_context(|| "Failed to save auto-install preference to configuration.")?;
 
     print_juliaup_style(
@@ -288,16 +289,11 @@ fn check_channel_uptodate(
     current_version: &str,
     versions_db: &JuliaupVersionDB,
 ) -> Result<()> {
-    let latest_version = &versions_db
-        .available_channels
-        .get(channel)
-        .ok_or_else(|| UserError {
-            msg: format!(
-                "The channel `{}` does not exist in the versions database.",
-                channel
-            ),
-        })?
-        .version;
+    let Some(channel_info) = versions_db.available_channels.get(channel) else {
+        // Channel not in versions DB (e.g. from a custom depot), skip the update check
+        return Ok(());
+    };
+    let latest_version = &channel_info.version;
 
     if latest_version != current_version {
         print_juliaup_style(
@@ -363,6 +359,21 @@ fn get_julia_path_from_channel(
             channel_info,
             alias_args.clone(),
         );
+    }
+
+    // For auto-resolved channels (from manifest), check if the Julia version
+    // that the channel maps to is already installed via another channel.
+    // This avoids prompting the user to install e.g. channel "1.12.5" when
+    // the "release" channel already provides Julia 1.12.5.
+    if matches!(juliaup_channel_source, JuliaupChannelSource::Auto) {
+        if let Some(version_info) = versions_db
+            .available_channels
+            .get(&resolved_channel)
+            .and_then(|ch| config_data.installed_versions.get(&ch.version))
+        {
+            let path = resolve_version_path(version_info, juliaupconfig_path)?;
+            return Ok((path, alias_args));
+        }
     }
 
     // Handle auto-installation for command line channel selection and auto-resolved channels
@@ -466,6 +477,31 @@ fn get_julia_path_from_channel(
     Err(error.into())
 }
 
+fn resolve_version_path(
+    version_info: &JuliaupConfigVersion,
+    juliaupconfig_path: &Path,
+) -> Result<PathBuf> {
+    let config_dir = juliaupconfig_path.parent().unwrap(); // unwrap OK because there should always be a parent
+
+    // Use pre-computed binary_path if available (new installations),
+    // otherwise fall back to runtime resolution (backward compatibility)
+    let absolute_path = if let Some(ref binary_path) = version_info.binary_path {
+        config_dir.join(binary_path)
+    } else {
+        let base_path = config_dir.join(&version_info.path);
+        resolve_julia_binary_path(&base_path)?
+    }
+    .normalize()
+    .with_context(|| {
+        format!(
+            "Failed to normalize path for Julia binary, starting from `{}`.",
+            juliaupconfig_path.display()
+        )
+    })?;
+
+    Ok(absolute_path.into_path_buf())
+}
+
 fn get_julia_path_from_installed_channel(
     versions_db: &JuliaupVersionDB,
     config_data: &JuliaupConfig,
@@ -494,24 +530,9 @@ fn get_julia_path_from_installed_channel(
                 })?;
             }
 
-            let config_dir = juliaupconfig_path.parent().unwrap(); // unwrap OK because there should always be a parent
+            let path = resolve_version_path(version_info, juliaupconfig_path)?;
 
-            // Use pre-computed binary_path if available (new installations),
-            // otherwise fall back to runtime resolution (backward compatibility)
-            let absolute_path = if let Some(ref binary_path) = version_info.binary_path {
-                config_dir.join(binary_path)
-            } else {
-                let base_path = config_dir.join(&version_info.path);
-                resolve_julia_binary_path(&base_path)?
-            }
-            .normalize()
-            .with_context(|| {
-                format!(
-                    "Failed to normalize path for Julia binary, starting from `{}`.",
-                    juliaupconfig_path.display()
-                )
-            })?;
-            Ok((absolute_path.into_path_buf(), alias_args))
+            Ok((path, alias_args))
         }
         JuliaupConfigChannel::DirectDownloadChannel {
             path,

@@ -53,6 +53,9 @@ pub fn resolve_julia_binary_path(base_path: &Path) -> Result<PathBuf> {
 /// This is used to avoid repeated HTTP requests to check server capabilities.
 static NIGHTLY_SERVER_SUPPORTS_ETAG: OnceLock<bool> = OnceLock::new();
 
+static CUSTOM_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+static CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+
 /// Checks if the nightly server supports etag headers.
 /// This is required for nightly and PR channel support because we use etags
 /// to track versions of these builds.
@@ -229,14 +232,15 @@ pub fn check_server_supports_nightlies() -> Result<bool> {
 }
 
 pub fn get_juliaserver_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
-        if val.ends_with('/') {
+    let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
+        let url = if val.ends_with('/') {
             val
         } else {
             format!("{}/", val)
-        }
+        };
+        (url, true)
     } else {
-        "https://julialang-s3.julialang.org".to_string()
+        ("https://julialang-s3.julialang.org".to_string(), false)
     };
 
     let parsed_url = Url::parse(&base_url).with_context(|| {
@@ -246,18 +250,36 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
         )
     })?;
 
+    if parsed_url.scheme() != "https" {
+        bail!("The value of JULIAUP_SERVER '{}' must use HTTPS.", base_url);
+    }
+
+    if is_custom {
+        CUSTOM_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!("Using custom server '{}' (JULIAUP_SERVER).", parsed_url),
+                JuliaupMessageType::Progress,
+            );
+        });
+    }
+
     Ok(parsed_url)
 }
 
 pub fn get_julianightlies_base_url() -> Result<Url> {
-    let base_url = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
-        if val.ends_with('/') {
+    let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_NIGHTLY_SERVER") {
+        let url = if val.ends_with('/') {
             val
         } else {
             format!("{}/", val)
-        }
+        };
+        (url, true)
     } else {
-        "https://julialangnightlies-s3.julialang.org".to_string()
+        (
+            "https://julialangnightlies-s3.julialang.org".to_string(),
+            false,
+        )
     };
 
     let parsed_url = Url::parse(&base_url).with_context(|| {
@@ -266,6 +288,26 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
             base_url
         )
     })?;
+
+    if parsed_url.scheme() != "https" {
+        bail!(
+            "The value of JULIAUP_NIGHTLY_SERVER '{}' must use HTTPS.",
+            base_url
+        );
+    }
+
+    if is_custom {
+        CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Using custom nightly server '{}' (JULIAUP_NIGHTLY_SERVER).",
+                    parsed_url
+                ),
+                JuliaupMessageType::Progress,
+            );
+        });
+    }
 
     Ok(parsed_url)
 }
@@ -362,6 +404,10 @@ pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Env-var mutation is process-global; serialise tests that set/remove it.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn test_parse_versionstring() {
@@ -383,6 +429,35 @@ mod tests {
         let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 10, 10));
+    }
+
+    #[test]
+    fn juliaup_server_rejects_http() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JULIAUP_SERVER", "http://evil.example.com");
+        let result = get_juliaserver_base_url();
+        std::env::remove_var("JULIAUP_SERVER");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
+    }
+
+    #[test]
+    fn juliaup_nightly_server_rejects_http() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JULIAUP_NIGHTLY_SERVER", "http://evil.example.com");
+        let result = get_julianightlies_base_url();
+        std::env::remove_var("JULIAUP_NIGHTLY_SERVER");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
+    }
+
+    #[test]
+    fn juliaup_server_accepts_https() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JULIAUP_SERVER", "https://mirror.example.com");
+        let result = get_juliaserver_base_url();
+        std::env::remove_var("JULIAUP_SERVER");
+        assert!(result.is_ok());
     }
 }
 

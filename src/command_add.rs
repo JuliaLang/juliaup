@@ -59,10 +59,11 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     #[cfg(not(windows))]
     let create_symlinks = config_file.data.settings.create_channel_symlinks;
 
-    save_config_db(&mut config_file).with_context(|| {
+    save_config_db(&mut config_file, paths).with_context(|| {
         format!(
-            "Failed to save configuration file from `add` command after '{}' was installed.",
-            channel
+            "Failed to save configuration file from `add` command after '{}' was installed at `{}`.",
+            channel,
+            paths.juliaupconfig.display()
         )
     })?;
 
@@ -119,9 +120,10 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
         config_file.data.default = Some(channel.to_string());
     }
 
-    save_config_db(&mut config_file).with_context(|| {
+    save_config_db(&mut config_file, paths).with_context(|| {
         format!(
-            "Failed to save configuration file from `add` command after '{channel}' was installed.",
+            "Failed to save configuration file from `add` command after '{channel}' was installed at `{}`.",
+            paths.juliaupconfig.display()
         )
     })?;
 

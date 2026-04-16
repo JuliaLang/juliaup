@@ -15,7 +15,7 @@ jobs:
       versionDbIsUpdated: ${{ steps.runjuliascript.outputs.versionDbIsUpdated }}
     steps:
     - uses: actions/checkout@v6
-    - uses: julia-actions/setup-julia@v2
+    - uses: julia-actions/setup-julia@4c0cb0fce8556fdb04a90347310e5db8b1f98fb9 # v2.7.0
       with:
         version: 1.8
     - id: runjuliascript
@@ -40,28 +40,22 @@ jobs:
         name: scriptoutput
         path: scriptoutputfolder
     - name: Upload version db
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
+      run: aws s3 sync scriptoutputfolder/newversiondbs s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'scriptoutputfolder/newversiondbs'
     - name: Upload version file
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'scriptoutputfolder/versionfile'
     - run: |
         mv scriptoutputfolder/versiondbbuild/* versiondb
         rm -rf scriptoutputfolder
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v8
+      uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: Update version db
@@ -86,14 +80,11 @@ jobs:
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/DEVCHANNELDBVERSION
     - name: Upload version file
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'scriptoutputfolder/versionfile'
 
   upload_versiondb_releasepreview_channel:
     needs: [upload_versiondb]
@@ -108,14 +99,11 @@ jobs:
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASEPREVIEWCHANNELDBVERSION
     - name: Upload version file
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'scriptoutputfolder/versionfile'
 
   upload_versiondb_release_channel:
     needs: [upload_versiondb]
@@ -130,11 +118,8 @@ jobs:
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASECHANNELDBVERSION
     - name: Upload version file
-      uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
+      run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
       env:
         AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SOURCE_DIR: 'scriptoutputfolder/versionfile'

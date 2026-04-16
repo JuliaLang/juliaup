@@ -1,3 +1,5 @@
+use crate::cli::Juliaup;
+use crate::command_completions::write_completion_files;
 use crate::config_file::get_read_lock;
 use crate::config_file::load_config_db;
 use crate::config_file::load_mut_config_db;
@@ -29,8 +31,7 @@ use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(not(target_os = "freebsd"))]
-use std::path::Component::Normal;
+
 use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
@@ -82,17 +83,66 @@ where
     R: Read,
     P: AsRef<Path>,
 {
+    let dst = dst.as_ref();
     let tar = GzDecoder::new(src);
     let mut archive = Archive::new(tar);
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path: PathBuf = entry
-            .path()?
-            .components()
-            .skip(levels_to_skip) // strip top-level directory
-            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
-            .collect();
-        entry.unpack(dst.as_ref().join(path))?;
+    // Extract to a sibling temp dir (same filesystem as dst) so the final rename
+    // is atomic and avoids a cross-device copy. Archive::unpack uses unpack_in
+    // internally, which rejects path-traversal components (e.g. `..`).
+    let temp_dir =
+        tempfile::Builder::new().tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+    archive.unpack(temp_dir.path())?;
+    // Walk down `levels_to_skip` directory levels to reach the payload.
+    let mut source = temp_dir.path().to_path_buf();
+    for _ in 0..levels_to_skip {
+        source = std::fs::read_dir(&source)?
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+            .with_context(|| {
+                format!(
+                    "Archive contained no subdirectory to skip in '{}'",
+                    source.display()
+                )
+            })?
+            .path();
+    }
+    if dst.exists() {
+        // Move the existing installation aside so we can restore it on failure.
+        let backup = tempfile::Builder::new()
+            .prefix(".juliaup-backup-")
+            .tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+        let backup_path = backup.path().join("old");
+        std::fs::rename(dst, &backup_path).with_context(|| {
+            format!(
+                "Failed to back up existing directory '{}' before update.",
+                dst.display()
+            )
+        })?;
+
+        if let Err(e) = std::fs::rename(&source, dst) {
+            // Restore the previous installation.
+            if let Err(restore_err) = std::fs::rename(&backup_path, dst) {
+                bail!(
+                    "Failed to install to '{}': {:#}. \
+                     Additionally, restoring the previous installation failed: {:#}. \
+                     A backup may remain at '{}'.",
+                    dst.display(),
+                    e,
+                    restore_err,
+                    backup_path.display()
+                );
+            }
+            return Err(e).with_context(|| {
+                format!(
+                    "Failed to move extracted archive to '{}'. Previous installation has been restored.",
+                    dst.display()
+                )
+            });
+        }
+        // Success — backup is cleaned up automatically when `backup` is dropped.
+    } else {
+        std::fs::rename(&source, dst)
+            .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))?;
     }
     Ok(())
 }
@@ -568,11 +618,20 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
     let mut buf: Vec<u8> = vec![];
     response.copy_to(&mut buf)?;
-    file.write_all(buf.as_slice())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(buf.as_slice()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -624,10 +683,19 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
         .create(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open or create version db file at {:?}", path))?;
+        .with_context(|| {
+            format!(
+                "Failed to open or create version db file `{}`.",
+                path.display()
+            )
+        })?;
 
-    file.write_all(response.as_bytes())
-        .with_context(|| "Failed to write content into version db file.")?;
+    file.write_all(response.as_bytes()).with_context(|| {
+        format!(
+            "Failed to write content into version db file `{}`.",
+            path.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -683,7 +751,19 @@ pub fn install_version(
 
     let child_target_foldername = format!("julia-{}", fullversion);
     let target_path = paths.juliauphome.join(&child_target_foldername);
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
+    let target_parent = target_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Target installation path `{}` has no parent directory.",
+            target_path.display()
+        )
+    })?;
+    std::fs::create_dir_all(target_parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for installation path `{}`.",
+            target_parent.display(),
+            target_path.display()
+        )
+    })?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
@@ -1219,11 +1299,34 @@ pub fn garbage_collect_versions(
 }
 
 fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
-    std::fs::create_dir_all(symlink_path.parent().unwrap())?;
+    let parent = symlink_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Symlink path `{}` has no parent directory.",
+            symlink_path.display()
+        )
+    })?;
+
+    std::fs::create_dir_all(parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for symlink `{}`.",
+            parent.display(),
+            symlink_path.display()
+        )
+    })?;
 
     if symlink_path.exists() {
-        let prev_target = std::fs::read_link(symlink_path)?;
-        std::fs::remove_file(symlink_path)?;
+        let prev_target = std::fs::read_link(symlink_path).with_context(|| {
+            format!(
+                "Failed to read existing symlink target at `{}`.",
+                symlink_path.display()
+            )
+        })?;
+        std::fs::remove_file(symlink_path).with_context(|| {
+            format!(
+                "Failed to remove existing symlink `{}`.",
+                symlink_path.display()
+            )
+        })?;
         return Ok(Some(prev_target));
     }
 
@@ -1553,7 +1656,11 @@ const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
-fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<u8>> {
+fn get_shell_script_juliaup_content(
+    bin_path: &Path,
+    juliauphome: &Path,
+    path: &Path,
+) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
 
     let bin_path_str = match bin_path.to_str() {
@@ -1561,12 +1668,24 @@ fn get_shell_script_juliaup_content(bin_path: &Path, path: &Path) -> Result<Vec<
         None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
     };
 
+    let juliauphome_str = match juliauphome.to_str() {
+        Some(s) => s,
+        None => bail!("Could not create UTF-8 string from juliaup home path."),
+    };
+
     result.extend_from_slice(S_MARKER);
     result.extend_from_slice(HEADER);
-    if path.file_name().unwrap() == ".zshrc" {
+    let file_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow!("Could not determine file name for path: {}", path.display()))?;
+    if file_name == ".zshrc" {
         append_zsh_content(&mut result, bin_path_str);
     } else {
         append_sh_content(&mut result, bin_path_str);
+    }
+    if file_name == ".zshrc" || file_name.starts_with(".bash") {
+        append_completions_content(&mut result, file_name, juliauphome_str);
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
@@ -1607,6 +1726,21 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
+fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
+    let (shell, ext) = if file_name == ".zshrc" {
+        ("zsh", "zsh")
+    } else {
+        ("bash", "sh")
+    };
+    let content = formatdoc!(
+        r#"
+            # Tab completion for juliaup and julia channel selection
+            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
+        "#,
+    );
+    buf.extend_from_slice(content.as_bytes());
+}
+
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
@@ -1633,7 +1767,7 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
-fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
+fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1654,12 +1788,13 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         )
     })?;
 
-    let new_content = get_shell_script_juliaup_content(bin_path, path).with_context(|| {
-        format!(
-            "Error occured while generating juliaup shell startup script section for {}",
-            path.display()
-        )
-    })?;
+    let new_content =
+        get_shell_script_juliaup_content(bin_path, juliauphome, path).with_context(|| {
+            format!(
+                "Error occured while generating juliaup shell startup script section for {}",
+                path.display()
+            )
+        })?;
 
     match existing_code_pos {
         Some(pos) => {
@@ -1672,13 +1807,17 @@ fn add_path_to_specific_file(bin_path: &Path, path: &Path) -> Result<()> {
         }
     };
 
-    file.rewind().unwrap();
+    file.rewind()
+        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
 
-    file.set_len(0).unwrap();
+    file.set_len(0)
+        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
 
-    file.write_all(&buffer).unwrap();
+    file.write_all(&buffer)
+        .with_context(|| format!("Failed to write file {}.", path.display()))?;
 
-    file.sync_all().unwrap();
+    file.sync_all()
+        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
 
     Ok(())
 }
@@ -1742,11 +1881,14 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     Ok(result)
 }
 
-pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path) -> Result<()> {
+pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    write_completion_files::<Juliaup>(juliauphome, "juliaup")
+        .with_context(|| "Failed to write completion files.")?;
+
     let paths = find_shell_scripts_to_be_modified(true)?;
 
     paths.into_iter().for_each(|p| {
-        add_path_to_specific_file(bin_path, &p).unwrap();
+        add_path_to_specific_file(bin_path, juliauphome, &p).unwrap();
     });
     Ok(())
 }
@@ -1757,6 +1899,21 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     paths.into_iter().for_each(|p| {
         remove_path_from_specific_file(&p).unwrap();
     });
+    Ok(())
+}
+
+/// Re-generate the juliaup init block in any shell rc files that already contain it.
+/// This is called during self-update to propagate changes (e.g. new completions)
+/// to existing users without requiring them to re-run `juliaup config modifypath true`.
+pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    let paths = find_shell_scripts_to_be_modified(false)?;
+
+    for p in paths {
+        let content = std::fs::read(&p).unwrap_or_default();
+        if match_markers(&content).unwrap_or(None).is_some() {
+            add_path_to_specific_file(bin_path, juliauphome, &p).ok();
+        }
+    }
     Ok(())
 }
 
@@ -1797,7 +1954,12 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
     // This scope makes sure the lock file gets closed after we release the lock
     {
         let (_, res) = file_lock.data_unlock();
-        res.with_context(|| "Failed to unlock configuration file.")?;
+        res.with_context(|| {
+            format!(
+                "Failed to unlock configuration lock file `{}`.",
+                paths.lockfile.display()
+            )
+        })?;
     }
 
     #[cfg(feature = "selfupdate")]
@@ -1848,8 +2010,20 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            let temp_path = tempfile::NamedTempFile::new_in(paths.versiondb.parent().unwrap())
-                .unwrap()
+            let versiondb_parent = paths.versiondb.parent().ok_or_else(|| {
+                anyhow!(
+                    "Version db path `{}` has no parent directory.",
+                    paths.versiondb.display()
+                )
+            })?;
+
+            let temp_path = tempfile::NamedTempFile::new_in(versiondb_parent)
+                .with_context(|| {
+                    format!(
+                        "Failed to create temporary version db file in `{}`.",
+                        versiondb_parent.display()
+                    )
+                })?
                 .into_temp_path();
 
             download_versiondb(onlineversiondburl.as_ref(), &temp_path).with_context(|| {
@@ -1931,7 +2105,8 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         let _ = std::fs::remove_file(&paths.versiondb);
     }
 
-    save_config_db(&mut new_config_file).with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut new_config_file, paths)
+        .with_context(|| "Failed to save configuration file.")?;
 
     Ok(())
 }
@@ -2496,6 +2671,91 @@ mod tests {
         assert!(target_dir.path().join("bin/julia").exists());
 
         let _ = handle.join();
+        Ok(())
+    }
+
+    // unpack_sans_parent is only compiled for non-freebsd targets
+    #[cfg(not(target_os = "freebsd"))]
+    /// Builds a minimal `.tar.gz` in memory with a single entry whose path is given
+    /// as raw bytes, bypassing the `tar::Builder` safety checks so we can place
+    /// dangerous components (e.g. `..`) directly in the archive header.
+    fn make_tar_gz_with_raw_path(path: &[u8]) -> Vec<u8> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        let mut header = [0u8; 512];
+        let path_len = path.len().min(100);
+        header[..path_len].copy_from_slice(&path[..path_len]);
+        header[100..108].copy_from_slice(b"0000644\0"); // mode
+        header[108..116].copy_from_slice(b"0000000\0"); // uid
+        header[116..124].copy_from_slice(b"0000000\0"); // gid
+        header[124..136].copy_from_slice(b"00000000000\0"); // size = 0
+        header[136..148].copy_from_slice(b"00000000000\0"); // mtime
+        for b in &mut header[148..156] {
+            *b = b' '; // checksum placeholder
+        }
+        header[156] = b'0'; // regular file
+        let sum: u32 = header.iter().map(|&b| b as u32).sum();
+        let cksum = format!("{:06o}\0 ", sum);
+        header[148..156].copy_from_slice(cksum.as_bytes());
+
+        let mut tar_bytes = header.to_vec();
+        tar_bytes.extend([0u8; 1024]); // end-of-archive
+
+        let mut enc = GzEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(&tar_bytes).unwrap();
+        enc.finish().unwrap()
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_rejects_path_traversal_dotdot() -> Result<()> {
+        // Use raw tar bytes so the ParentDir component reaches our code rather
+        // than being caught by the tar::Builder's own safety check.
+        let tarball = make_tar_gz_with_raw_path(b"top/../evil.txt");
+
+        let dst = tempfile::TempDir::new()?;
+        let result = unpack_sans_parent(tarball.as_slice(), dst.path(), 1);
+        assert!(
+            result.is_err(),
+            "Expected extraction to fail on path traversal attempt"
+        );
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_accepts_normal_paths() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use tar::Builder;
+
+        let tarball = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut archive = Builder::new(&mut encoder);
+                // Directory entry must come first so entry.unpack() can create the file
+                let mut dir_header = tar::Header::new_gnu();
+                dir_header.set_entry_type(tar::EntryType::Directory);
+                dir_header.set_mode(0o755);
+                dir_header.set_size(0);
+                dir_header.set_cksum();
+                archive.append_data(&mut dir_header, "top/bin", std::io::empty())?;
+                let data = b"hello";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                archive.append_data(&mut header, "top/bin/julia", &data[..])?;
+                archive.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dst = tempfile::TempDir::new()?;
+        unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
+        assert!(dst.path().join("bin/julia").exists());
         Ok(())
     }
 }
