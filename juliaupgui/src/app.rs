@@ -1992,11 +1992,11 @@ fn launch_julia(
         if wt.is_ok() {
             return Ok(());
         }
-        return std::process::Command::new("cmd")
+        std::process::Command::new("cmd")
             .args(["/c", "start", "cmd", "/k", &full_cmd])
             .spawn()
             .map(|_| ())
-            .map_err(|e| format!("Failed to launch terminal: {e}"));
+            .map_err(|e| format!("Failed to launch terminal: {e}"))
     }
 
     #[cfg(target_os = "linux")]
