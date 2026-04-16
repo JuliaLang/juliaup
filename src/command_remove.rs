@@ -77,7 +77,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     garbage_collect_versions(false, &mut config_file.data, paths)?;
 
-    save_config_db(&mut config_file).with_context(|| {
+    save_config_db(&mut config_file, paths).with_context(|| {
         format!(
             "Failed to save configuration file from `remove` command after '{channel}' was removed."
         )
