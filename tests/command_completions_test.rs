@@ -40,6 +40,7 @@ fn completions_zsh() {
         "zsh",
         &[
             "#compdef juliaup",
+            "autoload -Uz compinit && compinit",
             "_juliaup()",
             "_julia_channel",
             "juliaup _list-channels",
