@@ -23,7 +23,7 @@ fn command_add() {
 
     env.juliaup()
         .arg("add")
-        .arg("1.11-nightly")
+        .arg("1.10-nightly")
         .assert()
         .success()
         .stdout("");
