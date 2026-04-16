@@ -13,7 +13,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
     let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`selfupdate` command failed to load configuration db.")?;
+        .with_context(|| "`self update` command failed to load configuration db.")?;
 
     let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
@@ -46,7 +46,12 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
 
-    save_config_db(&mut config_file).with_context(|| "Failed to save configuration file.")?;
+    save_config_db(&mut config_file, paths).with_context(|| {
+        format!(
+            "Failed to save configuration file at `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
 
     if version == get_own_version().unwrap() {
         eprintln!(
@@ -84,6 +89,15 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         );
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
+
+        let new_juliaup = my_own_folder.join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+        if let Err(e) = std::process::Command::new(&new_juliaup)
+            .arg("_post-update")
+            .status()
+        {
+            eprintln!("Warning: post-update hook failed: {e}");
+        }
+
         eprintln!("Updated Juliaup to version {}.", version);
     }
 
