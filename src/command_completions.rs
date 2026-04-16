@@ -107,11 +107,26 @@ export use julia_completions *
     let _ = stdout.write_all(script.as_bytes());
 }
 
+/// For zsh, ensure `compdef` is available before any `compdef` calls below.
+/// If this file is sourced before the user's own `compinit` has run (a common
+/// case when the juliaup init block sits near the top of `.zshrc`), initialize
+/// the completion system ourselves so registrations don't silently no-op.
+fn generate_zsh_compinit_guard(writer: &mut impl Write) {
+    let script = r#"if ! (( $+functions[compdef] )); then
+    autoload -Uz compinit && compinit
+fi
+"#;
+    let _ = writer.write_all(script.as_bytes());
+}
+
 fn generate_completions_to_writer<T: CommandFactory>(
     shell: &CompletionShell,
     app_name: &str,
     writer: &mut impl Write,
 ) {
+    if matches!(shell, CompletionShell::Zsh) {
+        generate_zsh_compinit_guard(writer);
+    }
     let mut cmd = T::command();
     match GeneratorType::from(shell.clone()) {
         GeneratorType::Standard(s) => generate(s, &mut cmd, app_name, writer),
