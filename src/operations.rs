@@ -31,8 +31,7 @@ use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(not(target_os = "freebsd"))]
-use std::path::Component::Normal;
+
 use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
@@ -84,17 +83,66 @@ where
     R: Read,
     P: AsRef<Path>,
 {
+    let dst = dst.as_ref();
     let tar = GzDecoder::new(src);
     let mut archive = Archive::new(tar);
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path: PathBuf = entry
-            .path()?
-            .components()
-            .skip(levels_to_skip) // strip top-level directory
-            .filter(|c| matches!(c, Normal(_))) // prevent traversal attacks TODO We should actually abort if we come across a non-standard path element
-            .collect();
-        entry.unpack(dst.as_ref().join(path))?;
+    // Extract to a sibling temp dir (same filesystem as dst) so the final rename
+    // is atomic and avoids a cross-device copy. Archive::unpack uses unpack_in
+    // internally, which rejects path-traversal components (e.g. `..`).
+    let temp_dir =
+        tempfile::Builder::new().tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+    archive.unpack(temp_dir.path())?;
+    // Walk down `levels_to_skip` directory levels to reach the payload.
+    let mut source = temp_dir.path().to_path_buf();
+    for _ in 0..levels_to_skip {
+        source = std::fs::read_dir(&source)?
+            .filter_map(|e| e.ok())
+            .find(|e| e.file_type().map(|ft| ft.is_dir()).unwrap_or(false))
+            .with_context(|| {
+                format!(
+                    "Archive contained no subdirectory to skip in '{}'",
+                    source.display()
+                )
+            })?
+            .path();
+    }
+    if dst.exists() {
+        // Move the existing installation aside so we can restore it on failure.
+        let backup = tempfile::Builder::new()
+            .prefix(".juliaup-backup-")
+            .tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
+        let backup_path = backup.path().join("old");
+        std::fs::rename(dst, &backup_path).with_context(|| {
+            format!(
+                "Failed to back up existing directory '{}' before update.",
+                dst.display()
+            )
+        })?;
+
+        if let Err(e) = std::fs::rename(&source, dst) {
+            // Restore the previous installation.
+            if let Err(restore_err) = std::fs::rename(&backup_path, dst) {
+                bail!(
+                    "Failed to install to '{}': {:#}. \
+                     Additionally, restoring the previous installation failed: {:#}. \
+                     A backup may remain at '{}'.",
+                    dst.display(),
+                    e,
+                    restore_err,
+                    backup_path.display()
+                );
+            }
+            return Err(e).with_context(|| {
+                format!(
+                    "Failed to move extracted archive to '{}'. Previous installation has been restored.",
+                    dst.display()
+                )
+            });
+        }
+        // Success — backup is cleaned up automatically when `backup` is dropped.
+    } else {
+        std::fs::rename(&source, dst)
+            .with_context(|| format!("Failed to move extracted archive to '{}'", dst.display()))?;
     }
     Ok(())
 }
@@ -2544,6 +2592,91 @@ mod tests {
         assert!(target_dir.path().join("bin/julia").exists());
 
         let _ = handle.join();
+        Ok(())
+    }
+
+    // unpack_sans_parent is only compiled for non-freebsd targets
+    #[cfg(not(target_os = "freebsd"))]
+    /// Builds a minimal `.tar.gz` in memory with a single entry whose path is given
+    /// as raw bytes, bypassing the `tar::Builder` safety checks so we can place
+    /// dangerous components (e.g. `..`) directly in the archive header.
+    fn make_tar_gz_with_raw_path(path: &[u8]) -> Vec<u8> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        let mut header = [0u8; 512];
+        let path_len = path.len().min(100);
+        header[..path_len].copy_from_slice(&path[..path_len]);
+        header[100..108].copy_from_slice(b"0000644\0"); // mode
+        header[108..116].copy_from_slice(b"0000000\0"); // uid
+        header[116..124].copy_from_slice(b"0000000\0"); // gid
+        header[124..136].copy_from_slice(b"00000000000\0"); // size = 0
+        header[136..148].copy_from_slice(b"00000000000\0"); // mtime
+        for b in &mut header[148..156] {
+            *b = b' '; // checksum placeholder
+        }
+        header[156] = b'0'; // regular file
+        let sum: u32 = header.iter().map(|&b| b as u32).sum();
+        let cksum = format!("{:06o}\0 ", sum);
+        header[148..156].copy_from_slice(cksum.as_bytes());
+
+        let mut tar_bytes = header.to_vec();
+        tar_bytes.extend([0u8; 1024]); // end-of-archive
+
+        let mut enc = GzEncoder::new(Vec::new(), Compression::default());
+        enc.write_all(&tar_bytes).unwrap();
+        enc.finish().unwrap()
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_rejects_path_traversal_dotdot() -> Result<()> {
+        // Use raw tar bytes so the ParentDir component reaches our code rather
+        // than being caught by the tar::Builder's own safety check.
+        let tarball = make_tar_gz_with_raw_path(b"top/../evil.txt");
+
+        let dst = tempfile::TempDir::new()?;
+        let result = unpack_sans_parent(tarball.as_slice(), dst.path(), 1);
+        assert!(
+            result.is_err(),
+            "Expected extraction to fail on path traversal attempt"
+        );
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_accepts_normal_paths() -> Result<()> {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use tar::Builder;
+
+        let tarball = {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            {
+                let mut archive = Builder::new(&mut encoder);
+                // Directory entry must come first so entry.unpack() can create the file
+                let mut dir_header = tar::Header::new_gnu();
+                dir_header.set_entry_type(tar::EntryType::Directory);
+                dir_header.set_mode(0o755);
+                dir_header.set_size(0);
+                dir_header.set_cksum();
+                archive.append_data(&mut dir_header, "top/bin", std::io::empty())?;
+                let data = b"hello";
+                let mut header = tar::Header::new_gnu();
+                header.set_size(data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                archive.append_data(&mut header, "top/bin/julia", &data[..])?;
+                archive.finish()?;
+            }
+            encoder.finish()?
+        };
+
+        let dst = tempfile::TempDir::new()?;
+        unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
+        assert!(dst.path().join("bin/julia").exists());
         Ok(())
     }
 }
