@@ -749,7 +749,19 @@ pub fn install_version(
 
     let child_target_foldername = format!("julia-{}", fullversion);
     let target_path = paths.juliauphome.join(&child_target_foldername);
-    std::fs::create_dir_all(target_path.parent().unwrap())?;
+    let target_parent = target_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Target installation path `{}` has no parent directory.",
+            target_path.display()
+        )
+    })?;
+    std::fs::create_dir_all(target_parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for installation path `{}`.",
+            target_parent.display(),
+            target_path.display()
+        )
+    })?;
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
@@ -1285,9 +1297,17 @@ pub fn garbage_collect_versions(
 }
 
 fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
-    std::fs::create_dir_all(symlink_path.parent().unwrap()).with_context(|| {
+    let parent = symlink_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Symlink path `{}` has no parent directory.",
+            symlink_path.display()
+        )
+    })?;
+
+    std::fs::create_dir_all(parent).with_context(|| {
         format!(
-            "Failed to create parent directory for symlink `{}`.",
+            "Failed to create parent directory `{}` for symlink `{}`.",
+            parent.display(),
             symlink_path.display()
         )
     })?;
@@ -1934,8 +1954,20 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
                 ))
                 .with_context(|| "Failed to construct URL for version db download.")?;
 
-            let temp_path = tempfile::NamedTempFile::new_in(paths.versiondb.parent().unwrap())
-                .unwrap()
+            let versiondb_parent = paths.versiondb.parent().ok_or_else(|| {
+                anyhow!(
+                    "Version db path `{}` has no parent directory.",
+                    paths.versiondb.display()
+                )
+            })?;
+
+            let temp_path = tempfile::NamedTempFile::new_in(versiondb_parent)
+                .with_context(|| {
+                    format!(
+                        "Failed to create temporary version db file in `{}`.",
+                        versiondb_parent.display()
+                    )
+                })?
                 .into_temp_path();
 
             download_versiondb(onlineversiondburl.as_ref(), &temp_path).with_context(|| {
