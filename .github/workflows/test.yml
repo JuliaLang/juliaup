@@ -136,11 +136,11 @@ jobs:
         toolchain: stable
         target: ${{matrix.target}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
+      uses: taiki-e/install-action@5939f3337e40968c39aa70f5ecb1417a92fb25a0 # v2.75.15
       with:
         tool: cross
     - name: Check build
-      uses: clechasseur/rs-cargo@2a8aa939121c79dd2b4305ed6bf83bc400ce1036 # v4.0.2
+      uses: clechasseur/rs-cargo@34806c2f3a52f2f236510fb17044cbcc62f04eba # v5.0.3
       with:
         command: check
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
