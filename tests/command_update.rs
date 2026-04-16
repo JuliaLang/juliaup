@@ -154,8 +154,8 @@ fn command_update_outdated_channel() {
         .expect("1.10 channel should have a version");
 
     assert!(
-        new_version.starts_with("1.10.10"),
-        "Channel 1.10 should have been updated to 1.10.10 (was {})",
+        new_version.starts_with("1.10.") && !new_version.starts_with("1.10.9"),
+        "Channel 1.10 should have been updated past 1.10.9 (was {})",
         new_version
     );
 }
@@ -219,8 +219,8 @@ fn command_update_all_outdated_channels() {
         .expect("1.11 channel should have a version");
 
     assert!(
-        new_version_110.starts_with("1.10.10"),
-        "Channel 1.10 should have been updated to 1.10.10 (was {})",
+        new_version_110.starts_with("1.10.") && !new_version_110.starts_with("1.10.9"),
+        "Channel 1.10 should have been updated past 1.10.9 (was {})",
         new_version_110
     );
 

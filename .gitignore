@@ -357,3 +357,4 @@ MigrationBackup/
 .ionide/
 
 !/src/bin
+.DS_Store
