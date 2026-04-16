@@ -1905,125 +1905,122 @@ fn launch_julia(
     env_vars: &str,
 ) -> Result<(), String> {
     let full_cmd = build_launch_cmd(channel, project, extra_args, env_vars);
-
-    // Escape for embedding inside AppleScript double-quoted strings
-    #[cfg(target_os = "macos")]
-    let full_cmd_as = full_cmd.replace('\\', "\\\\").replace('"', "\\\"");
-
     if !terminal_app.trim().is_empty() {
-        let term = terminal_app.trim();
-
-        #[cfg(target_os = "macos")]
-        {
-            // Extract the app name from a bundle path or bare name
-            let app_name = std::path::Path::new(term)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or(term);
-
-            let lower = app_name.to_lowercase();
-            let script = if lower == "iterm" || lower == "iterm2" {
-                format!(
-                    "tell application \"{app_name}\"\n  activate\n  \
-                     if (count of windows) = 0 then\n    \
-                     create window with default profile\n  \
-                     else\n    \
-                     tell current window\n      \
-                     create tab with default profile\n    \
-                     end tell\n  \
-                     end if\n  \
-                     tell current session of current window\n    \
-                     write text \"{full_cmd_as}\"\n  \
-                     end tell\n\
-                     end tell"
-                )
-            } else {
-                format!(
-                    "tell application \"{app_name}\"\n  activate\n  \
-                     do script \"{full_cmd_as}\"\n\
-                     end tell"
-                )
-            };
-            return std::process::Command::new("osascript")
-                .args(["-e", &script])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("Failed to launch via {app_name}: {e}"));
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            return std::process::Command::new(term)
-                .args(["cmd", "/k", &full_cmd])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("Failed to launch {term}: {e}"));
-        }
-
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        {
-            return std::process::Command::new(term)
-                .args(["-e", "sh", "-c", &full_cmd])
-                .spawn()
-                .map(|_| ())
-                .map_err(|e| format!("Failed to launch {term}: {e}"));
-        }
+        launch_in_terminal(terminal_app.trim(), &full_cmd)
+    } else {
+        launch_default_terminal(&full_cmd)
     }
+}
 
-    #[cfg(target_os = "macos")]
+#[cfg(target_os = "macos")]
+fn launch_in_terminal(term: &str, full_cmd: &str) -> Result<(), String> {
+    let full_cmd_as = full_cmd.replace('\\', "\\\\").replace('"', "\\\"");
+    let app_name = std::path::Path::new(term)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(term);
+    let lower = app_name.to_lowercase();
+    let script = if lower == "iterm" || lower == "iterm2" {
+        format!(
+            "tell application \"{app_name}\"\n  activate\n  \
+             if (count of windows) = 0 then\n    \
+             create window with default profile\n  \
+             else\n    \
+             tell current window\n      \
+             create tab with default profile\n    \
+             end tell\n  \
+             end if\n  \
+             tell current session of current window\n    \
+             write text \"{full_cmd_as}\"\n  \
+             end tell\n\
+             end tell"
+        )
+    } else {
+        format!(
+            "tell application \"{app_name}\"\n  activate\n  \
+             do script \"{full_cmd_as}\"\n\
+             end tell"
+        )
+    };
+    std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch via {app_name}: {e}"))
+}
+
+#[cfg(target_os = "windows")]
+fn launch_in_terminal(term: &str, full_cmd: &str) -> Result<(), String> {
+    std::process::Command::new(term)
+        .args(["cmd", "/k", full_cmd])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch {term}: {e}"))
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn launch_in_terminal(term: &str, full_cmd: &str) -> Result<(), String> {
+    std::process::Command::new(term)
+        .args(["-e", "sh", "-c", full_cmd])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch {term}: {e}"))
+}
+
+#[cfg(target_os = "macos")]
+fn launch_default_terminal(full_cmd: &str) -> Result<(), String> {
+    let full_cmd_as = full_cmd.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        "tell application \"Terminal\"\n  activate\n  do script \"{full_cmd_as}\"\nend tell"
+    );
+    std::process::Command::new("osascript")
+        .args(["-e", &script])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch Terminal: {e}"))
+}
+
+#[cfg(target_os = "windows")]
+fn launch_default_terminal(full_cmd: &str) -> Result<(), String> {
+    // Prefer Windows Terminal (opens a new tab by default)
+    if std::process::Command::new("wt")
+        .args(["cmd", "/k", full_cmd])
+        .spawn()
+        .is_ok()
     {
-        let script = format!(
-            "tell application \"Terminal\"\n  activate\n  do script \"{}\"\nend tell",
-            full_cmd_as
-        );
-        std::process::Command::new("osascript")
-            .args(["-e", &script])
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| format!("Failed to launch Terminal: {e}"))
+        return Ok(());
     }
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "cmd", "/k", full_cmd])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch terminal: {e}"))
+}
 
-    #[cfg(target_os = "windows")]
-    {
-        // Prefer Windows Terminal (opens a new tab by default)
-        let wt = std::process::Command::new("wt")
-            .args(["cmd", "/k", &full_cmd])
-            .spawn();
-        if wt.is_ok() {
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn launch_default_terminal(full_cmd: &str) -> Result<(), String> {
+    let terminals = [
+        ("x-terminal-emulator", vec!["-e"]),
+        ("gnome-terminal", vec!["--"]),
+        ("konsole", vec!["-e"]),
+        ("xfce4-terminal", vec!["-e"]),
+        ("xterm", vec!["-e"]),
+    ];
+    for (term, prefix_args) in &terminals {
+        let mut cmd = std::process::Command::new(term);
+        for a in prefix_args {
+            cmd.arg(a);
+        }
+        cmd.arg("sh").arg("-c").arg(full_cmd);
+        if cmd.spawn().is_ok() {
             return Ok(());
         }
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "cmd", "/k", &full_cmd])
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| format!("Failed to launch terminal: {e}"))
     }
-
-    #[cfg(target_os = "linux")]
-    {
-        let terminals = [
-            ("x-terminal-emulator", vec!["-e"]),
-            ("gnome-terminal", vec!["--"]),
-            ("konsole", vec!["-e"]),
-            ("xfce4-terminal", vec!["-e"]),
-            ("xterm", vec!["-e"]),
-        ];
-        for (term, prefix_args) in &terminals {
-            let mut cmd = std::process::Command::new(term);
-            for a in prefix_args {
-                cmd.arg(a);
-            }
-            cmd.arg("sh").arg("-c").arg(&full_cmd);
-            if cmd.spawn().is_ok() {
-                return Ok(());
-            }
-        }
-        std::process::Command::new("sh")
-            .args(["-c", &full_cmd])
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| format!("Could not find a terminal emulator: {e}"))
-    }
+    std::process::Command::new("sh")
+        .args(["-c", full_cmd])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Could not find a terminal emulator: {e}"))
 }
 
 fn default_terminal_hint() -> &'static str {
