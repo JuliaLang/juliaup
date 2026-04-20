@@ -20,7 +20,6 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
-use indoc::formatdoc;
 
 // ---------------------------------------------------------------------------
 // Public trait
@@ -451,20 +450,13 @@ impl ShellSetup for Fish {
         let bin_str = bin_path
             .to_str()
             .context("Non-UTF-8 binary path for fish setup")?;
-        let completions_src = juliauphome.join("completions").join("fish.fish");
-        let completions_str = completions_src.to_string_lossy();
+        let home_str = juliauphome
+            .to_str()
+            .context("Non-UTF-8 juliauphome path for fish setup")?;
 
-        let content = format!(
-            "# juliaup PATH and completions\n\
-             if not contains {bin} $PATH\n\
-                 set -x PATH {bin} $PATH\n\
-             end\n\
-             if test -f \"{completions}\"\n\
-                 source \"{completions}\"\n\
-             end\n",
-            bin = bin_str,
-            completions = completions_str,
-        );
+        let content = include_str!("shell_scripts/env.fish")
+            .replace("{bin_path}", bin_str)
+            .replace("{juliauphome}", home_str);
 
         std::fs::write(&confd_path, content).with_context(|| {
             format!(
@@ -505,62 +497,27 @@ fn which_fish() -> bool {
 // ---------------------------------------------------------------------------
 
 pub fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
-    let content = formatdoc!(
-        "
-            case \":$PATH:\" in
-                *:{0}:*)
-                    ;;
-
-                *)
-                    export PATH={0}${{PATH:+:${{PATH}}}}
-                    ;;
-            esac
-        ",
-        bin_str
-    );
-    content.into_bytes()
+    include_str!("shell_scripts/env.sh")
+        .replace("{bin_path}", bin_str)
+        .into_bytes()
 }
 
 pub fn build_bash_block(bin_str: &str, home_str: &str) -> Vec<u8> {
-    let mut buf = build_sh_block(bin_str, home_str);
-    // bash-specific completions
-    let completions = formatdoc!(
-        r#"
-            # Tab completion for juliaup and julia channel selection
-            [ -f "{home}/completions/bash.sh" ] && source "{home}/completions/bash.sh"
-        "#,
-        home = home_str
-    );
-    buf.extend_from_slice(completions.as_bytes());
-    buf
+    include_str!("shell_scripts/env.bash")
+        .replace("{bin_path}", bin_str)
+        .replace("{juliauphome}", home_str)
+        .into_bytes()
 }
 
 pub fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
-    let path_content = formatdoc!(
-        "
-            path=('{bin}' $path)
-            export PATH
-        ",
-        bin = bin_str
-    );
-    let completions = formatdoc!(
-        r#"
-            # Tab completion for juliaup and julia channel selection
-            [ -f "{home}/completions/zsh.zsh" ] && source "{home}/completions/zsh.zsh"
-        "#,
-        home = home_str
-    );
-    let mut buf = path_content.into_bytes();
-    buf.extend_from_slice(completions.as_bytes());
-    buf
+    include_str!("shell_scripts/env.zsh")
+        .replace("{bin_path}", bin_str)
+        .replace("{juliauphome}", home_str)
+        .into_bytes()
 }
 
 pub fn build_csh_block(bin_str: &str) -> Vec<u8> {
-    let content = formatdoc!(
-        "
-            set path = ({} $path)
-        ",
-        bin_str
-    );
-    content.into_bytes()
+    include_str!("shell_scripts/env.csh")
+        .replace("{bin_path}", bin_str)
+        .into_bytes()
 }
