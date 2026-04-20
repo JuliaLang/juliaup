@@ -10,8 +10,6 @@
 //!   to (default: existing files only).
 //! - **`env_script`** — returns the substituted script content to write.
 //! - **`write_mode`** — whether to use marker-block injection or whole-file write.
-//! - **`write_setup`** / **`remove_setup`** — perform the actual I/O (will move
-//!   to `operations.rs` in Stage 3).
 //! - **`source_hint`** — human-readable "run this to reload PATH" string.
 
 use std::path::{Path, PathBuf};
@@ -58,12 +56,6 @@ pub trait ShellSetup {
     /// Returns the fully-substituted script content to write for this shell.
     fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>>;
 
-    /// Write PATH / completions setup for this shell.
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()>;
-
-    /// Remove PATH / completions setup written by `write_setup`.
-    fn remove_setup(&self) -> Result<()>;
-
     /// The command the user should run right now to pick up the new PATH,
     /// without opening a new terminal.  Returns `None` for shells that don't
     /// need an explicit reload (e.g. fish, which uses conf.d/).
@@ -99,15 +91,15 @@ pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
 // Shared marker-block helpers (POSIX-family shells)
 // ---------------------------------------------------------------------------
 
-pub(crate) const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
-pub(crate) const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
-const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
+pub const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
+pub const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
+pub const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use std::io::{Read, Seek, Write};
 
-pub(crate) fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
+pub fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
 
@@ -127,7 +119,7 @@ pub(crate) fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
 }
 
 /// Write (or replace) the juliaup marker block in a single rc file.
-pub(crate) fn write_marker_block(
+pub fn write_marker_block(
     path: &Path,
     bin_path: &Path,
     juliauphome: &Path,
@@ -180,7 +172,7 @@ pub(crate) fn write_marker_block(
 }
 
 /// Remove the juliaup marker block from a single rc file.
-pub(crate) fn remove_marker_block(path: &Path) -> Result<()> {
+pub fn remove_marker_block(path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -204,10 +196,6 @@ pub(crate) fn remove_marker_block(path: &Path) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// sh (POSIX)
-// ---------------------------------------------------------------------------
-
 pub struct Sh;
 
 impl ShellSetup for Sh {
@@ -227,22 +215,6 @@ impl ShellSetup for Sh {
         vec![home.join(".profile")]
     }
 
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.update_rcs() {
-            write_marker_block(&rc, bin_path, juliauphome, build_sh_block)?;
-        }
-        Ok(())
-    }
-
-    fn remove_setup(&self) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                remove_marker_block(&rc)?;
-            }
-        }
-        Ok(())
-    }
-
     fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
         let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
         let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
@@ -256,11 +228,6 @@ impl ShellSetup for Sh {
             .map(|p| format!(". {}", p.display()))
     }
 }
-
-// ---------------------------------------------------------------------------
-// bash
-// ---------------------------------------------------------------------------
-
 pub struct Bash;
 
 impl ShellSetup for Bash {
@@ -282,22 +249,6 @@ impl ShellSetup for Bash {
             .collect()
     }
 
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.update_rcs() {
-            write_marker_block(&rc, bin_path, juliauphome, build_bash_block)?;
-        }
-        Ok(())
-    }
-
-    fn remove_setup(&self) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                remove_marker_block(&rc)?;
-            }
-        }
-        Ok(())
-    }
-
     fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
         let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
         let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
@@ -311,10 +262,6 @@ impl ShellSetup for Bash {
             .map(|p| format!(". {}", p.display()))
     }
 }
-
-// ---------------------------------------------------------------------------
-// zsh
-// ---------------------------------------------------------------------------
 
 pub struct Zsh;
 
@@ -351,20 +298,10 @@ impl ShellSetup for Zsh {
         vec![zdotdir.join(".zshenv")]
     }
 
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.update_rcs() {
-            write_marker_block(&rc, bin_path, juliauphome, build_zsh_block)?;
-        }
-        Ok(())
-    }
-
-    fn remove_setup(&self) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                remove_marker_block(&rc)?;
-            }
-        }
-        Ok(())
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(build_zsh_block(bin_str, home_str))
     }
 
     fn update_rcs(&self) -> Vec<PathBuf> {
@@ -375,12 +312,6 @@ impl ShellSetup for Zsh {
             .collect()
     }
 
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-        Ok(build_zsh_block(bin_str, home_str))
-    }
-
     fn source_hint(&self) -> Option<String> {
         self.rcfiles()
             .into_iter()
@@ -388,10 +319,6 @@ impl ShellSetup for Zsh {
             .map(|p| format!(". {}", p.display()))
     }
 }
-
-// ---------------------------------------------------------------------------
-// csh / tcsh
-// ---------------------------------------------------------------------------
 
 pub struct Tcsh;
 
@@ -412,24 +339,6 @@ impl ShellSetup for Tcsh {
             return vec![];
         };
         vec![home.join(".cshrc"), home.join(".tcshrc")]
-    }
-
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.update_rcs() {
-            write_marker_block(&rc, bin_path, juliauphome, |bin_str, _home_str| {
-                build_csh_block(bin_str)
-            })?;
-        }
-        Ok(())
-    }
-
-    fn remove_setup(&self) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                remove_marker_block(&rc)?;
-            }
-        }
-        Ok(())
     }
 
     fn env_script(&self, bin_path: &Path, _juliauphome: &Path) -> Result<Vec<u8>> {
@@ -500,42 +409,6 @@ impl ShellSetup for Fish {
             .replace("{bin_path}", bin_str)
             .replace("{juliauphome}", home_str)
             .into_bytes())
-    }
-
-    fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        let Some(confd_path) = Fish::confd_path() else {
-            return Ok(());
-        };
-        let Some(parent) = confd_path.parent() else {
-            return Ok(());
-        };
-
-        std::fs::create_dir_all(parent).with_context(|| {
-            format!(
-                "Failed to create fish conf.d directory: {}",
-                parent.display()
-            )
-        })?;
-
-        let content = self.env_script(bin_path, juliauphome)?;
-
-        std::fs::write(&confd_path, content).with_context(|| {
-            format!(
-                "Failed to write fish conf.d file at {}.",
-                confd_path.display()
-            )
-        })
-    }
-
-    fn remove_setup(&self) -> Result<()> {
-        if let Some(path) = Fish::confd_path() {
-            if path.exists() {
-                std::fs::remove_file(&path).with_context(|| {
-                    format!("Failed to remove fish conf.d file at {}.", path.display())
-                })?;
-            }
-        }
-        Ok(())
     }
 
     /// Fish auto-loads conf.d/ on every new session — no reload needed.
