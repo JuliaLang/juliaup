@@ -287,5 +287,3 @@ fn which_fish() -> bool {
         .map(|o| o.status.success())
         .unwrap_or(false)
 }
-
-
