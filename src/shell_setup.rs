@@ -232,14 +232,8 @@ impl ShellSetup for Tcsh {
     }
 }
 
-// ---------------------------------------------------------------------------
-// fish (non-Windows only)
-// ---------------------------------------------------------------------------
-
-#[cfg(not(windows))]
 pub struct Fish;
 
-#[cfg(not(windows))]
 impl Fish {
     fn confd_path() -> Option<PathBuf> {
         let base = std::env::var_os("XDG_CONFIG_HOME")
@@ -249,7 +243,6 @@ impl Fish {
     }
 }
 
-#[cfg(not(windows))]
 impl ShellSetup for Fish {
     fn does_exist(&self) -> bool {
         // fish must either be the running shell or be callable.
@@ -273,16 +266,9 @@ impl ShellSetup for Fish {
     }
 
     fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path
-            .to_str()
-            .context("Non-UTF-8 binary path for fish setup")?;
-        let home_str = juliauphome
-            .to_str()
-            .context("Non-UTF-8 juliauphome path for fish setup")?;
-        Ok(include_str!("shell_scripts/env.fish")
-            .replace("{bin_path}", bin_str)
-            .replace("{juliauphome}", home_str)
-            .into_bytes())
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(build_fish_block(bin_str, home_str))
     }
 
     /// Fish auto-loads conf.d/ on every new session — no reload needed.
@@ -291,7 +277,6 @@ impl ShellSetup for Fish {
     }
 }
 
-#[cfg(not(windows))]
 fn which_fish() -> bool {
     std::process::Command::new("fish")
         .arg("--version")
@@ -299,10 +284,6 @@ fn which_fish() -> bool {
         .map(|o| o.status.success())
         .unwrap_or(false)
 }
-
-// ---------------------------------------------------------------------------
-// Block content builders
-// ---------------------------------------------------------------------------
 
 pub fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
     include_str!("shell_scripts/env.sh")
@@ -327,5 +308,12 @@ pub fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
 pub fn build_csh_block(bin_str: &str) -> Vec<u8> {
     include_str!("shell_scripts/env.csh")
         .replace("{bin_path}", bin_str)
+        .into_bytes()
+}
+
+pub fn build_fish_block(bin_str: &str, home_str: &str) -> Vec<u8> {
+    include_str!("shell_scripts/env.fish")
+        .replace("{bin_path}", bin_str)
+        .replace("{juliauphome}", home_str)
         .into_bytes()
 }
