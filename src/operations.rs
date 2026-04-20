@@ -1720,6 +1720,18 @@ fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
+fn append_fish_content(buf: &mut Vec<u8>, path_str: &str) {
+    // fish specific syntax for path extension
+    let content = formatdoc!(
+        "
+            fish_add_path \"{}\"
+        ",
+        path_str
+    );
+
+    buf.extend_from_slice(content.as_bytes());
+}
+
 fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     // If the variable is already contained in $PATH, do nothing
     // Otherwise prepend it to path
