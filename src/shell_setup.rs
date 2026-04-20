@@ -35,8 +35,19 @@ pub trait ShellSetup {
         self.rcfiles().into_iter().filter(|p| p.exists()).collect()
     }
 
+    /// The raw script template for this shell (placeholders: `{bin_path}`, `{juliauphome}`).
+    fn template(&self) -> &'static str;
+
     /// Returns the fully-substituted script content to write for this shell.
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>>;
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(self
+            .template()
+            .replace("{bin_path}", bin_str)
+            .replace("{juliauphome}", home_str)
+            .into_bytes())
+    }
 
     /// The command the user should run right now to pick up the new PATH,
     /// without opening a new terminal.  Returns `None` for shells that don't
@@ -93,10 +104,8 @@ impl ShellSetup for Sh {
         vec![home.join(".profile")]
     }
 
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-        Ok(build_sh_block(bin_str, home_str))
+    fn template(&self) -> &'static str {
+        include_str!("shell_scripts/env.sh")
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -106,6 +115,7 @@ impl ShellSetup for Sh {
             .map(|p| format!(". {}", p.display()))
     }
 }
+
 pub struct Bash;
 
 impl ShellSetup for Bash {
@@ -127,10 +137,8 @@ impl ShellSetup for Bash {
             .collect()
     }
 
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-        Ok(build_bash_block(bin_str, home_str))
+    fn template(&self) -> &'static str {
+        include_str!("shell_scripts/env.bash")
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -176,10 +184,8 @@ impl ShellSetup for Zsh {
         vec![zdotdir.join(".zshenv")]
     }
 
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-        Ok(build_zsh_block(bin_str, home_str))
+    fn template(&self) -> &'static str {
+        include_str!("shell_scripts/env.zsh")
     }
 
     fn update_rcs(&self) -> Vec<PathBuf> {
@@ -219,9 +225,8 @@ impl ShellSetup for Tcsh {
         vec![home.join(".cshrc"), home.join(".tcshrc")]
     }
 
-    fn env_script(&self, bin_path: &Path, _juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        Ok(build_csh_block(bin_str))
+    fn template(&self) -> &'static str {
+        include_str!("shell_scripts/env.csh")
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -265,10 +270,8 @@ impl ShellSetup for Fish {
         Fish::confd_path().into_iter().collect()
     }
 
-    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
-        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-        Ok(build_fish_block(bin_str, home_str))
+    fn template(&self) -> &'static str {
+        include_str!("shell_scripts/env.fish")
     }
 
     /// Fish auto-loads conf.d/ on every new session — no reload needed.
@@ -285,35 +288,4 @@ fn which_fish() -> bool {
         .unwrap_or(false)
 }
 
-pub fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
-    include_str!("shell_scripts/env.sh")
-        .replace("{bin_path}", bin_str)
-        .into_bytes()
-}
 
-pub fn build_bash_block(bin_str: &str, home_str: &str) -> Vec<u8> {
-    include_str!("shell_scripts/env.bash")
-        .replace("{bin_path}", bin_str)
-        .replace("{juliauphome}", home_str)
-        .into_bytes()
-}
-
-pub fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
-    include_str!("shell_scripts/env.zsh")
-        .replace("{bin_path}", bin_str)
-        .replace("{juliauphome}", home_str)
-        .into_bytes()
-}
-
-pub fn build_csh_block(bin_str: &str) -> Vec<u8> {
-    include_str!("shell_scripts/env.csh")
-        .replace("{bin_path}", bin_str)
-        .into_bytes()
-}
-
-pub fn build_fish_block(bin_str: &str, home_str: &str) -> Vec<u8> {
-    include_str!("shell_scripts/env.fish")
-        .replace("{bin_path}", bin_str)
-        .replace("{juliauphome}", home_str)
-        .into_bytes()
-}
