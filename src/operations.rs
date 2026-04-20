@@ -1898,6 +1898,7 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
 }
 
 /// Returns the path for the juliaup fish conf.d file, respecting $XDG_CONFIG_HOME.
+#[cfg(not(windows))]
 fn fish_confd_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
@@ -1905,6 +1906,7 @@ fn fish_confd_path() -> Option<PathBuf> {
     Some(base.join("fish").join("conf.d").join("juliaup.fish"))
 }
 
+#[cfg(not(windows))]
 fn write_fish_confd_file(bin_path: &Path, juliauphome: &Path) {
     let Some(confd_path) = fish_confd_path() else {
         return;
@@ -1946,6 +1948,7 @@ fn write_fish_confd_file(bin_path: &Path, juliauphome: &Path) {
 }
 
 /// Removes ~/.config/fish/conf.d/juliaup.fish if it exists.
+#[cfg(not(windows))]
 fn remove_fish_confd_file() {
     if let Some(path) = fish_confd_path() {
         if path.exists() {
@@ -1964,6 +1967,7 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
+    #[cfg(not(windows))]
     write_fish_confd_file(bin_path, juliauphome);
 
     let paths = find_shell_scripts_to_be_modified(true)?;
@@ -1981,6 +1985,7 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
         remove_path_from_specific_file(&p).unwrap();
     });
 
+    #[cfg(not(windows))]
     remove_fish_confd_file();
 
     Ok(())
