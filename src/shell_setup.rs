@@ -44,11 +44,6 @@ pub trait ShellSetup {
     fn source_hint(&self) -> Option<String>;
 }
 
-// ---------------------------------------------------------------------------
-// Registry
-// ---------------------------------------------------------------------------
-
-/// All shells juliaup knows about, in priority order.
 #[cfg(not(windows))]
 pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
     vec![
@@ -60,6 +55,11 @@ pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
     ]
 }
 
+#[cfg(windows)]
+pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
+    vec![]
+}
+
 /// Shells that appear to be present on the current system.
 #[cfg(not(windows))]
 pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
@@ -67,6 +67,11 @@ pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
         .into_iter()
         .filter(|s| s.does_exist())
         .collect()
+}
+
+#[cfg(windows)]
+pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
+    vec![]
 }
 
 pub struct Sh;
