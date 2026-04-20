@@ -20,6 +20,8 @@ use crate::utils::is_valid_julia_path;
 use crate::utils::retry_rename;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use anyhow::{anyhow, bail, Context, Error, Result};
+use bstr::ByteSlice;
+use bstr::ByteVec;
 use console::style;
 #[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
@@ -30,7 +32,7 @@ use semver::Version;
 use std::os::unix::fs::PermissionsExt;
 
 use std::{
-    io::{BufReader, Read, Write},
+    io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
 };
 #[cfg(not(target_os = "freebsd"))]
@@ -41,7 +43,6 @@ use url::Url;
 
 // Progress bar prefix with proper indentation to match other messages (12 characters wide, right-aligned)
 const DOWNLOADING_PREFIX: &str = " Downloading";
-
 /// Creates an HTTP client with a proper User-Agent header.
 /// Some CDNs (like CloudFront) block requests without User-Agent.
 #[cfg(not(windows))]
@@ -1649,6 +1650,97 @@ pub fn uninstall_background_selfupdate() -> Result<()> {
     Ok(())
 }
 
+const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
+const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
+const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
+
+fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
+    let start_marker = buffer.find(S_MARKER);
+    let end_marker = buffer.find(E_MARKER);
+
+    let (start_marker, end_marker) = match (start_marker, end_marker) {
+        (Some(sidx), Some(eidx)) => {
+            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
+                bail!("Found multiple startup script sections from juliaup.");
+            }
+            (sidx, eidx)
+        }
+        (None, None) => return Ok(None),
+        (_, None) => bail!("Found an opening marker but no end marker of juliaup section."),
+        (None, _) => bail!("Found an opening marker but no end marker of juliaup section."),
+    };
+
+    Ok(Some((start_marker, end_marker + E_MARKER.len())))
+}
+
+fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .with_context(|| format!("Failed to open file {}.", path.display()))?;
+
+    let mut buffer: Vec<u8> = Vec::new();
+    file.read_to_end(&mut buffer)
+        .with_context(|| format!("Failed to read file {}.", path.display()))?;
+
+    let existing = match_markers(&buffer)
+        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
+
+    let mut block: Vec<u8> = Vec::new();
+    block.extend_from_slice(S_MARKER);
+    block.extend_from_slice(HEADER);
+    block.extend_from_slice(content);
+    block.extend_from_slice(b"\n");
+    block.extend_from_slice(E_MARKER);
+
+    match existing {
+        Some(pos) => buffer.replace_range(pos.0..pos.1, &block),
+        None => {
+            buffer.extend_from_slice(b"\n");
+            buffer.extend_from_slice(&block);
+            buffer.extend_from_slice(b"\n");
+        }
+    }
+
+    file.rewind()
+        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
+    file.set_len(0)
+        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
+    file.write_all(&buffer)
+        .with_context(|| format!("Failed to write file {}.", path.display()))?;
+    file.sync_all()
+        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
+
+    Ok(())
+}
+
+fn remove_marker_block(path: &Path) -> Result<()> {
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .with_context(|| format!("Failed to open file: {}", path.display()))?;
+
+    let mut buffer: Vec<u8> = Vec::new();
+    file.read_to_end(&mut buffer)?;
+
+    let existing = match_markers(&buffer)
+        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
+
+    if let Some(pos) = existing {
+        buffer.replace_range(pos.0..pos.1, "");
+        file.rewind().unwrap();
+        file.set_len(0).unwrap();
+        file.write_all(&buffer).unwrap();
+        file.sync_all().unwrap();
+    }
+
+    Ok(())
+}
+
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
     use crate::shell_setup::all_shells;
     let mut seen = std::collections::HashSet::new();
@@ -1670,12 +1762,29 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
-    // Let each shell handle its own setup.
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::all_shells;
+        use crate::shell_setup::{all_shells, WriteMode};
         for shell in all_shells() {
-            shell.write_setup(bin_path, juliauphome)?;
+            let content = shell.env_script(bin_path, juliauphome)?;
+            match shell.write_mode() {
+                WriteMode::MarkerBlock => {
+                    for rc in shell.update_rcs() {
+                        write_marker_block(&rc, &content)?;
+                    }
+                }
+                WriteMode::WholeFile => {
+                    for path in shell.update_rcs() {
+                        if let Some(parent) = path.parent() {
+                            std::fs::create_dir_all(parent).with_context(|| {
+                                format!("Failed to create directory: {}", parent.display())
+                            })?;
+                        }
+                        std::fs::write(&path, &content)
+                            .with_context(|| format!("Failed to write file: {}", path.display()))?;
+                    }
+                }
+            }
         }
     }
 
@@ -1683,12 +1792,28 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    // Let each shell remove its own setup.
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::all_shells;
+        use crate::shell_setup::{all_shells, WriteMode};
         for shell in all_shells() {
-            shell.remove_setup()?;
+            match shell.write_mode() {
+                WriteMode::MarkerBlock => {
+                    for rc in shell.rcfiles() {
+                        if rc.exists() {
+                            remove_marker_block(&rc)?;
+                        }
+                    }
+                }
+                WriteMode::WholeFile => {
+                    for path in shell.rcfiles() {
+                        if path.exists() {
+                            std::fs::remove_file(&path).with_context(|| {
+                                format!("Failed to remove file: {}", path.display())
+                            })?;
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -1700,13 +1825,27 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::{all_shells, match_markers};
+        use crate::shell_setup::{all_shells, WriteMode};
         for shell in all_shells() {
-            for rc in shell.rcfiles() {
-                let content = std::fs::read(&rc).unwrap_or_default();
-                if match_markers(&content).unwrap_or(None).is_some() {
-                    shell.write_setup(bin_path, juliauphome).ok();
-                    break; // write_setup handles all rcs for this shell
+            match shell.write_mode() {
+                WriteMode::MarkerBlock => {
+                    for rc in shell.rcfiles() {
+                        let buffer = std::fs::read(&rc).unwrap_or_default();
+                        if match_markers(&buffer).unwrap_or(None).is_some() {
+                            let content = shell.env_script(bin_path, juliauphome)?;
+                            write_marker_block(&rc, &content).ok();
+                            break;
+                        }
+                    }
+                }
+                WriteMode::WholeFile => {
+                    for path in shell.update_rcs() {
+                        if path.exists() {
+                            let content = shell.env_script(bin_path, juliauphome)?;
+                            std::fs::write(&path, content).ok();
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -2199,14 +2338,8 @@ fn check_stdlib_notarization(julia_path: &std::path::Path) {
 }
 
 #[cfg(test)]
-fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
-    crate::shell_setup::match_markers(buffer)
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shell_setup::{E_MARKER, S_MARKER};
 
     #[cfg(target_os = "macos")]
     use std::sync::{Mutex, OnceLock};

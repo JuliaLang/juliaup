@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
 // ---------------------------------------------------------------------------
 // WriteMode
@@ -85,115 +85,6 @@ pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
         .into_iter()
         .filter(|s| s.does_exist())
         .collect()
-}
-
-// ---------------------------------------------------------------------------
-// Shared marker-block helpers (POSIX-family shells)
-// ---------------------------------------------------------------------------
-
-pub const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
-pub const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
-pub const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
-
-use bstr::ByteSlice;
-use bstr::ByteVec;
-use std::io::{Read, Seek, Write};
-
-pub fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
-    let start_marker = buffer.find(S_MARKER);
-    let end_marker = buffer.find(E_MARKER);
-
-    let (start_marker, end_marker) = match (start_marker, end_marker) {
-        (Some(sidx), Some(eidx)) => {
-            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
-                bail!("Found multiple startup script sections from juliaup.");
-            }
-            (sidx, eidx)
-        }
-        (None, None) => return Ok(None),
-        (_, None) => bail!("Found an opening marker but no end marker of juliaup section."),
-        (None, _) => bail!("Found an opening marker but no end marker of juliaup section."),
-    };
-
-    Ok(Some((start_marker, end_marker + E_MARKER.len())))
-}
-
-/// Write (or replace) the juliaup marker block in a single rc file.
-pub fn write_marker_block(
-    path: &Path,
-    bin_path: &Path,
-    juliauphome: &Path,
-    build_content: impl FnOnce(&str, &str) -> Vec<u8>,
-) -> Result<()> {
-    let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
-    let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
-
-    let mut file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(path)
-        .with_context(|| format!("Failed to open file {}.", path.display()))?;
-
-    let mut buffer: Vec<u8> = Vec::new();
-    file.read_to_end(&mut buffer)
-        .with_context(|| format!("Failed to read file {}.", path.display()))?;
-
-    let existing = match_markers(&buffer)
-        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
-
-    let mut block: Vec<u8> = Vec::new();
-    block.extend_from_slice(S_MARKER);
-    block.extend_from_slice(HEADER);
-    block.extend_from_slice(&build_content(bin_str, home_str));
-    block.extend_from_slice(b"\n");
-    block.extend_from_slice(E_MARKER);
-
-    match existing {
-        Some(pos) => buffer.replace_range(pos.0..pos.1, &block),
-        None => {
-            buffer.extend_from_slice(b"\n");
-            buffer.extend_from_slice(&block);
-            buffer.extend_from_slice(b"\n");
-        }
-    }
-
-    file.rewind()
-        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
-    file.set_len(0)
-        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
-    file.write_all(&buffer)
-        .with_context(|| format!("Failed to write file {}.", path.display()))?;
-    file.sync_all()
-        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
-
-    Ok(())
-}
-
-/// Remove the juliaup marker block from a single rc file.
-pub fn remove_marker_block(path: &Path) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(path)
-        .with_context(|| format!("Failed to open file: {}", path.display()))?;
-
-    let mut buffer: Vec<u8> = Vec::new();
-    file.read_to_end(&mut buffer)?;
-
-    let existing = match_markers(&buffer)
-        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
-
-    if let Some(pos) = existing {
-        buffer.replace_range(pos.0..pos.1, "");
-        file.rewind().unwrap();
-        file.set_len(0).unwrap();
-        file.write_all(&buffer).unwrap();
-        file.sync_all().unwrap();
-    }
-
-    Ok(())
 }
 
 pub struct Sh;
