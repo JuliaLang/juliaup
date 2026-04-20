@@ -12,6 +12,7 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::shell_setup::{remove_marker_block, write_marker_block};
 use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
@@ -1756,143 +1757,41 @@ fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &
 }
 
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
-    let start_marker = buffer.find(S_MARKER);
-    let end_marker = buffer.find(E_MARKER);
-
-    // This ensures exactly one opening and one closing marker exists
-    let (start_marker, end_marker) = match (start_marker, end_marker) {
-        (Some(sidx), Some(eidx)) => {
-            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
-                bail!("Found multiple startup script sections from juliaup.");
-            }
-            (sidx, eidx)
-        }
-        (None, None) => {
-            return Ok(None);
-        }
-        (_, None) => {
-            bail!("Found an opening marker but no end marker of juliaup section.");
-        }
-        (None, _) => {
-            bail!("Found an opening marker but no end marker of juliaup section.");
-        }
-    };
-
-    Ok(Some((start_marker, end_marker + E_MARKER.len())))
+    crate::shell_setup::match_markers(buffer)
 }
 
 fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(path)
-        .with_context(|| format!("Failed to open file {}.", path.display()))?;
-
-    let mut buffer: Vec<u8> = Vec::new();
-
-    file.read_to_end(&mut buffer)
-        .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
-
-    let existing_code_pos = match_markers(&buffer).with_context(|| {
-        format!(
-            "Error occured while searching juliaup shell startup script section in {}",
-            path.display()
-        )
-    })?;
-
-    let new_content =
-        get_shell_script_juliaup_content(bin_path, juliauphome, path).with_context(|| {
-            format!(
-                "Error occured while generating juliaup shell startup script section for {}",
-                path.display()
-            )
-        })?;
-
-    match existing_code_pos {
-        Some(pos) => {
-            buffer.replace_range(pos.0..pos.1, &new_content);
-        }
-        None => {
-            buffer.extend_from_slice(b"\n");
-            buffer.extend_from_slice(&new_content);
-            buffer.extend_from_slice(b"\n");
-        }
+    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let builder: Box<dyn Fn(&str, &str) -> Vec<u8>> = if file_name == ".zshrc" {
+        Box::new(crate::shell_setup::build_zsh_block)
+    } else if file_name == ".cshrc" || file_name == ".tcshrc" {
+        Box::new(|bin, _home| crate::shell_setup::build_csh_block(bin))
+    } else if file_name.starts_with(".bash") {
+        Box::new(crate::shell_setup::build_bash_block)
+    } else {
+        Box::new(crate::shell_setup::build_sh_block)
     };
-
-    file.rewind()
-        .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
-
-    file.set_len(0)
-        .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
-
-    file.write_all(&buffer)
-        .with_context(|| format!("Failed to write file {}.", path.display()))?;
-
-    file.sync_all()
-        .with_context(|| format!("Failed to sync file {}.", path.display()))?;
-
-    Ok(())
+    write_marker_block(path, bin_path, juliauphome, builder)
 }
 
 fn remove_path_from_specific_file(path: &Path) -> Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(path)
-        .with_context(|| format!("Failed to open file: {}", path.display()))?;
-
-    let mut buffer: Vec<u8> = Vec::new();
-
-    file.read_to_end(&mut buffer)?;
-
-    let existing_code_pos = match_markers(&buffer).with_context(|| {
-        format!(
-            "Error occured while searching juliaup shell startup script section in {}",
-            path.display()
-        )
-    })?;
-
-    if let Some(pos) = existing_code_pos {
-        buffer.replace_range(pos.0..pos.1, "");
-
-        file.rewind().unwrap();
-
-        file.set_len(0).unwrap();
-
-        file.write_all(&buffer).unwrap();
-
-        file.sync_all().unwrap();
-    }
-
-    Ok(())
+    remove_marker_block(path)
 }
 
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
-    let home_dir = dirs::home_dir().unwrap();
-
-    let paths_to_test: Vec<PathBuf> = vec![
-        home_dir.join(".bashrc"),
-        home_dir.join(".profile"),
-        home_dir.join(".bash_profile"),
-        home_dir.join(".bash_login"),
-        home_dir.join(".zshrc"),
-        home_dir.join(".cshrc"),
-        home_dir.join(".tcshrc"),
-    ];
-
-    let result = paths_to_test
-        .iter()
-        .filter(
-            |p| {
-                p.exists()
-                    || (add_case
-                        && p.file_name().unwrap() == ".zshrc"
-                        && std::env::consts::OS == "macos")
-            }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
-        )
-        .cloned()
+    use crate::shell_setup::all_shells;
+    let dummy = PathBuf::new(); // shells use dirs::home_dir() internally
+    let mut seen = std::collections::HashSet::new();
+    let result = all_shells(&dummy)
+        .into_iter()
+        .flat_map(|s| s.rcfiles())
+        .filter(|p| {
+            p.exists()
+                || (add_case
+                    && p.file_name().map(|n| n == ".zshrc").unwrap_or(false)
+                    && std::env::consts::OS == "macos")
+        })
+        .filter(|p| seen.insert(p.clone()))
         .collect();
     Ok(result)
 }
@@ -1901,20 +1800,28 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
-    let paths = find_shell_scripts_to_be_modified(true)?;
+    // Let each shell handle its own setup.
+    #[cfg(not(windows))]
+    {
+        use crate::shell_setup::all_shells;
+        for shell in all_shells(juliauphome) {
+            shell.write_setup(bin_path, juliauphome)?;
+        }
+    }
 
-    paths.into_iter().for_each(|p| {
-        add_path_to_specific_file(bin_path, juliauphome, &p).unwrap();
-    });
     Ok(())
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    let paths = find_shell_scripts_to_be_modified(false)?;
-
-    paths.into_iter().for_each(|p| {
-        remove_path_from_specific_file(&p).unwrap();
-    });
+    // Let each shell remove its own setup.
+    #[cfg(not(windows))]
+    {
+        use crate::shell_setup::all_shells;
+        let home_dir = dirs::home_dir().unwrap();
+        for shell in all_shells(&home_dir) {
+            shell.remove_setup()?;
+        }
+    }
     Ok(())
 }
 
@@ -1922,12 +1829,17 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 /// This is called during self-update to propagate changes (e.g. new completions)
 /// to existing users without requiring them to re-run `juliaup config modifypath true`.
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
-    let paths = find_shell_scripts_to_be_modified(false)?;
-
-    for p in paths {
-        let content = std::fs::read(&p).unwrap_or_default();
-        if match_markers(&content).unwrap_or(None).is_some() {
-            add_path_to_specific_file(bin_path, juliauphome, &p).ok();
+    #[cfg(not(windows))]
+    {
+        use crate::shell_setup::{all_shells, match_markers};
+        for shell in all_shells(juliauphome) {
+            for rc in shell.rcfiles() {
+                let content = std::fs::read(&rc).unwrap_or_default();
+                if match_markers(&content).unwrap_or(None).is_some() {
+                    shell.write_setup(bin_path, juliauphome).ok();
+                    break; // write_setup handles all rcs for this shell
+                }
+            }
         }
     }
     Ok(())

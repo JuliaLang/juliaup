@@ -32,6 +32,7 @@ pub mod config_file;
 pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod operations;
+pub mod shell_setup;
 pub mod utils;
 pub mod version_selection;
 pub mod versions_file;

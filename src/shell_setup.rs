@@ -59,7 +59,7 @@ pub fn all_shells(juliauphome: &Path) -> Vec<Box<dyn ShellSetup>> {
         Box::new(Sh::new(juliauphome)),
         Box::new(Bash::new(juliauphome)),
         Box::new(Zsh::new(juliauphome)),
-        Box::new(CshLike::new()),
+        Box::new(Tcsh::new()),
         Box::new(Fish::new(juliauphome)),
     ]
 }
@@ -91,9 +91,7 @@ pub(crate) fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
 
     let (start_marker, end_marker) = match (start_marker, end_marker) {
         (Some(sidx), Some(eidx)) => {
-            if sidx != buffer.rfind(S_MARKER).unwrap()
-                || eidx != buffer.rfind(E_MARKER).unwrap()
-            {
+            if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
                 bail!("Found multiple startup script sections from juliaup.");
             }
             (sidx, eidx)
@@ -113,12 +111,8 @@ pub(crate) fn write_marker_block(
     juliauphome: &Path,
     build_content: impl FnOnce(&str, &str) -> Vec<u8>,
 ) -> Result<()> {
-    let bin_str = bin_path
-        .to_str()
-        .context("Non-UTF-8 binary path")?;
-    let home_str = juliauphome
-        .to_str()
-        .context("Non-UTF-8 juliauphome path")?;
+    let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+    let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
 
     let mut file = std::fs::OpenOptions::new()
         .read(true)
@@ -198,7 +192,9 @@ pub struct Sh {
 
 impl Sh {
     pub fn new(juliauphome: &Path) -> Self {
-        Self { juliauphome: juliauphome.to_path_buf() }
+        Self {
+            juliauphome: juliauphome.to_path_buf(),
+        }
     }
 }
 
@@ -213,7 +209,9 @@ impl ShellSetup for Sh {
     }
 
     fn rcfiles(&self) -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else { return vec![] };
+        let Some(home) = dirs::home_dir() else {
+            return vec![];
+        };
         vec![home.join(".profile")]
     }
 
@@ -253,7 +251,9 @@ pub struct Bash {
 
 impl Bash {
     pub fn new(juliauphome: &Path) -> Self {
-        Self { juliauphome: juliauphome.to_path_buf() }
+        Self {
+            juliauphome: juliauphome.to_path_buf(),
+        }
     }
 }
 
@@ -267,7 +267,9 @@ impl ShellSetup for Bash {
     }
 
     fn rcfiles(&self) -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else { return vec![] };
+        let Some(home) = dirs::home_dir() else {
+            return vec![];
+        };
         [".bashrc", ".bash_profile", ".bash_login"]
             .iter()
             .map(|f| home.join(f))
@@ -314,7 +316,9 @@ pub struct Zsh {
 
 impl Zsh {
     pub fn new(juliauphome: &Path) -> Self {
-        Self { juliauphome: juliauphome.to_path_buf() }
+        Self {
+            juliauphome: juliauphome.to_path_buf(),
+        }
     }
 }
 
@@ -332,7 +336,9 @@ impl ShellSetup for Zsh {
     }
 
     fn rcfiles(&self) -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else { return vec![] };
+        let Some(home) = dirs::home_dir() else {
+            return vec![];
+        };
         vec![home.join(".zshrc")]
     }
 
@@ -367,15 +373,19 @@ impl ShellSetup for Zsh {
 // csh / tcsh
 // ---------------------------------------------------------------------------
 
-pub struct CshLike;
+pub struct Tcsh;
 
-impl CshLike {
-    pub fn new() -> Self { Self }
+impl Tcsh {
+    pub fn new() -> Self {
+        Self
+    }
 }
 
-impl ShellSetup for CshLike {
+impl ShellSetup for Tcsh {
     fn does_exist(&self) -> bool {
-        let Some(home) = dirs::home_dir() else { return false };
+        let Some(home) = dirs::home_dir() else {
+            return false;
+        };
         home.join(".cshrc").exists() || home.join(".tcshrc").exists()
     }
 
@@ -384,7 +394,9 @@ impl ShellSetup for CshLike {
     }
 
     fn rcfiles(&self) -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else { return vec![] };
+        let Some(home) = dirs::home_dir() else {
+            return vec![];
+        };
         vec![home.join(".cshrc"), home.join(".tcshrc")]
     }
 
@@ -428,7 +440,9 @@ pub struct Fish {
 #[cfg(not(windows))]
 impl Fish {
     pub fn new(juliauphome: &Path) -> Self {
-        Self { juliauphome: juliauphome.to_path_buf() }
+        Self {
+            juliauphome: juliauphome.to_path_buf(),
+        }
     }
 
     fn confd_path() -> Option<PathBuf> {
@@ -458,11 +472,19 @@ impl ShellSetup for Fish {
     }
 
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        let Some(confd_path) = Fish::confd_path() else { return Ok(()) };
-        let Some(parent) = confd_path.parent() else { return Ok(()) };
+        let Some(confd_path) = Fish::confd_path() else {
+            return Ok(());
+        };
+        let Some(parent) = confd_path.parent() else {
+            return Ok(());
+        };
 
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create fish conf.d directory: {}", parent.display()))?;
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "Failed to create fish conf.d directory: {}",
+                parent.display()
+            )
+        })?;
 
         let bin_str = bin_path
             .to_str()
@@ -482,8 +504,12 @@ impl ShellSetup for Fish {
             completions = completions_str,
         );
 
-        std::fs::write(&confd_path, content)
-            .with_context(|| format!("Failed to write fish conf.d file at {}.", confd_path.display()))
+        std::fs::write(&confd_path, content).with_context(|| {
+            format!(
+                "Failed to write fish conf.d file at {}.",
+                confd_path.display()
+            )
+        })
     }
 
     fn remove_setup(&self) -> Result<()> {
@@ -516,7 +542,7 @@ fn which_fish() -> bool {
 // Block content builders
 // ---------------------------------------------------------------------------
 
-fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
+pub fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
     let content = formatdoc!(
         "
             case \":$PATH:\" in
@@ -533,7 +559,7 @@ fn build_sh_block(bin_str: &str, _home_str: &str) -> Vec<u8> {
     content.into_bytes()
 }
 
-fn build_bash_block(bin_str: &str, home_str: &str) -> Vec<u8> {
+pub fn build_bash_block(bin_str: &str, home_str: &str) -> Vec<u8> {
     let mut buf = build_sh_block(bin_str, home_str);
     // bash-specific completions
     let completions = formatdoc!(
@@ -547,7 +573,7 @@ fn build_bash_block(bin_str: &str, home_str: &str) -> Vec<u8> {
     buf
 }
 
-fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
+pub fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
     let path_content = formatdoc!(
         "
             path=('{bin}' $path)
@@ -567,7 +593,7 @@ fn build_zsh_block(bin_str: &str, home_str: &str) -> Vec<u8> {
     buf
 }
 
-fn build_csh_block(bin_str: &str) -> Vec<u8> {
+pub fn build_csh_block(bin_str: &str) -> Vec<u8> {
     let content = formatdoc!(
         "
             set path = ({} $path)
