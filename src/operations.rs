@@ -1240,21 +1240,30 @@ pub fn garbage_collect_versions(
             JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
             _ => true,
         }) {
-            let path_to_delete = paths.juliauphome.join(&detail.path).canonicalize()?;
-            let display = path_to_delete.display();
+            let path_to_delete = paths.juliauphome.join(&detail.path);
 
-            match std::fs::remove_dir_all(&path_to_delete) {
-                Ok(_) => versions_to_uninstall.push(installed_version.clone()),
-                Err(_) => print_juliaup_style(
-                    "WARNING",
-                    &format!(
-                        "Failed to delete {}. \
-                    Make sure to close any old julia version still running.\n\
-                    You can try to delete at a later point by running `juliaup gc`.",
-                        display
-                    ),
-                    JuliaupMessageType::Warning,
-                ),
+            match path_to_delete.canonicalize() {
+                Ok(canonical_path) => {
+                    let display = canonical_path.display();
+
+                    match std::fs::remove_dir_all(&canonical_path) {
+                        Ok(_) => versions_to_uninstall.push(installed_version.clone()),
+                        Err(_) => print_juliaup_style(
+                            "WARNING",
+                            &format!(
+                                "Failed to delete {}. \
+                            Make sure to close any old julia version still running.\n\
+                            You can try to delete at a later point by running `juliaup gc`.",
+                                display
+                            ),
+                            JuliaupMessageType::Warning,
+                        ),
+                    }
+                }
+                Err(_) => {
+                    // Directory already doesn't exist, just mark for removal from config
+                    versions_to_uninstall.push(installed_version.clone());
+                }
             }
         }
     }
