@@ -574,7 +574,11 @@ pub fn main() -> Result<()> {
         );
         println!();
         for p in &install_choices.modifypath_files {
-            println!("  . {}", p.to_string_lossy());
+            if p.file_name().map(|n| n == "config.fish").unwrap_or(false) {
+                println!("  source {}", p.to_string_lossy());
+            } else {
+                println!("  . {}", p.to_string_lossy());
+            }
         }
         println!();
     }
