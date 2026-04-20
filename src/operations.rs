@@ -1658,7 +1658,7 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
         .filter(|p| {
             p.exists()
                 || (add_case
-                    && p.file_name().map(|n| n == ".zshrc").unwrap_or(false)
+                    && p.file_name().map(|n| n == ".zshenv").unwrap_or(false)
                     && std::env::consts::OS == "macos")
         })
         .filter(|p| seen.insert(p.clone()))

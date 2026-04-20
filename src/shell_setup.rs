@@ -1,25 +1,34 @@
 //! Shell-specific PATH and completions setup.
 //!
 //! Each shell is represented as a struct that implements [`ShellSetup`]. The
-//! trait unifies three operations:
+//! trait provides:
 //!
-//! - **`does_exist`** — heuristic check for whether the shell is present on
-//!   this system (used to filter the post-install reload message).
-//! - **`write_setup`** — write PATH / completions configuration for this shell.
-//! - **`remove_setup`** — undo what `write_setup` did.
-//! - **`source_hint`** — human-readable "run this to reload PATH now" string
-//!   shown after install.
-//!
-//! POSIX-family shells (sh, bash, zsh, csh/tcsh) use the juliaup marker-block
-//! mechanism to modify existing rc files. Fish uses `~/.config/fish/conf.d/`
-//! so that neither `config.fish` nor any other file needs to be touched.
-//!
-//! Adding a new shell means adding a struct + `impl ShellSetup` — no
-//! changes to the call sites in `operations.rs`.
+//! - **`does_exist`** — heuristic check for whether the shell is present.
+//! - **`name`** — display name for post-install messages.
+//! - **`rcfiles`** — all rc-files this shell cares about (for cleanup scanning).
+//! - **`update_rcs`** — the subset of `rcfiles` that should actually be written
+//!   to (default: existing files only).
+//! - **`env_script`** — returns the substituted script content to write.
+//! - **`write_mode`** — whether to use marker-block injection or whole-file write.
+//! - **`write_setup`** / **`remove_setup`** — perform the actual I/O (will move
+//!   to `operations.rs` in Stage 3).
+//! - **`source_hint`** — human-readable "run this to reload PATH" string.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
+
+// ---------------------------------------------------------------------------
+// WriteMode
+// ---------------------------------------------------------------------------
+
+/// How a shell's setup content is written to disk.
+pub enum WriteMode {
+    /// Inject content between juliaup marker comments in an rc file.
+    MarkerBlock,
+    /// Write the entire content as a standalone file (e.g. fish conf.d).
+    WholeFile,
+}
 
 // ---------------------------------------------------------------------------
 // Public trait
@@ -34,6 +43,20 @@ pub trait ShellSetup {
 
     /// All rc-files this shell cares about (used for cleanup scanning).
     fn rcfiles(&self) -> Vec<PathBuf>;
+
+    /// The subset of `rcfiles` that should actually be written to.
+    /// Default: rc files that already exist on disk.
+    fn update_rcs(&self) -> Vec<PathBuf> {
+        self.rcfiles().into_iter().filter(|p| p.exists()).collect()
+    }
+
+    /// How the content returned by `env_script` should be written.
+    fn write_mode(&self) -> WriteMode {
+        WriteMode::MarkerBlock
+    }
+
+    /// Returns the fully-substituted script content to write for this shell.
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>>;
 
     /// Write PATH / completions setup for this shell.
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()>;
@@ -205,10 +228,8 @@ impl ShellSetup for Sh {
     }
 
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                write_marker_block(&rc, bin_path, juliauphome, build_sh_block)?;
-            }
+        for rc in self.update_rcs() {
+            write_marker_block(&rc, bin_path, juliauphome, build_sh_block)?;
         }
         Ok(())
     }
@@ -220,6 +241,12 @@ impl ShellSetup for Sh {
             }
         }
         Ok(())
+    }
+
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(build_sh_block(bin_str, home_str))
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -271,17 +298,17 @@ impl ShellSetup for Bash {
         Ok(())
     }
 
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(build_bash_block(bin_str, home_str))
+    }
+
     fn source_hint(&self) -> Option<String> {
         self.update_rcs()
             .into_iter()
             .next()
             .map(|p| format!(". {}", p.display()))
-    }
-}
-
-impl Bash {
-    fn update_rcs(&self) -> Vec<PathBuf> {
-        self.rcfiles().into_iter().filter(|p| p.exists()).collect()
     }
 }
 
@@ -291,12 +318,25 @@ impl Bash {
 
 pub struct Zsh;
 
+impl Zsh {
+    /// Returns the directory zsh reads its dotfiles from: `$ZDOTDIR` if set,
+    /// otherwise `$HOME`.
+    fn zdotdir() -> Option<PathBuf> {
+        if let Ok(dir) = std::env::var("ZDOTDIR") {
+            if !dir.is_empty() {
+                return Some(PathBuf::from(dir));
+            }
+        }
+        dirs::home_dir()
+    }
+}
+
 impl ShellSetup for Zsh {
     fn does_exist(&self) -> bool {
-        // Always set up on macOS (default shell), otherwise only if .zshrc exists.
+        // zsh is the default shell on macOS, or the user has a .zshenv already.
         std::env::consts::OS == "macos"
-            || dirs::home_dir()
-                .map(|h| h.join(".zshrc").exists())
+            || Zsh::zdotdir()
+                .map(|d| d.join(".zshenv").exists())
                 .unwrap_or(false)
     }
 
@@ -305,18 +345,15 @@ impl ShellSetup for Zsh {
     }
 
     fn rcfiles(&self) -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else {
+        let Some(zdotdir) = Zsh::zdotdir() else {
             return vec![];
         };
-        vec![home.join(".zshrc")]
+        vec![zdotdir.join(".zshenv")]
     }
 
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        // On macOS always create .zshrc even if it doesn't exist yet.
-        for rc in self.rcfiles() {
-            if rc.exists() || std::env::consts::OS == "macos" {
-                write_marker_block(&rc, bin_path, juliauphome, build_zsh_block)?;
-            }
+        for rc in self.update_rcs() {
+            write_marker_block(&rc, bin_path, juliauphome, build_zsh_block)?;
         }
         Ok(())
     }
@@ -328,6 +365,20 @@ impl ShellSetup for Zsh {
             }
         }
         Ok(())
+    }
+
+    fn update_rcs(&self) -> Vec<PathBuf> {
+        // Always write on macOS (default shell); elsewhere only if .zshenv exists.
+        self.rcfiles()
+            .into_iter()
+            .filter(|p| p.exists() || std::env::consts::OS == "macos")
+            .collect()
+    }
+
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        let home_str = juliauphome.to_str().context("Non-UTF-8 juliauphome path")?;
+        Ok(build_zsh_block(bin_str, home_str))
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -343,12 +394,6 @@ impl ShellSetup for Zsh {
 // ---------------------------------------------------------------------------
 
 pub struct Tcsh;
-
-impl Tcsh {
-    pub fn new() -> Self {
-        Self
-    }
-}
 
 impl ShellSetup for Tcsh {
     fn does_exist(&self) -> bool {
@@ -370,12 +415,10 @@ impl ShellSetup for Tcsh {
     }
 
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
-        for rc in self.rcfiles() {
-            if rc.exists() {
-                write_marker_block(&rc, bin_path, juliauphome, |bin_str, _home_str| {
-                    build_csh_block(bin_str)
-                })?;
-            }
+        for rc in self.update_rcs() {
+            write_marker_block(&rc, bin_path, juliauphome, |bin_str, _home_str| {
+                build_csh_block(bin_str)
+            })?;
         }
         Ok(())
     }
@@ -387,6 +430,11 @@ impl ShellSetup for Tcsh {
             }
         }
         Ok(())
+    }
+
+    fn env_script(&self, bin_path: &Path, _juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path.to_str().context("Non-UTF-8 binary path")?;
+        Ok(build_csh_block(bin_str))
     }
 
     fn source_hint(&self) -> Option<String> {
@@ -432,6 +480,28 @@ impl ShellSetup for Fish {
         Fish::confd_path().into_iter().collect()
     }
 
+    fn update_rcs(&self) -> Vec<PathBuf> {
+        // Always write the conf.d file regardless of whether it exists yet.
+        Fish::confd_path().into_iter().collect()
+    }
+
+    fn write_mode(&self) -> WriteMode {
+        WriteMode::WholeFile
+    }
+
+    fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
+        let bin_str = bin_path
+            .to_str()
+            .context("Non-UTF-8 binary path for fish setup")?;
+        let home_str = juliauphome
+            .to_str()
+            .context("Non-UTF-8 juliauphome path for fish setup")?;
+        Ok(include_str!("shell_scripts/env.fish")
+            .replace("{bin_path}", bin_str)
+            .replace("{juliauphome}", home_str)
+            .into_bytes())
+    }
+
     fn write_setup(&self, bin_path: &Path, juliauphome: &Path) -> Result<()> {
         let Some(confd_path) = Fish::confd_path() else {
             return Ok(());
@@ -447,16 +517,7 @@ impl ShellSetup for Fish {
             )
         })?;
 
-        let bin_str = bin_path
-            .to_str()
-            .context("Non-UTF-8 binary path for fish setup")?;
-        let home_str = juliauphome
-            .to_str()
-            .context("Non-UTF-8 juliauphome path for fish setup")?;
-
-        let content = include_str!("shell_scripts/env.fish")
-            .replace("{bin_path}", bin_str)
-            .replace("{juliauphome}", home_str);
+        let content = self.env_script(bin_path, juliauphome)?;
 
         std::fs::write(&confd_path, content).with_context(|| {
             format!(
