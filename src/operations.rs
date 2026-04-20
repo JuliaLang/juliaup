@@ -1905,8 +1905,6 @@ fn fish_confd_path() -> Option<PathBuf> {
     Some(base.join("fish").join("conf.d").join("juliaup.fish"))
 }
 
-/// Writes ~/.config/fish/conf.d/juliaup.fish with PATH setup and completions.
-/// Fish auto-loads every .fish file in conf.d/ on startup.
 fn write_fish_confd_file(bin_path: &Path, juliauphome: &Path) {
     let Some(confd_path) = fish_confd_path() else {
         return;
@@ -1966,9 +1964,6 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
-    // Write a fish conf.d file that handles both PATH and completions.
-    // Fish automatically loads every .fish file in conf.d/ and completions/
-    // on startup, so no config.fish modification is needed.
     write_fish_confd_file(bin_path, juliauphome);
 
     let paths = find_shell_scripts_to_be_modified(true)?;
@@ -1986,7 +1981,6 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
         remove_path_from_specific_file(&p).unwrap();
     });
 
-    // Remove the fish conf.d file if it exists.
     remove_fish_confd_file();
 
     Ok(())
