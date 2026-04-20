@@ -1674,6 +1674,10 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
 }
 
 fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1764,26 +1768,11 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::{all_shells, WriteMode};
+        use crate::shell_setup::all_shells;
         for shell in all_shells() {
             let content = shell.env_script(bin_path, juliauphome)?;
-            match shell.write_mode() {
-                WriteMode::MarkerBlock => {
-                    for rc in shell.update_rcs() {
-                        write_marker_block(&rc, &content)?;
-                    }
-                }
-                WriteMode::WholeFile => {
-                    for path in shell.update_rcs() {
-                        if let Some(parent) = path.parent() {
-                            std::fs::create_dir_all(parent).with_context(|| {
-                                format!("Failed to create directory: {}", parent.display())
-                            })?;
-                        }
-                        std::fs::write(&path, &content)
-                            .with_context(|| format!("Failed to write file: {}", path.display()))?;
-                    }
-                }
+            for rc in shell.update_rcs() {
+                write_marker_block(&rc, &content)?;
             }
         }
     }
@@ -1794,24 +1783,11 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::{all_shells, WriteMode};
+        use crate::shell_setup::all_shells;
         for shell in all_shells() {
-            match shell.write_mode() {
-                WriteMode::MarkerBlock => {
-                    for rc in shell.rcfiles() {
-                        if rc.exists() {
-                            remove_marker_block(&rc)?;
-                        }
-                    }
-                }
-                WriteMode::WholeFile => {
-                    for path in shell.rcfiles() {
-                        if path.exists() {
-                            std::fs::remove_file(&path).with_context(|| {
-                                format!("Failed to remove file: {}", path.display())
-                            })?;
-                        }
-                    }
+            for rc in shell.rcfiles() {
+                if rc.exists() {
+                    remove_marker_block(&rc)?;
                 }
             }
         }
@@ -1825,27 +1801,14 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
     #[cfg(not(windows))]
     {
-        use crate::shell_setup::{all_shells, WriteMode};
+        use crate::shell_setup::all_shells;
         for shell in all_shells() {
-            match shell.write_mode() {
-                WriteMode::MarkerBlock => {
-                    for rc in shell.rcfiles() {
-                        let buffer = std::fs::read(&rc).unwrap_or_default();
-                        if match_markers(&buffer).unwrap_or(None).is_some() {
-                            let content = shell.env_script(bin_path, juliauphome)?;
-                            write_marker_block(&rc, &content).ok();
-                            break;
-                        }
-                    }
-                }
-                WriteMode::WholeFile => {
-                    for path in shell.update_rcs() {
-                        if path.exists() {
-                            let content = shell.env_script(bin_path, juliauphome)?;
-                            std::fs::write(&path, content).ok();
-                            break;
-                        }
-                    }
+            for rc in shell.rcfiles() {
+                let buffer = std::fs::read(&rc).unwrap_or_default();
+                if match_markers(&buffer).unwrap_or(None).is_some() {
+                    let content = shell.env_script(bin_path, juliauphome)?;
+                    write_marker_block(&rc, &content).ok();
+                    break;
                 }
             }
         }

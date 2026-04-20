@@ -9,24 +9,11 @@
 //! - **`update_rcs`** — the subset of `rcfiles` that should actually be written
 //!   to (default: existing files only).
 //! - **`env_script`** — returns the substituted script content to write.
-//! - **`write_mode`** — whether to use marker-block injection or whole-file write.
 //! - **`source_hint`** — human-readable "run this to reload PATH" string.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-
-// ---------------------------------------------------------------------------
-// WriteMode
-// ---------------------------------------------------------------------------
-
-/// How a shell's setup content is written to disk.
-pub enum WriteMode {
-    /// Inject content between juliaup marker comments in an rc file.
-    MarkerBlock,
-    /// Write the entire content as a standalone file (e.g. fish conf.d).
-    WholeFile,
-}
 
 // ---------------------------------------------------------------------------
 // Public trait
@@ -46,11 +33,6 @@ pub trait ShellSetup {
     /// Default: rc files that already exist on disk.
     fn update_rcs(&self) -> Vec<PathBuf> {
         self.rcfiles().into_iter().filter(|p| p.exists()).collect()
-    }
-
-    /// How the content returned by `env_script` should be written.
-    fn write_mode(&self) -> WriteMode {
-        WriteMode::MarkerBlock
     }
 
     /// Returns the fully-substituted script content to write for this shell.
@@ -283,10 +265,6 @@ impl ShellSetup for Fish {
     fn update_rcs(&self) -> Vec<PathBuf> {
         // Always write the conf.d file regardless of whether it exists yet.
         Fish::confd_path().into_iter().collect()
-    }
-
-    fn write_mode(&self) -> WriteMode {
-        WriteMode::WholeFile
     }
 
     fn env_script(&self, bin_path: &Path, juliauphome: &Path) -> Result<Vec<u8>> {
