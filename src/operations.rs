@@ -1720,18 +1720,6 @@ fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
-fn append_fish_content(buf: &mut Vec<u8>, path_str: &str) {
-    // fish specific syntax for path extension
-    let content = formatdoc!(
-        "
-            fish_add_path \"{}\"
-        ",
-        path_str
-    );
-
-    buf.extend_from_slice(content.as_bytes());
-}
-
 fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     // If the variable is already contained in $PATH, do nothing
     // Otherwise prepend it to path
@@ -1909,9 +1897,79 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     Ok(result)
 }
 
+/// Returns the path for the juliaup fish conf.d file, respecting $XDG_CONFIG_HOME.
+fn fish_confd_path() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
+    Some(base.join("fish").join("conf.d").join("juliaup.fish"))
+}
+
+/// Writes ~/.config/fish/conf.d/juliaup.fish with PATH setup and completions.
+/// Fish auto-loads every .fish file in conf.d/ on startup.
+fn write_fish_confd_file(bin_path: &Path, juliauphome: &Path) {
+    let Some(confd_path) = fish_confd_path() else {
+        return;
+    };
+    let Some(parent) = confd_path.parent() else {
+        return;
+    };
+    if let Err(e) = std::fs::create_dir_all(parent) {
+        log::warn!("Failed to create fish conf.d directory: {}", e);
+        return;
+    }
+    let bin_str = match bin_path.to_str() {
+        Some(s) => s,
+        None => {
+            log::warn!("Non-UTF-8 path for fish conf.d, skipping fish setup.");
+            return;
+        }
+    };
+    let completions_src = juliauphome.join("completions").join("fish.fish");
+    let completions_str = completions_src.to_string_lossy();
+    let content = format!(
+        "# juliaup PATH and completions\n\
+         if not contains {bin} $PATH\n\
+             set -x PATH {bin} $PATH\n\
+         end\n\
+         if test -f \"{completions}\"\n\
+             source \"{completions}\"\n\
+         end\n",
+        bin = bin_str,
+        completions = completions_str,
+    );
+    if let Err(e) = std::fs::write(&confd_path, content) {
+        log::warn!(
+            "Failed to write fish conf.d file at {}: {}",
+            confd_path.display(),
+            e
+        );
+    }
+}
+
+/// Removes ~/.config/fish/conf.d/juliaup.fish if it exists.
+fn remove_fish_confd_file() {
+    if let Some(path) = fish_confd_path() {
+        if path.exists() {
+            if let Err(e) = std::fs::remove_file(&path) {
+                log::warn!(
+                    "Failed to remove fish conf.d file at {}: {}",
+                    path.display(),
+                    e
+                );
+            }
+        }
+    }
+}
+
 pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Path) -> Result<()> {
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
+
+    // Write a fish conf.d file that handles both PATH and completions.
+    // Fish automatically loads every .fish file in conf.d/ and completions/
+    // on startup, so no config.fish modification is needed.
+    write_fish_confd_file(bin_path, juliauphome);
 
     let paths = find_shell_scripts_to_be_modified(true)?;
 
@@ -1927,6 +1985,10 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     paths.into_iter().for_each(|p| {
         remove_path_from_specific_file(&p).unwrap();
     });
+
+    // Remove the fish conf.d file if it exists.
+    remove_fish_confd_file();
+
     Ok(())
 }
 
