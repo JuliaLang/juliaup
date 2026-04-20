@@ -1745,6 +1745,7 @@ fn remove_marker_block(path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(windows))]
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
     use crate::shell_setup::all_shells;
     let mut seen = std::collections::HashSet::new();
@@ -1762,7 +1763,14 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     Ok(result)
 }
 
+#[cfg(windows)]
+pub fn find_shell_scripts_to_be_modified(_add_case: bool) -> Result<Vec<PathBuf>> {
+    Ok(vec![])
+}
+
 pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    #[cfg(windows)]
+    let _ = bin_path;
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
@@ -1799,6 +1807,8 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 /// This is called during self-update to propagate changes (e.g. new completions)
 /// to existing users without requiring them to re-run `juliaup config modifypath true`.
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
+    #[cfg(windows)]
+    let _ = (bin_path, juliauphome);
     #[cfg(not(windows))]
     {
         use crate::shell_setup::all_shells;
