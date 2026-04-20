@@ -54,20 +54,20 @@ pub trait ShellSetup {
 
 /// All shells juliaup knows about, in priority order.
 #[cfg(not(windows))]
-pub fn all_shells(juliauphome: &Path) -> Vec<Box<dyn ShellSetup>> {
+pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
     vec![
-        Box::new(Sh::new(juliauphome)),
-        Box::new(Bash::new(juliauphome)),
-        Box::new(Zsh::new(juliauphome)),
-        Box::new(Tcsh::new()),
-        Box::new(Fish::new(juliauphome)),
+        Box::new(Sh),
+        Box::new(Bash),
+        Box::new(Zsh),
+        Box::new(Tcsh),
+        Box::new(Fish),
     ]
 }
 
 /// Shells that appear to be present on the current system.
 #[cfg(not(windows))]
-pub fn active_shells(juliauphome: &Path) -> Vec<Box<dyn ShellSetup>> {
-    all_shells(juliauphome)
+pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
+    all_shells()
         .into_iter()
         .filter(|s| s.does_exist())
         .collect()
@@ -186,17 +186,7 @@ pub(crate) fn remove_marker_block(path: &Path) -> Result<()> {
 // sh (POSIX)
 // ---------------------------------------------------------------------------
 
-pub struct Sh {
-    juliauphome: PathBuf,
-}
-
-impl Sh {
-    pub fn new(juliauphome: &Path) -> Self {
-        Self {
-            juliauphome: juliauphome.to_path_buf(),
-        }
-    }
-}
+pub struct Sh;
 
 impl ShellSetup for Sh {
     fn does_exist(&self) -> bool {
@@ -245,17 +235,7 @@ impl ShellSetup for Sh {
 // bash
 // ---------------------------------------------------------------------------
 
-pub struct Bash {
-    juliauphome: PathBuf,
-}
-
-impl Bash {
-    pub fn new(juliauphome: &Path) -> Self {
-        Self {
-            juliauphome: juliauphome.to_path_buf(),
-        }
-    }
-}
+pub struct Bash;
 
 impl ShellSetup for Bash {
     fn does_exist(&self) -> bool {
@@ -310,17 +290,7 @@ impl Bash {
 // zsh
 // ---------------------------------------------------------------------------
 
-pub struct Zsh {
-    juliauphome: PathBuf,
-}
-
-impl Zsh {
-    pub fn new(juliauphome: &Path) -> Self {
-        Self {
-            juliauphome: juliauphome.to_path_buf(),
-        }
-    }
-}
+pub struct Zsh;
 
 impl ShellSetup for Zsh {
     fn does_exist(&self) -> bool {
@@ -433,18 +403,10 @@ impl ShellSetup for Tcsh {
 // ---------------------------------------------------------------------------
 
 #[cfg(not(windows))]
-pub struct Fish {
-    juliauphome: PathBuf,
-}
+pub struct Fish;
 
 #[cfg(not(windows))]
 impl Fish {
-    pub fn new(juliauphome: &Path) -> Self {
-        Self {
-            juliauphome: juliauphome.to_path_buf(),
-        }
-    }
-
     fn confd_path() -> Option<PathBuf> {
         let base = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
