@@ -12,6 +12,7 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::shell_setup::all_shells;
 use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
@@ -43,6 +44,7 @@ use url::Url;
 
 // Progress bar prefix with proper indentation to match other messages (12 characters wide, right-aligned)
 const DOWNLOADING_PREFIX: &str = " Downloading";
+
 /// Creates an HTTP client with a proper User-Agent header.
 /// Some CDNs (like CloudFront) block requests without User-Agent.
 #[cfg(not(windows))]
@@ -1658,6 +1660,7 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
 
+    // This ensures exactly one opening and one closing marker exists
     let (start_marker, end_marker) = match (start_marker, end_marker) {
         (Some(sidx), Some(eidx)) => {
             if sidx != buffer.rfind(S_MARKER).unwrap() || eidx != buffer.rfind(E_MARKER).unwrap() {
@@ -1687,11 +1690,16 @@ fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
         .with_context(|| format!("Failed to open file {}.", path.display()))?;
 
     let mut buffer: Vec<u8> = Vec::new();
-    file.read_to_end(&mut buffer)
-        .with_context(|| format!("Failed to read file {}.", path.display()))?;
 
-    let existing = match_markers(&buffer)
-        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
+    file.read_to_end(&mut buffer)
+        .with_context(|| format!("Failed to read data from file {}.", path.display()))?;
+
+    let existing_code_pos = match_markers(&buffer).with_context(|| {
+        format!(
+            "Error occured while searching juliaup shell startup script section in {}",
+            path.display()
+        )
+    })?;
 
     let mut block: Vec<u8> = Vec::new();
     block.extend_from_slice(S_MARKER);
@@ -1700,21 +1708,26 @@ fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
     block.extend_from_slice(b"\n");
     block.extend_from_slice(E_MARKER);
 
-    match existing {
-        Some(pos) => buffer.replace_range(pos.0..pos.1, &block),
+    match existing_code_pos {
+        Some(pos) => {
+            buffer.replace_range(pos.0..pos.1, &block);
+        }
         None => {
             buffer.extend_from_slice(b"\n");
             buffer.extend_from_slice(&block);
             buffer.extend_from_slice(b"\n");
         }
-    }
+    };
 
     file.rewind()
         .with_context(|| format!("Failed to rewind file {}.", path.display()))?;
+
     file.set_len(0)
         .with_context(|| format!("Failed to truncate file {}.", path.display()))?;
+
     file.write_all(&buffer)
         .with_context(|| format!("Failed to write file {}.", path.display()))?;
+
     file.sync_all()
         .with_context(|| format!("Failed to sync file {}.", path.display()))?;
 
@@ -1729,16 +1742,25 @@ fn remove_marker_block(path: &Path) -> Result<()> {
         .with_context(|| format!("Failed to open file: {}", path.display()))?;
 
     let mut buffer: Vec<u8> = Vec::new();
+
     file.read_to_end(&mut buffer)?;
 
-    let existing = match_markers(&buffer)
-        .with_context(|| format!("Error searching juliaup section in {}.", path.display()))?;
+    let existing_code_pos = match_markers(&buffer).with_context(|| {
+        format!(
+            "Error occured while searching juliaup shell startup script section in {}",
+            path.display()
+        )
+    })?;
 
-    if let Some(pos) = existing {
+    if let Some(pos) = existing_code_pos {
         buffer.replace_range(pos.0..pos.1, "");
+
         file.rewind().unwrap();
+
         file.set_len(0).unwrap();
+
         file.write_all(&buffer).unwrap();
+
         file.sync_all().unwrap();
     }
 
@@ -1746,7 +1768,6 @@ fn remove_marker_block(path: &Path) -> Result<()> {
 }
 
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
-    use crate::shell_setup::all_shells;
     let mut seen = std::collections::HashSet::new();
     let result = all_shells()
         .into_iter()
@@ -1766,7 +1787,7 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
-    for shell in crate::shell_setup::all_shells() {
+    for shell in all_shells() {
         let content = shell.env_script(bin_path, juliauphome)?;
         for rc in shell.update_rcs() {
             write_marker_block(&rc, &content)?;
@@ -1777,7 +1798,7 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    for shell in crate::shell_setup::all_shells() {
+    for shell in all_shells() {
         for rc in shell.rcfiles() {
             if rc.exists() {
                 remove_marker_block(&rc)?;
@@ -1791,7 +1812,7 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 /// This is called during self-update to propagate changes (e.g. new completions)
 /// to existing users without requiring them to re-run `juliaup config modifypath true`.
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
-    for shell in crate::shell_setup::all_shells() {
+    for shell in all_shells() {
         for rc in shell.rcfiles() {
             let buffer = std::fs::read(&rc).unwrap_or_default();
             if match_markers(&buffer).unwrap_or(None).is_some() {
