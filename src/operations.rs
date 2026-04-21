@@ -1668,9 +1668,15 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
             }
             (sidx, eidx)
         }
-        (None, None) => return Ok(None),
-        (_, None) => bail!("Found an opening marker but no end marker of juliaup section."),
-        (None, _) => bail!("Found an opening marker but no end marker of juliaup section."),
+        (None, None) => {
+            return Ok(None);
+        }
+        (_, None) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        }
+        (None, _) => {
+            bail!("Found an opening marker but no end marker of juliaup section.");
+        }
     };
 
     Ok(Some((start_marker, end_marker + E_MARKER.len())))
@@ -1772,12 +1778,14 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
     let result = all_shells()
         .into_iter()
         .flat_map(|s| s.rcfiles())
-        .filter(|p| {
-            p.exists()
-                || (add_case
-                    && p.file_name().map(|n| n == ".zshenv").unwrap_or(false)
-                    && std::env::consts::OS == "macos")
-        })
+        .filter(
+            |p| {
+                p.exists()
+                    || (add_case
+                        && p.file_name().map(|n| n == ".zshenv").unwrap_or(false)
+                        && std::env::consts::OS == "macos")
+            }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
+        )
         .filter(|p| seen.insert(p.clone()))
         .collect();
     Ok(result)
@@ -1814,10 +1822,9 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
     for shell in all_shells() {
         for rc in shell.rcfiles() {
-            let buffer = std::fs::read(&rc).unwrap_or_default();
-            if match_markers(&buffer).unwrap_or(None).is_some() {
-                let content = shell.env_script(bin_path, juliauphome)?;
-                write_marker_block(&rc, &content).ok();
+            let content = std::fs::read(&rc).unwrap_or_default();
+            if match_markers(&content).unwrap_or(None).is_some() {
+                write_marker_block(&rc, &shell.env_script(bin_path, juliauphome)?).ok();
                 break;
             }
         }
