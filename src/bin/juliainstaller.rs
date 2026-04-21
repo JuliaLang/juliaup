@@ -566,7 +566,7 @@ pub fn main() -> Result<()> {
     println!("Julia was successfully installed on your system.");
 
     if install_choices.modifypath {
-        use juliaup::shell_setup::active_shells;
+        use juliaup::shell::active_shells;
         let source_commands: Vec<String> = active_shells()
             .into_iter()
             .filter_map(|s| s.source_hint())
