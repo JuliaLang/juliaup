@@ -566,26 +566,23 @@ pub fn main() -> Result<()> {
     println!("Julia was successfully installed on your system.");
 
     if install_choices.modifypath {
-        #[cfg(not(windows))]
-        {
-            use juliaup::shell_setup::active_shells;
-            let hints: Vec<String> = active_shells()
-                .into_iter()
-                .filter_map(|s| s.source_hint())
-                .collect();
-            if !hints.is_empty() {
-                println!();
-                println!("Depending on which shell you are using, run one of the following");
-                println!(
-                    "commands to reload the {} environment variable:",
-                    style("PATH").bold()
-                );
-                println!();
-                for hint in &hints {
-                    println!("  {}", hint);
-                }
-                println!();
+        use juliaup::shell_setup::active_shells;
+        let hints: Vec<String> = active_shells()
+            .into_iter()
+            .filter_map(|s| s.source_hint())
+            .collect();
+        if !hints.is_empty() {
+            println!();
+            println!("Depending on which shell you are using, run one of the following");
+            println!(
+                "commands to reload the {} environment variable:",
+                style("PATH").bold()
+            );
+            println!();
+            for hint in &hints {
+                println!("  {}", hint);
             }
+            println!();
         }
     }
 

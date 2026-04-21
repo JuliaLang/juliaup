@@ -1774,7 +1774,6 @@ fn remove_marker_block(path: &Path) -> Result<()> {
 }
 
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
-    let mut seen = std::collections::HashSet::new();
     let result = all_shells()
         .into_iter()
         .flat_map(|s| s.rcfiles())
@@ -1786,7 +1785,6 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
                         && std::env::consts::OS == "macos")
             }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
-        .filter(|p| seen.insert(p.clone()))
         .collect();
     Ok(result)
 }
