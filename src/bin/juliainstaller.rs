@@ -567,11 +567,11 @@ pub fn main() -> Result<()> {
 
     if install_choices.modifypath {
         use juliaup::shell_setup::active_shells;
-        let hints: Vec<String> = active_shells()
+        let source_commands: Vec<String> = active_shells()
             .into_iter()
             .filter_map(|s| s.source_hint())
             .collect();
-        if !hints.is_empty() {
+        if !source_commands.is_empty() {
             println!();
             println!("Depending on which shell you are using, run one of the following");
             println!(
@@ -579,8 +579,8 @@ pub fn main() -> Result<()> {
                 style("PATH").bold()
             );
             println!();
-            for hint in &hints {
-                println!("  {}", hint);
+            for command in &source_commands {
+                println!("  {}", command);
             }
             println!();
         }
