@@ -1772,7 +1772,7 @@ fn remove_marker_block(path: &Path) -> Result<()> {
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
     let result = all_shells()
         .into_iter()
-        .flat_map(|s| s.rcfiles())
+        .flat_map(|s| s.all_rcfiles())
         .filter(
             |p| {
                 p.exists()
@@ -1791,7 +1791,7 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 
     for shell in all_shells() {
         let content = shell.env_script(bin_path, juliauphome)?;
-        for rc in shell.update_rcs() {
+        for rc in shell.rcfiles_to_write() {
             write_marker_block(&rc, &content)?;
         }
     }
@@ -1801,7 +1801,7 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
     for shell in all_shells() {
-        for rc in shell.rcfiles() {
+        for rc in shell.all_rcfiles() {
             if rc.exists() {
                 remove_marker_block(&rc)?;
             }
@@ -1815,7 +1815,7 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 /// to existing users without requiring them to re-run `juliaup config modifypath true`.
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
     for shell in all_shells() {
-        for rc in shell.rcfiles() {
+        for rc in shell.all_rcfiles() {
             let content = std::fs::read(&rc).unwrap_or_default();
             if match_markers(&content).unwrap_or(None).is_some() {
                 write_marker_block(&rc, &shell.env_script(bin_path, juliauphome)?).ok();
