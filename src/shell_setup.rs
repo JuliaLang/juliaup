@@ -12,14 +12,14 @@
 //! initialisation block into whichever rc files are appropriate for each shell,
 //! wrapped in clearly delimited markers so it can be updated or removed cleanly.
 //!
-//! Each shell is represented as a struct implementing [`ShellSetup`]. See the
+//! Each shell is represented as a struct implementing [`UnixShell`]. See the
 //! trait documentation for the methods each shell must provide.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-pub trait ShellSetup {
+pub trait UnixShell {
     // Detects if a shell "exists". Users have multiple shells, so an "eager"
     // heuristic should be used, assuming shells exist if any traces do.
     fn does_exist(&self) -> bool;
@@ -61,9 +61,9 @@ pub trait ShellSetup {
 }
 
 #[cfg(not(windows))]
-pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
+pub fn all_shells() -> Vec<Box<dyn UnixShell>> {
     vec![
-        Box::new(Sh),
+        Box::new(Posix),
         Box::new(Bash),
         Box::new(Zsh),
         Box::new(Tcsh),
@@ -72,13 +72,13 @@ pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
 }
 
 #[cfg(windows)]
-pub fn all_shells() -> Vec<Box<dyn ShellSetup>> {
+pub fn all_shells() -> Vec<Box<dyn UnixShell>> {
     vec![]
 }
 
 /// Shells that appear to be present on the current system.
 #[cfg(not(windows))]
-pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
+pub fn active_shells() -> Vec<Box<dyn UnixShell>> {
     all_shells()
         .into_iter()
         .filter(|s| s.does_exist())
@@ -86,20 +86,22 @@ pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
 }
 
 #[cfg(windows)]
-pub fn active_shells() -> Vec<Box<dyn ShellSetup>> {
+pub fn active_shells() -> Vec<Box<dyn UnixShell>> {
     vec![]
 }
 
-pub struct Sh;
+/// Covers POSIX-compatible shells: sh, ash, dash, pdksh — all source `.profile`.
+pub struct Posix;
 
-impl ShellSetup for Sh {
+impl UnixShell for Posix {
     fn does_exist(&self) -> bool {
-        // .profile is the POSIX baseline; if nothing else exists we still write it.
+        // .profile is the POSIX baseline; always write to it so any sh-compatible
+        // shell picks up the PATH update.
         true
     }
 
     fn name(&self) -> &'static str {
-        "sh"
+        "sh/ash/dash/pdksh"
     }
 
     fn all_rcfiles(&self) -> Vec<PathBuf> {
@@ -123,7 +125,7 @@ impl ShellSetup for Sh {
 
 pub struct Bash;
 
-impl ShellSetup for Bash {
+impl UnixShell for Bash {
     fn does_exist(&self) -> bool {
         !self.rcfiles_to_write().is_empty()
     }
@@ -169,7 +171,7 @@ impl Zsh {
     }
 }
 
-impl ShellSetup for Zsh {
+impl UnixShell for Zsh {
     fn does_exist(&self) -> bool {
         // zsh is the default shell on macOS, or the user has a .zshenv already.
         std::env::consts::OS == "macos"
@@ -183,10 +185,15 @@ impl ShellSetup for Zsh {
     }
 
     fn all_rcfiles(&self) -> Vec<PathBuf> {
-        let Some(zdotdir) = Zsh::zdotdir() else {
-            return vec![];
-        };
-        vec![zdotdir.join(".zshenv")]
+        // Return both ZDOTDIR and HOME candidates so cleanup scans both locations,
+        // regardless of which was active when juliaup was first installed.
+        [Zsh::zdotdir(), dirs::home_dir()]
+            .into_iter()
+            .flatten()
+            .map(|d| d.join(".zshenv"))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     fn template(&self) -> &'static str {
@@ -211,7 +218,7 @@ impl ShellSetup for Zsh {
 
 pub struct Tcsh;
 
-impl ShellSetup for Tcsh {
+impl UnixShell for Tcsh {
     fn does_exist(&self) -> bool {
         let Some(home) = dirs::home_dir() else {
             return false;
@@ -245,15 +252,31 @@ impl ShellSetup for Tcsh {
 pub struct Fish;
 
 impl Fish {
-    fn confd_path() -> Option<PathBuf> {
+    /// Returns all candidate conf.d paths: XDG_CONFIG_HOME-based first, then
+    /// the ~/.config fallback. Both are included in all_rcfiles so cleanup
+    /// finds the file regardless of which was active at install time.
+    fn confd_paths() -> Vec<PathBuf> {
+        let xdg = std::env::var_os("XDG_CONFIG_HOME")
+            .map(|x| PathBuf::from(x).join("fish/conf.d/juliaup.fish"));
+        let home = dirs::home_dir().map(|h| h.join(".config/fish/conf.d/juliaup.fish"));
+        xdg.into_iter()
+            .chain(home)
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
+    /// The single path that should be written to: XDG_CONFIG_HOME if set,
+    /// otherwise ~/.config.
+    fn confd_write_path() -> Option<PathBuf> {
         let base = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
-        Some(base.join("fish").join("conf.d").join("juliaup.fish"))
+        Some(base.join("fish/conf.d/juliaup.fish"))
     }
 }
 
-impl ShellSetup for Fish {
+impl UnixShell for Fish {
     fn does_exist(&self) -> bool {
         // fish must either be the running shell or be callable.
         std::env::var("SHELL")
@@ -267,16 +290,13 @@ impl ShellSetup for Fish {
     }
 
     fn all_rcfiles(&self) -> Vec<PathBuf> {
-        Fish::confd_path().into_iter().collect()
+        // > "$XDG_CONFIG_HOME/fish/conf.d" (or "~/.config/fish/conf.d" if that variable is unset) for the user
+        // from <https://github.com/fish-shell/fish-shell/issues/3170#issuecomment-228311857>
+        Fish::confd_paths()
     }
 
     fn rcfiles_to_write(&self) -> Vec<PathBuf> {
-        // Fish's conf.d/ directory is designed for exactly this: tools drop a
-        // dedicated file there and fish auto-sources it on every new session.
-        // Unlike bash/zsh where we append a block into a shared user file,
-        // juliaup owns juliaup.fish entirely, so we always create it on setup
-        // rather than requiring it to pre-exist.
-        Fish::confd_path().into_iter().collect()
+        Fish::confd_write_path().into_iter().collect()
     }
 
     fn template(&self) -> &'static str {
