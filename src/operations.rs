@@ -1687,6 +1687,7 @@ fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
+
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1707,20 +1708,15 @@ fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
         )
     })?;
 
-    let mut block: Vec<u8> = Vec::new();
-    block.extend_from_slice(S_MARKER);
-    block.extend_from_slice(HEADER);
-    block.extend_from_slice(content);
-    block.extend_from_slice(b"\n");
-    block.extend_from_slice(E_MARKER);
+    let new_content: Vec<u8> = [S_MARKER, HEADER, content, b"\n", E_MARKER].concat();
 
     match existing_code_pos {
         Some(pos) => {
-            buffer.replace_range(pos.0..pos.1, &block);
+            buffer.replace_range(pos.0..pos.1, &new_content);
         }
         None => {
             buffer.extend_from_slice(b"\n");
-            buffer.extend_from_slice(&block);
+            buffer.extend_from_slice(&new_content);
             buffer.extend_from_slice(b"\n");
         }
     };
@@ -1781,7 +1777,7 @@ pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>>
             |p| {
                 p.exists()
                     || (add_case
-                        && p.file_name().map(|n| n == ".zshenv").unwrap_or(false)
+                        && p.file_name().unwrap() == ".zshenv"
                         && std::env::consts::OS == "macos")
             }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
