@@ -23,6 +23,7 @@
             <ComponentRef Id="JulialauncherExecutable" />
             <ComponentRef Id="JuliaupExecutableSystem" />
             <ComponentRef Id="JuliaupExecutableUser" />
+            <ComponentRef Id="JuliaupguiExecutable" />
             <ComponentRef Id="ProgramMenuDir" />
         </Feature>
 
@@ -55,6 +56,10 @@
                     </File>
 
                     <Environment Id='UpdatePathUser' Name='PATH' Action='set' Permanent='no' System='no' Part='last' Value='[INSTALLFOLDER]' />
+                </Component>
+
+                <Component Id="JuliaupguiExecutable" Guid="428685C4-B137-42AF-A24D-AE8ECC610003">
+                    <File Id="JuliaupguiEXE" Name="juliaupgui.exe" DiskId="1" Source="juliaupgui.exe" KeyPath="yes" />
                 </Component>
 
             </Directory>

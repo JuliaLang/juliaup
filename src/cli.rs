@@ -71,6 +71,8 @@ pub enum Juliaup {
         #[arg(value_enum, value_name = "SHELL")]
         shell: CompletionShell,
     },
+    /// Launch the graphical user interface
+    Gui {},
     #[clap(name = "_list-channels", hide = true)]
     /// List installed channel names (used internally for shell completions)
     ListChannels {},
