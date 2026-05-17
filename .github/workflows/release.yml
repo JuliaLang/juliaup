@@ -1007,7 +1007,7 @@ jobs:
             $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
             Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
             $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
-            if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+            if ($sub.status -eq "CommitFailed") { Write-Error "Store flight submission $subid failed: CommitFailed"; exit 1 }
             break
           } catch {
             if ($attempt -ge $maxAttempts) { throw }
@@ -1050,7 +1050,7 @@ jobs:
             $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
             Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
             $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
-            if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+            if ($sub.status -eq "CommitFailed") { Write-Error "Store flight submission $subid failed: CommitFailed"; exit 1 }
             break
           } catch {
             if ($attempt -ge $maxAttempts) { throw }
@@ -1093,7 +1093,7 @@ jobs:
             $subid, $uploadurl = Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
             Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -SubmissionId $subid
             $sub = Get-ApplicationSubmission -AppId 9NJNWW8PVKMN -SubmissionId $subid
-            if ($sub.status -eq "CommitFailed") { throw "Store submission $subid failed: CommitFailed" }
+            if ($sub.status -eq "CommitFailed") { Write-Error "Store submission $subid failed: CommitFailed"; exit 1 }
             break
           } catch {
             if ($attempt -ge $maxAttempts) { throw }
@@ -1121,7 +1121,7 @@ jobs:
     - name: Check Homebrew PR exists on bump failure
       if: steps.bump.outcome == 'failure'
       env:
-        GH_TOKEN: ${{secrets.TOKEN_FOR_HOMEBREW}}
+        GH_TOKEN: ${{ github.token }}
       run: |
         VERSION="${{ github.ref_name }}"
         VERSION="${VERSION#v}"
@@ -1130,7 +1130,7 @@ jobs:
           echo "Homebrew bump failed but formula is already at $VERSION - already merged"
           exit 0
         fi
-        PR_COUNT=$(gh pr list --repo homebrew/homebrew-core --search "juliaup $VERSION" --state open --json number --jq 'length')
+        PR_COUNT=$(gh pr list --repo homebrew/homebrew-core --search "juliaup $VERSION in:title" --state open --json number --jq 'length')
         if [ "$PR_COUNT" -eq 0 ]; then
           echo "Homebrew bump failed, formula is at $FORMULA_VERSION (not $VERSION), and no open PR found on homebrew-core"
           exit 1
