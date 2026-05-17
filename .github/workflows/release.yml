@@ -1125,9 +1125,14 @@ jobs:
       run: |
         VERSION="${{ github.ref_name }}"
         VERSION="${VERSION#v}"
+        FORMULA_VERSION=$(curl -sf https://formulae.brew.sh/api/formula/juliaup.json | jq -r '.versions.stable')
+        if [ "$FORMULA_VERSION" = "$VERSION" ]; then
+          echo "Homebrew bump failed but formula is already at $VERSION - already merged"
+          exit 0
+        fi
         PR_COUNT=$(gh pr list --repo homebrew/homebrew-core --search "juliaup $VERSION" --state open --json number --jq 'length')
         if [ "$PR_COUNT" -eq 0 ]; then
-          echo "Homebrew bump failed and no open PR found for juliaup $VERSION on homebrew-core"
+          echo "Homebrew bump failed, formula is at $FORMULA_VERSION (not $VERSION), and no open PR found on homebrew-core"
           exit 1
         fi
         echo "Homebrew bump failed but found $PR_COUNT open PR(s) for juliaup $VERSION on homebrew-core - likely already handled by BrewTestBot"
