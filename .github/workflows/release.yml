@@ -1118,16 +1118,19 @@ jobs:
         force: true
         tag: ${{ github.ref }}
         revision: ${{ github.sha }}
-    - name: Check release exists on bump failure
+    - name: Check Homebrew PR exists on bump failure
       if: steps.bump.outcome == 'failure'
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{secrets.TOKEN_FOR_HOMEBREW}}
       run: |
-        if ! gh release view "${{ github.ref_name }}" --repo ${{ github.repository }} > /dev/null 2>&1; then
-          echo "Homebrew bump failed and GitHub release does not exist for ${{ github.ref_name }}"
+        VERSION="${{ github.ref_name }}"
+        VERSION="${VERSION#v}"
+        PR_COUNT=$(gh pr list --repo homebrew/homebrew-core --search "juliaup $VERSION" --state open --json number --jq 'length')
+        if [ "$PR_COUNT" -eq 0 ]; then
+          echo "Homebrew bump failed and no open PR found for juliaup $VERSION on homebrew-core"
           exit 1
         fi
-        echo "Homebrew bump failed but GitHub release exists - likely already handled by BrewTestBot"
+        echo "Homebrew bump failed but found $PR_COUNT open PR(s) for juliaup $VERSION on homebrew-core - likely already handled by BrewTestBot"
 
   deploy-release-channel-aur:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
