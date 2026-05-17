@@ -998,13 +998,23 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
-        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
-        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
-        $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
-        if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+        $maxAttempts = 3
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+            $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
+            $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
+            Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+            $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+            Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
+            $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 2e2f9fe8-3950-4273-b80d-7f752296ca86 -SubmissionId $subid
+            if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+            break
+          } catch {
+            if ($attempt -ge $maxAttempts) { throw }
+            Write-Host "Attempt $attempt failed: $_. Retrying in 60 seconds..."
+            Start-Sleep -Seconds 60
+          }
+        }
 
   deploy-releasepreview-channel-winstore:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1031,13 +1041,23 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
-        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
-        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
-        $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
-        if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+        $maxAttempts = 3
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+            $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
+            $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
+            Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+            $subid, $uploadurl = Update-ApplicationFlightSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+            Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
+            $sub = Get-ApplicationFlightSubmission -AppId 9NJNWW8PVKMN -FlightId 732b234a-7ea9-4b65-8c9f-b9d9eaefb578 -SubmissionId $subid
+            if ($sub.status -eq "CommitFailed") { throw "Store flight submission $subid failed: CommitFailed" }
+            break
+          } catch {
+            if ($attempt -ge $maxAttempts) { throw }
+            Write-Host "Attempt $attempt failed: $_. Retrying in 60 seconds..."
+            Start-Sleep -Seconds 60
+          }
+        }
 
   deploy-release-channel-winstore:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1064,13 +1084,23 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
-        $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
-        Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
-        $subid, $uploadurl = Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
-        Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -SubmissionId $subid
-        $sub = Get-ApplicationSubmission -AppId 9NJNWW8PVKMN -SubmissionId $subid
-        if ($sub.status -eq "CommitFailed") { throw "Store submission $subid failed: CommitFailed" }
+        $maxAttempts = 3
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+            $sec = ConvertTo-SecureString $env:CLIENTSECRET -AsPlainText -Force
+            $cred = New-Object System.Management.Automation.PSCredential $env:CLIENTID, $sec
+            Set-StoreBrokerAuthentication -TenantId $env:TENANTID -Credential $cred
+            $subid, $uploadurl = Update-ApplicationSubmission -ReplacePackages -AppId 9NJNWW8PVKMN -SubmissionDataPath ".\Upload.json" -PackagePath ".\Upload.zip" -AutoCommit -Force
+            Start-SubmissionMonitor -AppId 9NJNWW8PVKMN -SubmissionId $subid
+            $sub = Get-ApplicationSubmission -AppId 9NJNWW8PVKMN -SubmissionId $subid
+            if ($sub.status -eq "CommitFailed") { throw "Store submission $subid failed: CommitFailed" }
+            break
+          } catch {
+            if ($attempt -ge $maxAttempts) { throw }
+            Write-Host "Attempt $attempt failed: $_. Retrying in 60 seconds..."
+            Start-Sleep -Seconds 60
+          }
+        }
 
   deploy-release-channel-brew:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
@@ -1079,6 +1109,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Update Homebrew formula
+      id: bump
+      continue-on-error: true
       uses: dawidd6/action-homebrew-bump-formula@1446dca236b0440c6f02723a3f14f13be2c04ab0 # v7
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
@@ -1086,6 +1118,16 @@ jobs:
         force: true
         tag: ${{ github.ref }}
         revision: ${{ github.sha }}
+    - name: Check release exists on bump failure
+      if: steps.bump.outcome == 'failure'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        if ! gh release view "${{ github.ref_name }}" --repo ${{ github.repository }} > /dev/null 2>&1; then
+          echo "Homebrew bump failed and GitHub release does not exist for ${{ github.ref_name }}"
+          exit 1
+        fi
+        echo "Homebrew bump failed but GitHub release exists - likely already handled by BrewTestBot"
 
   deploy-release-channel-aur:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
