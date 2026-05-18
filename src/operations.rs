@@ -735,9 +735,14 @@ pub fn install_version(
     version_db: &JuliaupVersionDB,
     paths: &GlobalPaths,
 ) -> Result<()> {
-    // Return immediately if the version is already installed.
-    if config_data.installed_versions.contains_key(fullversion) {
-        return Ok(());
+    // Return immediately if the version is already installed and the directory exists on disk.
+    if let Some(existing) = config_data.installed_versions.get(fullversion) {
+        let existing_path = paths.juliauphome.join(&existing.path);
+        if existing_path.exists() {
+            return Ok(());
+        }
+        // Directory is missing on disk, remove stale entry and re-install.
+        config_data.installed_versions.remove(fullversion);
     }
 
     // TODO At some point we could put this behind a conditional compile, we know
