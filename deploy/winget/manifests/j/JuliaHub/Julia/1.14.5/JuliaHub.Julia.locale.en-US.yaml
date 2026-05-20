@@ -1,0 +1,12 @@
+# Created using wingetcreate 1.5.7.0
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.5.0.schema.json
+
+PackageIdentifier: JuliaHub.Julia
+PackageVersion: 1.14.5
+PackageLocale: en-US
+Publisher: JuliaHub, Inc.
+PackageName: Julia
+License: MIT License
+ShortDescription: Julia
+ManifestType: defaultLocale
+ManifestVersion: 1.5.0
