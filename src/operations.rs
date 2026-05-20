@@ -12,6 +12,7 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::shell::all_shells;
 use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
@@ -26,7 +27,6 @@ use console::style;
 #[cfg(not(target_os = "freebsd"))]
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
-use indoc::formatdoc;
 use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
@@ -1656,105 +1656,6 @@ const S_MARKER: &[u8] = b"# >>> juliaup initialize >>>";
 const E_MARKER: &[u8] = b"# <<< juliaup initialize <<<";
 const HEADER: &[u8] = b"\n\n# !! Contents within this block are managed by juliaup !!\n\n";
 
-fn get_shell_script_juliaup_content(
-    bin_path: &Path,
-    juliauphome: &Path,
-    path: &Path,
-) -> Result<Vec<u8>> {
-    let mut result: Vec<u8> = Vec::new();
-
-    let bin_path_str = match bin_path.to_str() {
-        Some(s) => s,
-        None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
-    };
-
-    let juliauphome_str = match juliauphome.to_str() {
-        Some(s) => s,
-        None => bail!("Could not create UTF-8 string from juliaup home path."),
-    };
-
-    result.extend_from_slice(S_MARKER);
-    result.extend_from_slice(HEADER);
-    let file_name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| anyhow!("Could not determine file name for path: {}", path.display()))?;
-    if file_name == ".zshrc" {
-        append_zsh_content(&mut result, bin_path_str);
-    } else if path.file_name().unwrap() == ".cshrc" || path.file_name().unwrap() == ".tcshrc" {
-        append_csh_content(&mut result, bin_path_str);
-    } else {
-        append_sh_content(&mut result, bin_path_str);
-    }
-    if file_name == ".zshrc" || file_name.starts_with(".bash") {
-        append_completions_content(&mut result, file_name, juliauphome_str);
-    }
-    result.extend_from_slice(b"\n");
-    result.extend_from_slice(E_MARKER);
-
-    Ok(result)
-}
-
-fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
-    // zsh specific syntax for path extension
-    let content = formatdoc!(
-        "
-            path=('{}' $path)
-            export PATH
-        ",
-        path_str
-    );
-
-    buf.extend_from_slice(content.as_bytes());
-}
-
-fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
-    // csh specific syntax for path extension
-    let content = formatdoc!(
-        "
-            set path = ({} $path)
-        ",
-        path_str
-    );
-
-    buf.extend_from_slice(content.as_bytes());
-}
-
-fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
-    // If the variable is already contained in $PATH, do nothing
-    // Otherwise prepend it to path
-    // ${PATH:+:${PATH}} => Only append :$PATH if $PATH is set
-    let content = formatdoc!(
-        "
-            case \":$PATH:\" in
-                *:{0}:*)
-                    ;;
-
-                *)
-                    export PATH={0}${{PATH:+:${{PATH}}}}
-                    ;;
-            esac
-        ",
-        path_str
-    );
-    buf.extend_from_slice(content.as_bytes());
-}
-
-fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
-    let (shell, ext) = if file_name == ".zshrc" {
-        ("zsh", "zsh")
-    } else {
-        ("bash", "sh")
-    };
-    let content = formatdoc!(
-        r#"
-            # Tab completion for juliaup and julia channel selection
-            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
-        "#,
-    );
-    buf.extend_from_slice(content.as_bytes());
-}
-
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     let start_marker = buffer.find(S_MARKER);
     let end_marker = buffer.find(E_MARKER);
@@ -1781,7 +1682,12 @@ fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
     Ok(Some((start_marker, end_marker + E_MARKER.len())))
 }
 
-fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -> Result<()> {
+fn write_marker_block(path: &Path, content: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
+    }
+
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1802,13 +1708,7 @@ fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -
         )
     })?;
 
-    let new_content =
-        get_shell_script_juliaup_content(bin_path, juliauphome, path).with_context(|| {
-            format!(
-                "Error occured while generating juliaup shell startup script section for {}",
-                path.display()
-            )
-        })?;
+    let new_content: Vec<u8> = [S_MARKER, HEADER, content, b"\n", E_MARKER].concat();
 
     match existing_code_pos {
         Some(pos) => {
@@ -1836,7 +1736,7 @@ fn add_path_to_specific_file(bin_path: &Path, juliauphome: &Path, path: &Path) -
     Ok(())
 }
 
-fn remove_path_from_specific_file(path: &Path) -> Result<()> {
+fn remove_marker_block(path: &Path) -> Result<()> {
     let mut file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -1870,29 +1770,17 @@ fn remove_path_from_specific_file(path: &Path) -> Result<()> {
 }
 
 pub fn find_shell_scripts_to_be_modified(add_case: bool) -> Result<Vec<PathBuf>> {
-    let home_dir = dirs::home_dir().unwrap();
-
-    let paths_to_test: Vec<PathBuf> = vec![
-        home_dir.join(".bashrc"),
-        home_dir.join(".profile"),
-        home_dir.join(".bash_profile"),
-        home_dir.join(".bash_login"),
-        home_dir.join(".zshrc"),
-        home_dir.join(".cshrc"),
-        home_dir.join(".tcshrc"),
-    ];
-
-    let result = paths_to_test
-        .iter()
+    let result = all_shells()
+        .into_iter()
+        .flat_map(|s| s.all_rcfiles())
         .filter(
             |p| {
                 p.exists()
                     || (add_case
-                        && p.file_name().unwrap() == ".zshrc"
+                        && p.file_name().unwrap() == ".zshenv"
                         && std::env::consts::OS == "macos")
             }, // On MacOS, always edit .zshrc as that is the default shell, but only when we add things
         )
-        .cloned()
         .collect();
     Ok(result)
 }
@@ -1901,20 +1789,24 @@ pub fn add_binfolder_to_path_in_shell_scripts(bin_path: &Path, juliauphome: &Pat
     write_completion_files::<Juliaup>(juliauphome, "juliaup")
         .with_context(|| "Failed to write completion files.")?;
 
-    let paths = find_shell_scripts_to_be_modified(true)?;
+    for shell in all_shells() {
+        let content = shell.env_script(bin_path, juliauphome)?;
+        for rc in shell.rcfiles_to_write() {
+            write_marker_block(&rc, &content)?;
+        }
+    }
 
-    paths.into_iter().for_each(|p| {
-        add_path_to_specific_file(bin_path, juliauphome, &p).unwrap();
-    });
     Ok(())
 }
 
 pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
-    let paths = find_shell_scripts_to_be_modified(false)?;
-
-    paths.into_iter().for_each(|p| {
-        remove_path_from_specific_file(&p).unwrap();
-    });
+    for shell in all_shells() {
+        for rc in shell.all_rcfiles() {
+            if rc.exists() {
+                remove_marker_block(&rc)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1922,12 +1814,13 @@ pub fn remove_binfolder_from_path_in_shell_scripts() -> Result<()> {
 /// This is called during self-update to propagate changes (e.g. new completions)
 /// to existing users without requiring them to re-run `juliaup config modifypath true`.
 pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -> Result<()> {
-    let paths = find_shell_scripts_to_be_modified(false)?;
-
-    for p in paths {
-        let content = std::fs::read(&p).unwrap_or_default();
-        if match_markers(&content).unwrap_or(None).is_some() {
-            add_path_to_specific_file(bin_path, juliauphome, &p).ok();
+    for shell in all_shells() {
+        for rc in shell.all_rcfiles() {
+            let content = std::fs::read(&rc).unwrap_or_default();
+            if match_markers(&content).unwrap_or(None).is_some() {
+                write_marker_block(&rc, &shell.env_script(bin_path, juliauphome)?).ok();
+                break;
+            }
         }
     }
     Ok(())

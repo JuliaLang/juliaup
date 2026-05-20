@@ -566,17 +566,24 @@ pub fn main() -> Result<()> {
     println!("Julia was successfully installed on your system.");
 
     if install_choices.modifypath {
-        println!();
-        println!("Depending on which shell you are using, run one of the following");
-        println!(
-            "commands to reload the {} environment variable:",
-            style("PATH").bold()
-        );
-        println!();
-        for p in &install_choices.modifypath_files {
-            println!("  . {}", p.to_string_lossy());
+        use juliaup::shell::active_shells;
+        let source_commands: Vec<String> = active_shells()
+            .into_iter()
+            .filter_map(|s| s.source_hint())
+            .collect();
+        if !source_commands.is_empty() {
+            println!();
+            println!("Depending on which shell you are using, run one of the following");
+            println!(
+                "commands to reload the {} environment variable:",
+                style("PATH").bold()
+            );
+            println!();
+            for command in &source_commands {
+                println!("  {}", command);
+            }
+            println!();
         }
-        println!();
     }
 
     Ok(())
