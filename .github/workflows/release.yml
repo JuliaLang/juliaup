@@ -223,14 +223,14 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@2ece93e6f28d1fa8b26fa53e9b3b06844c25a2ce # v5.0.4
+      uses: clechasseur/rs-cargo@f70e2971062221e0bf7f22705c890b78f9e1e84f # v5.0.5
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -358,14 +358,14 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@2ece93e6f28d1fa8b26fa53e9b3b06844c25a2ce # v5.0.4
+      uses: clechasseur/rs-cargo@f70e2971062221e0bf7f22705c890b78f9e1e84f # v5.0.5
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -735,7 +735,7 @@ jobs:
     #     7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
     #     pwsh --version
     - uses: actions/checkout@v6
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
@@ -1277,7 +1277,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       - name: Publish to creates.io
         run: cargo publish
         env:
