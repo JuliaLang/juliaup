@@ -223,14 +223,14 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@2ece93e6f28d1fa8b26fa53e9b3b06844c25a2ce # v5.0.4
+      uses: clechasseur/rs-cargo@f70e2971062221e0bf7f22705c890b78f9e1e84f # v5.0.5
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -249,7 +249,7 @@ jobs:
         large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@233156312992f3f169d8d0c633c21d12a5d30455 # v1.0.0
+      uses: cross-platform-actions/action@0c165ad7eb2d6a7e8552d6af5aad2bbedfc646b0 # v1.1.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -358,14 +358,14 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{matrix.toolchain}}
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@2ece93e6f28d1fa8b26fa53e9b3b06844c25a2ce # v5.0.4
+      uses: clechasseur/rs-cargo@f70e2971062221e0bf7f22705c890b78f9e1e84f # v5.0.5
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -384,7 +384,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@233156312992f3f169d8d0c633c21d12a5d30455 # v1.0.0
+      uses: cross-platform-actions/action@0c165ad7eb2d6a7e8552d6af5aad2bbedfc646b0 # v1.1.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -682,7 +682,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Windows x64 files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -693,7 +693,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Windows x86 files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -735,7 +735,7 @@ jobs:
     #     7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
     #     pwsh --version
     - uses: actions/checkout@v6
-    - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
@@ -788,7 +788,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign Store binary files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -800,7 +800,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign Appinstaller binary files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -816,7 +816,7 @@ jobs:
     - name: Build MSIX App Installer
       run: cargo msix --release --bundle-name winappinstallermsix --source-build-output-path ${{ format('{0}/target/winappinstaller', github.workspace) }}
     - name: Sign msix files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -888,7 +888,7 @@ jobs:
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     - name: Sign x64 binary files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -899,7 +899,7 @@ jobs:
         timestamp-rfc3161: http://timestamp.acs.microsoft.com
         timestamp-digest: SHA256
     - name: Sign x86 binary files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -914,7 +914,7 @@ jobs:
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\x86_64-pc-windows-gnu\release\ -arch x64 -o target\msi\Julia-v${{ env.VERSION }}-x64.msi -d ${{ env.VERSION }}
         wix build -ext WixToolset.UI.wixext .\deploy\msi\Julia.wxs -b .\target\msi\i686-pc-windows-gnu\release\ -arch x86 -o target\msi\Julia-v${{ env.VERSION }}-x86.msi -d ${{ env.VERSION }}
     - name: Sign MSI files
-      uses: azure/trusted-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
       with:
         endpoint: https://eus.codesigning.azure.net/
         trusted-signing-account-name: juliahubwincertsaccount
@@ -1277,7 +1277,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       - name: Publish to creates.io
         run: cargo publish
         env:
