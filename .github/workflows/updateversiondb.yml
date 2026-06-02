@@ -19,7 +19,7 @@ jobs:
       versionDbIsUpdated: ${{ steps.runjuliascript.outputs.versionDbIsUpdated }}
     steps:
     - uses: actions/checkout@v6
-    - uses: julia-actions/setup-julia@f6f565d9f7cf12f53dc8045742460d6260ad3b39 # v3.0.1
+    - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
       with:
         version: 1.8
     - id: runjuliascript
