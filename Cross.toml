@@ -1,6 +1,35 @@
-# The cross-rs 0.2.5 image for i686-unknown-linux-gnu (from ~2022) ships
-# glibc 2.27, too old for modern Rust build scripts (need >= 2.28).
-# Pin to a newer image by digest until cross-rs releases 0.2.6.
+# The cross-rs 0.2.5 images (latest release from 2023) ship with glibc 2.27,
+# which is too old for modern Rust build scripts (need >= 2.28, e.g. libc 0.2.186+).
+# For the affected targets, use :edge tag to get regularly updated base images
+# with glibc 2.28+ until cross-rs releases 0.2.6. This is the officially
+# recommended approach. The *-musl images for x86_64 are already new enough so
+# they are left on the default 0.2.5 image.
 # See: https://github.com/cross-rs/cross/issues/724
+
 [target.i686-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/i686-unknown-linux-gnu@sha256:dbaac6e686550f3704402c126c60b82ca9a9c7329e89ea115289ecc7ba0bdbce"
+
+[target.i686-unknown-linux-musl]
+image = "ghcr.io/cross-rs/i686-unknown-linux-musl:edge"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+
+[target.aarch64-unknown-linux-musl]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
+
+# x86_64-linux-gnu is a native build (HOST == target), so aws-lc-sys runs its cc
+# builder memcmp self-check, which panics with the newer GCC in the :edge image
+# (gcc bug 95189). Force aws-lc-sys to use its CMake builder instead, which skips
+# that check: install cmake and pass AWS_LC_SYS_CMAKE_BUILDER=1 into the container.
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
+pre-build = ["apt-get update && apt-get install --assume-yes cmake"]
+
+[target.x86_64-unknown-linux-gnu.env]
+passthrough = ["AWS_LC_SYS_CMAKE_BUILDER"]
+
+# FreeBSD is cross-compiled (HOST != target), so aws-lc-sys skips the memcmp
+# self-check; only the newer glibc from :edge is needed here.
+[target.x86_64-unknown-freebsd]
+image = "ghcr.io/cross-rs/x86_64-unknown-freebsd:edge"

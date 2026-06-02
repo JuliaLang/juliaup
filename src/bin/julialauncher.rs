@@ -169,11 +169,13 @@ fn is_interactive() -> bool {
                 return false;
             }
             // Any other non-flag argument that doesn't start with '-' could be a script
-            filename if !filename.starts_with('-') && !filename.is_empty() => {
-                // This could be a script file, check if it exists as a file
-                if std::path::Path::new(filename).exists() {
-                    return false;
-                }
+            // file. Check if it exists as a file.
+            filename
+                if !filename.starts_with('-')
+                    && !filename.is_empty()
+                    && std::path::Path::new(filename).exists() =>
+            {
+                return false;
             }
             _ => {} // Continue checking other arguments
         }
