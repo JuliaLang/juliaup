@@ -160,14 +160,10 @@ pub fn run_command_api(command: &str, paths: &GlobalPaths) -> Result<()> {
         };
 
         match config_file.data.default {
-            Some(ref default_value) => {
-                if key == default_value {
-                    ret_value.default = Some(curr.clone());
-                } else {
-                    ret_value.other_versions.push(curr);
-                }
+            Some(ref default_value) if key == default_value => {
+                ret_value.default = Some(curr.clone());
             }
-            None => {
+            _ => {
                 ret_value.other_versions.push(curr);
             }
         }

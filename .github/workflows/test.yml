@@ -133,7 +133,6 @@ jobs:
       run: sudo apt-get install musl-tools
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       with:
-        toolchain: stable
         target: ${{matrix.target}}
     - if: ${{ matrix.os == 'ubuntu' }}
       uses: taiki-e/install-action@65851e10cd6c377f11a60e600abc07cb08643468 # v2.79.3
@@ -149,6 +148,7 @@ jobs:
         CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
         CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+        AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   test-juliaup:
     runs-on: ${{ matrix.runner }}
@@ -230,10 +230,20 @@ jobs:
       with:
         platform: x86
         version: 12.2.0
+    - name: Resolve toolchain from rust-toolchain.toml
+      id: toolchain
+      shell: bash
+      run: |
+        ver=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        case "${{ matrix.toolchain }}" in
+          stable-gnu) echo "name=${ver}-x86_64-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
+          stable-i686-gnu) echo "name=${ver}-i686-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
+          *) echo "name=${ver}" >> "$GITHUB_OUTPUT" ;;
+        esac
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
-        toolchain: ${{matrix.toolchain}}
+        toolchain: ${{ steps.toolchain.outputs.name }}
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
