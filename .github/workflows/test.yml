@@ -128,14 +128,14 @@ jobs:
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags:
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       with:
         target: ${{matrix.target}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@65851e10cd6c377f11a60e600abc07cb08643468 # v2.79.3
+      uses: taiki-e/install-action@6ed6112eb9893c58dd600eebccdf6e77ab7bfa9c # v2.79.12
       with:
         tool: cross
     - name: Check build
@@ -222,7 +222,7 @@ jobs:
             rustflags:
             toolchain: stable
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6.0.2
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
     - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
