@@ -18,6 +18,43 @@ pub fn run_command_post_update(paths: &GlobalPaths) -> Result<()> {
     if let Err(e) = refresh_existing_shell_init_blocks(&bin_path, &paths.juliauphome) {
         eprintln!("Warning: failed to refresh shell init blocks: {e}");
     }
+    #[cfg(not(windows))]
+    if let Err(e) = restore_symlinks(&bin_path, paths) {
+        eprintln!("Warning: failed to restore Julia symlinks: {e}");
+    }
+
+    Ok(())
+}
+
+// Self-update replaces the entire bin directory, which removes the `julia`
+// symlink (and any channel symlinks) that are not part of the juliaup tarball.
+// Recreate them here so `julia` keeps working after an update.
+#[cfg(not(windows))]
+fn restore_symlinks(bin_path: &std::path::Path, paths: &GlobalPaths) -> Result<()> {
+    use crate::config_file::load_config_db;
+    use crate::operations::create_symlink;
+    use anyhow::Context;
+
+    let launcher_path = bin_path.join("julialauncher");
+    if launcher_path.exists() {
+        let julia_symlink = bin_path.join("julia");
+        // Remove any stale or dangling link before recreating it.
+        let _ = std::fs::remove_file(&julia_symlink);
+        std::os::unix::fs::symlink(&launcher_path, &julia_symlink).with_context(|| {
+            format!(
+                "failed to create symlink `{}`.",
+                julia_symlink.to_string_lossy()
+            )
+        })?;
+    }
+
+    let config_file = load_config_db(paths, None)
+        .with_context(|| "Failed to load configuration db while restoring symlinks.")?;
+    if config_file.data.settings.create_channel_symlinks {
+        for (channel_name, channel) in &config_file.data.installed_channels {
+            create_symlink(channel, &format!("julia-{}", channel_name), paths)?;
+        }
+    }
 
     Ok(())
 }
