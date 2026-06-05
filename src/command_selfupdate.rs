@@ -90,6 +90,12 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
 
+        // Release the configuration lock before invoking the post-update hook:
+        // the hook runs in a child process that needs to read the config (e.g.
+        // to restore channel symlinks), and would otherwise deadlock waiting on
+        // the lock this process still holds.
+        drop(config_file);
+
         let new_juliaup = my_own_folder.join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
         if let Err(e) = std::process::Command::new(&new_juliaup)
             .arg("_post-update")
