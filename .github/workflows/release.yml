@@ -1147,17 +1147,24 @@ jobs:
       run: |
         VERSION="${{ github.ref_name }}"
         VERSION="${VERSION#v}"
-        FORMULA_VERSION=$(curl -sf https://formulae.brew.sh/api/formula/juliaup.json | jq -r '.versions.stable')
+        FORMULA_JSON=$(curl -sf https://formulae.brew.sh/api/formula/juliaup.json)
+        FORMULA_VERSION=$(echo "$FORMULA_JSON" | jq -r '.versions.stable')
         if [ "$FORMULA_VERSION" = "$VERSION" ]; then
           echo "Homebrew bump failed but formula is already at $VERSION - already merged"
           exit 0
         fi
         PR_COUNT=$(gh pr list --repo homebrew/homebrew-core --search "juliaup $VERSION in:title" --state open --json number --jq 'length')
-        if [ "$PR_COUNT" -eq 0 ]; then
-          echo "Homebrew bump failed, formula is at $FORMULA_VERSION (not $VERSION), and no open PR found on homebrew-core"
-          exit 1
+        if [ "$PR_COUNT" -gt 0 ]; then
+          echo "Homebrew bump failed but found $PR_COUNT open PR(s) for juliaup $VERSION on homebrew-core - likely already handled by BrewTestBot"
+          exit 0
         fi
-        echo "Homebrew bump failed but found $PR_COUNT open PR(s) for juliaup $VERSION on homebrew-core - likely already handled by BrewTestBot"
+        AUTOBUMP=$(echo "$FORMULA_JSON" | jq -r '.autobump')
+        if [ "$AUTOBUMP" = "true" ]; then
+          echo "Homebrew bump failed because juliaup is on Homebrew's autobump list; formula is at $FORMULA_VERSION (not $VERSION) and BrewTestBot has not opened a PR yet. It will be bumped automatically (every ~3 hours)."
+          exit 0
+        fi
+        echo "Homebrew bump failed, formula is at $FORMULA_VERSION (not $VERSION), no open PR found on homebrew-core, and juliaup is not on the autobump list"
+        exit 1
 
   deploy-release-channel-aur:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
