@@ -1,9 +1,12 @@
-use crate::config_file::{load_mut_config_db, save_config_db, JuliaupConfigChannel};
+use crate::config_file::{
+    load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel,
+};
 use crate::global_paths::GlobalPaths;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::{
-    channel_to_name, install_non_db_version, install_version, update_version_db,
+    channel_to_name, commit_version_install, download_version_to_temp, install_non_db_version,
+    update_version_db,
 };
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
@@ -35,6 +38,23 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         })?
         .version;
 
+    // Check whether the channel is already installed before downloading. This
+    // read only briefly takes a shared lock, which is released immediately.
+    {
+        let config_file = load_config_db(paths, None)
+            .with_context(|| "`add` command failed to load configuration data.")?;
+
+        if config_file.data.installed_channels.contains_key(channel) {
+            eprintln!("'{}' is already installed.", &channel);
+            return Ok(());
+        }
+    }
+
+    // Download and extract the version without holding the configuration lock,
+    // so concurrent juliaup processes (and the launcher) are not blocked.
+    let downloaded = download_version_to_temp(required_version, &version_db, paths)?;
+
+    // Re-acquire the exclusive lock to commit the installation.
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`add` command failed to load configuration data.")?;
 
@@ -43,7 +63,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         return Ok(());
     }
 
-    install_version(required_version, &mut config_file.data, &version_db, paths)?;
+    commit_version_install(downloaded, required_version, &mut config_file.data, paths)?;
 
     config_file.data.installed_channels.insert(
         channel.to_string(),
@@ -88,12 +108,16 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
 }
 
 fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
-    let mut config_file = load_mut_config_db(paths)
-        .with_context(|| "`add` command failed to load configuration data.")?;
+    // Check whether the channel is already installed before downloading. This
+    // read only briefly takes a shared lock, which is released immediately.
+    {
+        let config_file = load_config_db(paths, None)
+            .with_context(|| "`add` command failed to load configuration data.")?;
 
-    if config_file.data.installed_channels.contains_key(channel) {
-        eprintln!("'{}' is already installed.", &channel);
-        return Ok(());
+        if config_file.data.installed_channels.contains_key(channel) {
+            eprintln!("'{}' is already installed.", &channel);
+            return Ok(());
+        }
     }
 
     // Warn about security implications of PR builds
@@ -108,8 +132,18 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
         );
     }
 
+    // Download and extract the version without holding the configuration lock.
     let name = channel_to_name(channel)?;
     let (config_channel, _used_dmg) = install_non_db_version(channel, &name, paths)?;
+
+    // Re-acquire the exclusive lock to commit the installation.
+    let mut config_file = load_mut_config_db(paths)
+        .with_context(|| "`add` command failed to load configuration data.")?;
+
+    if config_file.data.installed_channels.contains_key(channel) {
+        eprintln!("'{}' is already installed.", &channel);
+        return Ok(());
+    }
 
     config_file
         .data
