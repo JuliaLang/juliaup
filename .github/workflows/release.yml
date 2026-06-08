@@ -5,7 +5,10 @@ on:
     tags:
       - 'v*'
 
-permissions: write-all
+# Least-privilege default for all jobs; jobs that publish GitHub Releases
+# elevate to `contents: write` individually.
+permissions:
+  contents: read
 
 jobs:
 
@@ -965,6 +968,8 @@ jobs:
     needs: [test-juliaup]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # create the GitHub Release
     steps:
     - name: Release
       uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
@@ -977,6 +982,8 @@ jobs:
     needs: [create-github-release, package-unix-portable, package-windows-portable]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # upload assets to the GitHub Release
     steps:
     - uses: actions/download-artifact@v8
       with:
@@ -1172,11 +1179,18 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      - name: Checkout juliaup repo (for vendored AUR host key)
+        uses: actions/checkout@v6
+        with:
+          path: juliaup-src
       - name: Checkout PKGBUILD repo
         run: |
+          mkdir -p ~/.ssh
+          cp juliaup-src/.github/aur_known_hosts ~/.ssh/known_hosts
+          rm -rf juliaup-src
           echo "$AUR_SSH_KEY" > ~/aur_ssh_key
           chmod 600 ~/aur_ssh_key
-          git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'StrictHostKeyChecking=no'"
+          git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'UserKnownHostsFile=~/.ssh/known_hosts' -o 'StrictHostKeyChecking=yes'"
           git clone "aur@aur.archlinux.org:juliaup.git" .
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
@@ -1340,6 +1354,8 @@ jobs:
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # promote the GitHub Release out of prerelease
     steps:
     - name: Release
       uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
