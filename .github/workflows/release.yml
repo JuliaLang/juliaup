@@ -1172,11 +1172,18 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      - name: Checkout juliaup repo (for vendored AUR host key)
+        uses: actions/checkout@v6
+        with:
+          path: juliaup-src
       - name: Checkout PKGBUILD repo
         run: |
+          mkdir -p ~/.ssh
+          cp juliaup-src/.github/aur_known_hosts ~/.ssh/known_hosts
+          rm -rf juliaup-src
           echo "$AUR_SSH_KEY" > ~/aur_ssh_key
           chmod 600 ~/aur_ssh_key
-          git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'StrictHostKeyChecking=no'"
+          git config --global core.sshCommand "ssh -i ~/aur_ssh_key -o 'UserKnownHostsFile=~/.ssh/known_hosts' -o 'StrictHostKeyChecking=yes'"
           git clone "aur@aur.archlinux.org:juliaup.git" .
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
