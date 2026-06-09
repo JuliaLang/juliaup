@@ -895,22 +895,6 @@ pub fn commit_version_install(
     Ok(())
 }
 
-pub fn install_version(
-    fullversion: &String,
-    config_data: &mut JuliaupConfig,
-    version_db: &JuliaupVersionDB,
-    paths: &GlobalPaths,
-) -> Result<()> {
-    // Return immediately if the version is already installed.
-    if config_data.installed_versions.contains_key(fullversion) {
-        return Ok(());
-    }
-
-    let downloaded = download_version_to_temp(fullversion, version_db, paths)?;
-
-    commit_version_install(downloaded, fullversion, config_data, paths)
-}
-
 // which arch to default to when simply using the `nightly` or `pr00000` channel
 pub fn default_arch() -> Result<String> {
     if cfg!(target_arch = "aarch64") {
