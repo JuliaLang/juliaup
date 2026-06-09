@@ -231,6 +231,18 @@ pub fn check_server_supports_nightlies() -> Result<bool> {
     }))
 }
 
+/// Returns `true` if the URL points at a loopback host (localhost / 127.0.0.1 /
+/// ::1). Plain HTTP is permitted for these because the traffic never leaves the
+/// machine; this is used by the integration tests that spin up a local mock
+/// server, and by anyone pointing juliaup at a loopback mirror.
+fn is_loopback_http(url: &Url) -> bool {
+    url.scheme() == "http"
+        && matches!(
+            url.host_str(),
+            Some("localhost" | "127.0.0.1" | "::1" | "[::1]")
+        )
+}
+
 pub fn get_juliaserver_base_url() -> Result<Url> {
     let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_SERVER") {
         let url = if val.ends_with('/') {
@@ -250,7 +262,7 @@ pub fn get_juliaserver_base_url() -> Result<Url> {
         )
     })?;
 
-    if parsed_url.scheme() != "https" {
+    if parsed_url.scheme() != "https" && !is_loopback_http(&parsed_url) {
         bail!("The value of JULIAUP_SERVER '{}' must use HTTPS.", base_url);
     }
 
@@ -289,7 +301,7 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
         )
     })?;
 
-    if parsed_url.scheme() != "https" {
+    if parsed_url.scheme() != "https" && !is_loopback_http(&parsed_url) {
         bail!(
             "The value of JULIAUP_NIGHTLY_SERVER '{}' must use HTTPS.",
             base_url

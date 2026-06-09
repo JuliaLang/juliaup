@@ -285,3 +285,33 @@ jobs:
           df -h
           export CARGO_INCREMENTAL=0
           cargo test --verbose --target ${{matrix.target}} --features ${{matrix.features}}
+
+  test-selfupdate:
+    # Exercises the real `juliaup self update` code path end-to-end against a
+    # local mock server (see tests/command_selfupdate_test.rs, issue #805).
+    # Runs in its own job because it needs the `selfupdate` feature, which
+    # changes config loading in a way that is incompatible with the other
+    # integration tests.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Resolve toolchain from rust-toolchain.toml
+      id: toolchain
+      shell: bash
+      run: |
+        ver=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        echo "name=${ver}" >> "$GITHUB_OUTPUT"
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      with:
+        toolchain: ${{ steps.toolchain.outputs.name }}
+    - name: Test self update
+      run: cargo test --features selfupdate,binjulialauncher --test command_selfupdate_test
+
