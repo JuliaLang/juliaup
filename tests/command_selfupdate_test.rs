@@ -1,12 +1,8 @@
-//! End-to-end self-update integration test (see issue #805).
+//! End-to-end self-update integration tests (see issue #805).
 //!
-//! This exercises a full upgrade scenario against a local mock server:
-//!   1. install an isolated copy of the current juliaup,
-//!   2. disable automatic self-update,
-//!   3. set up some state (a real channel, a linked channel, an alias),
-//!   4. mock a newer juliaup version as available on a loopback server,
-//!   5. run `juliaup self update`,
-//!   6. verify juliaup and julia still work and the state survived.
+//! These exercise the full upgrade scenario against a local mock server, both
+//! for the explicit `juliaup self update` command and for the automatic
+//! self-update that `julialauncher` triggers in the background at Julia startup.
 //!
 //! Requires the `selfupdate` feature (the real self-update code path) and a
 //! Unix host (the self-update implementation is non-Windows).
@@ -21,11 +17,11 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use predicates::prelude::*;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tiny_http::{Header, Response, Server};
 
 /// Build a gzip-compressed tar containing `juliaup` and `julialauncher` at the
@@ -117,36 +113,68 @@ impl Drop for MockServer {
     }
 }
 
+/// An isolated juliaup "install" laid out so that the self-update code (which
+/// derives its paths from the running executable) operates here instead of
+/// clobbering the cargo target directory:
+///   <install>/bin/juliaup        (running exe)
+///   <install>/bin/julialauncher  (the launcher, named `julia` in dev builds)
+///   <install>/bin/julia          (symlink -> julialauncher, as the installer makes)
+///   <install>/juliaupself.json   (self config)
+struct Install {
+    dir: assert_fs::TempDir,
+    juliaup_exe: PathBuf,
+    julialauncher_exe: PathBuf,
+    julia_symlink: PathBuf,
+}
+
+impl Install {
+    fn setup() -> Self {
+        let dir = assert_fs::TempDir::new().unwrap();
+        let bin = dir.path().join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+
+        let juliaup_exe = bin.join("juliaup");
+        let julialauncher_exe = bin.join("julialauncher");
+        std::fs::copy(cargo_bin("juliaup"), &juliaup_exe).unwrap();
+        std::fs::copy(cargo_bin("julia"), &julialauncher_exe).unwrap();
+
+        // The installer creates this symlink; self-update wipes it (whole-dir
+        // swap) and the `_post-update` hook restores it.
+        let julia_symlink = bin.join("julia");
+        std::os::unix::fs::symlink(&julialauncher_exe, &julia_symlink).unwrap();
+
+        // A minimal self config is required for selfupdate-feature builds to
+        // load the configuration at all.
+        std::fs::write(dir.path().join("juliaupself.json"), "{}").unwrap();
+
+        Install {
+            dir,
+            juliaup_exe,
+            julialauncher_exe,
+            julia_symlink,
+        }
+    }
+
+    fn self_config_path(&self) -> PathBuf {
+        self.dir.path().join("juliaupself.json")
+    }
+
+    fn self_update_recorded(&self) -> bool {
+        std::fs::read_to_string(self.self_config_path())
+            .map(|s| s.contains("LastSelfUpdate"))
+            .unwrap_or(false)
+    }
+}
+
 #[test]
 fn self_update_end_to_end() {
     let env = TestEnv::new();
-
-    // Lay out an isolated juliaup "install" so that self-update operates here
-    // instead of clobbering the cargo target directory. The self-update code
-    // derives its paths from the running executable:
-    //   <install>/bin/juliaup            (running exe)
-    //   <install>/bin/julialauncher      (the launcher, named `julia` in dev)
-    //   <install>/juliaupself.json       (self config)
-    let install = assert_fs::TempDir::new().unwrap();
-    let bin = install.path().join("bin");
-    std::fs::create_dir_all(&bin).unwrap();
-
-    let juliaup_exe = bin.join("juliaup");
-    let julialauncher_exe = bin.join("julialauncher");
-    std::fs::copy(cargo_bin("juliaup"), &juliaup_exe).unwrap();
-    std::fs::copy(cargo_bin("julia"), &julialauncher_exe).unwrap();
-
-    // The installer creates this symlink; self-update wipes it (whole-dir swap)
-    // and the `_post-update` hook restores it.
-    let julia_symlink = bin.join("julia");
-    std::os::unix::fs::symlink(&julialauncher_exe, &julia_symlink).unwrap();
-
-    // A minimal self config is required for selfupdate-feature builds to load
-    // the configuration at all.
-    std::fs::write(install.path().join("juliaupself.json"), "{}").unwrap();
+    let install = Install::setup();
+    let juliaup_exe = &install.juliaup_exe;
+    let julia_symlink = &install.julia_symlink;
 
     let juliaup = |server: Option<&str>| {
-        let mut cmd = Command::new(&juliaup_exe);
+        let mut cmd = Command::new(juliaup_exe);
         cmd.env("JULIA_DEPOT_PATH", env.depot_path());
         cmd.env("JULIAUP_DEPOT_PATH", env.depot_path());
         if let Some(server) = server {
@@ -187,7 +215,7 @@ fn self_update_end_to_end() {
 
     // --- 4. Mock a newer juliaup as available on a loopback server ---
     let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
-    let tarball = build_juliaup_tarball(&juliaup_exe, &julialauncher_exe);
+    let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
     let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
 
     // --- 5. Self update ---
@@ -215,14 +243,101 @@ fn self_update_end_to_end() {
     );
 
     // The self-update timestamp was recorded.
-    let self_config = std::fs::read_to_string(install.path().join("juliaupself.json")).unwrap();
     assert!(
-        self_config.contains("LastSelfUpdate"),
-        "self config should record LastSelfUpdate, got: {self_config}"
+        install.self_update_recorded(),
+        "self config should record LastSelfUpdate, got: {:?}",
+        std::fs::read_to_string(install.self_config_path())
     );
 
     // And Julia actually runs via the restored launcher.
-    Command::new(&julia_symlink)
+    Command::new(julia_symlink)
+        .env("JULIA_DEPOT_PATH", env.depot_path())
+        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+        .args(["-e", "print(VERSION)"])
+        .assert()
+        .success()
+        .stdout("1.10.10");
+
+    drop(server);
+}
+
+/// Verifies the automatic self-update that `julialauncher` triggers at Julia
+/// startup: when `startupselfupdateinterval` has elapsed, running `julia`
+/// spawns `juliaup self update` in a background daemon (and then execs into
+/// Julia). This is the path that historically caused issues because the
+/// self-update runs detached from the foreground Julia process.
+#[test]
+fn self_update_auto_triggered_by_launcher() {
+    let env = TestEnv::new();
+    let install = Install::setup();
+    let juliaup_exe = &install.juliaup_exe;
+
+    let juliaup = || {
+        let mut cmd = Command::new(juliaup_exe);
+        cmd.env("JULIA_DEPOT_PATH", env.depot_path());
+        cmd.env("JULIAUP_DEPOT_PATH", env.depot_path());
+        cmd
+    };
+
+    // Disable background versiondb updates, but enable startup self-update so
+    // the launcher will auto-trigger it. With no prior self-update recorded,
+    // the interval is considered elapsed on the next `julia` invocation.
+    juliaup()
+        .args(["config", "versionsdbupdateinterval", "0"])
+        .assert()
+        .success();
+    juliaup()
+        .args(["config", "startupselfupdateinterval", "1"])
+        .assert()
+        .success();
+
+    // Install + default a Julia so the launcher has something to exec into.
+    juliaup().args(["add", "1.10.10"]).assert().success();
+    juliaup().args(["default", "1.10.10"]).assert().success();
+
+    // Mock a newer juliaup as available on a loopback server.
+    let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
+    let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
+
+    // Precondition: no self-update has happened yet.
+    assert!(
+        !install.self_update_recorded(),
+        "self-update should not have run before launching julia"
+    );
+
+    // Run the launcher via the `julia` symlink. On Unix it forks a background
+    // daemon that auto-triggers `juliaup self update` (inheriting the mock
+    // server env), then execs into Julia which prints its version. The
+    // self-update proceeds asynchronously after `julia` returns.
+    Command::new(&install.julia_symlink)
+        .env("JULIA_DEPOT_PATH", env.depot_path())
+        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+        .env("JULIAUP_SERVER", &server.base_url)
+        .env("JULIAUP_NIGHTLY_SERVER", &server.base_url)
+        .args(["-e", "print(VERSION)"])
+        .assert()
+        .success()
+        .stdout("1.10.10");
+
+    // Wait for the detached self-update to finish: it records the timestamp and
+    // the `_post-update` hook restores the launcher symlink. Poll for the final
+    // stable state to avoid racing the mid-update directory swap.
+    let deadline = Instant::now() + Duration::from_secs(90);
+    loop {
+        if install.self_update_recorded() && install.julia_symlink.symlink_metadata().is_ok() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "launcher-triggered self-update did not complete within timeout; self config: {:?}",
+            std::fs::read_to_string(install.self_config_path())
+        );
+        thread::sleep(Duration::from_millis(250));
+    }
+
+    // Julia still runs via the restored launcher symlink after the auto-update.
+    Command::new(&install.julia_symlink)
         .env("JULIA_DEPOT_PATH", env.depot_path())
         .env("JULIAUP_DEPOT_PATH", env.depot_path())
         .args(["-e", "print(VERSION)"])
