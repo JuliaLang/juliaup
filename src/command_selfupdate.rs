@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 
 #[cfg(feature = "selfupdate")]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
-    use crate::config_file::{load_mut_config_db, save_config_db};
+    use crate::config_file::{get_read_lock, load_config_db, load_mut_config_db, save_config_db};
     use crate::operations::{download_extract_sans_parent, download_juliaup_version};
     use crate::utils::get_juliaserver_base_url;
     use crate::{get_juliaup_target, get_own_version};
@@ -12,13 +12,30 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
-    let mut config_file = load_mut_config_db(paths)
+    // Read the configured juliaup channel under a short-lived shared lock, then
+    // release it before any network operations. Holding the exclusive lock across
+    // the downloads below would block concurrent julia/juliaup invocations (which
+    // only need a shared read lock), surfacing as spurious "configuration is locked
+    // by another process" stalls. This mirrors how `juliaup add` downloads outside
+    // the lock and only re-acquires it to commit.
+    let file_lock = get_read_lock(paths)?;
+    let config_file = load_config_db(paths, Some(&file_lock))
         .with_context(|| "`self update` command failed to load configuration db.")?;
 
     let juliaup_channel = match &config_file.self_data.juliaup_channel {
         Some(juliaup_channel) => juliaup_channel.to_string(),
         None => "release".to_string(),
     };
+
+    {
+        let (_, res) = file_lock.data_unlock();
+        res.with_context(|| {
+            format!(
+                "Failed to unlock configuration lock file `{}`.",
+                paths.lockfile.display()
+            )
+        })?;
+    }
 
     let juliaupserver_base =
         get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
@@ -44,14 +61,21 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
     let version = download_juliaup_version(version_url.as_ref())?;
 
-    config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
+    // Re-acquire the exclusive lock only briefly to record the self-update
+    // timestamp, so the lock is never held across the network operations above.
+    {
+        let mut config_file = load_mut_config_db(paths)
+            .with_context(|| "`self update` command failed to load configuration db.")?;
 
-    save_config_db(&mut config_file, paths).with_context(|| {
-        format!(
-            "Failed to save configuration file at `{}`.",
-            paths.juliaupconfig.display()
-        )
-    })?;
+        config_file.self_data.last_selfupdate = Some(chrono::Utc::now());
+
+        save_config_db(&mut config_file, paths).with_context(|| {
+            format!(
+                "Failed to save configuration file at `{}`.",
+                paths.juliaupconfig.display()
+            )
+        })?;
+    }
 
     if version == get_own_version().unwrap() {
         eprintln!(
@@ -89,12 +113,6 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         );
 
         download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
-
-        // Release the configuration lock before invoking the post-update hook:
-        // the hook runs in a child process that needs to read the config (e.g.
-        // to restore channel symlinks), and would otherwise deadlock waiting on
-        // the lock this process still holds.
-        drop(config_file);
 
         let new_juliaup = my_own_folder.join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
         if let Err(e) = std::process::Command::new(&new_juliaup)
