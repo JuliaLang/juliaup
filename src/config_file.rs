@@ -7,9 +7,232 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, ErrorKind, Seek, SeekFrom, Write};
 #[cfg(target_os = "windows")]
 use std::mem;
+use std::path::PathBuf;
+use std::time::Duration;
 use tempfile::NamedTempFile;
 
 use crate::global_paths::GlobalPaths;
+
+/// How often we re-check the lock while waiting for another process to release it.
+const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(250);
+
+/// Information about the process currently holding the exclusive configuration
+/// lock. This is written to a sidecar file next to the lock file when the
+/// exclusive lock is taken, and removed when it is released. It lets a waiting
+/// process detect a lock that was orphaned by a crashed process (for example on
+/// network filesystems where the OS does not reliably release `flock` locks) and
+/// reclaim it instead of waiting forever.
+#[derive(Serialize, Deserialize)]
+struct LockMetadata {
+    #[serde(rename = "Pid")]
+    pid: u32,
+    #[serde(rename = "Hostname")]
+    hostname: String,
+    #[serde(rename = "Started")]
+    started: DateTime<Utc>,
+}
+
+#[derive(Clone, Copy)]
+enum LockKind {
+    Shared,
+    Exclusive,
+}
+
+fn lock_metadata_path(paths: &GlobalPaths) -> PathBuf {
+    paths.lockfile.with_extension("meta")
+}
+
+fn current_hostname() -> String {
+    gethostname::gethostname().to_string_lossy().into_owned()
+}
+
+/// Records the current process as the lock holder. Best-effort: failing to write
+/// the metadata only disables stale-lock detection, it does not affect the lock
+/// itself, so callers ignore the result.
+fn write_lock_metadata(paths: &GlobalPaths) -> Result<()> {
+    let meta = LockMetadata {
+        pid: std::process::id(),
+        hostname: current_hostname(),
+        started: Utc::now(),
+    };
+
+    let path = lock_metadata_path(paths);
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&path)
+        .with_context(|| format!("Failed to open lock metadata file `{}`.", path.display()))?;
+
+    serde_json::to_writer(&mut file, &meta)
+        .with_context(|| format!("Failed to write lock metadata file `{}`.", path.display()))?;
+    file.flush()
+        .with_context(|| format!("Failed to flush lock metadata file `{}`.", path.display()))?;
+
+    Ok(())
+}
+
+fn read_lock_metadata(paths: &GlobalPaths) -> Option<LockMetadata> {
+    let file = OpenOptions::new()
+        .read(true)
+        .open(lock_metadata_path(paths))
+        .ok()?;
+    serde_json::from_reader(BufReader::new(file)).ok()
+}
+
+/// A lock is considered stale only when we can be confident its holder is gone:
+/// the metadata must have been written on this same machine and the recorded
+/// process must no longer be running. We never reason about liveness across
+/// hosts, so a lock taken on another machine (shared network filesystem) is
+/// always treated as live.
+fn lock_is_stale(meta: &LockMetadata) -> bool {
+    meta.hostname == current_hostname() && !process_is_alive(meta.pid)
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: u32) -> bool {
+    use nix::errno::Errno;
+    use nix::sys::signal::kill;
+    use nix::unistd::Pid;
+
+    // Signal 0 performs error checking without sending a signal.
+    match kill(Pid::from_raw(pid as i32), None) {
+        Ok(()) => true,
+        Err(Errno::ESRCH) => false,
+        // EPERM means the process exists but we may not signal it; any other
+        // error is treated conservatively as "alive" so we never break a lock
+        // that might still be held.
+        Err(_) => true,
+    }
+}
+
+#[cfg(windows)]
+fn process_is_alive(pid: u32) -> bool {
+    use windows::Win32::Foundation::{CloseHandle, FALSE};
+    use windows::Win32::System::Threading::{
+        GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    const STILL_ACTIVE: u32 = 259;
+    // HRESULT form of ERROR_INVALID_PARAMETER (process id does not exist).
+    const E_INVALID_PARAMETER: i32 = 0x8007_0057u32 as i32;
+
+    unsafe {
+        match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) {
+            Ok(handle) => {
+                let mut code: u32 = 0;
+                let alive = match GetExitCodeProcess(handle, &mut code) {
+                    Ok(()) => code == STILL_ACTIVE,
+                    Err(_) => true,
+                };
+                let _ = CloseHandle(handle);
+                alive
+            }
+            // Only a non-existent process id reliably yields ERROR_INVALID_PARAMETER.
+            // Access-denied and other errors mean the process exists, so assume alive.
+            Err(e) => e.code().0 != E_INVALID_PARAMETER,
+        }
+    }
+}
+
+fn open_lock_file(paths: &GlobalPaths) -> Result<File> {
+    OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&paths.lockfile)
+        .map_err(|e| {
+            anyhow!(
+                "Could not create lockfile `{}`: {}.",
+                paths.lockfile.display(),
+                e
+            )
+        })
+}
+
+fn try_lock(file: File, kind: LockKind) -> std::result::Result<FlockLock<File>, File> {
+    match kind {
+        LockKind::Shared => SharedFlock::try_lock(file).map_err(|e| e.into()),
+        LockKind::Exclusive => ExclusiveFlock::try_lock(file).map_err(|e| e.into()),
+    }
+}
+
+/// Acquires the configuration lock, waiting for any other process to release it.
+/// If the holder is detected to be a dead process on this machine, the lock is
+/// reclaimed rather than waited on indefinitely.
+fn acquire_lock(paths: &GlobalPaths, kind: LockKind) -> Result<FlockLock<File>> {
+    let mut file = open_lock_file(paths)?;
+
+    file = match try_lock(file, kind) {
+        Ok(lock) => return Ok(lock),
+        Err(file) => file,
+    };
+
+    eprintln!("Juliaup configuration is locked by another process, waiting for it to unlock.");
+
+    let mut announced_stale = false;
+    loop {
+        if let Some(meta) = read_lock_metadata(paths) {
+            if lock_is_stale(&meta) {
+                if !announced_stale {
+                    eprintln!(
+                        "Detected a stale lock previously held by process {} which is no longer running; reclaiming it.",
+                        meta.pid
+                    );
+                    announced_stale = true;
+                }
+
+                // Drop our handle, remove the orphaned lock file and its
+                // metadata, then start over against a fresh lock file.
+                drop(file);
+                let _ = std::fs::remove_file(&paths.lockfile);
+                let _ = std::fs::remove_file(lock_metadata_path(paths));
+                file = open_lock_file(paths)?;
+            }
+        }
+
+        match try_lock(file, kind) {
+            Ok(lock) => return Ok(lock),
+            Err(returned_file) => {
+                file = returned_file;
+                std::thread::sleep(LOCK_POLL_INTERVAL);
+            }
+        }
+    }
+}
+
+/// Holds the exclusive configuration lock and removes the holder metadata when
+/// dropped, so a subsequent waiter never mistakes our cleanly-released lock for
+/// a stale one.
+pub struct ConfigLock {
+    lock: Option<FlockLock<File>>,
+    meta_path: PathBuf,
+}
+
+impl Drop for ConfigLock {
+    fn drop(&mut self) {
+        // Remove the metadata before releasing the OS lock.
+        let _ = std::fs::remove_file(&self.meta_path);
+        // Dropping the inner FlockLock releases the OS-level lock.
+        self.lock = None;
+    }
+}
+
+fn get_write_lock(paths: &GlobalPaths) -> Result<ConfigLock> {
+    let lock = acquire_lock(paths, LockKind::Exclusive)?;
+
+    // Best-effort: recording the holder enables stale-lock detection, but a
+    // failure here (e.g. a read-only metadata path) must not block the lock.
+    if let Err(e) = write_lock_metadata(paths) {
+        log::debug!("Could not record lock holder metadata: {e}");
+    }
+
+    Ok(ConfigLock {
+        lock: Some(lock),
+        meta_path: lock_metadata_path(paths),
+    })
+}
 
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
@@ -159,7 +382,7 @@ pub struct JuliaupSelfConfig {
 
 pub struct JuliaupConfigFile {
     pub file: File,
-    pub lock: FlockLock<File>,
+    pub lock: ConfigLock,
     pub data: JuliaupConfig,
     #[cfg(feature = "selfupdate")]
     pub self_file: File,
@@ -181,35 +404,7 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
         )
     })?;
 
-    let lock_file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.lockfile)
-    {
-        Ok(file) => file,
-        Err(e) => {
-            return Err(anyhow!(
-                "Could not create lockfile `{}`: {}.",
-                paths.lockfile.display(),
-                e
-            ));
-        }
-    };
-
-    let file_lock = match SharedFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            SharedFlock::wait_lock(e.into()).unwrap()
-        }
-    };
-
-    Ok(file_lock)
+    acquire_lock(paths, LockKind::Shared)
 }
 
 pub fn load_config_db(
@@ -305,33 +500,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         )
     })?;
 
-    let lock_file = match OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.lockfile)
-    {
-        Ok(file) => file,
-        Err(e) => {
-            return Err(anyhow!(
-                "Could not create lockfile `{}`: {}.",
-                paths.lockfile.display(),
-                e
-            ));
-        }
-    };
-
-    let file_lock = match ExclusiveFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            ExclusiveFlock::wait_lock(e.into()).unwrap()
-        }
-    };
+    let file_lock = get_write_lock(paths)?;
 
     let mut file = std::fs::OpenOptions::new()
         .read(true)
