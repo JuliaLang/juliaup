@@ -173,6 +173,49 @@ pub struct JuliaupReadonlyConfigFile {
     pub self_data: JuliaupSelfConfig,
 }
 
+/// Acquires a file lock, only printing the "locked by another process" message
+/// if the lock cannot be obtained within a short grace period. This avoids
+/// spurious messages for the common case where another process holds the lock
+/// for just a few milliseconds (e.g. while committing a config change).
+///
+/// `try_lock` must return the original file (via the lock error) when the lock
+/// is currently held, so it can be retried; `wait_lock` performs a blocking
+/// acquisition.
+fn lock_with_delayed_message<TryFn, WaitFn>(
+    file: File,
+    try_lock: TryFn,
+    wait_lock: WaitFn,
+) -> Result<FlockLock<File>>
+where
+    TryFn: Fn(File) -> std::result::Result<FlockLock<File>, File>,
+    WaitFn: FnOnce(File) -> Result<FlockLock<File>>,
+{
+    use std::time::{Duration, Instant};
+
+    const GRACE_PERIOD: Duration = Duration::from_secs(1);
+    const POLL_INTERVAL: Duration = Duration::from_millis(50);
+
+    let mut file = file;
+    let start = Instant::now();
+
+    loop {
+        match try_lock(file) {
+            Ok(lock) => return Ok(lock),
+            Err(unlocked_file) => {
+                file = unlocked_file;
+                if start.elapsed() >= GRACE_PERIOD {
+                    break;
+                }
+                std::thread::sleep(POLL_INTERVAL);
+            }
+        }
+    }
+
+    eprintln!("Juliaup configuration is locked by another process, waiting for it to unlock.");
+
+    wait_lock(file)
+}
+
 pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
     std::fs::create_dir_all(&paths.juliauphome).with_context(|| {
         format!(
@@ -198,16 +241,14 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
         }
     };
 
-    let file_lock = match SharedFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            SharedFlock::wait_lock(e.into()).unwrap()
-        }
-    };
+    let file_lock = lock_with_delayed_message(
+        lock_file,
+        |f| SharedFlock::try_lock(f).map_err(|e| e.into()),
+        |f| {
+            SharedFlock::wait_lock(f)
+                .map_err(|e| anyhow!("Failed to acquire shared configuration lock: {}.", e))
+        },
+    )?;
 
     Ok(file_lock)
 }
@@ -322,16 +363,14 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         }
     };
 
-    let file_lock = match ExclusiveFlock::try_lock(lock_file) {
-        Ok(lock) => lock,
-        Err(e) => {
-            eprintln!(
-                "Juliaup configuration is locked by another process, waiting for it to unlock."
-            );
-
-            ExclusiveFlock::wait_lock(e.into()).unwrap()
-        }
-    };
+    let file_lock = lock_with_delayed_message(
+        lock_file,
+        |f| ExclusiveFlock::try_lock(f).map_err(|e| e.into()),
+        |f| {
+            ExclusiveFlock::wait_lock(f)
+                .map_err(|e| anyhow!("Failed to acquire exclusive configuration lock: {}.", e))
+        },
+    )?;
 
     let mut file = std::fs::OpenOptions::new()
         .read(true)
