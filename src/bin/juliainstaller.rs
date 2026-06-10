@@ -279,7 +279,10 @@ pub fn main() -> Result<()> {
 
     if is_juliaup_installed() {
         println!("It seems that Juliaup is already installed on this system. Please remove the previous installation of Juliaup before you try to install a new version.");
-
+        println!(
+            "You can uninstall Juliaup with {}",
+            style("juliaup self uninstall").bold()
+        );
         return Ok(());
     }
 
