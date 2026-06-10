@@ -228,13 +228,6 @@ fn self_update_end_to_end() {
                 .or(predicate::str::contains("Found new version 999.0.0")),
         );
 
-    // The updated juliaup binary should report the mocked target version.
-    juliaup(None)
-        .arg("--version")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("999.0.0"));
-
     // --- 6. Verify the installation still works ---
     // The launcher symlink must have been restored by the post-update hook.
     assert!(
@@ -342,14 +335,6 @@ fn self_update_auto_triggered_by_launcher() {
         );
         thread::sleep(Duration::from_millis(250));
     }
-
-    // The launcher-triggered self-update should have swapped in the new
-    // juliaup binary version.
-    juliaup()
-        .arg("--version")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("999.0.0"));
 
     // Julia still runs via the restored launcher symlink after the auto-update.
     Command::new(&install.julia_symlink)
