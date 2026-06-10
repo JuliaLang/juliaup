@@ -39,6 +39,7 @@ use std::{
 #[cfg(not(target_os = "freebsd"))]
 use tar::Archive;
 use tempfile::Builder;
+use tempfile::TempDir;
 use tempfile::TempPath;
 use url::Url;
 
@@ -729,16 +730,30 @@ fn compute_relative_binary_path(
         })
 }
 
-pub fn install_version(
-    fullversion: &String,
-    config_data: &mut JuliaupConfig,
+/// Downloads and extracts a database version of Julia into a temporary
+/// directory inside `juliauphome`, without acquiring the configuration lock.
+///
+/// This is the slow, network-bound phase of installing a version. Keeping it
+/// outside of any lock allows other juliaup processes (and the launcher) to keep
+/// reading and modifying the configuration while a download is in progress.
+/// The returned [`TempDir`] is committed into its final location by
+/// [`commit_version_install`] while holding the exclusive lock.
+pub fn download_version_to_temp(
+    fullversion: &str,
     version_db: &JuliaupVersionDB,
     paths: &GlobalPaths,
-) -> Result<()> {
-    // Return immediately if the version is already installed.
-    if config_data.installed_versions.contains_key(fullversion) {
-        return Ok(());
-    }
+) -> Result<TempDir> {
+    std::fs::create_dir_all(&paths.juliauphome).with_context(|| {
+        format!(
+            "Failed to create juliaup home folder `{}`.",
+            paths.juliauphome.display()
+        )
+    })?;
+
+    let temp_dir = Builder::new()
+        .prefix("julia-temp-")
+        .tempdir_in(&paths.juliauphome)
+        .with_context(|| "Failed to create temporary directory for download.")?;
 
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
@@ -749,27 +764,11 @@ pub fn install_version(
         .unwrap() // unwrap OK because we can't get a path that does not have a parent
         .join("BundledJulia");
 
-    let child_target_foldername = format!("julia-{}", fullversion);
-    let target_path = paths.juliauphome.join(&child_target_foldername);
-    let target_parent = target_path.parent().ok_or_else(|| {
-        anyhow!(
-            "Target installation path `{}` has no parent directory.",
-            target_path.display()
-        )
-    })?;
-    std::fs::create_dir_all(target_parent).with_context(|| {
-        format!(
-            "Failed to create parent directory `{}` for installation path `{}`.",
-            target_parent.display(),
-            target_path.display()
-        )
-    })?;
-
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
         options.overwrite = true;
         options.content_only = true;
-        fs_extra::dir::copy(path_of_bundled_version, &target_path, &options)?;
+        fs_extra::dir::copy(path_of_bundled_version, temp_dir.path(), &options)?;
     } else {
         let juliaupserver_base =
             get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
@@ -805,7 +804,7 @@ pub fn install_version(
 
         #[cfg(target_os = "macos")]
         let used_dmg = {
-            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, &target_path)?;
+            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, temp_dir.path())?;
             used_dmg
         };
 
@@ -817,16 +816,67 @@ pub fn install_version(
                 .is_some_and(|(v, threshold)| v > threshold);
 
             if needs_notarization_check {
-                let julia_path = crate::utils::resolve_julia_binary_path(&target_path)?;
+                let julia_path = crate::utils::resolve_julia_binary_path(temp_dir.path())?;
                 check_stdlib_notarization(&julia_path);
             }
         }
 
         #[cfg(not(target_os = "macos"))]
         {
-            download_extract_sans_parent(download_url.as_ref(), &target_path, 1)?;
+            download_extract_sans_parent(download_url.as_ref(), temp_dir.path(), 1)?;
         }
     }
+
+    Ok(temp_dir)
+}
+
+/// Commits a version previously downloaded by [`download_version_to_temp`] into
+/// its final location and registers it in the configuration.
+///
+/// This must be called while holding the exclusive configuration lock (i.e. with
+/// a mutable config db). If another process installed the same version while the
+/// download was in progress, the temporary directory is discarded and the
+/// existing installation is reused.
+pub fn commit_version_install(
+    downloaded: TempDir,
+    fullversion: &str,
+    config_data: &mut JuliaupConfig,
+    paths: &GlobalPaths,
+) -> Result<()> {
+    let child_target_foldername = format!("julia-{}", fullversion);
+    let target_path = paths.juliauphome.join(&child_target_foldername);
+
+    // Another process may have installed this exact version while we were
+    // downloading. In that case discard our download and reuse the existing one.
+    if config_data.installed_versions.contains_key(fullversion) {
+        return Ok(());
+    }
+
+    let target_parent = target_path.parent().ok_or_else(|| {
+        anyhow!(
+            "Target installation path `{}` has no parent directory.",
+            target_path.display()
+        )
+    })?;
+    std::fs::create_dir_all(target_parent).with_context(|| {
+        format!(
+            "Failed to create parent directory `{}` for installation path `{}`.",
+            target_parent.display(),
+            target_path.display()
+        )
+    })?;
+
+    if target_path.exists() {
+        std::fs::remove_dir_all(&target_path).with_context(|| {
+            format!(
+                "Failed to remove stale installation directory `{}`.",
+                target_path.display()
+            )
+        })?;
+    }
+
+    // keep() consumes the TempDir and returns the path without cleanup
+    retry_rename(&downloaded.keep(), &target_path)?;
 
     let mut rel_path = PathBuf::new();
     rel_path.push(".");
@@ -835,7 +885,7 @@ pub fn install_version(
     let binary_path = compute_relative_binary_path(&target_path, &rel_path, &paths.juliauphome);
 
     config_data.installed_versions.insert(
-        fullversion.clone(),
+        fullversion.to_string(),
         JuliaupConfigVersion {
             path: rel_path.to_string_lossy().into_owned(),
             binary_path,
