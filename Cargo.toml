@@ -92,6 +92,9 @@ assert_cmd = "2"
 assert_fs = "1"
 indoc = "2"
 predicates = "3"
+tiny_http = "0.12"
+tar = "0.4"
+flate2 = "1"
 
 [features]
 selfupdate = []
