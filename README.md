@@ -128,9 +128,11 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup override unset --path foo/bar` removes a directory override for the path `foo/bar`.
 - `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
 - Tab completions for `juliaup` commands and `julia +channel` selection are automatically installed for Bash and Zsh (sourced from `~/.juliaup/completions/`). For other shells you can generate them manually, e.g. `juliaup completions fish > ~/.config/fish/completions/juliaup.fish`. Supported shells: `bash`, `zsh`, `fish`, `elvish`, `powershell`, and `nushell`.
+- `juliaup config --help` lists all available configuration keys; `juliaup config <key> --help` shows accepted values for a specific key.
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
+
 - `release`: always points to the latest stable version.
 - `lts`: always points to the latest long term supported version.
 - `alpha`: always points to the latest alpha version if one exists. If a newer beta or release candidate exists, it will point to that, and if there is no alpha, beta, or rc candidate available it will point to the same version as the `release` channel.
