@@ -175,8 +175,7 @@ fn self_update_end_to_end() {
 
     let juliaup = |server: Option<&str>| {
         let mut cmd = Command::new(juliaup_exe);
-        cmd.env("JULIA_DEPOT_PATH", env.depot_path());
-        cmd.env("JULIAUP_DEPOT_PATH", env.depot_path());
+        env.apply_env(&mut cmd);
         if let Some(server) = server {
             cmd.env("JULIAUP_SERVER", server);
             cmd.env("JULIAUP_NIGHTLY_SERVER", server);
@@ -250,9 +249,9 @@ fn self_update_end_to_end() {
     );
 
     // And Julia actually runs via the restored launcher.
-    Command::new(julia_symlink)
-        .env("JULIA_DEPOT_PATH", env.depot_path())
-        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+    let mut julia_cmd = Command::new(julia_symlink);
+    env.apply_env(&mut julia_cmd);
+    julia_cmd
         .args(["-e", "print(VERSION)"])
         .assert()
         .success()
@@ -274,8 +273,7 @@ fn self_update_auto_triggered_by_launcher() {
 
     let juliaup = || {
         let mut cmd = Command::new(juliaup_exe);
-        cmd.env("JULIA_DEPOT_PATH", env.depot_path());
-        cmd.env("JULIAUP_DEPOT_PATH", env.depot_path());
+        env.apply_env(&mut cmd);
         cmd
     };
 
@@ -310,9 +308,9 @@ fn self_update_auto_triggered_by_launcher() {
     // daemon that auto-triggers `juliaup self update` (inheriting the mock
     // server env), then execs into Julia which prints its version. The
     // self-update proceeds asynchronously after `julia` returns.
-    Command::new(&install.julia_symlink)
-        .env("JULIA_DEPOT_PATH", env.depot_path())
-        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+    let mut julia_cmd = Command::new(&install.julia_symlink);
+    env.apply_env(&mut julia_cmd);
+    julia_cmd
         .env("JULIAUP_SERVER", &server.base_url)
         .env("JULIAUP_NIGHTLY_SERVER", &server.base_url)
         .args(["-e", "print(VERSION)"])
@@ -337,9 +335,9 @@ fn self_update_auto_triggered_by_launcher() {
     }
 
     // Julia still runs via the restored launcher symlink after the auto-update.
-    Command::new(&install.julia_symlink)
-        .env("JULIA_DEPOT_PATH", env.depot_path())
-        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+    let mut julia_cmd = Command::new(&install.julia_symlink);
+    env.apply_env(&mut julia_cmd);
+    julia_cmd
         .args(["-e", "print(VERSION)"])
         .assert()
         .success()
