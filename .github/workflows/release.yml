@@ -682,6 +682,9 @@ jobs:
     environment: package
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write
     steps:
     - name: Download x86_64-pc-windows-gnu-portable artifact
       uses: actions/download-artifact@v8
@@ -750,6 +753,9 @@ jobs:
     runs-on: windows-latest
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write
     steps:
     # - name: Force old Powershell version
     #   shell: cmd
@@ -879,6 +885,9 @@ jobs:
     runs-on: windows-latest
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write
     steps:
     - uses: actions/checkout@v6
     - name: Install Wix
