@@ -11,8 +11,7 @@ use std::path::Path;
 
 fn juliaup(exe: &Path, env: &TestEnv) -> Command {
     let mut cmd = Command::new(exe);
-    cmd.env("JULIA_DEPOT_PATH", env.depot_path());
-    cmd.env("JULIAUP_DEPOT_PATH", env.depot_path());
+    env.apply_env(&mut cmd);
     cmd
 }
 
@@ -69,9 +68,9 @@ fn post_update_restores_julia_symlink() {
     assert_eq!(fs::read_link(&julia).unwrap(), julialauncher_exe);
 
     // And julia must actually run via the restored symlink.
-    Command::new(&julia)
-        .env("JULIA_DEPOT_PATH", env.depot_path())
-        .env("JULIAUP_DEPOT_PATH", env.depot_path())
+    let mut julia_cmd = Command::new(&julia);
+    env.apply_env(&mut julia_cmd);
+    julia_cmd
         .args(["-e", "print(VERSION)"])
         .assert()
         .success()
