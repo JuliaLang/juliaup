@@ -17,6 +17,7 @@ modes:
 | --- | --- | --- |
 | **Shared** (read) | `get_read_lock` / `load_config_db(paths, None)` | only an exclusive holder |
 | **Exclusive** (write) | `load_mut_config_db` | any other shared or exclusive holder |
+| **None** (lock-free read) | `load_config_db_lockfree` | nothing — never blocks, never blocked |
 
 Many readers can hold the shared lock simultaneously. A single writer holding
 the exclusive lock blocks everyone, including readers. The user-visible message
@@ -31,14 +32,22 @@ common case where another process holds the lock for only a few milliseconds
 `load_mut_config_db` route through `lock_with_delayed_message` to get this
 behaviour.
 
-### Design rule
+### Design rules
+
+> **All writes to `juliaup.json` must replace the file atomically.**
+
+Every writer goes through a temp-file-in-same-directory + rename
+(`save_config_db`, and `create_initial_config_file` for the very first
+config). This invariant is load-bearing: it is what makes the lock-free read
+path (`load_config_db_lockfree`, used by `julialauncher`) safe — a reader
+always observes either the old or the new file in full, never a torn write.
+Never write to `juliaup.json` in place.
 
 > **Never hold the exclusive lock across a network operation.**
 
 Downloads can be slow or hang. A writer that holds the exclusive lock across a
-download blocks every concurrent `julia` / `juliaup` invocation (each of which
-needs at least a shared lock at startup) for the entire duration of the
-download. The commands below follow a common pattern to honour this rule:
+download blocks every concurrent `juliaup` invocation (each of which needs at
+least a shared lock at startup) for the entire duration of the download. The commands below follow a common pattern to honour this rule:
 
 ```mermaid
 flowchart LR
@@ -62,7 +71,7 @@ runs inline before waiting on the Julia child.
 ```mermaid
 flowchart TD
     start(["julia +channel ..."]) --> setup["do_initial_setup"]
-    setup --> read["load_config_db(None)<br/><b>shared lock</b> → released"]
+    setup --> read["load_config_db_lockfree<br/><b>NO lock</b>"]
     read --> resolve["resolve channel → julia_path"]
     resolve --> fork{"platform"}
 
@@ -83,8 +92,13 @@ flowchart TD
 
 Key points:
 
-- The launcher itself only takes a **shared** lock, briefly, via
-  `load_config_db`. It is released before Julia is launched.
+- The launcher reads the configuration **without taking the lock at all**
+  (`load_config_db_lockfree`), so launching Julia can never block on the
+  configuration lock — not even during a slow `remove`/`gc` that holds the
+  exclusive lock while deleting an installation. This is safe because all
+  config writes are atomic file replacements (see design rules above). The
+  only launcher paths that touch the lock are cold and interactive: first-run
+  setup and the auto-install prompt, both of which spawn `juliaup`.
 - `run_versiondb_update` and `run_selfupdate` do **not** run the work inline;
   they merely *spawn* `juliaup` subprocesses (subject to their configured
   intervals). Those subprocesses do the locking described below.
