@@ -4,8 +4,8 @@ use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
 use juliaup::config_file::{
-    load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
-    JuliaupConfigVersion,
+    load_config_db_lockfree, load_mut_config_db, save_config_db, JuliaupConfig,
+    JuliaupConfigChannel, JuliaupConfigVersion,
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
@@ -405,7 +405,7 @@ fn get_julia_path_from_channel(
             spawn_juliaup_add(&resolved_channel, paths, is_automatic)?;
 
             // Reload the config to get the newly installed channel
-            let updated_config_file = load_config_db(paths, None)
+            let updated_config_file = load_config_db_lockfree(paths)
                 .with_context(|| "Failed to reload configuration after installing channel.")?;
 
             let updated_channel_info = updated_config_file
@@ -624,7 +624,10 @@ fn run_app() -> Result<i32> {
     do_initial_setup(&paths.juliaupconfig)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
-    let config_file = load_config_db(&paths, None)
+    // Read the configuration without taking the configuration lock, so that
+    // launching Julia can never block on (or be stalled by) the lock. This is
+    // safe because all config writers replace the file atomically.
+    let config_file = load_config_db_lockfree(&paths)
         .with_context(|| "The Julia launcher failed to load a configuration file.")?;
 
     let versiondb_data = load_versions_db(&paths)

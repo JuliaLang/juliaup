@@ -117,7 +117,7 @@ pub struct JuliaupOverride {
     pub channel: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct JuliaupConfig {
     #[serde(rename = "Default")]
     pub default: Option<String>,
@@ -253,39 +253,31 @@ pub fn get_read_lock(paths: &GlobalPaths) -> Result<FlockLock<File>> {
     Ok(file_lock)
 }
 
-pub fn load_config_db(
-    paths: &GlobalPaths,
-    existing_lock: Option<&FlockLock<File>>,
-) -> Result<JuliaupReadonlyConfigFile> {
-    let mut file_lock: Option<FlockLock<File>> = None;
-
-    if existing_lock.is_none() {
-        file_lock = Some(get_read_lock(paths)?);
-    }
-
+/// Reads the configuration from disk without any locking.
+fn read_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
     let v = match std::fs::OpenOptions::new()
         .read(true)
         .open(&paths.juliaupconfig)
     {
         Ok(file) => {
-            let reader = BufReader::new(&file);
+            // A zero-length config file can only be left behind by an
+            // interrupted initial setup of an older juliaup version; treat it
+            // like a missing file rather than failing to parse it.
+            if file.metadata().map(|m| m.len() == 0).unwrap_or(false) {
+                JuliaupConfig::default()
+            } else {
+                let reader = BufReader::new(&file);
 
-            serde_json::from_reader(reader).with_context(|| {
-                format!(
-                    "Failed to parse configuration file '{:?}' for reading.",
-                    paths.juliaupconfig
-                )
-            })?
+                serde_json::from_reader(reader).with_context(|| {
+                    format!(
+                        "Failed to parse configuration file '{:?}' for reading.",
+                        paths.juliaupconfig
+                    )
+                })?
+            }
         }
         Err(error) => match error.kind() {
-            ErrorKind::NotFound => JuliaupConfig {
-                default: None,
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-                overrides: Vec::new(),
-                settings: JuliaupConfigSettings::default(),
-                last_version_db_update: None,
-            },
+            ErrorKind::NotFound => JuliaupConfig::default(),
             other_error => {
                 bail!(
                     "Problem opening the file {:?}: {:?}",
@@ -322,6 +314,25 @@ pub fn load_config_db(
         };
     }
 
+    Ok(JuliaupReadonlyConfigFile {
+        data: v,
+        #[cfg(feature = "selfupdate")]
+        self_data: selfconfig,
+    })
+}
+
+pub fn load_config_db(
+    paths: &GlobalPaths,
+    existing_lock: Option<&FlockLock<File>>,
+) -> Result<JuliaupReadonlyConfigFile> {
+    let mut file_lock: Option<FlockLock<File>> = None;
+
+    if existing_lock.is_none() {
+        file_lock = Some(get_read_lock(paths)?);
+    }
+
+    let result = read_config_db(paths)?;
+
     if let Some(file_lock) = file_lock {
         file_lock.unlock().with_context(|| {
             format!(
@@ -331,11 +342,96 @@ pub fn load_config_db(
         })?;
     }
 
-    Ok(JuliaupReadonlyConfigFile {
-        data: v,
-        #[cfg(feature = "selfupdate")]
-        self_data: selfconfig,
-    })
+    Ok(result)
+}
+
+/// Loads the configuration without acquiring the configuration lock.
+///
+/// This is safe for readers because every writer replaces `juliaup.json`
+/// atomically (temp file + rename, see [`save_config_db`] and
+/// [`create_initial_config_file`]), so a reader always observes either the
+/// old or the new contents in full, never a partial write. `julialauncher`
+/// uses this so that launching Julia can never block on the configuration
+/// lock.
+pub fn load_config_db_lockfree(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
+    read_config_db(paths)
+}
+
+/// Atomically replaces `dest` with `temp_file`.
+///
+/// Do not use `tempfile`'s `persist()` for the config file: on Windows it
+/// renames via `MoveFileExW`, which fails while any process has `dest` open —
+/// including a lock-free reader that is merely reading the config at that
+/// moment. `std::fs::rename` instead renames with
+/// `FILE_RENAME_FLAG_POSIX_SEMANTICS` (falling back to `MoveFileExW` only on
+/// filesystems that don't support it), so the replacement succeeds while
+/// readers still hold the old file open. On Unix both are plain `rename(2)`.
+fn persist_atomically(temp_file: NamedTempFile, dest: &std::path::Path) -> Result<()> {
+    let temp_path = temp_file.into_temp_path().keep()?;
+
+    if let Err(e) = std::fs::rename(&temp_path, dest) {
+        // Clean up the now-orphaned temp file before reporting the error.
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(e.into());
+    }
+
+    Ok(())
+}
+
+/// Atomically creates `juliaup.json` with default contents and returns an
+/// open read/write handle to it. Writing via a temp file + rename means a
+/// lock-free reader never observes an empty or partially written config file.
+/// Callers must hold the exclusive configuration lock.
+fn create_initial_config_file(paths: &GlobalPaths) -> Result<File> {
+    let new_config = JuliaupConfig::default();
+
+    let mut temp_file = NamedTempFile::new_in(&paths.juliauphome).with_context(|| {
+        format!(
+            "Failed to create temporary config file in directory `{}`.",
+            paths.juliauphome.display()
+        )
+    })?;
+
+    serde_json::to_writer_pretty(&mut temp_file, &new_config).with_context(|| {
+        format!(
+            "Failed to write initial configuration data for `{}` to temporary file.",
+            paths.juliaupconfig.display()
+        )
+    })?;
+
+    temp_file.flush().with_context(|| {
+        format!(
+            "Failed to flush initial configuration data for `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
+
+    temp_file.as_file().sync_all().with_context(|| {
+        format!(
+            "Failed to sync initial configuration data for `{}` to disk.",
+            paths.juliaupconfig.display()
+        )
+    })?;
+
+    persist_atomically(temp_file, &paths.juliaupconfig).with_context(|| {
+        format!(
+            "Failed to persist initial configuration file `{}`.",
+            paths.juliaupconfig.display()
+        )
+    })?;
+
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&paths.juliaupconfig)
+        .with_context(|| {
+            format!(
+                "Failed to open juliaup config file `{}` after initial creation.",
+                paths.juliaupconfig.display()
+            )
+        })?;
+
+    Ok(file)
 }
 
 pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
@@ -372,76 +468,61 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         },
     )?;
 
-    let mut file = std::fs::OpenOptions::new()
+    // Open without `create` so that an empty config file is never visible to
+    // lock-free readers; if the file is missing it is created atomically with
+    // its initial contents by `create_initial_config_file`.
+    let open_result = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&paths.juliaupconfig)
-        .with_context(|| {
-            format!(
-                "Failed to open juliaup config file `{}`.",
-                paths.juliaupconfig.display()
-            )
-        })?;
+        .open(&paths.juliaupconfig);
 
-    let stream_len = file.seek(SeekFrom::End(0)).with_context(|| {
-        format!(
-            "Failed to determine the length of configuration file `{}`.",
-            paths.juliaupconfig.display()
-        )
-    })?;
-
-    let data = match stream_len {
-        0 => {
-            let new_config = JuliaupConfig {
-                default: None,
-                installed_versions: HashMap::new(),
-                installed_channels: HashMap::new(),
-                overrides: Vec::new(),
-                settings: JuliaupConfigSettings::default(),
-                last_version_db_update: None,
-            };
-
-            serde_json::to_writer_pretty(&file, &new_config).with_context(|| {
+    let (file, data) = match open_result {
+        Ok(mut file) => {
+            let stream_len = file.seek(SeekFrom::End(0)).with_context(|| {
                 format!(
-                    "Failed to write configuration file `{}`.",
+                    "Failed to determine the length of configuration file `{}`.",
                     paths.juliaupconfig.display()
                 )
             })?;
 
-            file.sync_all().with_context(|| {
-                format!(
-                    "Failed to sync configuration file `{}` to disk.",
-                    paths.juliaupconfig.display()
-                )
-            })?;
+            if stream_len == 0 {
+                // An empty config file can only be left behind by an
+                // interrupted initial setup of an older juliaup version;
+                // replace it with a valid initial config.
+                drop(file);
+                let file = create_initial_config_file(paths)?;
+                (file, JuliaupConfig::default())
+            } else {
+                file.rewind().with_context(|| {
+                    format!(
+                        "Failed to rewind existing config file `{}`.",
+                        paths.juliaupconfig.display()
+                    )
+                })?;
 
-            file.rewind().with_context(|| {
-                format!(
-                    "Failed to rewind config file `{}` after initial write.",
-                    paths.juliaupconfig.display()
-                )
-            })?;
+                let reader = BufReader::new(&file);
 
-            new_config
+                let data = serde_json::from_reader(reader).with_context(|| {
+                    format!(
+                        "Failed to parse configuration file `{}`.",
+                        paths.juliaupconfig.display()
+                    )
+                })?;
+
+                (file, data)
+            }
         }
-        _ => {
-            file.rewind().with_context(|| {
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let file = create_initial_config_file(paths)?;
+            (file, JuliaupConfig::default())
+        }
+        Err(error) => {
+            return Err(error).with_context(|| {
                 format!(
-                    "Failed to rewind existing config file `{}`.",
+                    "Failed to open juliaup config file `{}`.",
                     paths.juliaupconfig.display()
                 )
-            })?;
-
-            let reader = BufReader::new(&file);
-
-            serde_json::from_reader(reader).with_context(|| {
-                format!(
-                    "Failed to parse configuration file `{}`.",
-                    paths.juliaupconfig.display()
-                )
-            })?
+            });
         }
     };
 
@@ -552,7 +633,7 @@ pub fn save_config_db(
     }
 
     // Atomically replace the old config file with the new one
-    temp_file.persist(&paths.juliaupconfig).with_context(|| {
+    persist_atomically(temp_file, &paths.juliaupconfig).with_context(|| {
         format!(
             "Failed to persist configuration file `{}`.",
             paths.juliaupconfig.display()
@@ -635,14 +716,12 @@ pub fn save_config_db(
             let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
         }
 
-        temp_self_file
-            .persist(&paths.juliaupselfconfig)
-            .with_context(|| {
-                format!(
-                    "Failed to persist self configuration file `{}`.",
-                    paths.juliaupselfconfig.display()
-                )
-            })?;
+        persist_atomically(temp_self_file, &paths.juliaupselfconfig).with_context(|| {
+            format!(
+                "Failed to persist self configuration file `{}`.",
+                paths.juliaupselfconfig.display()
+            )
+        })?;
 
         // Reopen the self config file (Windows only, since we closed it)
         #[cfg(target_os = "windows")]
@@ -661,4 +740,67 @@ pub fn save_config_db(
     }
 
     Ok(())
+}
+
+#[cfg(all(test, not(feature = "selfupdate")))]
+mod tests {
+    use super::*;
+
+    fn test_paths(dir: &std::path::Path) -> GlobalPaths {
+        GlobalPaths {
+            juliauphome: dir.to_path_buf(),
+            juliaupconfig: dir.join("juliaup.json"),
+            lockfile: dir.join(".juliaup-lock"),
+            versiondb: dir.join("versiondb-test.json"),
+        }
+    }
+
+    #[test]
+    fn lockfree_read_of_missing_config_returns_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(dir.path());
+
+        let config = load_config_db_lockfree(&paths).unwrap();
+        assert!(config.data.installed_channels.is_empty());
+        assert!(config.data.default.is_none());
+    }
+
+    #[test]
+    fn lockfree_read_of_empty_config_returns_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(dir.path());
+        File::create(&paths.juliaupconfig).unwrap();
+
+        let config = load_config_db_lockfree(&paths).unwrap();
+        assert!(config.data.installed_channels.is_empty());
+    }
+
+    #[test]
+    fn initial_config_is_created_atomically_and_parseable() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(dir.path());
+
+        let config_file = load_mut_config_db(&paths).unwrap();
+        assert!(config_file.data.installed_channels.is_empty());
+
+        // The file on disk must already contain the full initial config
+        // (atomic create), so a lock-free reader parses it successfully.
+        let on_disk = load_config_db_lockfree(&paths).unwrap();
+        assert!(on_disk.data == config_file.data);
+    }
+
+    #[test]
+    fn lockfree_read_does_not_block_on_exclusive_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = test_paths(dir.path());
+
+        let mut config_file = load_mut_config_db(&paths).unwrap();
+        config_file.data.default = Some("release".to_string());
+        save_config_db(&mut config_file, &paths).unwrap();
+
+        // The exclusive lock is still held by `config_file` here; a lock-free
+        // read must succeed immediately and see the saved contents.
+        let config = load_config_db_lockfree(&paths).unwrap();
+        assert_eq!(config.data.default.as_deref(), Some("release"));
+    }
 }
