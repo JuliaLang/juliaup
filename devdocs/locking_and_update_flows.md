@@ -43,6 +43,12 @@ path (`load_config_db_lockfree`, used by `julialauncher`) safe — a reader
 always observes either the old or the new file in full, never a torn write.
 Never write to `juliaup.json` in place.
 
+On Windows the rename must go through `std::fs::rename`
+(`FILE_RENAME_FLAG_POSIX_SEMANTICS`), not `tempfile`'s `persist()`
+(`MoveFileExW`): the latter fails while any process has the destination open,
+and with lock-free readers a writer's commit can now overlap a read. See
+`persist_atomically` in `config_file.rs`.
+
 > **Never hold the exclusive lock across a network operation.**
 
 Downloads can be slow or hang. A writer that holds the exclusive lock across a

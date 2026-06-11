@@ -357,6 +357,27 @@ pub fn load_config_db_lockfree(paths: &GlobalPaths) -> Result<JuliaupReadonlyCon
     read_config_db(paths)
 }
 
+/// Atomically replaces `dest` with `temp_file`.
+///
+/// Do not use `tempfile`'s `persist()` for the config file: on Windows it
+/// renames via `MoveFileExW`, which fails while any process has `dest` open —
+/// including a lock-free reader that is merely reading the config at that
+/// moment. `std::fs::rename` instead renames with
+/// `FILE_RENAME_FLAG_POSIX_SEMANTICS` (falling back to `MoveFileExW` only on
+/// filesystems that don't support it), so the replacement succeeds while
+/// readers still hold the old file open. On Unix both are plain `rename(2)`.
+fn persist_atomically(temp_file: NamedTempFile, dest: &std::path::Path) -> Result<()> {
+    let temp_path = temp_file.into_temp_path().keep()?;
+
+    if let Err(e) = std::fs::rename(&temp_path, dest) {
+        // Clean up the now-orphaned temp file before reporting the error.
+        let _ = std::fs::remove_file(&temp_path);
+        return Err(e.into());
+    }
+
+    Ok(())
+}
+
 /// Atomically creates `juliaup.json` with default contents and returns an
 /// open read/write handle to it. Writing via a temp file + rename means a
 /// lock-free reader never observes an empty or partially written config file.
@@ -392,7 +413,7 @@ fn create_initial_config_file(paths: &GlobalPaths) -> Result<File> {
         )
     })?;
 
-    temp_file.persist(&paths.juliaupconfig).with_context(|| {
+    persist_atomically(temp_file, &paths.juliaupconfig).with_context(|| {
         format!(
             "Failed to persist initial configuration file `{}`.",
             paths.juliaupconfig.display()
@@ -612,7 +633,7 @@ pub fn save_config_db(
     }
 
     // Atomically replace the old config file with the new one
-    temp_file.persist(&paths.juliaupconfig).with_context(|| {
+    persist_atomically(temp_file, &paths.juliaupconfig).with_context(|| {
         format!(
             "Failed to persist configuration file `{}`.",
             paths.juliaupconfig.display()
@@ -695,14 +716,12 @@ pub fn save_config_db(
             let _ = mem::replace(&mut juliaup_config_file.self_file, dummy);
         }
 
-        temp_self_file
-            .persist(&paths.juliaupselfconfig)
-            .with_context(|| {
-                format!(
-                    "Failed to persist self configuration file `{}`.",
-                    paths.juliaupselfconfig.display()
-                )
-            })?;
+        persist_atomically(temp_self_file, &paths.juliaupselfconfig).with_context(|| {
+            format!(
+                "Failed to persist self configuration file `{}`.",
+                paths.juliaupselfconfig.display()
+            )
+        })?;
 
         // Reopen the self config file (Windows only, since we closed it)
         #[cfg(target_os = "windows")]
