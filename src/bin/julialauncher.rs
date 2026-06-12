@@ -98,6 +98,14 @@ fn run_versiondb_update(
     Ok(())
 }
 
+fn run_startup_updates(
+    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+) -> Result<()> {
+    run_versiondb_update(config_file).with_context(|| "Failed to run version db update")?;
+    run_selfupdate(config_file).with_context(|| "Failed to run selfupdate.")?;
+    Ok(())
+}
+
 #[cfg(feature = "selfupdate")]
 fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
     use chrono::Utc;
@@ -150,6 +158,13 @@ fn is_interactive() -> bool {
     if let Some(first_arg) = julia_args.clone().next() {
         if first_arg.starts_with('+') {
             julia_args.next(); // consume the +channel argument
+        }
+    }
+
+    // -i/--interactive forces interactive mode even when a script or -e is present
+    for arg in julia_args.clone() {
+        if matches!(arg.as_str(), "-i" | "--interactive") {
+            return true;
         }
     }
 
@@ -694,68 +709,76 @@ fn run_app() -> Result<i32> {
 
     // On *nix platforms we replace the current process with the Julia one.
     // This simplifies use in e.g. debuggers, but requires that we fork off
-    // a subprocess to do the selfupdate and versiondb update.
+    // a subprocess to do the selfupdate and versiondb update when interactive.
     #[cfg(not(windows))]
-    match unsafe { fork() } {
-        // NOTE: It is unsafe to perform async-signal-unsafe operations from
-        // forked multithreaded programs, so for complex functionality like
-        // selfupdate to work julialauncher needs to remain single-threaded.
-        // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
-        Ok(ForkResult::Parent { child, .. }) => {
-            // wait for the daemon-spawning child to finish
-            match waitpid(child, None) {
-                Ok(WaitStatus::Exited(_, code)) => {
-                    if code != 0 {
-                        panic!("Could not fork (child process exited with code: {})", code)
+    if is_interactive() {
+        match unsafe { fork() } {
+            // NOTE: It is unsafe to perform async-signal-unsafe operations from
+            // forked multithreaded programs, so for complex functionality like
+            // selfupdate to work julialauncher needs to remain single-threaded.
+            // Ref: https://docs.rs/nix/latest/nix/unistd/fn.fork.html#safety
+            Ok(ForkResult::Parent { child, .. }) => {
+                // wait for the daemon-spawning child to finish
+                match waitpid(child, None) {
+                    Ok(WaitStatus::Exited(_, code)) => {
+                        if code != 0 {
+                            panic!("Could not fork (child process exited with code: {})", code)
+                        }
+                    }
+                    Ok(_) => {
+                        panic!("Could not fork (child process did not exit normally)");
+                    }
+                    Err(e) => {
+                        panic!("Could not fork (error waiting for child process, {})", e);
                     }
                 }
-                Ok(_) => {
-                    panic!("Could not fork (child process did not exit normally)");
-                }
-                Err(e) => {
-                    panic!("Could not fork (error waiting for child process, {})", e);
-                }
+
+                // replace the current process
+                let _ = std::process::Command::new(&julia_path)
+                    .args(&new_args)
+                    .exec();
+
+                // this is only ever reached if launching Julia fails
+                panic!(
+                    "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
+                    julia_path.to_string_lossy()
+                )
             }
+            Ok(ForkResult::Child) => {
+                // double-fork to prevent zombies
+                match unsafe { fork() } {
+                    Ok(ForkResult::Parent { child: _, .. }) => {
+                        // we don't do anything here so that this process can be
+                        // reaped immediately
+                    }
+                    Ok(ForkResult::Child) => {
+                        // this is where we perform the actual work. we don't do
+                        // any typical daemon-y things (like detaching the TTY)
+                        // so that any error output is still visible.
 
-            // replace the current process
-            let _ = std::process::Command::new(&julia_path)
-                .args(&new_args)
-                .exec();
+                        // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
+                        // process to handle things.
+                        ctrlc::set_handler(|| ())
+                            .with_context(|| "Failed to set the Ctrl-C handler.")?;
 
-            // this is only ever reached if launching Julia fails
-            panic!(
-                "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
-                julia_path.to_string_lossy()
-            )
-        }
-        Ok(ForkResult::Child) => {
-            // double-fork to prevent zombies
-            match unsafe { fork() } {
-                Ok(ForkResult::Parent { child: _, .. }) => {
-                    // we don't do anything here so that this process can be
-                    // reaped immediately
+                        run_startup_updates(&config_file)?;
+                    }
+                    Err(_) => panic!("Could not double-fork"),
                 }
-                Ok(ForkResult::Child) => {
-                    // this is where we perform the actual work. we don't do
-                    // any typical daemon-y things (like detaching the TTY)
-                    // so that any error output is still visible.
 
-                    // We set a Ctrl-C handler here that just doesn't do anything, as we want the Julia child
-                    // process to handle things.
-                    ctrlc::set_handler(|| ())
-                        .with_context(|| "Failed to set the Ctrl-C handler.")?;
-
-                    run_versiondb_update(&config_file)
-                        .with_context(|| "Failed to run version db update")?;
-
-                    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
-                }
-                Err(_) => panic!("Could not double-fork"),
+                Ok(0)
             }
-
-            Ok(0)
+            Err(_) => panic!("Could not fork"),
         }
-        Err(_) => panic!("Could not fork"),
+    } else {
+        let _ = std::process::Command::new(&julia_path)
+            .args(&new_args)
+            .exec();
+
+        panic!(
+            "Could not launch Julia. Verify that there is a valid Julia binary at \"{}\".",
+            julia_path.to_string_lossy()
+        )
     }
 
     // On other platforms (i.e., Windows) we just spawn a subprocess
@@ -809,9 +832,9 @@ fn run_app() -> Result<i32> {
             )
         };
 
-        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
-
-        run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+        if is_interactive() {
+            run_startup_updates(&config_file)?;
+        }
 
         let status = child_process
             .wait()

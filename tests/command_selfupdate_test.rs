@@ -166,6 +166,34 @@ impl Install {
     }
 }
 
+/// Run the launcher as if from an interactive terminal session. `script` provides
+/// a pseudo-TTY (required by `is_interactive`); `-i` makes `-e` count as interactive.
+fn run_julia_interactive(
+    julia_symlink: &Path,
+    env: &TestEnv,
+    extra_env: &[(&str, &str)],
+    julia_args: &[&str],
+) -> assert_cmd::assert::Assert {
+    let mut cmd = if cfg!(target_os = "macos") {
+        let mut c = Command::new("script");
+        c.arg("-q").arg("/dev/null").arg(julia_symlink);
+        c.args(julia_args);
+        c
+    } else {
+        let inner = std::iter::once(julia_symlink.to_string_lossy().into_owned())
+            .chain(julia_args.iter().map(|s| (*s).to_string()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        Command::new("script").args(["-qefc", &inner, "/dev/null"])
+    };
+
+    env.apply_env(&mut cmd);
+    for (k, v) in extra_env {
+        cmd.env(k, v);
+    }
+    cmd.assert()
+}
+
 #[test]
 fn self_update_end_to_end() {
     let env = TestEnv::new();
@@ -261,10 +289,10 @@ fn self_update_end_to_end() {
 }
 
 /// Verifies the automatic self-update that `julialauncher` triggers at Julia
-/// startup: when `startupselfupdateinterval` has elapsed, running `julia`
-/// spawns `juliaup self update` in a background daemon (and then execs into
-/// Julia). This is the path that historically caused issues because the
-/// self-update runs detached from the foreground Julia process.
+/// startup in interactive (REPL) mode: when `startupselfupdateinterval` has
+/// elapsed, running `julia` spawns `juliaup self update` in a background daemon
+/// (and then execs into Julia). Non-interactive invocations such as `julia -e`
+/// do not trigger this path.
 #[test]
 fn self_update_auto_triggered_by_launcher() {
     let env = TestEnv::new();
@@ -304,19 +332,21 @@ fn self_update_auto_triggered_by_launcher() {
         "self-update should not have run before launching julia"
     );
 
-    // Run the launcher via the `julia` symlink. On Unix it forks a background
-    // daemon that auto-triggers `juliaup self update` (inheriting the mock
-    // server env), then execs into Julia which prints its version. The
-    // self-update proceeds asynchronously after `julia` returns.
-    let mut julia_cmd = Command::new(&install.julia_symlink);
-    env.apply_env(&mut julia_cmd);
-    julia_cmd
-        .env("JULIAUP_SERVER", &server.base_url)
-        .env("JULIAUP_NIGHTLY_SERVER", &server.base_url)
-        .args(["-e", "print(VERSION)"])
-        .assert()
-        .success()
-        .stdout("1.10.10");
+    // Run the launcher via the `julia` symlink with a pseudo-TTY. On Unix it
+    // forks a background daemon that auto-triggers `juliaup self update`
+    // (inheriting the mock server env), then execs into Julia which prints its
+    // version. The self-update proceeds asynchronously after `julia` returns.
+    run_julia_interactive(
+        &install.julia_symlink,
+        &env,
+        &[
+            ("JULIAUP_SERVER", &server.base_url),
+            ("JULIAUP_NIGHTLY_SERVER", &server.base_url),
+        ],
+        &["-i", "-e", "print(VERSION)"],
+    )
+    .success()
+    .stdout("1.10.10");
 
     // Wait for the detached self-update to finish: it records the timestamp and
     // the `_post-update` hook restores the launcher symlink. Poll for the final
@@ -342,6 +372,55 @@ fn self_update_auto_triggered_by_launcher() {
         .assert()
         .success()
         .stdout("1.10.10");
+
+    drop(server);
+}
+
+/// Verifies that non-interactive invocations (e.g. `julia -e`) do not trigger
+/// background self-update even when the update interval has elapsed.
+#[test]
+fn self_update_not_triggered_for_non_interactive() {
+    let env = TestEnv::new();
+    let install = Install::setup();
+    let juliaup_exe = &install.juliaup_exe;
+
+    let juliaup = || {
+        let mut cmd = Command::new(juliaup_exe);
+        env.apply_env(&mut cmd);
+        cmd
+    };
+
+    juliaup()
+        .args(["config", "versionsdbupdateinterval", "0"])
+        .assert()
+        .success();
+    juliaup()
+        .args(["config", "startupselfupdateinterval", "1"])
+        .assert()
+        .success();
+
+    juliaup().args(["add", "1.10.10"]).assert().success();
+    juliaup().args(["default", "1.10.10"]).assert().success();
+
+    let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
+    let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
+
+    let mut julia_cmd = Command::new(&install.julia_symlink);
+    env.apply_env(&mut julia_cmd);
+    julia_cmd
+        .env("JULIAUP_SERVER", &server.base_url)
+        .env("JULIAUP_NIGHTLY_SERVER", &server.base_url)
+        .args(["-e", "print(VERSION)"])
+        .assert()
+        .success()
+        .stdout("1.10.10");
+
+    thread::sleep(Duration::from_secs(3));
+    assert!(
+        !install.self_update_recorded(),
+        "self-update should not run for non-interactive `julia -e` invocations"
+    );
 
     drop(server);
 }
