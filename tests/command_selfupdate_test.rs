@@ -174,18 +174,17 @@ fn run_julia_interactive(
     extra_env: &[(&str, &str)],
     julia_args: &[&str],
 ) -> assert_cmd::assert::Assert {
-    let mut cmd = if cfg!(target_os = "macos") {
-        let mut c = Command::new("script");
-        c.arg("-q").arg("/dev/null").arg(julia_symlink);
-        c.args(julia_args);
-        c
+    let mut cmd = Command::new("script");
+    if cfg!(target_os = "macos") {
+        cmd.arg("-q").arg("/dev/null").arg(julia_symlink);
+        cmd.args(julia_args);
     } else {
         let inner = std::iter::once(julia_symlink.to_string_lossy().into_owned())
             .chain(julia_args.iter().map(|s| (*s).to_string()))
             .collect::<Vec<_>>()
             .join(" ");
-        Command::new("script").args(["-qefc", &inner, "/dev/null"])
-    };
+        cmd.args(["-qefc", &inner, "/dev/null"]);
+    }
 
     env.apply_env(&mut cmd);
     for (k, v) in extra_env {
