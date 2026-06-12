@@ -166,30 +166,21 @@ impl Install {
     }
 }
 
-/// Run the launcher as if from an interactive terminal session. `script` provides
-/// a pseudo-TTY (required by `is_interactive`); `-i` makes `-e` count as interactive.
+/// Run the launcher in a way that `is_interactive` treats as interactive.
+/// Uses `-i` so startup updates are exercised without relying on `script(1)`,
+/// which does not consistently provide a TTY on all platforms (notably macOS).
 fn run_julia_interactive(
     julia_symlink: &Path,
     env: &TestEnv,
     extra_env: &[(&str, &str)],
     julia_args: &[&str],
 ) -> assert_cmd::assert::Assert {
-    let mut cmd = Command::new("script");
-    if cfg!(target_os = "macos") {
-        cmd.arg("-q").arg("/dev/null").arg(julia_symlink);
-        cmd.args(julia_args);
-    } else {
-        let inner = std::iter::once(julia_symlink.to_string_lossy().into_owned())
-            .chain(julia_args.iter().map(|s| (*s).to_string()))
-            .collect::<Vec<_>>()
-            .join(" ");
-        cmd.args(["-qefc", &inner, "/dev/null"]);
-    }
-
+    let mut cmd = Command::new(julia_symlink);
     env.apply_env(&mut cmd);
     for (k, v) in extra_env {
         cmd.env(k, v);
     }
+    cmd.args(julia_args);
     cmd.assert()
 }
 
@@ -331,8 +322,8 @@ fn self_update_auto_triggered_by_launcher() {
         "self-update should not have run before launching julia"
     );
 
-    // Run the launcher via the `julia` symlink with a pseudo-TTY. On Unix it
-    // forks a background daemon that auto-triggers `juliaup self update`
+    // Run the launcher via the `julia` symlink with `-i` so startup updates run.
+    // On Unix it forks a background daemon that auto-triggers `juliaup self update`
     // (inheriting the mock server env), then execs into Julia which prints its
     // version. The self-update proceeds asynchronously after `julia` returns.
     run_julia_interactive(

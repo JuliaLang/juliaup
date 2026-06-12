@@ -143,32 +143,31 @@ fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile
 }
 
 fn is_interactive() -> bool {
-    // First check if we have TTY access - this is a prerequisite for interactivity
-    if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
-        return false;
-    }
-
-    // Even with TTY available, check if Julia is being invoked in a non-interactive way
     let args: Vec<String> = std::env::args().collect();
 
     // Skip the first argument (program name) and any channel specification (+channel)
     let mut julia_args = args.iter().skip(1);
 
-    // Skip channel specification if present
     if let Some(first_arg) = julia_args.clone().next() {
         if first_arg.starts_with('+') {
             julia_args.next(); // consume the +channel argument
         }
     }
 
-    // -i/--interactive forces interactive mode even when a script or -e is present
+    // -i/--interactive explicitly requests interactive mode, even without a TTY
+    // or when a script/-e would otherwise be treated as non-interactive.
     for arg in julia_args.clone() {
         if matches!(arg.as_str(), "-i" | "--interactive") {
             return true;
         }
     }
 
-    // Check for non-interactive usage patterns
+    // A TTY is a prerequisite for interactivity when -i was not given.
+    if !std::io::stdin().is_terminal() || !std::io::stderr().is_terminal() {
+        return false;
+    }
+
+    // Even with TTY available, check if Julia is being invoked in a non-interactive way
     for arg in julia_args {
         match arg.as_str() {
             // Expression evaluation is non-interactive
