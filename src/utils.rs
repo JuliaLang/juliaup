@@ -55,6 +55,7 @@ static NIGHTLY_SERVER_SUPPORTS_ETAG: OnceLock<bool> = OnceLock::new();
 
 static CUSTOM_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
 static CUSTOM_NIGHTLY_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
+static CUSTOM_PR_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
 
 /// Checks if the nightly server supports etag headers.
 /// This is required for nightly and PR channel support because we use etags
@@ -324,6 +325,55 @@ pub fn get_julianightlies_base_url() -> Result<Url> {
     Ok(parsed_url)
 }
 
+/// Base URL of the bucket that CI stages pull request builds to, keyed by the
+/// head commit sha of the PR (see JuliaCI/julia-buildkite#544). The builds
+/// stored there are ephemeral and expire roughly 90 days after CI uploads
+/// them.
+pub fn get_juliaprs_base_url() -> Result<Url> {
+    let (base_url, is_custom) = if let Ok(val) = std::env::var("JULIAUP_PR_SERVER") {
+        let url = if val.ends_with('/') {
+            val
+        } else {
+            format!("{}/", val)
+        };
+        (url, true)
+    } else {
+        (
+            "https://julialang-ephemeral-pr.s3.amazonaws.com".to_string(),
+            false,
+        )
+    };
+
+    let parsed_url = Url::parse(&base_url).with_context(|| {
+        format!(
+            "Failed to parse the value of JULIAUP_PR_SERVER '{}' as a uri.",
+            base_url
+        )
+    })?;
+
+    if parsed_url.scheme() != "https" && !is_loopback_http(&parsed_url) {
+        bail!(
+            "The value of JULIAUP_PR_SERVER '{}' must use HTTPS.",
+            base_url
+        );
+    }
+
+    if is_custom {
+        CUSTOM_PR_SERVER_WARNING_SHOWN.get_or_init(|| {
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Using custom PR server '{}' (JULIAUP_PR_SERVER).",
+                    parsed_url
+                ),
+                JuliaupMessageType::Progress,
+            );
+        });
+    }
+
+    Ok(parsed_url)
+}
+
 pub fn get_bin_dir() -> Result<PathBuf> {
     let entry_sep = if std::env::consts::OS == "windows" {
         ';'
@@ -459,6 +509,16 @@ mod tests {
         std::env::set_var("JULIAUP_NIGHTLY_SERVER", "http://evil.example.com");
         let result = get_julianightlies_base_url();
         std::env::remove_var("JULIAUP_NIGHTLY_SERVER");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
+    }
+
+    #[test]
+    fn juliaup_pr_server_rejects_http() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("JULIAUP_PR_SERVER", "http://evil.example.com");
+        let result = get_juliaprs_base_url();
+        std::env::remove_var("JULIAUP_PR_SERVER");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("must use HTTPS"));
     }
