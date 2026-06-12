@@ -430,8 +430,38 @@ jobs:
           rm -rf ~/.cargo/git/db
           df -h
           CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+
+  test-selfupdate:
+    # Exercises the real `juliaup self update` code path end-to-end against a
+    # local mock server (see tests/command_selfupdate_test.rs, issue #805).
+    # Runs in its own job because it needs the `selfupdate` feature, which
+    # changes config loading in a way that is incompatible with the other
+    # integration tests.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-latest
+          - os: macos
+            runner: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Resolve toolchain from rust-toolchain.toml
+      id: toolchain
+      shell: bash
+      run: |
+        ver=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        echo "name=${ver}" >> "$GITHUB_OUTPUT"
+    - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+      with:
+        toolchain: ${{ steps.toolchain.outputs.name }}
+    - name: Test self update
+      run: cargo test --features selfupdate,binjulialauncher --test command_selfupdate_test
+
   package-unix:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup,test-juliaup,test-selfupdate]
     environment: package
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -604,7 +634,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   package-unix-portable:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup,test-juliaup,test-selfupdate]
     environment: package
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -678,7 +708,7 @@ jobs:
         path: public/*.*
 
   package-windows-portable:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup,test-juliaup,test-selfupdate]
     environment: package
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -749,7 +779,7 @@ jobs:
         path: public/*.*
 
   package-windows-msix:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup,test-juliaup,test-selfupdate]
     runs-on: windows-latest
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
@@ -881,7 +911,7 @@ jobs:
         path: target\msix\winappinstaller\Julia.appinstaller
 
   package-windows-msi:
-    needs: [build-juliaup,test-juliaup]
+    needs: [build-juliaup,test-juliaup,test-selfupdate]
     runs-on: windows-latest
     environment: package
     if: startsWith(github.ref, 'refs/tags/')
@@ -974,7 +1004,7 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   create-github-release:
-    needs: [test-juliaup]
+    needs: [test-juliaup,test-selfupdate]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -1054,8 +1084,11 @@ jobs:
           }
         }
 
+  # Channel promotion order is enforced via `needs`: a version must be fully
+  # deployed to the dev channel before releasepreview, and must have soaked on
+  # releasepreview for at least 24h (see `release-gate`) before release.
   deploy-releasepreview-channel-winstore:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [deploy-dev-channel-winstore,deploy-dev-channel-s3,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1097,8 +1130,66 @@ jobs:
           }
         }
 
+  # Gate between releasepreview and release: verifies against the live
+  # releasepreview channel (the very file juliaup clients poll) that this
+  # version has been published there and has soaked for at least 24 hours.
+  # Because the check reads public state, it holds across re-runs and cannot
+  # be bypassed by approving the release environment early.
+  #
+  # For a hands-free flow, configure the `release-gate` environment with a
+  # wait timer of 1440 minutes: the job is then triggered when the
+  # releasepreview deploys finish, sleeps 24h on GitHub's side, and passes on
+  # its own. Without the wait timer the job fails fast when run too early and
+  # must be re-run ("Re-run failed jobs") once the soak time has elapsed.
+  #
+  # Emergency override: set the repository variable RELEASE_GATE_OVERRIDE to
+  # the exact version being released (e.g. "1.20.7") and re-run this job. The
+  # gate then passes immediately with a warning. Scoping the override to one
+  # version means it cannot be left enabled by accident; remove the variable
+  # after use.
+  release-gate:
+    needs: [deploy-releasepreview-channel-winstore,deploy-releasepreview-channel-s3]
+    environment: release-gate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Verify releasepreview has soaked for at least 24 hours
+        env:
+          GH_REF: ${{ github.ref }}
+          GATE_OVERRIDE: ${{ vars.RELEASE_GATE_OVERRIDE }}
+        run: |
+          set -euo pipefail
+          VERSION=$(echo "$GH_REF" | sed 's:refs/tags/v::')
+          URL="https://julialang-s3.julialang.org/juliaup/RELEASEPREVIEWCHANNELVERSION"
+
+          if [ "${GATE_OVERRIDE:-}" = "$VERSION" ]; then
+            echo "::warning title=Release gate overridden::The 24h releasepreview soak for version $VERSION was skipped via the RELEASE_GATE_OVERRIDE repository variable. Remember to remove the variable."
+            echo "⚠️ **Release gate overridden** — the 24h releasepreview soak for version $VERSION was skipped via the \`RELEASE_GATE_OVERRIDE\` repository variable." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [ -n "${GATE_OVERRIDE:-}" ]; then
+            echo "::notice::RELEASE_GATE_OVERRIDE is set to '$GATE_OVERRIDE', which does not match version $VERSION — ignoring it. (It probably should have been removed after a previous release.)"
+          fi
+
+          live_version=$(curl -sSf "$URL" | tr -d '[:space:]')
+          if [ "$live_version" != "$VERSION" ]; then
+            echo "::error::The releasepreview channel serves version '$live_version', expected '$VERSION'. A version must be deployed to releasepreview before it can advance to release."
+            exit 1
+          fi
+
+          last_modified=$(curl -sSfI "$URL" | tr -d '\r' | grep -i '^last-modified:' | cut -d' ' -f2-)
+          published=$(date -u -d "$last_modified" +%s)
+          now=$(date -u +%s)
+          age=$(( now - published ))
+          required=$(( 24 * 60 * 60 ))
+          if [ "$age" -lt "$required" ]; then
+            echo "::error::Version $VERSION has only been on releasepreview for $(( age / 3600 ))h $(( (age % 3600) / 60 ))m; it must soak for at least 24h before release. Re-run this job after $(date -u -d "@$(( published + required ))" '+%Y-%m-%d %H:%M UTC')."
+            exit 1
+          fi
+
+          echo "Version $VERSION has been on releasepreview for $(( age / 3600 ))h $(( (age % 3600) / 60 ))m — clear to advance to the release channel."
+
   deploy-release-channel-winstore:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1141,7 +1232,7 @@ jobs:
         }
 
   deploy-release-channel-brew:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: macos-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1183,7 +1274,7 @@ jobs:
         exit 1
 
   deploy-release-channel-aur:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1271,7 +1362,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-releasepreview-channel-s3:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [deploy-dev-channel-winstore,deploy-dev-channel-s3,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1310,7 +1401,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-release-channel-s3:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1359,7 +1450,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-release-channel-github:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -1375,7 +1466,7 @@ jobs:
         omitBodyDuringUpdate: true
 
   deploy-release-channel-crates:
-    needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
+    needs: [release-gate,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
