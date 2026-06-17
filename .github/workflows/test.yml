@@ -135,7 +135,7 @@ jobs:
       with:
         target: ${{matrix.target}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@65851e10cd6c377f11a60e600abc07cb08643468 # v2.79.3
+      uses: taiki-e/install-action@fd2f5e3d644b484055ebf4268f474c565f148f25 # v2.81.9
       with:
         tool: cross
     - name: Check build
@@ -262,7 +262,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@0c165ad7eb2d6a7e8552d6af5aad2bbedfc646b0 # v1.1.0
+      uses: cross-platform-actions/action@be3d7e9ff5c8770b9c51b1a8c8c5446e1cad7cf9 # v1.2.0
       with:
         operating_system: freebsd
         version: '13.4'
