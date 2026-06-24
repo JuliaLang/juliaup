@@ -18,7 +18,7 @@ jobs:
     outputs:
       versionDbIsUpdated: ${{ steps.runjuliascript.outputs.versionDbIsUpdated }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
       with:
         version: 1.8
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Download script output
       uses: actions/download-artifact@v8
       with:
