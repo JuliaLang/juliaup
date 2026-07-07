@@ -55,6 +55,20 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
 - `--path` (or `-p`): Install `juliaup` in a custom location.
     - For example, if you want to install `juliaup` into `~/my/desired/juliaup/path`, you would run the following command: `curl -fsSL https://install.julialang.org | sh -s -- --path ~/my/desired/juliaup/path`
+- `--add-to-path <yes|no|0|1>`: Control whether the installer modifies shell startup files to add the Juliaup bin directory to `PATH`. Defaults to `yes`.
+- `--background-selfupdate <MINUTES>`: Configure how often a background task checks for Juliaup self-updates. Use `0` to disable background self-updates. Defaults to `0`.
+- `--startup-selfupdate <MINUTES>`: Configure how often Julia startup checks for Juliaup self-updates. Use `0` to disable startup self-updates. Defaults to `1440`.
+
+For example, a non-interactive install into a custom location that does not modify `PATH` and disables both self-update checks can be run as:
+
+```bash
+curl -fsSL https://install.julialang.org | sh -s -- \
+    --path "$JULIAUP_DEPOT_PATH" \
+    --yes \
+    --add-to-path=no \
+    --background-selfupdate=0 \
+    --startup-selfupdate=0
+```
 
 ### Software Repositories
 

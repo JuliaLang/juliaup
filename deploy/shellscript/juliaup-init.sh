@@ -43,13 +43,19 @@ USAGE:
 
 FLAGS:
     -y, --yes                   Disable confirmation prompt.
-        --add-to-path           Add to user PATH environment variable
-        --background-selfupdate Background self-update interval
-        --startup-selfupdate    Startup self-update interval
+        --add-to-path <yes|no|0|1>
+                                Add the Juliaup bin directory to PATH startup
+                                files. Defaults to yes.
+        --background-selfupdate <MINUTES>
+                                Check for Juliaup self-updates in the
+                                background every MINUTES minutes. Defaults to 0.
+        --startup-selfupdate <MINUTES>
+                                Check for Juliaup self-updates when Julia starts
+                                every MINUTES minutes. Defaults to 1440.
     -h, --help                  Prints help information
 
 OPTIONS:
-    -p, --path              Custom install path
+    -p, --path PATH             Custom install path
 
 EOF
 }
