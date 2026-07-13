@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     let various_constants_path = Path::new(&out_path).join("various_constants.rs");
     std::fs::write(
         &various_constants_path,
-        format!("pub const JULIAUP_TARGET: &str = \"{}\";", &target_platform),
+        format!("pub const JULIAUP_TARGET: &str = \"{target_platform}\";"),
     )
     .unwrap();
 

@@ -731,7 +731,7 @@ fn run_app() -> Result<i32> {
         Ok(ForkResult::Child) => {
             // double-fork to prevent zombies
             match unsafe { fork() } {
-                Ok(ForkResult::Parent { child: _, .. }) => {
+                Ok(ForkResult::Parent { .. }) => {
                     // we don't do anything here so that this process can be
                     // reaped immediately
                 }

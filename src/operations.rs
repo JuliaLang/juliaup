@@ -1624,7 +1624,7 @@ pub fn garbage_collect_versions(
         for i in versions_to_uninstall {
             print_juliaup_style(
                 "Tidyup",
-                &format!("Removed Julia {}", &i),
+                &format!("Removed Julia {}", i),
                 JuliaupMessageType::Success,
             );
             config_data.installed_versions.remove(&i);
@@ -1645,7 +1645,7 @@ pub fn garbage_collect_versions(
             }
         }
         for channel in channels_to_uninstall {
-            remove_symlink(&format!("julia-{}", &channel))?;
+            remove_symlink(&format!("julia-{}", channel))?;
             config_data.installed_channels.remove(&channel);
         }
     }
@@ -1877,7 +1877,7 @@ pub fn create_symlink(
             if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
                 eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
-                &symlink_name, symlink_folder.display(),
+                symlink_name, symlink_folder.display(),
             );
             }
         }
@@ -2352,7 +2352,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         "dev" => "juliaup/DEVCHANNELDBVERSION",
         _ => bail!(
             "Juliaup is configured to a channel named '{}' that does not exist.",
-            &juliaup_channel
+            juliaup_channel
         ),
     };
 
@@ -2603,7 +2603,7 @@ fn download_direct_download_etags(
                     let url = current_direct_download_url(&channel_name_resolve, &url_clone);
 
                     let request_uri = Uri::CreateUri(&HSTRING::from(&url))
-                        .with_context(|| format!("Failed to create URI from {}", &url))?;
+                        .with_context(|| format!("Failed to create URI from {url}"))?;
 
                     let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
                         .with_context(|| "Failed to create HttpRequestMessage.")?;
@@ -2690,7 +2690,7 @@ fn download_direct_download_etags(
                     let response = client
                         .head(&url)
                         .send()
-                        .with_context(|| format!("Failed to send HEAD request to {}", &url))?;
+                        .with_context(|| format!("Failed to send HEAD request to {}", url))?;
 
                     if response.status().is_success() {
                         // Gracefully handle missing etag - return None instead of error
