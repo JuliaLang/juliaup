@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+# Minimum time a version must spend on the releasepreview channel before it
+# may be promoted to the release channel; enforced by the `release-gate` job.
+# If you change this, also update the wait timer on the `release-gate` GitHub
+# environment to match (hours × 60 minutes) — see the comment on that job.
+env:
+  RELEASEPREVIEW_SOAK_HOURS: 24
+
 jobs:
 
   build-juliaup:
@@ -1086,7 +1093,8 @@ jobs:
 
   # Channel promotion order is enforced via `needs`: a version must be fully
   # deployed to the dev channel before releasepreview, and must have soaked on
-  # releasepreview for at least 24h (see `release-gate`) before release.
+  # releasepreview for RELEASEPREVIEW_SOAK_HOURS (see `release-gate`) before
+  # release.
   deploy-releasepreview-channel-winstore:
     needs: [deploy-dev-channel-winstore,deploy-dev-channel-s3,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
@@ -1132,15 +1140,19 @@ jobs:
 
   # Gate between releasepreview and release: verifies against the live
   # releasepreview channel (the very file juliaup clients poll) that this
-  # version has been published there and has soaked for at least 24 hours.
-  # Because the check reads public state, it holds across re-runs and cannot
-  # be bypassed by approving the release environment early.
+  # version has been published there and has soaked for at least
+  # RELEASEPREVIEW_SOAK_HOURS (set at the top of this file). Because the
+  # check reads public state, it holds across re-runs and cannot be bypassed
+  # by approving the release environment early.
   #
-  # For a hands-free flow, configure the `release-gate` environment with a
-  # wait timer of 1440 minutes: the job is then triggered when the
-  # releasepreview deploys finish, sleeps 24h on GitHub's side, and passes on
-  # its own. Without the wait timer the job fails fast when run too early and
-  # must be re-run ("Re-run failed jobs") once the soak time has elapsed.
+  # For a hands-free flow, a repository admin should configure a GitHub
+  # environment named `release-gate` under
+  # <https://github.com/JuliaLang/juliaup/settings/environments> with a
+  # "wait timer" matching RELEASEPREVIEW_SOAK_HOURS (24 hours = 1440
+  # minutes). This job is then triggered when the releasepreview deploys
+  # finish, sleeps on GitHub's side, and passes on its own. Without the wait
+  # timer the job fails fast when run too early and must be re-run ("Re-run
+  # failed jobs") once the soak time has elapsed.
   #
   # Emergency override: set the repository variable RELEASE_GATE_OVERRIDE to
   # the exact version being released (e.g. "1.20.7") and re-run this job. The
@@ -1153,7 +1165,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - name: Verify releasepreview has soaked for at least 24 hours
+      - name: Verify releasepreview has soaked for at least ${{ env.RELEASEPREVIEW_SOAK_HOURS }} hours
         env:
           GH_REF: ${{ github.ref }}
           GATE_OVERRIDE: ${{ vars.RELEASE_GATE_OVERRIDE }}
@@ -1163,8 +1175,8 @@ jobs:
           URL="https://julialang-s3.julialang.org/juliaup/RELEASEPREVIEWCHANNELVERSION"
 
           if [ "${GATE_OVERRIDE:-}" = "$VERSION" ]; then
-            echo "::warning title=Release gate overridden::The 24h releasepreview soak for version $VERSION was skipped via the RELEASE_GATE_OVERRIDE repository variable. Remember to remove the variable."
-            echo "⚠️ **Release gate overridden** — the 24h releasepreview soak for version $VERSION was skipped via the \`RELEASE_GATE_OVERRIDE\` repository variable." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=Release gate overridden::The ${RELEASEPREVIEW_SOAK_HOURS}h releasepreview soak for version $VERSION was skipped via the RELEASE_GATE_OVERRIDE repository variable. Remember to remove the variable."
+            echo "⚠️ **Release gate overridden** — the ${RELEASEPREVIEW_SOAK_HOURS}h releasepreview soak for version $VERSION was skipped via the \`RELEASE_GATE_OVERRIDE\` repository variable." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           elif [ -n "${GATE_OVERRIDE:-}" ]; then
             echo "::notice::RELEASE_GATE_OVERRIDE is set to '$GATE_OVERRIDE', which does not match version $VERSION — ignoring it. (It probably should have been removed after a previous release.)"
@@ -1180,9 +1192,9 @@ jobs:
           published=$(date -u -d "$last_modified" +%s)
           now=$(date -u +%s)
           age=$(( now - published ))
-          required=$(( 24 * 60 * 60 ))
+          required=$(( RELEASEPREVIEW_SOAK_HOURS * 60 * 60 ))
           if [ "$age" -lt "$required" ]; then
-            echo "::error::Version $VERSION has only been on releasepreview for $(( age / 3600 ))h $(( (age % 3600) / 60 ))m; it must soak for at least 24h before release. Re-run this job after $(date -u -d "@$(( published + required ))" '+%Y-%m-%d %H:%M UTC')."
+            echo "::error::Version $VERSION has only been on releasepreview for $(( age / 3600 ))h $(( (age % 3600) / 60 ))m; it must soak for at least ${RELEASEPREVIEW_SOAK_HOURS}h before release. Re-run this job after $(date -u -d "@$(( published + required ))" '+%Y-%m-%d %H:%M UTC')."
             exit 1
           fi
 
