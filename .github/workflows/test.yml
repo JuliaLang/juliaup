@@ -134,6 +134,11 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       with:
         target: ${{matrix.target}}
+        # Without this, all matrix jobs on one OS share a single job-id-based
+        # cache key. The cross containers differ in glibc version (see
+        # Cross.toml), so a target/ dir saved by a new-glibc job breaks build
+        # scripts when restored into an old-glibc container.
+        cache-key: ${{matrix.label}}
     - if: ${{ matrix.os == 'ubuntu' }}
       uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2.82.7
       with:
