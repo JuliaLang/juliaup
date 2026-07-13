@@ -46,7 +46,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         "dev" => "juliaup/DEVCHANNELVERSION",
         _ => bail!(
             "Juliaup is configured to a channel named '{}' that does not exist.",
-            &juliaup_channel
+            juliaup_channel
         ),
     };
 

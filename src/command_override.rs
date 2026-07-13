@@ -68,8 +68,8 @@ pub fn run_command_override_set(
     if !config_file.data.installed_channels.contains_key(&channel) {
         bail!(
             "'{}' is not installed. Please run `juliaup add {}` to install channel or version.",
-            &channel,
-            &channel
+            channel,
+            channel
         );
     }
 
