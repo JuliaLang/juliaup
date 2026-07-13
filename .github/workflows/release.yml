@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+  # Allows running the release-profile build and test jobs on a branch to
+  # vet toolchain/dependency changes; all packaging and deploy jobs are
+  # guarded by `if: startsWith(github.ref, 'refs/tags/')` and skip.
+  workflow_dispatch:
 
 # Least-privilege default for all jobs; jobs that publish GitHub Releases
 # elevate to `contents: write` individually.
