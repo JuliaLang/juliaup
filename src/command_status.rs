@@ -2,6 +2,7 @@ use crate::config_file::load_config_db;
 use crate::config_file::{JuliaupConfigChannel, JuliaupReadonlyConfigFile};
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::utils::format_version_for_display;
 use crate::versions_file::load_versions_db;
 use anyhow::{Context, Result};
 use cli_table::format::HorizontalLine;
@@ -45,15 +46,16 @@ fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
 fn format_version(channel_name: &str, channel: &JuliaupConfigChannel) -> String {
     match channel {
         JuliaupConfigChannel::DirectDownloadChannel { version, .. } => {
+            let version = format_version_for_display(version);
             match Regex::new(r"^pr(\d+)").unwrap().captures(channel_name) {
                 Some(caps) => format!(
                     "{version} https://github.com/JuliaLang/julia/pull/{}",
                     &caps[1]
                 ),
-                None => version.clone(),
+                None => version,
             }
         }
-        JuliaupConfigChannel::SystemChannel { version } => version.clone(),
+        JuliaupConfigChannel::SystemChannel { version } => format_version_for_display(version),
         JuliaupConfigChannel::LinkedChannel { command, args } => {
             format_linked_command(command, args)
         }
@@ -80,9 +82,10 @@ fn get_update_info(
         } => (local_etag != server_etag).then(|| "Update available".to_string()),
         JuliaupConfigChannel::SystemChannel { version } => {
             match versiondb_data.available_channels.get(channel_name) {
-                Some(channel) if &channel.version != version => {
-                    Some(format!("Update to {} available", channel.version))
-                }
+                Some(channel) if &channel.version != version => Some(format!(
+                    "Update to {} available",
+                    format_version_for_display(&channel.version)
+                )),
                 _ => None,
             }
         }
@@ -97,9 +100,10 @@ fn get_update_info(
                 }) => (local_etag != server_etag).then(|| "Update available".to_string()),
                 Some(JuliaupConfigChannel::SystemChannel { version }) => {
                     match versiondb_data.available_channels.get(target) {
-                        Some(channel) if channel.version != *version => {
-                            Some(format!("Update to {} available", channel.version))
-                        }
+                        Some(channel) if channel.version != *version => Some(format!(
+                            "Update to {} available",
+                            format_version_for_display(&channel.version)
+                        )),
                         _ => None,
                     }
                 }
@@ -204,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn format_version_system_channel_unchanged() {
+    fn format_version_system_channel_drops_build_metadata() {
         assert_eq!(
             format_version(
                 "1.11",
@@ -212,7 +216,7 @@ mod tests {
                     version: "1.11.2+0.x64.apple.darwin14".to_string()
                 }
             ),
-            "1.11.2+0.x64.apple.darwin14"
+            "1.11.2"
         );
     }
 }
