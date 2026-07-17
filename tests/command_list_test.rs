@@ -12,6 +12,7 @@ fn command_list() {
         .assert()
         .success()
         .stdout(predicate::str::starts_with(" Channel").and(predicate::str::contains("release")))
+        .stdout(predicate::str::contains("+0.").not())
         .stdout(predicate::str::contains("nightly"))
         .stdout(predicate::str::contains("x.y-nightly"))
         .stdout(predicate::str::contains("pr{number}"));

@@ -13,6 +13,7 @@ use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::check_server_supports_nightlies;
+use crate::utils::format_version_for_display;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaprs_base_url;
@@ -736,6 +737,10 @@ fn compute_relative_binary_path(
         })
 }
 
+fn format_julia_installation_name(fullversion: &str) -> String {
+    format!("Julia {}", format_version_for_display(fullversion))
+}
+
 /// Downloads and extracts a database version of Julia into a temporary
 /// directory inside `juliauphome`, without acquiring the configuration lock.
 ///
@@ -804,7 +809,7 @@ pub fn download_version_to_temp(
 
         print_juliaup_style(
             "Installing",
-            &format!("Julia {}", fullversion),
+            &format_julia_installation_name(fullversion),
             JuliaupMessageType::Progress,
         );
 
@@ -1629,7 +1634,7 @@ pub fn garbage_collect_versions(
         for i in versions_to_uninstall {
             print_juliaup_style(
                 "Tidyup",
-                &format!("Removed Julia {}", i),
+                &format!("Removed Julia {}", format_version_for_display(&i)),
                 JuliaupMessageType::Success,
             );
             config_data.installed_versions.remove(&i);
@@ -1727,14 +1732,18 @@ fn create_system_channel_symlink(
                 "symlink {} ( {} -> {} )",
                 symlink_name,
                 prev_target.to_string_lossy(),
-                version
+                format_version_for_display(version)
             ),
             JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Creating",
-            &format!("symlink {} for Julia {}", symlink_name, version),
+            &format!(
+                "symlink {} for Julia {}",
+                symlink_name,
+                format_version_for_display(version)
+            ),
             JuliaupMessageType::Progress,
         );
     }
@@ -1766,14 +1775,18 @@ fn create_direct_download_symlink(
                 "symlink {} ( {} -> {} )",
                 symlink_name,
                 prev_target.to_string_lossy(),
-                version
+                format_version_for_display(version)
             ),
             JuliaupMessageType::Progress,
         );
     } else {
         print_juliaup_style(
             "Creating",
-            &format!("symlink {} for Julia {}", symlink_name, version),
+            &format!(
+                "symlink {} for Julia {}",
+                symlink_name,
+                format_version_for_display(version)
+            ),
             JuliaupMessageType::Progress,
         );
     }
@@ -2891,6 +2904,14 @@ mod tests {
                 std::env::remove_var(self.key);
             }
         }
+    }
+
+    #[test]
+    fn julia_installation_name_omits_build_metadata() {
+        assert_eq!(
+            format_julia_installation_name("1.12.6+0.aarch64.apple.darwin14"),
+            "Julia 1.12.6"
+        );
     }
 
     #[test]

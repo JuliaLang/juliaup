@@ -1,4 +1,5 @@
 use crate::operations::{channel_to_name, get_channel_variations};
+use crate::utils::format_version_for_display;
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
 use anyhow::{Context, Result};
 use cli_table::{
@@ -42,7 +43,7 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
         .map(|i| -> ChannelRow {
             ChannelRow {
                 name: i.0.to_string(),
-                version: i.1.version.clone(),
+                version: format_version_for_display(&i.1.version),
             }
         })
         .sorted_by(|a, b| cmp(&a.name, &b.name))
