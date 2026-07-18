@@ -75,7 +75,7 @@ pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
     config_file.data.installed_channels.remove(channel);
 
     #[cfg(not(windows))]
-    remove_symlink(&format!("julia-{channel}"))?;
+    remove_symlink(&format!("julia-{channel}"), paths)?;
 
     garbage_collect_versions(false, &mut config_file.data, paths)?;
 

@@ -13,7 +13,7 @@ use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::check_server_supports_nightlies;
-use crate::utils::get_bin_dir;
+use crate::utils::get_channel_link_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaprs_base_url;
 use crate::utils::get_juliaserver_base_url;
@@ -759,11 +759,7 @@ pub fn download_version_to_temp(
     // TODO At some point we could put this behind a conditional compile, we know
     // that we don't ship a bundled version for some platforms.
     let full_version_string_of_bundled_version = get_bundled_julia_version();
-    let my_own_path = std::env::current_exe()?;
-    let path_of_bundled_version = my_own_path
-        .parent()
-        .unwrap() // unwrap OK because we can't get a path that does not have a parent
-        .join("BundledJulia");
+    let path_of_bundled_version = paths.juliaupselfexecfolder.join("BundledJulia");
 
     if fullversion == full_version_string_of_bundled_version && path_of_bundled_version.exists() {
         let mut options = fs_extra::dir::CopyOptions::new();
@@ -1645,7 +1641,7 @@ pub fn garbage_collect_versions(
             }
         }
         for channel in channels_to_uninstall {
-            remove_symlink(&format!("julia-{}", channel))?;
+            remove_symlink(&format!("julia-{}", channel), paths)?;
             config_data.installed_channels.remove(&channel);
         }
     }
@@ -1688,8 +1684,8 @@ fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
     Ok(None)
 }
 
-pub fn remove_symlink(symlink_name: &String) -> Result<()> {
-    let symlink_path = get_bin_dir()
+pub fn remove_symlink(symlink_name: &String, paths: &GlobalPaths) -> Result<()> {
+    let symlink_path = get_channel_link_dir(paths)
         .with_context(|| "Failed to retrieve binary directory while trying to remove a symlink.")?
         .join(symlink_name);
 
@@ -1846,7 +1842,7 @@ pub fn create_symlink(
     symlink_name: &String,
     paths: &GlobalPaths,
 ) -> Result<()> {
-    let symlink_folder = get_bin_dir()
+    let symlink_folder = get_channel_link_dir(paths)
         .with_context(|| "Failed to retrieve binary directory while trying to create a symlink.")?;
 
     let symlink_path = symlink_folder.join(symlink_name);
@@ -1892,14 +1888,11 @@ pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths
 }
 
 #[cfg(feature = "selfupdate")]
-pub fn install_background_selfupdate(interval: i64) -> Result<()> {
+pub fn install_background_selfupdate(interval: i64, paths: &GlobalPaths) -> Result<()> {
     use itertools::Itertools;
     use std::process::Stdio;
 
-    let own_exe_path = std::env::current_exe()
-        .with_context(|| "Could not determine the path of the running exe.")?;
-
-    let my_own_path = own_exe_path.to_str().unwrap();
+    let my_own_path = paths.juliaupselfexec.to_str().unwrap();
 
     match std::env::var("WSL_DISTRO_NAME") {
         // This is the WSL case, where we schedule a Windows task to do the update
