@@ -412,18 +412,23 @@ fn strip_quarantine_attribute(path: &Path) {
 }
 
 #[cfg(target_os = "macos")]
-fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
-    let dmg_url = if url.as_str().ends_with(".tar.gz") {
-        url.as_str().replace(".tar.gz", ".dmg")
-    } else {
-        url.to_string()
-    };
+fn dmg_url_from_tarball(url: &url::Url) -> url::Url {
+    let mut dmg_url = url.clone();
 
-    if let Ok(dmg_url) = url::Url::parse(&dmg_url) {
-        if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
-            strip_quarantine_attribute(target_path);
-            return Ok((etag, true));
-        }
+    if let Some(path) = url.path().strip_suffix(".tar.gz") {
+        dmg_url.set_path(&format!("{path}.dmg"));
+    }
+
+    dmg_url
+}
+
+#[cfg(target_os = "macos")]
+fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
+    let dmg_url = dmg_url_from_tarball(url);
+
+    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+        strip_quarantine_attribute(target_path);
+        return Ok((etag, true));
     }
 
     let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
@@ -2548,6 +2553,24 @@ fn current_direct_download_url(channel: &str, recorded_url: &str) -> String {
     }
 }
 
+/// The artifact whose etag should be checked for an installed direct-download
+/// channel. The canonical configured URL remains the tarball so a failed DMG
+/// install can still fall back to it.
+fn direct_download_etag_url(download_url: &str, _binary_path: &Option<String>) -> String {
+    #[cfg(target_os = "macos")]
+    if _binary_path.as_ref().is_some_and(|path| {
+        Path::new(path).components().any(|component| {
+            Path::new(component.as_os_str()).extension() == Some(std::ffi::OsStr::new("app"))
+        })
+    }) {
+        if let Ok(url) = url::Url::parse(download_url) {
+            return dmg_url_from_tarball(&url).to_string();
+        }
+    }
+
+    download_url.to_string()
+}
+
 /// For each direct-download channel, `Some((url, etag))` of the build the
 /// channel should currently point at, or `None` if that could not be
 /// determined.
@@ -2578,7 +2601,10 @@ fn download_direct_download_etags(
             }
         }
 
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+        if let JuliaupConfigChannel::DirectDownloadChannel {
+            url, binary_path, ..
+        } = installed_channel
+        {
             // If server doesn't support etag, we can't check for updates on nightly/PR channels
             // Return None gracefully so the update process can continue with other channels
             if !server_supports_etag {
@@ -2588,6 +2614,7 @@ fn download_direct_download_etags(
 
             let http_client = http_client.clone();
             let url_clone = url.clone();
+            let binary_path_clone = binary_path.clone();
             let channel_name_clone = channel_name.clone();
             let channel_name_resolve = channel_name.clone();
             let message = format!(
@@ -2601,9 +2628,10 @@ fn download_direct_download_etags(
                     // PR builds move when the PR receives new commits, so the
                     // URL needs to be re-resolved before checking the etag.
                     let url = current_direct_download_url(&channel_name_resolve, &url_clone);
+                    let etag_url = direct_download_etag_url(&url, &binary_path_clone);
 
-                    let request_uri = Uri::CreateUri(&HSTRING::from(&url))
-                        .with_context(|| format!("Failed to create URI from {url}"))?;
+                    let request_uri = Uri::CreateUri(&HSTRING::from(&etag_url))
+                        .with_context(|| format!("Failed to create URI from {etag_url}"))?;
 
                     let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
                         .with_context(|| "Failed to create HttpRequestMessage.")?;
@@ -2662,7 +2690,10 @@ fn download_direct_download_etags(
             }
         }
 
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+        if let JuliaupConfigChannel::DirectDownloadChannel {
+            url, binary_path, ..
+        } = installed_channel
+        {
             // If server doesn't support etag, we can't check for updates on nightly/PR channels
             // Return None gracefully so the update process can continue with other channels
             if !server_supports_etag {
@@ -2672,6 +2703,7 @@ fn download_direct_download_etags(
 
             let client = Arc::clone(&client);
             let url_clone = url.clone();
+            let binary_path_clone = binary_path.clone();
             let channel_name_clone = channel_name.clone();
             let channel_name_resolve = channel_name.clone();
 
@@ -2686,11 +2718,12 @@ fn download_direct_download_etags(
                     // PR builds move when the PR receives new commits, so the
                     // URL needs to be re-resolved before checking the etag.
                     let url = current_direct_download_url(&channel_name_resolve, &url_clone);
+                    let etag_url = direct_download_etag_url(&url, &binary_path_clone);
 
                     let response = client
-                        .head(&url)
+                        .head(&etag_url)
                         .send()
-                        .with_context(|| format!("Failed to send HEAD request to {}", url))?;
+                        .with_context(|| format!("Failed to send HEAD request to {}", etag_url))?;
 
                     if response.status().is_success() {
                         // Gracefully handle missing etag - return None instead of error
@@ -3091,6 +3124,33 @@ mod tests {
         assert!(target_dir.path().join("bin/julia").exists());
 
         let _ = handle.join();
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn direct_download_update_tracks_installed_dmg() -> Result<()> {
+        let tarball_url = "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz";
+        let binary_path =
+            Some("./julia-nightly/Julia-1.14.app/Contents/Resources/julia/bin/julia".to_string());
+
+        assert_eq!(
+            direct_download_etag_url(tarball_url, &binary_path),
+            "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.dmg"
+        );
+
+        let binary_path = Some("./julia-nightly/bin/julia".to_string());
+        assert_eq!(
+            direct_download_etag_url(tarball_url, &binary_path),
+            tarball_url
+        );
+
+        let url = url::Url::parse(&format!("{tarball_url}?download=1"))?;
+        assert_eq!(
+            dmg_url_from_tarball(&url).as_str(),
+            "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.dmg?download=1"
+        );
+
         Ok(())
     }
 
