@@ -432,9 +432,9 @@ pub fn main() -> Result<()> {
         }
     }
 
-    let juliaupselfbin = install_choices.install_location.join("bin");
+    let juliaupselfexecfolder = install_choices.install_location.join("bin");
 
-    trace!("Set juliaupselfbin to `{:?}`", juliaupselfbin);
+    trace!("Set juliaupselfexecfolder to `{:?}`", juliaupselfexecfolder);
 
     println!("Now installing Juliaup");
 
@@ -447,10 +447,10 @@ pub fn main() -> Result<()> {
         })?;
     }
 
-    std::fs::create_dir_all(&juliaupselfbin).with_context(|| {
+    std::fs::create_dir_all(&juliaupselfexecfolder).with_context(|| {
         format!(
             "Failed to create install folder for Juliaup at `{}`.",
-            juliaupselfbin.display()
+            juliaupselfexecfolder.display()
         )
     })?;
 
@@ -473,7 +473,7 @@ pub fn main() -> Result<()> {
             )
         })?;
 
-    download_extract_sans_parent(new_juliaup_url.as_ref(), &juliaupselfbin, 0)?;
+    download_extract_sans_parent(new_juliaup_url.as_ref(), &juliaupselfexecfolder, 0)?;
 
     {
         let new_selfconfig_data = JuliaupSelfConfig {
@@ -526,7 +526,7 @@ pub fn main() -> Result<()> {
             )
         })?;
 
-        paths.juliaupselfbin = juliaupselfbin.clone();
+        paths.juliaupselfexecfolder = juliaupselfexecfolder.clone();
         paths.juliaupselfconfig = self_config_path.clone();
     }
 
@@ -555,9 +555,9 @@ pub fn main() -> Result<()> {
     run_command_default(&args.default_channel, &paths)
         .with_context(|| "Failed to run `run_command_default`.")?;
 
-    let symlink_path = juliaupselfbin.join("julia");
+    let symlink_path = juliaupselfexecfolder.join("julia");
 
-    std::os::unix::fs::symlink(juliaupselfbin.join("julialauncher"), &symlink_path).with_context(
+    std::os::unix::fs::symlink(juliaupselfexecfolder.join("julialauncher"), &symlink_path).with_context(
         || {
             format!(
                 "failed to create symlink `{}`.",

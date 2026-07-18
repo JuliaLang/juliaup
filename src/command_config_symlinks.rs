@@ -27,7 +27,7 @@ pub fn run_command_config_symlinks(
                     if value {
                         create_symlink(channel, &format!("julia-{}", channel_name), paths)?;
                     } else {
-                        remove_symlink(&format!("julia-{}", channel_name))?;
+                        remove_symlink(&format!("julia-{}", channel_name), paths)?;
                     }
                 }
             }
