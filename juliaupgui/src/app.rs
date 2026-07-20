@@ -297,6 +297,7 @@ impl App {
                         kind: LogKind::Err,
                     });
                     self.status = Some((m, true));
+                    self.loading = false;
                     self.busy = false;
                     self.current_op = None;
                 }
@@ -1815,6 +1816,138 @@ fn julia_logo_large(ui: &mut egui::Ui, size: f32) {
 
 // ── worker thread ─────────────────────────────────────────────────────────────
 
+#[derive(Debug)]
+struct LaunchSpec {
+    julia_bin: std::path::PathBuf,
+    args: Vec<String>,
+    env: Vec<(String, String)>,
+    project: Option<std::path::PathBuf>,
+}
+
+/// Split user-entered arguments while preserving quoted whitespace and Windows
+/// path separators. Quotes group text but are not included in the result.
+fn split_user_input(input: &str) -> Result<Vec<String>, String> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut chars = input.chars().peekable();
+    let mut quote: Option<char> = None;
+    let mut token_started = false;
+
+    while let Some(c) = chars.next() {
+        match quote {
+            Some(q) => {
+                if c == q {
+                    quote = None;
+                    token_started = true;
+                } else if c == '\\' && q == '"' {
+                    match chars.peek().copied() {
+                        Some('"' | '\\') => {
+                            current.push(chars.next().expect("peeked character disappeared"));
+                        }
+                        _ => current.push(c),
+                    }
+                } else {
+                    current.push(c);
+                }
+            }
+            None if c.is_whitespace() => {
+                if token_started {
+                    result.push(std::mem::take(&mut current));
+                    token_started = false;
+                }
+            }
+            None if c == '\'' || c == '"' => {
+                quote = Some(c);
+                token_started = true;
+            }
+            None if c == '\\' => {
+                match chars.peek().copied() {
+                    Some(next) if next.is_whitespace() || matches!(next, '\'' | '"' | '\\') => {
+                        current.push(chars.next().expect("peeked character disappeared"));
+                    }
+                    _ => current.push(c),
+                }
+                token_started = true;
+            }
+            None => {
+                current.push(c);
+                token_started = true;
+            }
+        }
+    }
+
+    if let Some(q) = quote {
+        return Err(format!("Unterminated {q} quote in launch options"));
+    }
+    if token_started {
+        result.push(current);
+    }
+
+    Ok(result)
+}
+
+fn valid_env_key(key: &str) -> bool {
+    let mut chars = key.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn build_launch_spec(
+    julia_bin: std::path::PathBuf,
+    channel: &str,
+    project: &str,
+    extra_args: &str,
+    env_vars: &str,
+) -> Result<LaunchSpec, String> {
+    let project = (!project.trim().is_empty()).then(|| std::path::PathBuf::from(project.trim()));
+
+    let mut args = vec![format!("+{channel}")];
+    if let Some(project) = &project {
+        args.push(format!("--project={}", project.display()));
+    }
+    args.extend(split_user_input(extra_args)?);
+
+    let mut env = Vec::new();
+    for assignment in split_user_input(env_vars)? {
+        let (key, value) = assignment.split_once('=').ok_or_else(|| {
+            format!("Environment variable '{assignment}' must use the KEY=VALUE format")
+        })?;
+        if !valid_env_key(key) {
+            return Err(format!("Invalid environment variable name '{key}'"));
+        }
+        env.push((key.to_string(), value.to_string()));
+    }
+
+    Ok(LaunchSpec {
+        julia_bin,
+        args,
+        env,
+        project,
+    })
+}
+
+fn julia_binary() -> Result<std::path::PathBuf, String> {
+    let exe = std::env::current_exe()
+        .map_err(|e| format!("Could not determine the Juliaup GUI path: {e}"))?;
+    let dir = exe
+        .parent()
+        .ok_or_else(|| "Could not determine the Juliaup binary directory".to_string())?;
+
+    for name in ["julia", "julialauncher"] {
+        let candidate = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+    }
+
+    Err(format!(
+        "Could not find Julia next to the GUI at '{}'",
+        dir.display()
+    ))
+}
+
 /// Shell-quote a string for POSIX shells (wraps in single quotes).
 #[cfg(not(target_os = "windows"))]
 fn shell_quote(s: &str) -> String {
@@ -1823,72 +1956,76 @@ fn shell_quote(s: &str) -> String {
 
 /// Build a shell command string for POSIX systems.
 #[cfg(not(target_os = "windows"))]
-fn build_launch_cmd(channel: &str, project: &str, extra_args: &str, env_vars: &str) -> String {
-    let arg = format!("+{channel}");
+fn build_launch_cmd(spec: &LaunchSpec) -> String {
     let mut parts: Vec<String> = Vec::new();
-    if !project.trim().is_empty() {
-        parts.push(format!("cd {} &&", shell_quote(project.trim())));
+    if let Some(project) = &spec.project {
+        parts.push(format!(
+            "cd {} &&",
+            shell_quote(project.to_string_lossy().as_ref())
+        ));
     }
-    for tok in env_vars.split_whitespace() {
-        if let Some((key, val)) = tok.split_once('=') {
-            if !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                parts.push(format!("{}={}", key, shell_quote(val)));
-            }
-        }
+    for (key, value) in &spec.env {
+        parts.push(format!("{key}={}", shell_quote(value)));
     }
-    parts.push("julia".to_string());
-    parts.push(shell_quote(&arg));
-    if !project.trim().is_empty() {
-        parts.push(format!("--project={}", shell_quote(project.trim())));
-    }
-    for tok in extra_args.split_whitespace() {
-        parts.push(shell_quote(tok));
+    parts.push(shell_quote(spec.julia_bin.to_string_lossy().as_ref()));
+    for arg in &spec.args {
+        parts.push(shell_quote(arg));
     }
     parts.join(" ")
 }
 
-/// Build a command line string for Windows cmd.exe.
-/// Uses double-quote escaping appropriate for cmd.
 #[cfg(target_os = "windows")]
-fn win_quote(s: &str) -> String {
-    if s.contains(' ')
-        || s.contains('"')
-        || s.contains('&')
-        || s.contains('^')
-        || s.contains('|')
-        || s.contains('<')
-        || s.contains('>')
-        || s.contains('%')
-    {
-        format!("\"{}\"", s.replace('"', "\\\""))
-    } else {
-        s.to_string()
+fn configure_windows_command(command: &mut std::process::Command, spec: &LaunchSpec) {
+    command.args(&spec.args).envs(&spec.env);
+    if let Some(project) = &spec.project {
+        command.current_dir(project);
     }
 }
 
 #[cfg(target_os = "windows")]
-fn build_launch_cmd(channel: &str, project: &str, extra_args: &str, env_vars: &str) -> String {
-    let arg = format!("+{channel}");
-    let mut parts: Vec<String> = Vec::new();
-    if !project.trim().is_empty() {
-        parts.push(format!("cd /d {} &", win_quote(project.trim())));
+fn launch_windows_console(spec: &LaunchSpec) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+
+    let mut command = std::process::Command::new(&spec.julia_bin);
+    configure_windows_command(&mut command, spec);
+    command.creation_flags(CREATE_NEW_CONSOLE);
+    command.spawn().map(|_| ()).map_err(|e| {
+        format!(
+            "Failed to launch Julia at '{}': {e}",
+            spec.julia_bin.display()
+        )
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn launch_windows_terminal(term: &str, spec: &LaunchSpec) -> Result<(), String> {
+    let terminal_name = std::path::Path::new(term)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(term)
+        .to_ascii_lowercase();
+
+    if terminal_name == "cmd" {
+        return launch_windows_console(spec);
     }
-    for tok in env_vars.split_whitespace() {
-        if let Some((key, val)) = tok.split_once('=') {
-            if !key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                parts.push(format!("set {}={} &", key, win_quote(val)));
-            }
+
+    let mut command = std::process::Command::new(term);
+    if matches!(terminal_name.as_str(), "wt" | "windowsterminal") {
+        if let Some(project) = &spec.project {
+            command.arg("-d").arg(project);
         }
+    } else if let Some(project) = &spec.project {
+        command.current_dir(project);
     }
-    parts.push("julia".to_string());
-    parts.push(win_quote(&arg));
-    if !project.trim().is_empty() {
-        parts.push(format!("--project={}", win_quote(project.trim())));
-    }
-    for tok in extra_args.split_whitespace() {
-        parts.push(win_quote(tok));
-    }
-    parts.join(" ")
+    command
+        .arg(&spec.julia_bin)
+        .args(&spec.args)
+        .envs(&spec.env)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to launch {term}: {e}"))
 }
 
 /// Spawn `julia +channel` in a new terminal window (fire-and-forget).
@@ -1904,11 +2041,25 @@ fn launch_julia(
     extra_args: &str,
     env_vars: &str,
 ) -> Result<(), String> {
-    let full_cmd = build_launch_cmd(channel, project, extra_args, env_vars);
-    if !terminal_app.trim().is_empty() {
-        launch_in_terminal(terminal_app.trim(), &full_cmd)
-    } else {
-        launch_default_terminal(&full_cmd)
+    let spec = build_launch_spec(julia_binary()?, channel, project, extra_args, env_vars)?;
+
+    #[cfg(target_os = "windows")]
+    {
+        if !terminal_app.trim().is_empty() {
+            launch_in_terminal(terminal_app.trim(), &spec)
+        } else {
+            launch_default_terminal(&spec)
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let full_cmd = build_launch_cmd(&spec);
+        if !terminal_app.trim().is_empty() {
+            launch_in_terminal(terminal_app.trim(), &full_cmd)
+        } else {
+            launch_default_terminal(&full_cmd)
+        }
     }
 }
 
@@ -1950,12 +2101,8 @@ fn launch_in_terminal(term: &str, full_cmd: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_in_terminal(term: &str, full_cmd: &str) -> Result<(), String> {
-    std::process::Command::new(term)
-        .args(["cmd", "/k", full_cmd])
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Failed to launch {term}: {e}"))
+fn launch_in_terminal(term: &str, spec: &LaunchSpec) -> Result<(), String> {
+    launch_windows_terminal(term, spec)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -1981,20 +2128,11 @@ fn launch_default_terminal(full_cmd: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_default_terminal(full_cmd: &str) -> Result<(), String> {
-    // Prefer Windows Terminal (opens a new tab by default)
-    if std::process::Command::new("wt")
-        .args(["cmd", "/k", full_cmd])
-        .spawn()
-        .is_ok()
-    {
+fn launch_default_terminal(spec: &LaunchSpec) -> Result<(), String> {
+    if launch_windows_terminal("wt", spec).is_ok() {
         return Ok(());
     }
-    std::process::Command::new("cmd")
-        .args(["/c", "start", "cmd", "/k", full_cmd])
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Failed to launch terminal: {e}"))
+    launch_windows_console(spec)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -2598,97 +2736,82 @@ fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
 
 // ── theme ─────────────────────────────────────────────────────────────────────
 
-fn resolve_dark(mode: ThemeMode) -> bool {
-    match mode {
-        ThemeMode::Dark => true,
-        ThemeMode::Light => false,
-        ThemeMode::System => {
-            #[cfg(target_os = "macos")]
-            {
-                // AppleInterfaceStyle is only set when dark mode is active
-                std::process::Command::new("defaults")
-                    .args(["read", "-g", "AppleInterfaceStyle"])
-                    .output()
-                    .map(|o| o.status.success())
-                    .unwrap_or(true)
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                true
-            }
-        }
-    }
-}
-
 fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
-    let dark = resolve_dark(mode);
+    for theme in [egui::Theme::Dark, egui::Theme::Light] {
+        let dark = theme == egui::Theme::Dark;
+        let mut style = theme.default_style();
+        let visuals = &mut style.visuals;
 
-    let mut visuals = if dark {
-        egui::Visuals::dark()
-    } else {
-        egui::Visuals::light()
-    };
+        if dark {
+            visuals.panel_fill = Color32::from_rgb(28, 30, 36);
+            visuals.window_fill = Color32::from_rgb(28, 30, 36);
+            visuals.faint_bg_color = Color32::from_rgb(34, 36, 44);
+        } else {
+            visuals.panel_fill = Color32::from_rgb(248, 249, 252);
+            visuals.window_fill = Color32::WHITE;
+            visuals.faint_bg_color = Color32::from_rgb(238, 240, 245);
+        }
 
-    if dark {
-        visuals.panel_fill = Color32::from_rgb(28, 30, 36);
-        visuals.window_fill = Color32::from_rgb(28, 30, 36);
-        visuals.faint_bg_color = Color32::from_rgb(34, 36, 44);
-    } else {
-        visuals.panel_fill = Color32::from_rgb(248, 249, 252);
-        visuals.window_fill = Color32::WHITE;
-        visuals.faint_bg_color = Color32::from_rgb(238, 240, 245);
+        // Rounded controls
+        let r = egui::Rounding::same(5.0);
+        visuals.widgets.noninteractive.rounding = r;
+        visuals.widgets.inactive.rounding = r;
+        visuals.widgets.hovered.rounding = r;
+        visuals.widgets.active.rounding = r;
+        visuals.menu_rounding = r;
+        visuals.window_rounding = egui::Rounding::same(8.0);
+
+        // Accent colour for selected items (Julia purple-ish)
+        visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
+        visuals.selection.stroke = egui::Stroke::new(1.0_f32, Color32::WHITE);
+
+        // Ensure text on the purple selection background is always legible
+        visuals.widgets.active.fg_stroke = egui::Stroke::new(
+            1.0_f32,
+            if dark {
+                Color32::WHITE
+            } else {
+                Color32::from_gray(20)
+            },
+        );
+        visuals.widgets.hovered.fg_stroke = egui::Stroke::new(
+            1.0_f32,
+            if dark {
+                Color32::WHITE
+            } else {
+                Color32::from_gray(30)
+            },
+        );
+
+        style.text_styles.insert(
+            egui::TextStyle::Body,
+            egui::FontId::new(13.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Button,
+            egui::FontId::new(12.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Heading,
+            egui::FontId::new(16.0, egui::FontFamily::Proportional),
+        );
+        style.spacing.button_padding = egui::Vec2::new(7.0, 3.0);
+        style.spacing.item_spacing = egui::Vec2::new(6.0, 4.0);
+        style.spacing.window_margin = egui::Margin::same(8.0);
+
+        ctx.set_style_of(theme, style);
     }
 
-    // Rounded controls
-    let r = egui::Rounding::same(5.0);
-    visuals.widgets.noninteractive.rounding = r;
-    visuals.widgets.inactive.rounding = r;
-    visuals.widgets.hovered.rounding = r;
-    visuals.widgets.active.rounding = r;
-    visuals.menu_rounding = r;
-    visuals.window_rounding = egui::Rounding::same(8.0);
-
-    // Accent colour for selected items (Julia purple-ish)
-    visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
-    visuals.selection.stroke = egui::Stroke::new(1.0_f32, Color32::WHITE);
-
-    // Ensure text on the purple selection background is always legible
-    visuals.widgets.active.fg_stroke = egui::Stroke::new(
-        1.0_f32,
-        if dark {
-            Color32::WHITE
-        } else {
-            Color32::from_gray(20)
-        },
-    );
-    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(
-        1.0_f32,
-        if dark {
-            Color32::WHITE
-        } else {
-            Color32::from_gray(30)
-        },
-    );
-
-    ctx.set_visuals(visuals);
-
-    let mut style = (*ctx.style()).clone();
-    style.text_styles.insert(
-        egui::TextStyle::Body,
-        egui::FontId::new(13.0, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Button,
-        egui::FontId::new(12.0, egui::FontFamily::Proportional),
-    );
-    style.text_styles.insert(
-        egui::TextStyle::Heading,
-        egui::FontId::new(16.0, egui::FontFamily::Proportional),
-    );
-    style.spacing.button_padding = egui::Vec2::new(7.0, 3.0);
-    style.spacing.item_spacing = egui::Vec2::new(6.0, 4.0);
-    style.spacing.window_margin = egui::Margin::same(8.0);
-    ctx.set_style(style);
+    ctx.set_theme(match mode {
+        ThemeMode::Dark => egui::ThemePreference::Dark,
+        ThemeMode::Light => egui::ThemePreference::Light,
+        ThemeMode::System => egui::ThemePreference::System,
+    });
+    ctx.send_viewport_cmd(egui::ViewportCommand::SetTheme(match mode {
+        ThemeMode::Dark => egui::SystemTheme::Dark,
+        ThemeMode::Light => egui::SystemTheme::Light,
+        ThemeMode::System => egui::SystemTheme::SystemDefault,
+    }));
 }
 
 // ── public API ────────────────────────────────────────────────────────────────
@@ -2785,11 +2908,126 @@ mod tests {
         assert_eq!(clean_line("first\r\x1b[32msecond\x1b[0m"), "second");
     }
 
+    // ── launch options ───────────────────────────────────────────────────
+
+    #[test]
+    fn split_launch_options_preserves_quoted_values_and_paths() {
+        assert_eq!(
+            split_user_input(r#"--threads auto -e 'println("hello world")' "" C:\Julia\sys.dll"#)
+                .unwrap(),
+            vec![
+                "--threads",
+                "auto",
+                "-e",
+                r#"println("hello world")"#,
+                "",
+                r"C:\Julia\sys.dll",
+            ]
+        );
+    }
+
+    #[test]
+    fn split_launch_options_supports_escaped_whitespace() {
+        assert_eq!(
+            split_user_input(r"--project=my\ project").unwrap(),
+            vec!["--project=my project"]
+        );
+    }
+
+    #[test]
+    fn split_launch_options_rejects_unterminated_quotes() {
+        assert_eq!(
+            split_user_input(r#""unfinished"#).unwrap_err(),
+            "Unterminated \" quote in launch options"
+        );
+    }
+
+    #[test]
+    fn build_launch_spec_preserves_structured_arguments() {
+        let spec = build_launch_spec(
+            std::path::PathBuf::from("/opt/juliaup/bin/julia"),
+            "release",
+            "/tmp/my project",
+            r#"-e 'println("hello world")'"#,
+            r#"JULIA_NUM_THREADS=4 GREETING="hello world""#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            spec.args,
+            vec![
+                "+release",
+                "--project=/tmp/my project",
+                "-e",
+                r#"println("hello world")"#,
+            ]
+        );
+        assert_eq!(
+            spec.env,
+            vec![
+                ("JULIA_NUM_THREADS".to_string(), "4".to_string()),
+                ("GREETING".to_string(), "hello world".to_string()),
+            ]
+        );
+        assert_eq!(
+            spec.project,
+            Some(std::path::PathBuf::from("/tmp/my project"))
+        );
+    }
+
+    #[test]
+    fn build_launch_spec_rejects_malformed_environment_variables() {
+        let julia = std::path::PathBuf::from("/opt/juliaup/bin/julia");
+
+        assert_eq!(
+            build_launch_spec(julia.clone(), "release", "", "", "NO_EQUALS").unwrap_err(),
+            "Environment variable 'NO_EQUALS' must use the KEY=VALUE format"
+        );
+        assert_eq!(
+            build_launch_spec(julia, "release", "", "", "1INVALID=value").unwrap_err(),
+            "Invalid environment variable name '1INVALID'"
+        );
+    }
+
+    #[test]
+    fn system_theme_uses_the_theme_reported_by_the_os() {
+        let ctx = egui::Context::default();
+        ctx.begin_pass(egui::RawInput {
+            system_theme: Some(egui::Theme::Light),
+            ..Default::default()
+        });
+
+        apply_theme(&ctx, ThemeMode::System);
+
+        assert_eq!(ctx.theme(), egui::Theme::Light);
+        assert_eq!(
+            ctx.style().visuals.panel_fill,
+            Color32::from_rgb(248, 249, 252)
+        );
+        let _ = ctx.end_pass();
+    }
+
     // ── shell_quote / build_launch_cmd (POSIX) ───────────────────────────
 
     #[cfg(not(target_os = "windows"))]
     mod posix {
         use super::super::*;
+
+        fn launch_spec(
+            channel: &str,
+            project: &str,
+            extra_args: &str,
+            env_vars: &str,
+        ) -> LaunchSpec {
+            build_launch_spec(
+                std::path::PathBuf::from("/opt/juliaup/bin/julia"),
+                channel,
+                project,
+                extra_args,
+                env_vars,
+            )
+            .unwrap()
+        }
 
         #[test]
         fn shell_quote_simple() {
@@ -2813,91 +3051,55 @@ mod tests {
 
         #[test]
         fn build_cmd_basic_channel() {
-            let cmd = build_launch_cmd("release", "", "", "");
-            assert_eq!(cmd, "julia '+release'");
+            let spec = launch_spec("release", "", "", "");
+            assert_eq!(
+                build_launch_cmd(&spec),
+                "'/opt/juliaup/bin/julia' '+release'"
+            );
         }
 
         #[test]
         fn build_cmd_with_project() {
-            let cmd = build_launch_cmd("1.10", "/tmp/my project", "", "");
+            let spec = launch_spec("1.10", "/tmp/my project", "", "");
             assert_eq!(
-                cmd,
-                "cd '/tmp/my project' && julia '+1.10' --project='/tmp/my project'"
+                build_launch_cmd(&spec),
+                "cd '/tmp/my project' && '/opt/juliaup/bin/julia' '+1.10' \
+                 '--project=/tmp/my project'"
             );
         }
 
         #[test]
         fn build_cmd_with_env_vars() {
-            let cmd = build_launch_cmd("release", "", "", "JULIA_NUM_THREADS=4");
-            assert_eq!(cmd, "JULIA_NUM_THREADS='4' julia '+release'");
-        }
-
-        #[test]
-        fn build_cmd_skips_invalid_env_key() {
-            let cmd = build_launch_cmd("release", "", "", "BAD-KEY=val GOOD_KEY=ok");
-            assert_eq!(cmd, "GOOD_KEY='ok' julia '+release'");
+            let spec = launch_spec("release", "", "", "JULIA_NUM_THREADS=4");
+            assert_eq!(
+                build_launch_cmd(&spec),
+                "JULIA_NUM_THREADS='4' '/opt/juliaup/bin/julia' '+release'"
+            );
         }
 
         #[test]
         fn build_cmd_with_extra_args() {
-            let cmd = build_launch_cmd("release", "", "--threads=4 -q", "");
-            assert_eq!(cmd, "julia '+release' '--threads=4' '-q'");
+            let spec = launch_spec("release", "", "--threads=4 -q", "");
+            assert_eq!(
+                build_launch_cmd(&spec),
+                "'/opt/juliaup/bin/julia' '+release' '--threads=4' '-q'"
+            );
         }
 
         #[test]
         fn build_cmd_full() {
-            let cmd = build_launch_cmd(
+            let spec = launch_spec(
                 "1.10",
                 "/home/user/proj",
                 "-q --startup-file=no",
                 "JULIA_NUM_THREADS=auto",
             );
-            assert!(cmd.starts_with("cd '/home/user/proj' && JULIA_NUM_THREADS='auto' julia"));
-            assert!(cmd.contains("--project='/home/user/proj'"));
-            assert!(cmd.contains("'-q'"));
-            assert!(cmd.contains("'--startup-file=no'"));
-        }
-    }
-
-    // ── win_quote / build_launch_cmd (Windows) ───────────────────────────
-
-    #[cfg(target_os = "windows")]
-    mod windows {
-        use super::super::*;
-
-        #[test]
-        fn win_quote_simple() {
-            assert_eq!(win_quote("hello"), "hello");
-        }
-
-        #[test]
-        fn win_quote_with_spaces() {
-            assert_eq!(win_quote("hello world"), "\"hello world\"");
-        }
-
-        #[test]
-        fn win_quote_with_ampersand() {
-            assert_eq!(win_quote("a&b"), "\"a&b\"");
-        }
-
-        #[test]
-        fn build_cmd_basic_channel() {
-            let cmd = build_launch_cmd("release", "", "", "");
-            assert_eq!(cmd, "julia +release");
-        }
-
-        #[test]
-        fn build_cmd_with_project() {
-            let cmd = build_launch_cmd("1.10", "C:\\my project", "", "");
-            assert!(cmd.starts_with("cd /d \"C:\\my project\" &"));
-            assert!(cmd.contains("julia"));
-            assert!(cmd.contains("--project=\"C:\\my project\""));
-        }
-
-        #[test]
-        fn build_cmd_with_env_vars() {
-            let cmd = build_launch_cmd("release", "", "", "JULIA_NUM_THREADS=4");
-            assert_eq!(cmd, "set JULIA_NUM_THREADS=4 & julia +release");
+            assert_eq!(
+                build_launch_cmd(&spec),
+                "cd '/home/user/proj' && JULIA_NUM_THREADS='auto' \
+                 '/opt/juliaup/bin/julia' '+1.10' '--project=/home/user/proj' '-q' \
+                 '--startup-file=no'"
+            );
         }
     }
 
