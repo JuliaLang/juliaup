@@ -21,9 +21,24 @@ fn command_add() {
         .success()
         .stdout("");
 
+    // Versioned nightly artifacts eventually expire. Exercise the newest
+    // non-master nightly instead of pinning a retired release branch.
+    let versioned_nightly_output = env
+        .julia()
+        .arg("+nightly")
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(VERSION.major, '.', VERSION.minor - 1, \"-nightly\")")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let versioned_nightly = std::str::from_utf8(&versioned_nightly_output).unwrap();
+
     env.juliaup()
         .arg("add")
-        .arg("1.10-nightly")
+        .arg(versioned_nightly)
         .assert()
         .success()
         .stdout("");
