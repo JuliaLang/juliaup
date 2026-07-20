@@ -46,6 +46,12 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         Err(e) => eprintln!(" Failed: {e}."),
     };
 
+    eprint!("Removing application shortcut.");
+    match crate::command_app_shortcut::remove_app_shortcut() {
+        Ok(_) => eprintln!(" Success."),
+        Err(_) => eprintln!(" Failed."),
+    };
+
     eprint!(
         "Deleting Juliaup home folder {}.",
         paths.juliauphome.display()
