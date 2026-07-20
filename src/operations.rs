@@ -15,6 +15,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
+use crate::utils::get_juliaprs_base_url;
 use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
 use crate::utils::retry_rename;
@@ -411,18 +412,23 @@ fn strip_quarantine_attribute(path: &Path) {
 }
 
 #[cfg(target_os = "macos")]
-fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
-    let dmg_url = if url.as_str().ends_with(".tar.gz") {
-        url.as_str().replace(".tar.gz", ".dmg")
-    } else {
-        url.to_string()
-    };
+fn dmg_url_from_tarball(url: &url::Url) -> url::Url {
+    let mut dmg_url = url.clone();
 
-    if let Ok(dmg_url) = url::Url::parse(&dmg_url) {
-        if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
-            strip_quarantine_attribute(target_path);
-            return Ok((etag, true));
-        }
+    if let Some(path) = url.path().strip_suffix(".tar.gz") {
+        dmg_url.set_path(&format!("{path}.dmg"));
+    }
+
+    dmg_url
+}
+
+#[cfg(target_os = "macos")]
+fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
+    let dmg_url = dmg_url_from_tarball(url);
+
+    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+        strip_quarantine_attribute(target_path);
+        return Ok((etag, true));
     }
 
     let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
@@ -1145,6 +1151,322 @@ pub fn install_from_url(
     ))
 }
 
+/// A GitHub API token from the conventional environment variables, if one is
+/// set. Anonymous GitHub API requests work but are heavily rate-limited.
+fn github_api_token() -> Option<String> {
+    ["GITHUB_TOKEN", "GH_TOKEN"]
+        .iter()
+        .find_map(|var| std::env::var(var).ok().filter(|token| !token.is_empty()))
+}
+
+/// Extracts the head commit sha from a GitHub
+/// `GET /repos/{owner}/{repo}/pulls/{number}` response body.
+fn pr_head_sha_from_api_response(body: &str) -> Result<String> {
+    let parsed: serde_json::Value = serde_json::from_str(body)
+        .with_context(|| "Failed to parse the GitHub API response as JSON.")?;
+    let sha = parsed
+        .pointer("/head/sha")
+        .and_then(|sha| sha.as_str())
+        .ok_or_else(|| anyhow!("The GitHub API response did not contain a head commit sha."))?;
+    Ok(sha.to_lowercase())
+}
+
+/// Resolves a Julia pull request number to the current head commit sha of the
+/// PR branch via the GitHub API.
+#[cfg(not(windows))]
+fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
+    let url = format!(
+        "https://api.github.com/repos/JuliaLang/julia/pulls/{}",
+        pr_number
+    );
+
+    let mut request = http_client()?
+        .get(&url)
+        .header("Accept", "application/vnd.github+json");
+    if let Some(token) = github_api_token() {
+        request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let response = request
+        .send()
+        .with_context(|| format!("Failed to query the GitHub API at `{}`.", url))?;
+
+    match response.status().as_u16() {
+        404 => bail!(
+            "https://github.com/JuliaLang/julia/pull/{} does not exist.",
+            pr_number
+        ),
+        403 | 429 => bail!(
+            "The GitHub API request to `{}` was rejected (HTTP {}), most likely due to rate \
+             limiting. Set the GITHUB_TOKEN (or GH_TOKEN) environment variable to make an \
+             authenticated request with a higher rate limit.",
+            url,
+            response.status().as_u16()
+        ),
+        status if !(200..300).contains(&status) => bail!(
+            "The GitHub API request to `{}` failed with HTTP {}.",
+            url,
+            status
+        ),
+        _ => {}
+    }
+
+    pr_head_sha_from_api_response(&response.text()?)
+}
+
+/// Resolves a Julia pull request number to the current head commit sha of the
+/// PR branch via the GitHub API.
+#[cfg(windows)]
+fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
+    use windows::core::HSTRING;
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpMethod;
+    use windows::Web::Http::HttpRequestMessage;
+
+    let url = format!(
+        "https://api.github.com/repos/JuliaLang/julia/pulls/{}",
+        pr_number
+    );
+
+    let request_uri = Uri::CreateUri(&HSTRING::from(&url))
+        .with_context(|| format!("Failed to create URI from {}", url))?;
+
+    let request = HttpRequestMessage::Create(&HttpMethod::Get()?, &request_uri)
+        .with_context(|| "Failed to create HttpRequestMessage.")?;
+
+    let headers = request
+        .Headers()
+        .with_context(|| "Failed to get request headers.")?;
+    headers
+        .TryAppendWithoutValidation(
+            &HSTRING::from("Accept"),
+            &HSTRING::from("application/vnd.github+json"),
+        )
+        .with_context(|| "Failed to set the Accept header.")?;
+    if let Some(token) = github_api_token() {
+        headers
+            .TryAppendWithoutValidation(
+                &HSTRING::from("Authorization"),
+                &HSTRING::from(format!("Bearer {}", token)),
+            )
+            .with_context(|| "Failed to set the Authorization header.")?;
+    }
+
+    let response = http_client()?
+        .SendRequestAsync(&request)
+        .with_context(|| format!("Failed to query the GitHub API at `{}`.", url))?
+        .join()
+        .with_context(|| format!("Failed to query the GitHub API at `{}`.", url))?;
+
+    match response.StatusCode().map(|status| status.0) {
+        Ok(404) => bail!(
+            "https://github.com/JuliaLang/julia/pull/{} does not exist.",
+            pr_number
+        ),
+        Ok(status @ (403 | 429)) => bail!(
+            "The GitHub API request to `{}` was rejected (HTTP {}), most likely due to rate \
+             limiting. Set the GITHUB_TOKEN (or GH_TOKEN) environment variable to make an \
+             authenticated request with a higher rate limit.",
+            url,
+            status
+        ),
+        Ok(status) if !(200..300).contains(&status) => bail!(
+            "The GitHub API request to `{}` failed with HTTP {}.",
+            url,
+            status
+        ),
+        _ => {}
+    }
+
+    let body = response
+        .Content()
+        .with_context(|| "Failed to obtain content from http response.")?
+        .ReadAsStringAsync()
+        .with_context(|| "Failed to read http response.")?
+        .join()
+        .with_context(|| "Failed to read http response.")?
+        .to_string();
+
+    pr_head_sha_from_api_response(&body)
+}
+
+/// Checks whether `url` exists via an HTTP HEAD request. Connection-level
+/// failures are treated as "does not exist" so that the caller can try
+/// alternative locations.
+#[cfg(not(windows))]
+fn url_exists(url: &str) -> Result<bool> {
+    match http_client()?.head(url).send() {
+        Ok(response) => Ok(response.status().is_success()),
+        Err(e) => {
+            log::debug!("HEAD request to `{}` failed: {}", url, e);
+            Ok(false)
+        }
+    }
+}
+
+/// Checks whether `url` exists via an HTTP HEAD request. Connection-level
+/// failures are treated as "does not exist" so that the caller can try
+/// alternative locations.
+#[cfg(windows)]
+fn url_exists(url: &str) -> Result<bool> {
+    use windows::core::HSTRING;
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpMethod;
+    use windows::Web::Http::HttpRequestMessage;
+
+    let request_uri = Uri::CreateUri(&HSTRING::from(url))
+        .with_context(|| format!("Failed to create URI from {}", url))?;
+
+    let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
+        .with_context(|| "Failed to create HttpRequestMessage.")?;
+
+    match http_client()?
+        .SendRequestAsync(&request)
+        .and_then(|async_op| async_op.join())
+    {
+        Ok(response) => Ok(response.IsSuccessStatusCode()?),
+        Err(e) => {
+            log::debug!("HEAD request to `{}` failed: {:?}", url, e);
+            Ok(false)
+        }
+    }
+}
+
+/// Number of leading characters of the head commit sha used in the file names
+/// of staged PR builds (`SHORT_COMMIT_LENGTH` in julia-buildkite's
+/// `utilities/build_envs.sh`).
+const PR_SHORT_SHA_LENGTH: usize = 10;
+
+/// Relative path of a PR build staged in the ephemeral PR bucket:
+/// `bin/<full head sha>/julia-<short sha>-<os>-<arch>.tar.gz`.
+fn pr_staging_url_path(head_sha: &str, os_arch: &str) -> Result<String> {
+    if head_sha.len() != 40 || !head_sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+        bail!("`{}` is not a valid full commit sha.", head_sha);
+    }
+    Ok(format!(
+        "bin/{}/julia-{}-{}.tar.gz",
+        head_sha,
+        &head_sha[..PR_SHORT_SHA_LENGTH],
+        os_arch
+    ))
+}
+
+/// Maps a juliaup arch identifier (as produced by `channel_to_name`) to the
+/// `<os>-<arch>` suffix that julia-buildkite uses for the file names of
+/// staged PR builds (the `UPLOAD_FILENAME` vocabulary of its
+/// `utilities/build_envs.sh` and `utilities/extract_triplet.sh`).
+fn pr_staging_os_arch(arch: &str) -> Result<&'static str> {
+    match arch {
+        "macos-x86_64" => Ok("macos-x86_64"),
+        "macos-aarch64" => Ok("macos-aarch64"),
+        "win64" => Ok("windows-x86_64"),
+        "win32" => Ok("windows-i686"),
+        "linux-x86_64" => Ok("linux-x86_64"),
+        "linux-i686" => Ok("linux-i686"),
+        "linux-aarch64" => Ok("linux-aarch64"),
+        "freebsd-x86_64" => Ok("freebsd-x86_64"),
+        _ => Err(anyhow!("Unknown pr.")),
+    }
+}
+
+// LEGACY FALLBACK -- delete this function (and its uses) once the PR builds
+// that predate the CI migration to staged PR builds
+// (JuliaCI/julia-buildkite#544) have aged out of the nightlies bucket:
+// before the migration, CI uploaded PR builds as
+// `julia-pr<number>-<os>-<arch>.tar.gz` into the nightlies bucket. Returns
+// `None` for platforms that never had legacy PR uploads.
+fn legacy_pr_download_url_path(id: &str, arch: &str) -> Option<String> {
+    match arch {
+        // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
+        "macos-x86_64" => Some("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz"),
+        "macos-aarch64" => {
+            Some("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
+        }
+        "win64" => Some("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
+        "win32" => Some("bin/windows/x86/julia-".to_owned() + id + "-windows-x86.tar.gz"),
+        "linux-x86_64" => Some("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz"),
+        "linux-aarch64" => {
+            Some("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
+        }
+        "freebsd-x86_64" => {
+            Some("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
+        }
+        _ => None,
+    }
+}
+
+/// Determines the download URL for a PR channel (e.g. `pr12345`).
+///
+/// CI stages pull request builds write-once into an ephemeral bucket, keyed
+/// by the head commit sha of the PR (JuliaCI/julia-buildkite#544). We resolve
+/// the PR number to its head sha via the GitHub API and use that location if
+/// the build exists there, otherwise we fall back to the legacy pre-migration
+/// location in the nightlies bucket.
+fn resolve_pr_download_url(id: &str, arch: &str) -> Result<Url> {
+    let pr_number: u64 = id
+        .strip_prefix("pr")
+        .unwrap_or(id)
+        .parse()
+        .with_context(|| format!("Failed to parse a pull request number from `{}`.", id))?;
+    let os_arch = pr_staging_os_arch(arch)?;
+
+    // The GitHub API lookup can fail without dooming the install (e.g.
+    // anonymous requests are rate-limited), so remember the error and try
+    // the legacy location before giving up.
+    let (staging_url, head_sha_error) = match resolve_pr_head_sha(pr_number) {
+        Ok(head_sha) => {
+            let base_url = get_juliaprs_base_url()?;
+            let path = pr_staging_url_path(&head_sha, os_arch)?;
+            let url = base_url.join(&path).with_context(|| {
+                format!(
+                    "Failed to construct a valid url from '{}' and '{}'.",
+                    base_url, path
+                )
+            })?;
+            (Some(url), None)
+        }
+        Err(e) => (None, Some(e)),
+    };
+
+    // Note: the staging bucket only grants public GetObject (no ListBucket),
+    // so a missing object surfaces as HTTP 403 rather than 404; `url_exists`
+    // treats any unsuccessful status as "not there".
+    if let Some(url) = staging_url {
+        if url_exists(url.as_str())? {
+            return Ok(url);
+        }
+    }
+
+    // LEGACY FALLBACK -- delete together with `legacy_pr_download_url_path`:
+    // PRs built before the CI migration are still served from the nightlies
+    // bucket until they age out.
+    if let Some(legacy_path) = legacy_pr_download_url_path(id, arch) {
+        let base_url = get_julianightlies_base_url()?;
+        let url = base_url.join(&legacy_path).with_context(|| {
+            format!(
+                "Failed to construct a valid url from '{}' and '{}'.",
+                base_url, legacy_path
+            )
+        })?;
+        if url_exists(url.as_str())? {
+            return Ok(url);
+        }
+    }
+
+    let not_found = anyhow!(
+        "No binaries for https://github.com/JuliaLang/julia/pull/{} are currently available \
+         for `{}`. PR binaries expire about 90 days after CI builds them, so the CI of this \
+         pull request may need to be re-run to build fresh binaries, or the pull request may \
+         predate PR binary uploads.",
+        pr_number,
+        arch
+    );
+    Err(match head_sha_error {
+        Some(e) => e.context(not_found),
+        None => not_found,
+    })
+}
+
 /// Installs a non-database version (nightly/PR) of Julia.
 /// Returns the config channel and a bool indicating whether a DMG installer was used (macOS only).
 pub fn install_non_db_version(
@@ -1163,8 +1485,6 @@ pub fn install_non_db_version(
     }
 
     // Determine the download URL
-    let download_url_base = get_julianightlies_base_url()?;
-
     let mut parts = name.splitn(2, '-');
 
     let mut id = parts
@@ -1185,13 +1505,13 @@ pub fn install_non_db_version(
 
     let nightly_version = parse_nightly_channel_or_id(&id);
 
-    let download_url_path = if let Some(nightly_version) = nightly_version {
+    let download_url = if let Some(nightly_version) = nightly_version {
         let nightly_folder = if nightly_version.is_empty() {
             "".to_string() // No version folder
         } else {
             format!("/{}", nightly_version) // Use version as folder
         };
-        match arch {
+        let download_url_path = match arch {
             "macos-x86_64" => Ok(format!(
                 "bin/macos/x86_64{}/julia-latest-macos-x86_64.tar.gz",
                 nightly_folder
@@ -1225,41 +1545,22 @@ pub fn install_non_db_version(
                 nightly_folder
             )),
             _ => Err(anyhow!("Unknown nightly.")),
-        }
-    } else if id.starts_with("pr") {
-        match arch {
-            // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
-            "macos-x86_64" => {
-                Ok("bin/macos/x86_64/julia-".to_owned() + &id + "-macos-x86_64.tar.gz")
-            }
-            "macos-aarch64" => {
-                Ok("bin/macos/aarch64/julia-".to_owned() + &id + "-macos-aarch64.tar.gz")
-            }
-            "win64" => Ok("bin/windows/x86_64/julia-".to_owned() + &id + "-windows-x86_64.tar.gz"),
-            "win32" => Ok("bin/windows/x86/julia-".to_owned() + &id + "-windows-x86.tar.gz"),
-            "linux-x86_64" => {
-                Ok("bin/linux/x86_64/julia-".to_owned() + &id + "-linux-x86_64.tar.gz")
-            }
-            "linux-aarch64" => {
-                Ok("bin/linux/aarch64/julia-".to_owned() + &id + "-linux-aarch64.tar.gz")
-            }
-            "freebsd-x86_64" => {
-                Ok("bin/freebsd/x86_64/julia-".to_owned() + &id + "-freebsd-x86_64.tar.gz")
-            }
-            _ => Err(anyhow!("Unknown pr.")),
-        }
-    } else {
-        Err(anyhow!("Unknown non-db channel."))
-    }?;
+        }?;
 
-    let download_url = download_url_base
-        .join(download_url_path.as_str())
-        .with_context(|| {
-            format!(
-                "Failed to construct a valid url from '{}' and '{}'.",
-                download_url_base, download_url_path
-            )
-        })?;
+        let download_url_base = get_julianightlies_base_url()?;
+        download_url_base
+            .join(download_url_path.as_str())
+            .with_context(|| {
+                format!(
+                    "Failed to construct a valid url from '{}' and '{}'.",
+                    download_url_base, download_url_path
+                )
+            })?
+    } else if id.starts_with("pr") {
+        resolve_pr_download_url(&id, arch)?
+    } else {
+        bail!("Unknown non-db channel.")
+    };
 
     let child_target_foldername = format!("julia-{}", channel);
 
@@ -1328,7 +1629,7 @@ pub fn garbage_collect_versions(
         for i in versions_to_uninstall {
             print_juliaup_style(
                 "Tidyup",
-                &format!("Removed Julia {}", &i),
+                &format!("Removed Julia {}", i),
                 JuliaupMessageType::Success,
             );
             config_data.installed_versions.remove(&i);
@@ -1349,7 +1650,7 @@ pub fn garbage_collect_versions(
             }
         }
         for channel in channels_to_uninstall {
-            remove_symlink(&format!("julia-{}", &channel))?;
+            remove_symlink(&format!("julia-{}", channel))?;
             config_data.installed_channels.remove(&channel);
         }
     }
@@ -1599,7 +1900,7 @@ pub fn create_symlink(
             if !path.split(':').any(|p| Path::new(p) == symlink_folder) {
                 eprintln!(
                 "Symlink {} added in {}. Add this directory to the system PATH to make the command available in your shell.",
-                &symlink_name, symlink_folder.display(),
+                symlink_name, symlink_folder.display(),
             );
             }
         }
@@ -2074,7 +2375,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         "dev" => "juliaup/DEVCHANNELDBVERSION",
         _ => bail!(
             "Juliaup is configured to a channel named '{}' that does not exist.",
-            &juliaup_channel
+            juliaup_channel
         ),
     };
 
@@ -2149,7 +2450,7 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         return Ok(());
     }
 
-    for (channel, etag) in direct_download_etags {
+    for (channel, update_info) in direct_download_etags {
         let channel_data = new_config_file
             .data
             .installed_channels
@@ -2158,19 +2459,19 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
 
         if let JuliaupConfigChannel::DirectDownloadChannel {
             path,
-            url,
+            url: _,
             local_etag,
             server_etag: _,
             version,
             binary_path,
         } = channel_data
         {
-            if let Some(etag) = etag {
+            if let Some((url, etag)) = update_info {
                 new_config_file.data.installed_channels.insert(
                     channel,
                     JuliaupConfigChannel::DirectDownloadChannel {
                         path: path.clone(),
-                        url: url.clone(),
+                        url,
                         local_etag: local_etag.clone(),
                         server_etag: etag,
                         version: version.clone(),
@@ -2237,11 +2538,67 @@ where
     }
 }
 
+/// The URL a direct-download channel should currently be served from.
+///
+/// Nightly URLs are stable (`julia-latest-*`), but PR builds are staged at a
+/// location keyed by the head commit sha of the PR, so every push to the PR
+/// moves them. Re-resolve PR channels rather than trusting the URL recorded
+/// at install time, and fall back to the recorded URL if resolution fails
+/// (e.g. offline, GitHub API rate limit).
+fn current_direct_download_url(channel: &str, recorded_url: &str) -> String {
+    if !is_pr_channel(channel) {
+        return recorded_url.to_string();
+    }
+
+    let resolved = channel_to_name(channel).and_then(|name| {
+        let (id, arch) = name
+            .split_once('-')
+            .ok_or_else(|| anyhow!("Failed to parse channel name."))?;
+        resolve_pr_download_url(id, arch)
+    });
+
+    match resolved {
+        Ok(url) => url.to_string(),
+        Err(e) => {
+            log::debug!(
+                "Failed to re-resolve the download location of channel '{}', keeping `{}`: {:?}",
+                channel,
+                recorded_url,
+                e
+            );
+            recorded_url.to_string()
+        }
+    }
+}
+
+/// The artifact whose etag should be checked for an installed direct-download
+/// channel. The canonical configured URL remains the tarball so a failed DMG
+/// install can still fall back to it.
+fn direct_download_etag_url(download_url: &str, _binary_path: &Option<String>) -> String {
+    #[cfg(target_os = "macos")]
+    if _binary_path.as_ref().is_some_and(|path| {
+        Path::new(path).components().any(|component| {
+            Path::new(component.as_os_str()).extension() == Some(std::ffi::OsStr::new("app"))
+        })
+    }) {
+        if let Ok(url) = url::Url::parse(download_url) {
+            return dmg_url_from_tarball(&url).to_string();
+        }
+    }
+
+    download_url.to_string()
+}
+
+/// For each direct-download channel, `Some((url, etag))` of the build the
+/// channel should currently point at, or `None` if that could not be
+/// determined.
+type DirectDownloadUpdateInfo = Vec<(String, Option<(String, String)>)>;
+
 #[cfg(windows)]
 fn download_direct_download_etags(
     channel: &Option<String>,
     config_data: &JuliaupConfig,
-) -> Result<Vec<(String, Option<String>)>> {
+) -> Result<DirectDownloadUpdateInfo> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
     use windows::Web::Http::HttpMethod;
@@ -2262,7 +2619,10 @@ fn download_direct_download_etags(
             }
         }
 
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+        if let JuliaupConfigChannel::DirectDownloadChannel {
+            url, binary_path, ..
+        } = installed_channel
+        {
             // If server doesn't support etag, we can't check for updates on nightly/PR channels
             // Return None gracefully so the update process can continue with other channels
             if !server_supports_etag {
@@ -2272,17 +2632,24 @@ fn download_direct_download_etags(
 
             let http_client = http_client.clone();
             let url_clone = url.clone();
+            let binary_path_clone = binary_path.clone();
             let channel_name_clone = channel_name.clone();
+            let channel_name_resolve = channel_name.clone();
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
                 style("    Checking").cyan().bold(),
                 channel_name
             );
 
-            let etag = run_with_slow_message(
+            let update_info = run_with_slow_message(
                 move || {
-                    let request_uri = Uri::CreateUri(&HSTRING::from(&url_clone))
-                        .with_context(|| format!("Failed to create URI from {}", &url_clone))?;
+                    // PR builds move when the PR receives new commits, so the
+                    // URL needs to be re-resolved before checking the etag.
+                    let url = current_direct_download_url(&channel_name_resolve, &url_clone);
+                    let etag_url = direct_download_etag_url(&url, &binary_path_clone);
+
+                    let request_uri = Uri::CreateUri(&HSTRING::from(&etag_url))
+                        .with_context(|| format!("Failed to create URI from {etag_url}"))?;
 
                     let request = HttpRequestMessage::Create(&HttpMethod::Head()?, &request_uri)
                         .with_context(|| "Failed to create HttpRequestMessage.")?;
@@ -2303,16 +2670,16 @@ fn download_direct_download_etags(
                             .and_then(|headers| headers.Lookup(&HSTRING::from("ETag")).ok())
                             .map(|s| s.to_string());
 
-                        Ok::<Option<String>, anyhow::Error>(etag)
+                        Ok::<Option<(String, String)>, anyhow::Error>(etag.map(|etag| (url, etag)))
                     } else {
-                        Ok::<Option<String>, anyhow::Error>(None)
+                        Ok::<Option<(String, String)>, anyhow::Error>(None)
                     }
                 },
                 3, // Timeout in seconds
                 &message,
             )?;
 
-            requests.push((channel_name_clone, etag));
+            requests.push((channel_name_clone, update_info));
         }
     }
 
@@ -2323,7 +2690,7 @@ fn download_direct_download_etags(
 fn download_direct_download_etags(
     channel: &Option<String>,
     config_data: &JuliaupConfig,
-) -> Result<Vec<(String, Option<String>)>> {
+) -> Result<DirectDownloadUpdateInfo> {
     use std::sync::Arc;
 
     // Check if the server supports etag headers (required for nightly/PR updates)
@@ -2341,7 +2708,10 @@ fn download_direct_download_etags(
             }
         }
 
-        if let JuliaupConfigChannel::DirectDownloadChannel { url, .. } = installed_channel {
+        if let JuliaupConfigChannel::DirectDownloadChannel {
+            url, binary_path, ..
+        } = installed_channel
+        {
             // If server doesn't support etag, we can't check for updates on nightly/PR channels
             // Return None gracefully so the update process can continue with other channels
             if !server_supports_etag {
@@ -2351,7 +2721,9 @@ fn download_direct_download_etags(
 
             let client = Arc::clone(&client);
             let url_clone = url.clone();
+            let binary_path_clone = binary_path.clone();
             let channel_name_clone = channel_name.clone();
+            let channel_name_resolve = channel_name.clone();
 
             let message = format!(
                 "{} for new version on channel '{}' is taking a while... This can be slow due to server caching",
@@ -2359,11 +2731,17 @@ fn download_direct_download_etags(
                 channel_name
             );
 
-            let etag = run_with_slow_message(
+            let update_info = run_with_slow_message(
                 move || {
-                    let response = client.head(&url_clone).send().with_context(|| {
-                        format!("Failed to send HEAD request to {}", &url_clone)
-                    })?;
+                    // PR builds move when the PR receives new commits, so the
+                    // URL needs to be re-resolved before checking the etag.
+                    let url = current_direct_download_url(&channel_name_resolve, &url_clone);
+                    let etag_url = direct_download_etag_url(&url, &binary_path_clone);
+
+                    let response = client
+                        .head(&etag_url)
+                        .send()
+                        .with_context(|| format!("Failed to send HEAD request to {}", etag_url))?;
 
                     if response.status().is_success() {
                         // Gracefully handle missing etag - return None instead of error
@@ -2373,16 +2751,16 @@ fn download_direct_download_etags(
                             .and_then(|h| h.to_str().ok())
                             .map(|s| s.to_string());
 
-                        Ok::<Option<String>, anyhow::Error>(etag)
+                        Ok::<Option<(String, String)>, anyhow::Error>(etag.map(|etag| (url, etag)))
                     } else {
-                        Ok::<Option<String>, anyhow::Error>(None)
+                        Ok::<Option<(String, String)>, anyhow::Error>(None)
                     }
                 },
                 3, // Timeout in seconds
                 &message,
             )?;
 
-            requests.push((channel_name_clone, etag));
+            requests.push((channel_name_clone, update_info));
         }
     }
 
@@ -2767,6 +3145,33 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn direct_download_update_tracks_installed_dmg() -> Result<()> {
+        let tarball_url = "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.tar.gz";
+        let binary_path =
+            Some("./julia-nightly/Julia-1.14.app/Contents/Resources/julia/bin/julia".to_string());
+
+        assert_eq!(
+            direct_download_etag_url(tarball_url, &binary_path),
+            "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.dmg"
+        );
+
+        let binary_path = Some("./julia-nightly/bin/julia".to_string());
+        assert_eq!(
+            direct_download_etag_url(tarball_url, &binary_path),
+            tarball_url
+        );
+
+        let url = url::Url::parse(&format!("{tarball_url}?download=1"))?;
+        assert_eq!(
+            dmg_url_from_tarball(&url).as_str(),
+            "https://example.com/bin/macos/aarch64/julia-latest-macos-aarch64.dmg?download=1"
+        );
+
+        Ok(())
+    }
+
     // unpack_sans_parent is only compiled for non-freebsd targets
     #[cfg(not(target_os = "freebsd"))]
     /// Builds a minimal `.tar.gz` in memory with a single entry whose path is given
@@ -2849,6 +3254,71 @@ mod tests {
         let dst = tempfile::TempDir::new()?;
         unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
         assert!(dst.path().join("bin/julia").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn pr_staging_url_path_shortens_sha() -> Result<()> {
+        let head_sha = "0123456789abcdef0123456789abcdef01234567";
+        assert_eq!(
+            pr_staging_url_path(head_sha, "linux-x86_64")?,
+            "bin/0123456789abcdef0123456789abcdef01234567/julia-0123456789-linux-x86_64.tar.gz"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pr_staging_url_path_rejects_invalid_shas() {
+        // Too short to be a full sha
+        assert!(pr_staging_url_path("0123456789abcdef", "linux-x86_64").is_err());
+        // Right length, but not hex
+        assert!(
+            pr_staging_url_path("z123456789abcdef0123456789abcdef01234567", "linux-x86_64")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn pr_staging_os_arch_matches_buildkite_vocabulary() -> Result<()> {
+        // These `<os>-<arch>` suffixes must match the `UPLOAD_FILENAME`
+        // vocabulary of julia-buildkite's `utilities/build_envs.sh`.
+        assert_eq!(pr_staging_os_arch("macos-x86_64")?, "macos-x86_64");
+        assert_eq!(pr_staging_os_arch("macos-aarch64")?, "macos-aarch64");
+        assert_eq!(pr_staging_os_arch("win64")?, "windows-x86_64");
+        assert_eq!(pr_staging_os_arch("win32")?, "windows-i686");
+        assert_eq!(pr_staging_os_arch("linux-x86_64")?, "linux-x86_64");
+        assert_eq!(pr_staging_os_arch("linux-i686")?, "linux-i686");
+        assert_eq!(pr_staging_os_arch("linux-aarch64")?, "linux-aarch64");
+        assert_eq!(pr_staging_os_arch("freebsd-x86_64")?, "freebsd-x86_64");
+        assert!(pr_staging_os_arch("linux-powerpc64le").is_err());
+        Ok(())
+    }
+
+    // LEGACY FALLBACK -- delete together with `legacy_pr_download_url_path`.
+    #[test]
+    fn legacy_pr_url_paths_unchanged() {
+        // Pin the legacy pre-migration URL scheme until the fallback is removed.
+        assert_eq!(
+            legacy_pr_download_url_path("pr12345", "linux-x86_64").as_deref(),
+            Some("bin/linux/x86_64/julia-pr12345-linux-x86_64.tar.gz")
+        );
+        assert_eq!(
+            legacy_pr_download_url_path("pr12345", "win64").as_deref(),
+            Some("bin/windows/x86_64/julia-pr12345-windows-x86_64.tar.gz")
+        );
+        // linux-i686 PR builds only exist in the new staging scheme.
+        assert_eq!(legacy_pr_download_url_path("pr12345", "linux-i686"), None);
+    }
+
+    #[test]
+    fn pr_head_sha_extracted_from_api_response() -> Result<()> {
+        let body = r#"{"number": 12345, "head": {"ref": "some-branch", "sha": "0123456789ABCDEF0123456789abcdef01234567"}}"#;
+        assert_eq!(
+            pr_head_sha_from_api_response(body)?,
+            "0123456789abcdef0123456789abcdef01234567"
+        );
+        assert!(pr_head_sha_from_api_response("{}").is_err());
+        assert!(pr_head_sha_from_api_response("not json").is_err());
         Ok(())
     }
 }

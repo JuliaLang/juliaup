@@ -33,7 +33,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         .ok_or_else(|| {
             anyhow!(
                 "'{}' is not a valid Julia version or channel name.",
-                &channel
+                channel
             )
         })?
         .version;
@@ -45,7 +45,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
             .with_context(|| "`add` command failed to load configuration data.")?;
 
         if config_file.data.installed_channels.contains_key(channel) {
-            eprintln!("'{}' is already installed.", &channel);
+            eprintln!("'{}' is already installed.", channel);
             return Ok(());
         }
     }
@@ -59,7 +59,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         .with_context(|| "`add` command failed to load configuration data.")?;
 
     if config_file.data.installed_channels.contains_key(channel) {
-        eprintln!("'{}' is already installed.", &channel);
+        eprintln!("'{}' is already installed.", channel);
         return Ok(());
     }
 
@@ -115,7 +115,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
             .with_context(|| "`add` command failed to load configuration data.")?;
 
         if config_file.data.installed_channels.contains_key(channel) {
-            eprintln!("'{}' is already installed.", &channel);
+            eprintln!("'{}' is already installed.", channel);
             return Ok(());
         }
     }
@@ -141,7 +141,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
         .with_context(|| "`add` command failed to load configuration data.")?;
 
     if config_file.data.installed_channels.contains_key(channel) {
-        eprintln!("'{}' is already installed.", &channel);
+        eprintln!("'{}' is already installed.", channel);
         return Ok(());
     }
 

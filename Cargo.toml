@@ -1,6 +1,6 @@
 [package]
 name = "juliaup"
-version = "1.20.7"
+version = "1.20.8"
 description = "Julia installer and version multiplexer"
 repository = "https://github.com/julialang/juliaup"
 license = "MIT"
@@ -46,7 +46,7 @@ console = "0.16"
 ctrlc = "3"
 url = "2"
 cli-table = "0.5"
-itertools = "0.14"
+itertools = "0.15"
 cluFlock = "1"
 chrono = { version = "0.4", features = ["serde"] }
 human-panic = "2"
@@ -58,7 +58,7 @@ env_proxy = "0.4"
 bstr = "1"
 indoc = "2"
 is-terminal = "0.4"
-path-absolutize = "3"
+path-absolutize = "4"
 numeric-sort = "0.1"
 regex = "1"
 toml = "1.1"
@@ -71,14 +71,14 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", 
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "native-tls", "socks"] }
 
 [target.'cfg(all(not(target_os = "macos"),not(windows)))'.dependencies]
-reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "rustls", "rustls-native-certs", "socks"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "http2", "rustls", "socks"] }
 
 [target.'cfg(not(windows))'.dependencies]
 nix = { version = "0.31", features = ["process"] }
 
 [build-dependencies]
 anyhow = "1"
-itertools = "0.14"
+itertools = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 semver = "1"

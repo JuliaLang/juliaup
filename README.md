@@ -140,7 +140,7 @@ The available system provided channels are:
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
 - `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch`.
-- `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has recently and successfully built Julia on that branch.
+- `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has successfully built Julia on that branch within roughly the last 90 days: PR builds expire, but re-running CI on the pull request uploads fresh ones.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.

@@ -38,7 +38,7 @@ pub fn run_command_info(paths: &GlobalPaths) -> Result<()> {
         "dev" => "juliaup/DEVCHANNELDBVERSION",
         _ => bail!(
             "Juliaup is configured to a channel named '{}' that does not exist.",
-            &juliaup_channel
+            juliaup_channel
         ),
     };
 
