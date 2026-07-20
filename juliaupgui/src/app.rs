@@ -147,6 +147,7 @@ enum ThemeMode {
     Light,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Clone)]
 enum PendingPrAction {
     Install {
@@ -193,6 +194,7 @@ pub struct App {
     custom_launch_env: String,
 
     // PR trust and macOS code-signing confirmation
+    #[cfg(target_os = "macos")]
     pending_pr_action: Option<PendingPrAction>,
     pr_titles: HashMap<String, String>,
     pending_pr_titles: HashSet<String>,
@@ -261,6 +263,7 @@ impl App {
             custom_launch_project: String::new(),
             custom_launch_args: String::new(),
             custom_launch_env: String::new(),
+            #[cfg(target_os = "macos")]
             pending_pr_action: None,
             pr_titles: HashMap::new(),
             pending_pr_titles: HashSet::new(),
@@ -359,6 +362,7 @@ impl App {
         });
     }
 
+    #[cfg(target_os = "macos")]
     fn show_pr_confirmation(&mut self, ctx: &egui::Context) {
         let Some(action) = self.pending_pr_action.clone() else {
             return;
@@ -785,6 +789,7 @@ impl eframe::App for App {
             }
         }
 
+        #[cfg(target_os = "macos")]
         self.show_pr_confirmation(ctx);
     }
 }
@@ -2335,7 +2340,9 @@ fn build_launch_cmd(spec: &LaunchSpec) -> String {
 
 #[cfg(target_os = "windows")]
 fn configure_windows_command(command: &mut std::process::Command, spec: &LaunchSpec) {
-    command.args(&spec.args).envs(&spec.env);
+    command
+        .args(&spec.args)
+        .envs(spec.env.iter().map(|(key, value)| (key, value)));
     if let Some(project) = &spec.project {
         command.current_dir(project);
     }
@@ -2381,7 +2388,7 @@ fn launch_windows_terminal(term: &str, spec: &LaunchSpec) -> Result<(), String> 
     command
         .arg(&spec.julia_bin)
         .args(&spec.args)
-        .envs(&spec.env)
+        .envs(spec.env.iter().map(|(key, value)| (key, value)))
         .spawn()
         .map(|_| ())
         .map_err(|e| format!("Failed to launch {term}: {e}"))
