@@ -13,7 +13,7 @@ use juliaup::config_file::{
 };
 use juliaup::global_paths::GlobalPaths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::get_channel_variations;
+use juliaup::operations::{get_channel_variations, get_julia_pr_title};
 use juliaup::versions_file::load_versions_db;
 use numeric_sort::cmp;
 use std::collections::{HashMap, HashSet};
@@ -40,6 +40,7 @@ struct InstalledRow {
     version: String,
     is_default: bool,
     update: Option<String>,
+    pr_number: Option<String>,
 }
 
 #[derive(Clone)]
@@ -67,9 +68,15 @@ struct AppState {
 
 enum Op {
     Reload,
-    Add(String),
+    Add {
+        channel: String,
+        approve_pr_codesign: bool,
+    },
     Remove(String),
-    Update(Option<String>),
+    Update {
+        channel: Option<String>,
+        approve_pr_codesign: bool,
+    },
     SetDefault(String),
     SelfUpdate,
     Gc,
@@ -94,6 +101,10 @@ enum Op {
 
 enum Msg {
     Loaded(Box<AppState>),
+    PrTitleLoaded {
+        number: String,
+        title: Option<String>,
+    },
     Line(String), // raw output from subprocess
     Ok(String),   // operation succeeded
     Err(String),  // operation failed
@@ -136,6 +147,18 @@ enum ThemeMode {
     Light,
 }
 
+#[derive(Clone)]
+enum PendingPrAction {
+    Install {
+        channel: String,
+        pr_number: String,
+    },
+    Update {
+        channel: Option<String>,
+        pr_numbers: Vec<String>,
+    },
+}
+
 // ── app ───────────────────────────────────────────────────────────────────────
 
 pub struct App {
@@ -169,6 +192,11 @@ pub struct App {
     custom_launch_args: String,
     custom_launch_env: String,
 
+    // PR trust and macOS code-signing confirmation
+    pending_pr_action: Option<PendingPrAction>,
+    pr_titles: HashMap<String, String>,
+    pending_pr_titles: HashSet<String>,
+
     // Config tab inputs
     interval_input: String,
     terminal_app: String,
@@ -186,6 +214,8 @@ pub struct App {
 
     op_tx: mpsc::SyncSender<(Op, Arc<GlobalPaths>)>,
     msg_rx: mpsc::Receiver<Msg>,
+    msg_tx: mpsc::Sender<Msg>,
+    repaint_ctx: egui::Context,
     paths: Arc<GlobalPaths>,
 }
 
@@ -196,6 +226,7 @@ impl App {
         apply_theme(&cc.egui_ctx, theme_mode);
         let (op_tx, op_rx) = mpsc::sync_channel::<(Op, Arc<GlobalPaths>)>(8);
         let (msg_tx, msg_rx) = mpsc::channel::<Msg>();
+        let app_msg_tx = msg_tx.clone();
 
         thread::spawn(move || worker(op_rx, msg_tx));
         let _ = op_tx.try_send((Op::Reload, paths.clone()));
@@ -230,6 +261,9 @@ impl App {
             custom_launch_project: String::new(),
             custom_launch_args: String::new(),
             custom_launch_env: String::new(),
+            pending_pr_action: None,
+            pr_titles: HashMap::new(),
+            pending_pr_titles: HashSet::new(),
             interval_input: String::new(),
             terminal_app,
             theme_mode,
@@ -239,6 +273,8 @@ impl App {
             splash_start: Instant::now(),
             op_tx,
             msg_rx,
+            msg_tx: app_msg_tx,
+            repaint_ctx: cc.egui_ctx.clone(),
             paths,
         }
     }
@@ -257,15 +293,209 @@ impl App {
         }
     }
 
+    fn request_pr_title(&mut self, number: &str) {
+        if self.pr_titles.contains_key(number) || self.pending_pr_titles.contains(number) {
+            return;
+        }
+        let Ok(parsed_number) = number.parse::<u64>() else {
+            return;
+        };
+
+        let number = number.to_string();
+        self.pending_pr_titles.insert(number.clone());
+        let tx = self.msg_tx.clone();
+        let repaint_ctx = self.repaint_ctx.clone();
+        thread::spawn(move || {
+            let title = get_julia_pr_title(parsed_number).ok();
+            let _ = tx.send(Msg::PrTitleLoaded { number, title });
+            repaint_ctx.request_repaint();
+        });
+    }
+
+    fn request_install(&mut self, channel: String) {
+        #[cfg(target_os = "macos")]
+        if let Some(pr_number) = julia_pr_number(&channel).map(String::from) {
+            self.request_pr_title(&pr_number);
+            self.pending_pr_action = Some(PendingPrAction::Install { channel, pr_number });
+            return;
+        }
+
+        self.send(Op::Add {
+            channel,
+            approve_pr_codesign: false,
+        });
+    }
+
+    fn request_update(&mut self, channel: Option<String>) {
+        #[cfg(target_os = "macos")]
+        {
+            let pr_numbers: Vec<String> = self
+                .state
+                .as_ref()
+                .into_iter()
+                .flat_map(|state| &state.installed)
+                .filter(|row| {
+                    row.pr_number.is_some()
+                        && channel
+                            .as_ref()
+                            .is_none_or(|name| name == &row.name && row.update.is_some())
+                })
+                .filter_map(|row| row.pr_number.clone())
+                .unique()
+                .collect();
+
+            if !pr_numbers.is_empty() {
+                self.pending_pr_action = Some(PendingPrAction::Update {
+                    channel,
+                    pr_numbers,
+                });
+                return;
+            }
+        }
+
+        self.send(Op::Update {
+            channel,
+            approve_pr_codesign: false,
+        });
+    }
+
+    fn show_pr_confirmation(&mut self, ctx: &egui::Context) {
+        let Some(action) = self.pending_pr_action.clone() else {
+            return;
+        };
+
+        let mut open = true;
+        let mut approve = false;
+        let mut cancel = false;
+        let (title, approve_label) = match &action {
+            PendingPrAction::Install { .. } => (
+                "Install unreviewed PR build?",
+                if cfg!(target_os = "macos") {
+                    "Install and Code Sign"
+                } else {
+                    "Install PR Build"
+                },
+            ),
+            PendingPrAction::Update { .. } => {
+                ("Update unreviewed PR build?", "Update and Code Sign")
+            }
+        };
+
+        egui::Window::new(title)
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.set_max_width(440.0);
+                ui.label(
+                    RichText::new(
+                        "PR builds contain unmerged code that may not have been reviewed for security issues.",
+                    )
+                    .strong()
+                    .color(warning_color(ui.visuals().dark_mode)),
+                );
+                ui.add_space(6.0);
+
+                match &action {
+                    PendingPrAction::Install {
+                        channel,
+                        pr_number,
+                    } => {
+                        ui.label(format!("Channel: {channel}"));
+                        ui.horizontal(|ui| {
+                            ui.label("Julia pull request:");
+                            pr_link(
+                                ui,
+                                pr_number,
+                                self.pr_titles.get(pr_number).map(String::as_str),
+                            );
+                        });
+                    }
+                    PendingPrAction::Update {
+                        channel,
+                        pr_numbers,
+                    } => {
+                        ui.label(match channel {
+                            Some(channel) => format!("Channel: {channel}"),
+                            None => "Update All may update installed PR channels.".to_string(),
+                        });
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label("Julia pull requests:");
+                            for pr_number in pr_numbers {
+                                pr_link(
+                                    ui,
+                                    pr_number,
+                                    self.pr_titles.get(pr_number).map(String::as_str),
+                                );
+                            }
+                        });
+                    }
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    ui.add_space(8.0);
+                    ui.label(
+                        RichText::new(
+                            "The downloaded build is unsigned. Juliaup will apply a local ad-hoc signature to its executable files so macOS can run it. This does not establish that the code is trustworthy.",
+                        )
+                        .color(secondary_text(ui.visuals().dark_mode)),
+                    );
+                }
+
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    if accessible_button_name(ui.button(approve_label), approve_label).clicked() {
+                        approve = true;
+                    }
+                    if ui.button("Cancel").clicked() {
+                        cancel = true;
+                    }
+                });
+            });
+
+        if approve {
+            self.pending_pr_action = None;
+            match action {
+                PendingPrAction::Install { channel, .. } => self.send(Op::Add {
+                    channel,
+                    approve_pr_codesign: cfg!(target_os = "macos"),
+                }),
+                PendingPrAction::Update { channel, .. } => self.send(Op::Update {
+                    channel,
+                    approve_pr_codesign: true,
+                }),
+            }
+        } else if cancel || !open {
+            self.pending_pr_action = None;
+        }
+    }
+
     fn poll(&mut self) {
         while let Ok(msg) = self.msg_rx.try_recv() {
             match msg {
                 Msg::Loaded(s) => {
+                    let pr_numbers = s
+                        .installed
+                        .iter()
+                        .filter_map(|row| row.pr_number.clone())
+                        .unique()
+                        .collect_vec();
                     self.interval_input = s.settings.versionsdb_update_interval.to_string();
                     self.state = Some(*s);
                     self.loading = false;
                     self.busy = false;
                     self.current_op = None;
+                    for pr_number in pr_numbers {
+                        self.request_pr_title(&pr_number);
+                    }
+                }
+                Msg::PrTitleLoaded { number, title } => {
+                    self.pending_pr_titles.remove(&number);
+                    if let Some(title) = title {
+                        self.pr_titles.insert(number, title);
+                    }
                 }
                 Msg::Line(line) => {
                     self.log.push(LogEntry {
@@ -341,7 +571,7 @@ impl eframe::App for App {
                     ui.label(
                         RichText::new("Installation manager for the Julia programming language")
                             .size(12.0)
-                            .color(subtle_text(ui.visuals().dark_mode)),
+                            .color(secondary_text(ui.visuals().dark_mode)),
                     );
 
                     // Tabs listed in reverse because the layout is right-to-left
@@ -377,14 +607,18 @@ impl eframe::App for App {
                         ui.label(RichText::new(label).size(12.0));
                     } else if let Some((msg, is_err)) = &self.status {
                         let col = if *is_err {
-                            Color32::from_rgb(220, 80, 60)
+                            error_color(ui.visuals().dark_mode)
                         } else {
-                            Color32::from_rgb(80, 190, 100)
+                            success_color(ui.visuals().dark_mode)
                         };
                         let icon = if *is_err { "x" } else { "ok" };
                         ui.colored_label(col, RichText::new(format!("{icon} {msg}")).size(12.0));
                     } else {
-                        ui.label(RichText::new("Ready").size(12.0).weak());
+                        ui.label(
+                            RichText::new("Ready")
+                                .size(12.0)
+                                .color(secondary_text(ui.visuals().dark_mode)),
+                        );
                     }
 
                     // Right: toggle log button
@@ -392,13 +626,11 @@ impl eframe::App for App {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.add_space(8.0);
                             let toggle_label = if self.log_open {
-                                RichText::new("Hide log v").size(11.0).weak()
+                                RichText::new("Hide log").size(12.0)
                             } else {
-                                RichText::new(format!("Log ({}) ^", self.log.len()))
-                                    .size(11.0)
-                                    .weak()
+                                RichText::new(format!("Show log ({})", self.log.len())).size(12.0)
                             };
-                            if ui.small_button(toggle_label).clicked() {
+                            if ui.button(toggle_label).clicked() {
                                 self.log_open = !self.log_open;
                             }
                         });
@@ -416,13 +648,13 @@ impl eframe::App for App {
                             ui.add_space(2.0);
                             for entry in &self.log {
                                 let (col, prefix) = match entry.kind {
-                                    LogKind::Output => (subtle_text(ui.visuals().dark_mode), ""),
-                                    LogKind::Ok => (Color32::from_rgb(80, 190, 100), "ok "),
-                                    LogKind::Err => (Color32::from_rgb(220, 80, 60), "x  "),
+                                    LogKind::Output => (secondary_text(ui.visuals().dark_mode), ""),
+                                    LogKind::Ok => (success_color(ui.visuals().dark_mode), "ok "),
+                                    LogKind::Err => (error_color(ui.visuals().dark_mode), "x  "),
                                 };
                                 ui.label(
                                     RichText::new(format!("{prefix}{}", entry.text))
-                                        .size(11.0)
+                                        .size(12.0)
                                         .color(col)
                                         .family(egui::FontFamily::Monospace),
                                 );
@@ -464,7 +696,10 @@ impl eframe::App for App {
                     ui.horizontal(|ui| {
                         ui.add(
                             egui::TextEdit::singleline(&mut self.custom_launch_project)
-                                .hint_text("/path/to/project")
+                                .hint_text(
+                                    RichText::new("/path/to/project")
+                                        .color(secondary_text(ui.visuals().dark_mode)),
+                                )
                                 .desired_width(260.0),
                         );
                         if ui.button("Browse...").clicked() {
@@ -480,23 +715,26 @@ impl eframe::App for App {
                     ui.add_space(2.0);
                     ui.label(
                         RichText::new("Sets --project and cds into it. Optional.")
-                            .weak()
-                            .size(11.0),
+                            .color(secondary_text(ui.visuals().dark_mode))
+                            .size(12.0),
                     );
 
                     ui.add_space(6.0);
                     ui.label("Environment variables:");
                     ui.add(
                         egui::TextEdit::singleline(&mut self.custom_launch_env)
-                            .hint_text("JULIA_DEBUG=Foo BAR=1 ...")
+                            .hint_text(
+                                RichText::new("JULIA_DEBUG=Foo BAR=1 ...")
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            )
                             .desired_width(ui.available_width().min(380.0))
                             .font(egui::TextStyle::Monospace),
                     );
                     ui.add_space(2.0);
                     ui.label(
                         RichText::new("Space-separated KEY=VALUE pairs prepended to the command.")
-                            .weak()
-                            .size(11.0),
+                            .color(secondary_text(ui.visuals().dark_mode))
+                            .size(12.0),
                     );
                     ui.add_space(8.0);
 
@@ -504,11 +742,14 @@ impl eframe::App for App {
                         ui.label(
                             RichText::new(format!("julia +{ch}"))
                                 .monospace()
-                                .color(muted_text(ui.visuals().dark_mode)),
+                                .color(secondary_text(ui.visuals().dark_mode)),
                         );
                         ui.add(
                             egui::TextEdit::singleline(&mut self.custom_launch_args)
-                                .hint_text("--threads=4 ...")
+                                .hint_text(
+                                    RichText::new("--threads=4 ...")
+                                        .color(secondary_text(ui.visuals().dark_mode)),
+                                )
                                 .desired_width(200.0)
                                 .font(egui::TextStyle::Monospace),
                         );
@@ -517,7 +758,10 @@ impl eframe::App for App {
 
                     ui.horizontal(|ui| {
                         if ui
-                            .button(RichText::new("Launch").color(Color32::from_rgb(80, 190, 100)))
+                            .button(
+                                RichText::new("Launch")
+                                    .color(success_color(ui.visuals().dark_mode)),
+                            )
                             .clicked()
                         {
                             if let Err(e) = launch_julia(
@@ -540,7 +784,18 @@ impl eframe::App for App {
                 self.custom_launch_channel = None;
             }
         }
+
+        self.show_pr_confirmation(ctx);
     }
+}
+
+fn accessible_button_name(response: egui::Response, label: impl Into<String>) -> egui::Response {
+    let enabled = response.enabled();
+    let label = label.into();
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label.clone())
+    });
+    response
 }
 
 // ── installed tab ─────────────────────────────────────────────────────────────
@@ -548,20 +803,20 @@ impl eframe::App for App {
 fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
     ui.horizontal(|ui| {
         if ui
-            .add_enabled(!app.busy, egui::Button::new("Refresh").small())
+            .add_enabled(!app.busy, egui::Button::new("Refresh"))
             .clicked()
         {
             app.send(Op::Reload);
         }
         if ui
-            .add_enabled(!app.busy, egui::Button::new("Update All").small())
+            .add_enabled(!app.busy, egui::Button::new("Update All"))
             .on_hover_text("Update every installed channel to its latest version")
             .clicked()
         {
-            app.send(Op::Update(None));
+            app.request_update(None);
         }
         if ui
-            .add_enabled(!app.busy, egui::Button::new("GC").small())
+            .add_enabled(!app.busy, egui::Button::new("Garbage Collect"))
             .on_hover_text("Garbage-collect unused Julia versions from disk")
             .clicked()
         {
@@ -598,7 +853,7 @@ fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
                                     RichText::new("Tip: Try List view for many channels")
                                         .size(12.0),
                                 );
-                                if ui.small_button("x").clicked() {
+                                if ui.button("Dismiss").clicked() {
                                     app.list_tip_dismissed = true;
                                     save_bool_pref(
                                         &app.paths,
@@ -623,7 +878,10 @@ fn tab_installed(app: &mut App, ui: &mut egui::Ui) {
     if state.installed.is_empty() {
         ui.add_space(16.0);
         ui.vertical_centered(|ui| {
-            ui.label(RichText::new("No Julia channels installed.").weak());
+            ui.label(
+                RichText::new("No Julia channels installed.")
+                    .color(secondary_text(ui.visuals().dark_mode)),
+            );
             ui.label("Go to the \"Available\" tab to install one.");
         });
         return;
@@ -663,26 +921,21 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                 for i in start..(start + cols).min(n) {
                     if i < state.installed.len() {
                         let row = state.installed[i].clone();
+                        let dark = ui.visuals().dark_mode;
                         let border_col = if row.is_default {
-                            Color32::from_rgb(80, 190, 100)
+                            success_color(dark)
                         } else {
-                            tile_border(ui.visuals().dark_mode)
+                            tile_border(dark)
                         };
 
                         // Allocate a fixed rect for hit-testing the whole tile
                         let tile_outer = egui::vec2(TILE_W + MARGIN * 2.0, TILE_H + MARGIN * 2.0);
                         let tile_id = ui.id().with(("tile", i));
                         let tile_rect = ui.allocate_space(tile_outer).1;
-                        let tile_resp = ui.interact(tile_rect, tile_id, egui::Sense::click());
+                        let tile_resp = ui.interact(tile_rect, tile_id, egui::Sense::hover());
                         let hovered = tile_resp.hovered();
 
-                        // Pointer cursor on hover
-                        if hovered {
-                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                        }
-
                         // Subtle hover effects
-                        let dark = ui.visuals().dark_mode;
                         let fill = tile_bg(dark, hovered);
                         let stroke_w = if hovered { 2.0_f32 } else { 1.5_f32 };
                         let rounding = egui::Rounding::same(8.0);
@@ -709,17 +962,26 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             ui.set_width(TILE_W);
 
                             // ── header: name + version + badges ──
-                            ui.add(
-                                egui::Label::new(RichText::new(&row.name).size(18.0).strong())
-                                    .truncate(),
-                            );
+                            ui.horizontal(|ui| {
+                                ui.add(
+                                    egui::Label::new(RichText::new(&row.name).size(18.0).strong())
+                                        .truncate(),
+                                );
+                                if let Some(pr_number) = &row.pr_number {
+                                    pr_link(
+                                        ui,
+                                        pr_number,
+                                        app.pr_titles.get(pr_number).map(String::as_str),
+                                    );
+                                }
+                            });
 
                             ui.add_space(1.0);
                             ui.add(
                                 egui::Label::new(
                                     RichText::new(&row.version)
-                                        .size(11.0)
-                                        .color(muted_text(ui.visuals().dark_mode)),
+                                        .size(12.0)
+                                        .color(secondary_text(ui.visuals().dark_mode)),
                                 )
                                 .truncate(),
                             );
@@ -731,15 +993,15 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                     if row.is_default {
                                         ui.label(
                                             RichText::new("default")
-                                                .size(10.0)
-                                                .color(Color32::from_rgb(80, 190, 100)),
+                                                .size(12.0)
+                                                .color(success_color(ui.visuals().dark_mode)),
                                         );
                                     }
                                     if let Some(upd) = &row.update {
                                         ui.label(
-                                            RichText::new(format!("-> {upd}"))
-                                                .size(10.0)
-                                                .color(Color32::from_rgb(230, 170, 50)),
+                                            RichText::new(format!("Update: {upd}"))
+                                                .size(12.0)
+                                                .color(warning_color(ui.visuals().dark_mode)),
                                         );
                                     }
                                 });
@@ -757,27 +1019,34 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             ui.horizontal(|ui| {
                                 ui.spacing_mut().item_spacing.x = 4.0;
                                 let launch_w = (TILE_W - 4.0) / 2.0;
-                                if ui
-                                    .add_sized(
+                                if accessible_button_name(
+                                    ui.add_sized(
                                         [launch_w, btn_h],
                                         egui::Button::new(
                                             RichText::new("Launch")
                                                 .size(12.0)
-                                                .color(Color32::from_rgb(80, 190, 100)),
+                                                .color(success_color(ui.visuals().dark_mode)),
                                         ),
-                                    )
-                                    .on_hover_text(format!("Start julia +{}", row.name))
-                                    .clicked()
+                                    ),
+                                    format!("Launch Julia channel {}", row.name),
+                                )
+                                .on_hover_text(format!("Start julia +{}", row.name))
+                                .clicked()
                                 {
                                     do_launch = Some(row.name.clone());
                                 }
-                                if ui
-                                    .add_sized(
+                                if accessible_button_name(
+                                    ui.add_sized(
                                         [launch_w, btn_h],
-                                        egui::Button::new(RichText::new("Custom...").size(11.0)),
-                                    )
-                                    .on_hover_text("Launch with custom project & args")
-                                    .clicked()
+                                        egui::Button::new(RichText::new("Custom...").size(12.0)),
+                                    ),
+                                    format!(
+                                        "Launch Julia channel {} with custom options",
+                                        row.name
+                                    ),
+                                )
+                                .on_hover_text("Launch with custom project & args")
+                                .clicked()
                                 {
                                     app.custom_launch_channel = Some(row.name.clone());
                                 }
@@ -794,48 +1063,47 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                     } else {
                                         (TILE_W - 4.0) / 2.0
                                     };
-                                    if ui
-                                        .add_sized(
+                                    if accessible_button_name(
+                                        ui.add_sized(
                                             [action_w, btn_h],
-                                            egui::Button::new(RichText::new("Default").size(11.0)),
-                                        )
-                                        .on_hover_text(
-                                            "Use this channel when no version is specified",
-                                        )
-                                        .clicked()
+                                            egui::Button::new(RichText::new("Default").size(12.0)),
+                                        ),
+                                        format!("Set Julia channel {} as default", row.name),
+                                    )
+                                    .on_hover_text("Use this channel when no version is specified")
+                                    .clicked()
                                     {
                                         set_def = Some(row.name.clone());
                                     }
                                     if has_update
-                                        && ui
-                                            .add_sized(
+                                        && accessible_button_name(
+                                            ui.add_sized(
                                                 [action_w, btn_h],
                                                 egui::Button::new(
-                                                    RichText::new("Update").size(11.0),
+                                                    RichText::new("Update").size(12.0),
                                                 ),
-                                            )
-                                            .on_hover_text("Update to latest")
-                                            .clicked()
+                                            ),
+                                            format!("Update Julia channel {}", row.name),
+                                        )
+                                        .on_hover_text("Update to latest")
+                                        .clicked()
                                     {
                                         do_update = Some(row.name.clone());
                                     }
-                                    if ui
-                                        .add_sized(
+                                    if accessible_button_name(
+                                        ui.add_sized(
                                             [action_w, btn_h],
-                                            egui::Button::new(RichText::new("Remove").size(11.0)),
-                                        )
-                                        .on_hover_text("Remove this channel")
-                                        .clicked()
+                                            egui::Button::new(RichText::new("Remove").size(12.0)),
+                                        ),
+                                        format!("Remove Julia channel {}", row.name),
+                                    )
+                                    .on_hover_text("Remove this channel")
+                                    .clicked()
                                     {
                                         do_remove = Some(row.name.clone());
                                     }
                                 });
                             }
-                        }
-
-                        // Whole-tile click = launch default
-                        if tile_resp.clicked() {
-                            do_launch = Some(state.installed[i].name.clone());
                         }
                     } else {
                         // "Add another channel" tile
@@ -843,18 +1111,35 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         let add_id = ui.id().with("add_tile");
                         let add_rect = ui.allocate_space(add_outer).1;
                         let add_resp = ui.interact(add_rect, add_id, egui::Sense::click());
+                        add_resp.widget_info(|| {
+                            egui::WidgetInfo::labeled(
+                                egui::WidgetType::Button,
+                                true,
+                                "Add Julia channel",
+                            )
+                        });
                         let add_hov = add_resp.hovered();
+                        let add_focused = add_resp.has_focus();
                         if add_hov {
                             ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                         }
                         let add_dark = ui.visuals().dark_mode;
-                        let add_fill = tile_bg(add_dark, add_hov);
-                        let add_stroke_w = if add_hov { 2.0_f32 } else { 1.5_f32 };
+                        let add_fill = tile_bg(add_dark, add_hov || add_focused);
+                        let add_stroke_w = if add_hov || add_focused {
+                            2.0_f32
+                        } else {
+                            1.5_f32
+                        };
+                        let add_border = if add_focused {
+                            focus_color(add_dark)
+                        } else {
+                            tile_border(add_dark)
+                        };
                         ui.painter().rect(
                             add_rect,
                             egui::Rounding::same(8.0),
                             add_fill,
-                            egui::Stroke::new(add_stroke_w, tile_border(add_dark)),
+                            egui::Stroke::new(add_stroke_w, add_border),
                         );
                         // Center the label in the tile
                         ui.painter().text(
@@ -862,7 +1147,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             egui::Align2::CENTER_CENTER,
                             "+ Add channel",
                             egui::FontId::proportional(14.0),
-                            subtle_text(add_dark),
+                            secondary_text(add_dark),
                         );
                         if add_resp.clicked() {
                             go_available = true;
@@ -886,7 +1171,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         app.send(Op::SetDefault(ch));
     }
     if let Some(ch) = do_update {
-        app.send(Op::Update(Some(ch)));
+        app.request_update(Some(ch));
     }
     if let Some(ch) = do_remove {
         app.send(Op::Remove(ch));
@@ -905,14 +1190,14 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         .striped(true)
         .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
         .column(Column::exact(55.0)) // Default
-        .column(Column::initial(100.0).at_least(60.0)) // Channel
-        .column(Column::remainder().at_least(120.0)) // Version (takes leftover)
-        .column(Column::initial(130.0).at_least(80.0)) // Update
-        .column(Column::exact(160.0)) // Launch
-        .column(Column::exact(150.0)) // Actions
+        .column(Column::auto_with_initial_suggestion(140.0).at_least(90.0)) // Channel
+        .column(Column::remainder().at_least(90.0)) // Version (takes leftover)
+        .column(Column::initial(100.0).at_least(70.0)) // Update
+        .column(Column::exact(150.0)) // Launch
+        .column(Column::exact(200.0)) // Actions
         .min_scrolled_height(0.0)
         .max_scroll_height(body_height)
-        .header(18.0, |mut header| {
+        .header(24.0, |mut header| {
             header.col(|ui| {
                 ui.strong("Default");
             });
@@ -935,56 +1220,71 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         .body(|mut body| {
             for row in &state.installed {
                 let row = row.clone();
-                body.row(22.0, |mut cells| {
+                body.row(30.0, |mut cells| {
                     cells.col(|ui| {
                         if row.is_default {
                             ui.label(
-                                RichText::new("*")
-                                    .color(Color32::from_rgb(80, 190, 100))
+                                RichText::new("Yes")
+                                    .color(success_color(ui.visuals().dark_mode))
                                     .strong(),
                             );
                         }
                     });
                     cells.col(|ui| {
-                        ui.label(RichText::new(&row.name).size(13.0));
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new(&row.name).size(13.0));
+                            if let Some(pr_number) = &row.pr_number {
+                                pr_link(
+                                    ui,
+                                    pr_number,
+                                    app.pr_titles.get(pr_number).map(String::as_str),
+                                );
+                            }
+                        });
                     });
                     cells.col(|ui| {
-                        ui.label(RichText::new(&row.version).size(13.0).weak());
+                        ui.label(
+                            RichText::new(&row.version)
+                                .size(13.0)
+                                .color(secondary_text(ui.visuals().dark_mode)),
+                        );
                     });
                     cells.col(|ui| {
                         if let Some(upd) = &row.update {
                             ui.label(
                                 RichText::new(upd)
                                     .size(12.0)
-                                    .color(Color32::from_rgb(230, 170, 50)),
+                                    .color(warning_color(ui.visuals().dark_mode)),
                             );
                         } else {
-                            ui.label(RichText::new("-").weak().size(12.0));
+                            ui.label(
+                                RichText::new("Current")
+                                    .size(12.0)
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            );
                         }
                     });
                     cells.col(|ui| {
                         ui.horizontal(|ui| {
-                            if ui
-                                .add(
-                                    egui::Button::new(
-                                        RichText::new("Launch")
-                                            .size(12.0)
-                                            .color(Color32::from_rgb(80, 190, 100)),
-                                    )
-                                    .small(),
-                                )
-                                .on_hover_text(format!("Start julia +{}", row.name))
-                                .clicked()
+                            if accessible_button_name(
+                                ui.add(egui::Button::new(
+                                    RichText::new("Launch")
+                                        .size(12.0)
+                                        .color(success_color(ui.visuals().dark_mode)),
+                                )),
+                                format!("Launch Julia channel {}", row.name),
+                            )
+                            .on_hover_text(format!("Start julia +{}", row.name))
+                            .clicked()
                             {
                                 do_launch = Some(row.name.clone());
                             }
-                            if ui
-                                .add(
-                                    egui::Button::new(RichText::new("Custom...").size(11.0))
-                                        .small(),
-                                )
-                                .on_hover_text("Launch with custom project & args")
-                                .clicked()
+                            if accessible_button_name(
+                                ui.add(egui::Button::new(RichText::new("Custom...").size(12.0))),
+                                format!("Launch Julia channel {} with custom options", row.name),
+                            )
+                            .on_hover_text("Launch with custom project & args")
+                            .clicked()
                             {
                                 app.custom_launch_channel = Some(row.name.clone());
                             }
@@ -993,37 +1293,41 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                     cells.col(|ui| {
                         ui.horizontal(|ui| {
                             if !row.is_default
-                                && ui
-                                    .add_enabled(
+                                && accessible_button_name(
+                                    ui.add_enabled(
                                         !app.busy,
-                                        egui::Button::new(RichText::new("Default").size(11.0))
-                                            .small(),
-                                    )
-                                    .on_hover_text("Set as default channel")
-                                    .clicked()
+                                        egui::Button::new(RichText::new("Default").size(12.0)),
+                                    ),
+                                    format!("Set Julia channel {} as default", row.name),
+                                )
+                                .on_hover_text("Set as default channel")
+                                .clicked()
                             {
                                 set_def = Some(row.name.clone());
                             }
                             if row.update.is_some()
-                                && ui
-                                    .add_enabled(
+                                && accessible_button_name(
+                                    ui.add_enabled(
                                         !app.busy,
-                                        egui::Button::new(RichText::new("Up").size(11.0)).small(),
-                                    )
-                                    .on_hover_text("Update this channel")
-                                    .clicked()
+                                        egui::Button::new(RichText::new("Update").size(12.0)),
+                                    ),
+                                    format!("Update Julia channel {}", row.name),
+                                )
+                                .on_hover_text("Update this channel")
+                                .clicked()
                             {
                                 do_update = Some(row.name.clone());
                             }
                             if !row.is_default
-                                && ui
-                                    .add_enabled(
+                                && accessible_button_name(
+                                    ui.add_enabled(
                                         !app.busy,
-                                        egui::Button::new(RichText::new("Remove").size(11.0))
-                                            .small(),
-                                    )
-                                    .on_hover_text("Remove this channel")
-                                    .clicked()
+                                        egui::Button::new(RichText::new("Remove").size(12.0)),
+                                    ),
+                                    format!("Remove Julia channel {}", row.name),
+                                )
+                                .on_hover_text("Remove this channel")
+                                .clicked()
                             {
                                 do_remove = Some(row.name.clone());
                             }
@@ -1042,7 +1346,7 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
         app.send(Op::SetDefault(ch));
     }
     if let Some(ch) = do_update {
-        app.send(Op::Update(Some(ch)));
+        app.request_update(Some(ch));
     }
     if let Some(ch) = do_remove {
         app.send(Op::Remove(ch));
@@ -1056,12 +1360,14 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
         ui.label("Filter:");
         ui.add(
             egui::TextEdit::singleline(&mut app.filter)
-                .hint_text("channel name…")
+                .hint_text(
+                    RichText::new("channel name…").color(secondary_text(ui.visuals().dark_mode)),
+                )
                 .desired_width(160.0),
         );
         ui.add_space(8.0);
         if ui
-            .add_enabled(!app.busy, egui::Button::new("Refresh DB").small())
+            .add_enabled(!app.busy, egui::Button::new("Refresh DB"))
             .on_hover_text("Download the latest Julia versions database from the server")
             .clicked()
         {
@@ -1098,21 +1404,30 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                     ui.label(RichText::new("Channel name:").size(12.0));
                     ui.add(
                         egui::TextEdit::singleline(&mut app.link_channel)
-                            .hint_text("e.g. myjulia")
+                            .hint_text(
+                                RichText::new("e.g. myjulia")
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            )
                             .desired_width(140.0),
                     );
                     ui.end_row();
                     ui.label(RichText::new("Path or +channel:").size(12.0));
                     ui.add(
                         egui::TextEdit::singleline(&mut app.link_target)
-                            .hint_text("/path/to/julia or +1.10")
+                            .hint_text(
+                                RichText::new("/path/to/julia or +1.10")
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            )
                             .desired_width(200.0),
                     );
                     ui.end_row();
                     ui.label(RichText::new("Extra args:").size(12.0));
                     ui.add(
                         egui::TextEdit::singleline(&mut app.link_args)
-                            .hint_text("optional")
+                            .hint_text(
+                                RichText::new("optional")
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            )
                             .desired_width(200.0),
                     );
                     ui.end_row();
@@ -1121,7 +1436,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                 && !app.link_channel.trim().is_empty()
                 && !app.link_target.trim().is_empty();
             if ui
-                .add_enabled(can_link, egui::Button::new("Link").small())
+                .add_enabled(can_link, egui::Button::new("Link"))
                 .clicked()
             {
                 let args: Vec<String> =
@@ -1234,7 +1549,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
         .column(Column::exact(190.0)) // Action
         .min_scrolled_height(0.0)
         .max_scroll_height(table_height)
-        .header(18.0, |mut header| {
+        .header(24.0, |mut header| {
             header.col(|ui| {
                 ui.strong("Channel");
             });
@@ -1254,7 +1569,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                 let depth = if filtering { 0 } else { entry.depth };
                 let has_children = entry.has_children;
 
-                body.row(22.0, |mut cells| {
+                body.row(30.0, |mut cells| {
                     cells.col(|ui| {
                         ui.horizontal(|ui| {
                             if depth > 0 {
@@ -1262,14 +1577,21 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                             }
                             if has_children && !filtering {
                                 let expanded = app.avail_expanded.contains(row.channel.as_str());
-                                let icon = if expanded { "v " } else { "> " };
-                                if ui
-                                    .add(
-                                        egui::Label::new(
-                                            RichText::new(icon).monospace().weak().size(11.0),
-                                        )
-                                        .sense(egui::Sense::click()),
+                                let icon = if expanded { "−" } else { "+" };
+                                let action = if expanded { "Collapse" } else { "Expand" };
+                                let response = ui.add_sized(
+                                    [24.0, 24.0],
+                                    egui::Button::new(RichText::new(icon).size(13.0)),
+                                );
+                                response.widget_info(|| {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::Button,
+                                        true,
+                                        format!("{action} versions for {}", row.channel),
                                     )
+                                });
+                                if response
+                                    .on_hover_text(format!("{action} versions for {}", row.channel))
                                     .clicked()
                                 {
                                     if expanded {
@@ -1279,21 +1601,28 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                                     }
                                 }
                             } else if !filtering && depth > 0 {
-                                ui.add_space(16.0);
+                                ui.add_space(24.0);
                             }
                             ui.add(egui::Label::new(&row.channel).truncate());
                         });
                     });
                     cells.col(|ui| {
-                        ui.label(RichText::new(&row.version).weak());
+                        ui.label(
+                            RichText::new(&row.version)
+                                .color(secondary_text(ui.visuals().dark_mode)),
+                        );
                     });
                     cells.col(|ui| {
                         if row.installed {
                             ui.label(
-                                RichText::new("Installed").color(Color32::from_rgb(80, 190, 100)),
+                                RichText::new("Installed")
+                                    .color(success_color(ui.visuals().dark_mode)),
                             );
                         } else {
-                            ui.label(RichText::new("Not installed").weak());
+                            ui.label(
+                                RichText::new("Not installed")
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            );
                         }
                     });
                     cells.col(|ui| {
@@ -1313,7 +1642,10 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                                             egui::TextEdit::singleline(
                                                 &mut app.channel_prompt_input,
                                             )
-                                            .hint_text(hint)
+                                            .hint_text(
+                                                RichText::new(hint)
+                                                    .color(secondary_text(ui.visuals().dark_mode)),
+                                            )
                                             .desired_width(60.0),
                                         );
                                         let input = app.channel_prompt_input.trim();
@@ -1330,30 +1662,47 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                                                         && b.chars().all(|c| c.is_ascii_digit())
                                                 })
                                             };
-                                        if ui
-                                            .add_enabled(valid, egui::Button::new("Go").small())
-                                            .clicked()
+                                        if accessible_button_name(
+                                            ui.add_enabled(valid, egui::Button::new("Go")),
+                                            format!(
+                                                "Install Julia channel {} with the entered value",
+                                                row.channel
+                                            ),
+                                        )
+                                        .clicked()
                                         {
                                             let ch = row.channel.replace(placeholder, input);
                                             to_install = Some(ch);
                                             app.channel_prompt = None;
                                             app.channel_prompt_input.clear();
                                         }
-                                        if ui.small_button("Cancel").clicked() {
+                                        if accessible_button_name(
+                                            ui.button("Cancel"),
+                                            format!(
+                                                "Cancel installing Julia channel {}",
+                                                row.channel
+                                            ),
+                                        )
+                                        .clicked()
+                                        {
                                             app.channel_prompt = None;
                                             app.channel_prompt_input.clear();
                                         }
                                     });
-                                } else if ui
-                                    .add_enabled(!app.busy, egui::Button::new("Install…").small())
-                                    .clicked()
+                                } else if accessible_button_name(
+                                    ui.add_enabled(!app.busy, egui::Button::new("Install…")),
+                                    format!("Choose a value for Julia channel {}", row.channel),
+                                )
+                                .clicked()
                                 {
                                     app.channel_prompt = Some(row.channel.clone());
                                     app.channel_prompt_input.clear();
                                 }
-                            } else if ui
-                                .add_enabled(!app.busy, egui::Button::new("Install").small())
-                                .clicked()
+                            } else if accessible_button_name(
+                                ui.add_enabled(!app.busy, egui::Button::new("Install")),
+                                format!("Install Julia channel {}", row.channel),
+                            )
+                            .clicked()
                             {
                                 to_install = Some(row.channel.clone());
                             }
@@ -1364,7 +1713,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
         });
 
     if let Some(ch) = to_install {
-        app.send(Op::Add(ch));
+        app.request_install(ch);
     }
 }
 
@@ -1390,7 +1739,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
             .min_col_width(200.0)
             .show(ui, |ui| {
                 // ── Versions DB update interval ──────────────────────────
-                ui.label("Versions DB update interval (minutes):")
+                ui.label("Version database refresh (minutes; 0 disables):")
                     .on_hover_text(
                         "How often juliaup refreshes the Julia versions database. 0 = disabled.",
                     );
@@ -1412,7 +1761,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 // ── Auto-install channels ────────────────────────────────
-                ui.label("Auto-install channels:").on_hover_text(
+                ui.label("Auto-install missing channels:").on_hover_text(
                     "Whether `julia +channel` automatically installs missing channels.",
                 );
                 {
@@ -1441,7 +1790,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                 ui.end_row();
 
                 // ── Manifest version detect ──────────────────────────────
-                ui.label("Manifest version detect:").on_hover_text(
+                ui.label("Detect version from project manifest:").on_hover_text(
                     "Pick the Julia version from Project.toml/Manifest.toml when present.",
                 );
                 {
@@ -1458,7 +1807,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                 // ── Channel symlinks (non-Windows) ───────────────────────
                 #[cfg(not(windows))]
                 {
-                    ui.label("Channel symlinks:")
+                    ui.label("Create channel symlinks:")
                         .on_hover_text("Create a separate symlink per installed channel.");
                     let mut v = settings.create_channel_symlinks;
                     if ui
@@ -1478,7 +1827,10 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                     ui.horizontal(|ui| {
                         let resp = ui.add(
                             egui::TextEdit::singleline(&mut app.terminal_app)
-                                .hint_text(default_terminal_hint())
+                                .hint_text(
+                                    RichText::new(default_terminal_hint())
+                                        .color(secondary_text(ui.visuals().dark_mode)),
+                                )
                                 .desired_width(200.0),
                         );
                         if resp.lost_focus() {
@@ -1505,8 +1857,8 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                         RichText::new(
                             "App name or path (e.g. iTerm, Terminal, /usr/bin/xterm). Blank = platform default.",
                         )
-                        .weak()
-                        .size(11.0),
+                        .color(secondary_text(ui.visuals().dark_mode))
+                        .size(12.0),
                     );
                 });
                 ui.end_row();
@@ -1580,7 +1932,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
             RichText::new(
                 "Make juliaup use a specific Julia channel when invoked within a directory tree.",
             )
-            .weak(),
+            .color(secondary_text(ui.visuals().dark_mode)),
         );
         ui.add_space(8.0);
 
@@ -1590,7 +1942,10 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
             .map(|s| s.overrides.clone())
             .unwrap_or_default();
         if overrides.is_empty() {
-            ui.label(RichText::new("No overrides configured.").weak());
+            ui.label(
+                RichText::new("No overrides configured.")
+                    .color(secondary_text(ui.visuals().dark_mode)),
+            );
         } else {
             egui::Grid::new("ov_grid")
                 .num_columns(3)
@@ -1606,8 +1961,10 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                     for ov in &overrides {
                         ui.label(&ov.path);
                         ui.label(&ov.channel);
-                        if ui
-                            .add_enabled(!app.busy, egui::Button::new("x Remove").small())
+                        if accessible_button_name(
+                            ui.add_enabled(!app.busy, egui::Button::new("Remove")),
+                            format!("Remove override for {}", ov.path),
+                        )
                             .clicked()
                         {
                             to_unset = Some(ov.path.clone());
@@ -1622,10 +1979,7 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
 
         ui.add_space(6.0);
         if ui
-            .add_enabled(
-                !app.busy,
-                egui::Button::new("Remove non-existent paths").small(),
-            )
+            .add_enabled(!app.busy, egui::Button::new("Remove non-existent paths"))
             .on_hover_text("Remove all overrides whose directories no longer exist on disk")
             .clicked()
         {
@@ -1643,14 +1997,20 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                 ui.label("Directory path:");
                 ui.add(
                     egui::TextEdit::singleline(&mut app.ov_path)
-                        .hint_text("/path/to/project")
+                        .hint_text(
+                            RichText::new("/path/to/project")
+                                .color(secondary_text(ui.visuals().dark_mode)),
+                        )
                         .desired_width(300.0),
                 );
                 ui.end_row();
                 ui.label("Julia channel:");
                 ui.add(
                     egui::TextEdit::singleline(&mut app.ov_channel)
-                        .hint_text("e.g. 1.10")
+                        .hint_text(
+                            RichText::new("e.g. 1.10")
+                                .color(secondary_text(ui.visuals().dark_mode)),
+                        )
                         .desired_width(120.0),
                 );
                 ui.end_row();
@@ -1687,7 +2047,7 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
             ui.label(
                 RichText::new("Installation manager for the Julia programming language")
                     .size(13.0)
-                    .color(subtle_text(ui.visuals().dark_mode)),
+                    .color(secondary_text(ui.visuals().dark_mode)),
             );
             if !app.juliaup_version.is_empty() {
                 ui.add_space(4.0);
@@ -1706,7 +2066,7 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
                         + ui.fonts(|f| {
                             f.layout_no_wrap(
                                 btn_text.into(),
-                                egui::FontId::proportional(11.0),
+                                egui::FontId::proportional(12.0),
                                 Color32::WHITE,
                             )
                             .size()
@@ -1716,16 +2076,15 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
                     let pad = ((ui.available_width() - est_width) / 2.0).max(0.0);
                     ui.add_space(pad);
                     ui.label(
-                        RichText::new(version_text).size(12.0).weak(),
+                        RichText::new(version_text)
+                            .size(12.0)
+                            .color(secondary_text(ui.visuals().dark_mode)),
                     );
                     ui.add_space(6.0);
                     if ui
                         .add_enabled(
                             !app.busy,
-                            egui::Button::new(
-                                RichText::new(btn_text).size(11.0),
-                            )
-                            .small(),
+                            egui::Button::new(RichText::new(btn_text).size(12.0)),
                         )
                         .on_hover_text(
                             "Check for and install the latest juliaup release",
@@ -1791,8 +2150,8 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
             RichText::new(
                 "When reporting issues, include your OS, juliaup version, and steps to reproduce.",
             )
-            .weak()
-            .size(11.5),
+            .color(secondary_text(ui.visuals().dark_mode))
+            .size(12.0),
         );
 
         ui.add_space(16.0);
@@ -2274,19 +2633,53 @@ fn tile_border(dark: bool) -> Color32 {
     }
 }
 
-fn muted_text(dark: bool) -> Color32 {
+/// Secondary text colors with at least 4.5:1 contrast against every custom
+/// panel and tile surface in the corresponding theme.
+fn secondary_text(dark: bool) -> Color32 {
     if dark {
-        Color32::from_rgb(130, 135, 155)
+        Color32::from_rgb(150, 155, 175)
     } else {
-        Color32::from_rgb(100, 100, 115)
+        Color32::from_rgb(85, 85, 100)
     }
 }
 
-fn subtle_text(dark: bool) -> Color32 {
+fn success_color(dark: bool) -> Color32 {
     if dark {
-        Color32::from_rgb(150, 150, 170)
+        Color32::from_rgb(105, 210, 125)
     } else {
-        Color32::from_rgb(110, 110, 125)
+        Color32::from_rgb(10, 105, 45)
+    }
+}
+
+fn warning_color(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(245, 185, 70)
+    } else {
+        Color32::from_rgb(125, 75, 0)
+    }
+}
+
+fn error_color(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(255, 120, 105)
+    } else {
+        Color32::from_rgb(170, 35, 30)
+    }
+}
+
+fn link_color(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(110, 185, 255)
+    } else {
+        Color32::from_rgb(0, 85, 155)
+    }
+}
+
+fn focus_color(dark: bool) -> Color32 {
+    if dark {
+        Color32::from_rgb(180, 140, 255)
+    } else {
+        Color32::from_rgb(90, 60, 170)
     }
 }
 
@@ -2336,14 +2729,29 @@ fn clean_line(s: &str) -> String {
 /// Spawn the juliaup binary with `args`, send each output line as `Msg::Line`,
 /// return `Ok(())` on success or `Err` with the exit status / spawn error.
 fn spawn_and_stream(args: &[&str], tx: &mpsc::Sender<Msg>) -> anyhow::Result<()> {
+    spawn_and_stream_with_pr_codesign(args, tx, false)
+}
+
+fn spawn_and_stream_with_pr_codesign(
+    args: &[&str],
+    tx: &mpsc::Sender<Msg>,
+    approve_pr_codesign: bool,
+) -> anyhow::Result<()> {
     use std::io::BufRead;
     use std::process::Stdio;
 
     let bin = juliaup_binary()?;
-    let mut child = std::process::Command::new(&bin)
+    let mut command = std::process::Command::new(&bin);
+    command
         .args(args)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env_remove("JULIAUP_PR_CODESIGN");
+    if approve_pr_codesign {
+        command.env("JULIAUP_PR_CODESIGN", "yes");
+    }
+    let mut child = command
         .spawn()
         .map_err(|e| anyhow::anyhow!("failed to spawn {}: {e}", bin.display()))?;
 
@@ -2393,10 +2801,12 @@ fn spawn_and_stream(args: &[&str], tx: &mpsc::Sender<Msg>) -> anyhow::Result<()>
 fn op_label(op: &Op) -> String {
     match op {
         Op::Reload => "Reloading…".into(),
-        Op::Add(ch) => format!("Installing '{ch}'…"),
+        Op::Add { channel, .. } => format!("Installing '{channel}'…"),
         Op::Remove(ch) => format!("Removing '{ch}'…"),
-        Op::Update(Some(ch)) => format!("Updating '{ch}'…"),
-        Op::Update(None) => "Updating all channels…".into(),
+        Op::Update {
+            channel: Some(ch), ..
+        } => format!("Updating '{ch}'…"),
+        Op::Update { channel: None, .. } => "Updating all channels…".into(),
         Op::SetDefault(ch) => format!("Setting default to '{ch}'…"),
         Op::SelfUpdate => "Updating juliaup…".into(),
         Op::Gc => "Running garbage collection…".into(),
@@ -2431,21 +2841,27 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
             Ok(s) => Msg::Loaded(Box::new(s)),
             Err(e) => Msg::Err(format!("Failed to load: {e}")),
         },
-        Op::Add(ch) => match spawn_and_stream(&["add", ch], tx) {
-            Ok(_) => Msg::Ok(format!("Installed '{ch}'")),
+        Op::Add {
+            channel,
+            approve_pr_codesign,
+        } => match spawn_and_stream_with_pr_codesign(&["add", channel], tx, *approve_pr_codesign) {
+            Ok(_) => Msg::Ok(format!("Installed '{channel}'")),
             Err(e) => Msg::Err(format!("{e}")),
         },
         Op::Remove(ch) => match spawn_and_stream(&["remove", ch], tx) {
             Ok(_) => Msg::Ok(format!("Removed '{ch}'")),
             Err(e) => Msg::Err(format!("{e}")),
         },
-        Op::Update(ch) => {
-            let args: Vec<&str> = match ch {
+        Op::Update {
+            channel,
+            approve_pr_codesign,
+        } => {
+            let args: Vec<&str> = match channel {
                 Some(c) => vec!["update", c.as_str()],
                 None => vec!["update"],
             };
-            match spawn_and_stream(&args, tx) {
-                Ok(_) => Msg::Ok(match ch {
+            match spawn_and_stream_with_pr_codesign(&args, tx, *approve_pr_codesign) {
+                Ok(_) => Msg::Ok(match channel {
                     Some(c) => format!("Updated '{c}'"),
                     None => "Updated all channels".to_string(),
                 }),
@@ -2581,9 +2997,52 @@ fn build_installed(
             version: fmt_version(ch),
             is_default: config.data.default.as_deref() == Some(name.as_str()),
             update: update_info(name, ch, config, versiondb),
+            pr_number: installed_pr_number(name, ch, config),
             name: name.clone(),
         })
         .collect()
+}
+
+fn installed_pr_number(
+    name: &str,
+    channel: &JuliaupConfigChannel,
+    config: &juliaup::config_file::JuliaupReadonlyConfigFile,
+) -> Option<String> {
+    match channel {
+        JuliaupConfigChannel::DirectDownloadChannel { .. } => {
+            julia_pr_number(name).map(String::from)
+        }
+        JuliaupConfigChannel::AliasChannel { target, .. } => config
+            .data
+            .installed_channels
+            .get(target)
+            .and_then(|target_channel| installed_pr_number(target, target_channel, config)),
+        JuliaupConfigChannel::SystemChannel { .. } | JuliaupConfigChannel::LinkedChannel { .. } => {
+            None
+        }
+    }
+}
+
+fn julia_pr_number(channel: &str) -> Option<&str> {
+    let channel = channel.split_once('~').map_or(channel, |(base, _)| base);
+    let number = channel.strip_prefix("pr")?;
+    (!number.is_empty() && number.chars().all(|c| c.is_ascii_digit())).then_some(number)
+}
+
+fn julia_pr_url(number: &str) -> String {
+    format!("https://github.com/JuliaLang/julia/pull/{number}")
+}
+
+fn pr_link(ui: &mut egui::Ui, number: &str, title: Option<&str>) -> egui::Response {
+    ui.hyperlink_to(format!("#{number}"), julia_pr_url(number))
+        .on_hover_text(pr_link_hover_text(number, title))
+}
+
+fn pr_link_hover_text(number: &str, title: Option<&str>) -> String {
+    title.map_or_else(
+        || format!("Open Julia pull request #{number} on GitHub"),
+        |title| format!("#{number}: {title}\nOpen on GitHub"),
+    )
 }
 
 fn build_available(
@@ -2752,6 +3211,16 @@ fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
             visuals.faint_bg_color = Color32::from_rgb(238, 240, 245);
         }
 
+        let primary_text = if dark {
+            Color32::from_rgb(205, 205, 215)
+        } else {
+            Color32::from_rgb(70, 70, 80)
+        };
+        visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0_f32, primary_text);
+        visuals.hyperlink_color = link_color(dark);
+        visuals.warn_fg_color = warning_color(dark);
+        visuals.error_fg_color = error_color(dark);
+
         // Rounded controls
         let r = egui::Rounding::same(5.0);
         visuals.widgets.noninteractive.rounding = r;
@@ -2797,7 +3266,9 @@ fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
         );
         style.spacing.button_padding = egui::Vec2::new(7.0, 3.0);
         style.spacing.item_spacing = egui::Vec2::new(6.0, 4.0);
+        style.spacing.interact_size.y = 24.0;
         style.spacing.window_margin = egui::Margin::same(8.0);
+        style.visuals.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         ctx.set_style_of(theme, style);
     }
@@ -2990,6 +3461,36 @@ mod tests {
     }
 
     #[test]
+    fn julia_pr_channels_link_to_the_matching_github_pr() {
+        assert_eq!(julia_pr_number("pr123"), Some("123"));
+        assert_eq!(julia_pr_number("pr123~x64"), Some("123"));
+        assert_eq!(julia_pr_number("pr00123~aarch64"), Some("00123"));
+        assert_eq!(
+            julia_pr_url("123"),
+            "https://github.com/JuliaLang/julia/pull/123"
+        );
+    }
+
+    #[test]
+    fn non_pr_channels_do_not_get_github_pr_links() {
+        for channel in ["pr", "pr{number}", "pr123-extra", "xpr123", "release"] {
+            assert_eq!(julia_pr_number(channel), None, "{channel}");
+        }
+    }
+
+    #[test]
+    fn pr_link_hover_text_includes_the_pr_title_when_available() {
+        assert_eq!(
+            pr_link_hover_text("123", Some("Fix macOS PR installs")),
+            "#123: Fix macOS PR installs\nOpen on GitHub"
+        );
+        assert_eq!(
+            pr_link_hover_text("123", None),
+            "Open Julia pull request #123 on GitHub"
+        );
+    }
+
+    #[test]
     fn system_theme_uses_the_theme_reported_by_the_os() {
         let ctx = egui::Context::default();
         ctx.begin_pass(egui::RawInput {
@@ -3005,6 +3506,75 @@ mod tests {
             Color32::from_rgb(248, 249, 252)
         );
         let _ = ctx.end_pass();
+    }
+
+    fn relative_luminance(color: Color32) -> f32 {
+        let linear = |component: u8| {
+            let value = component as f32 / 255.0;
+            if value <= 0.04045 {
+                value / 12.92
+            } else {
+                ((value + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * linear(color.r()) + 0.7152 * linear(color.g()) + 0.0722 * linear(color.b())
+    }
+
+    fn contrast_ratio(a: Color32, b: Color32) -> f32 {
+        let (lighter, darker) = {
+            let a = relative_luminance(a);
+            let b = relative_luminance(b);
+            if a >= b {
+                (a, b)
+            } else {
+                (b, a)
+            }
+        };
+        (lighter + 0.05) / (darker + 0.05)
+    }
+
+    fn assert_contrast(label: &str, foreground: Color32, background: Color32, minimum: f32) {
+        let ratio = contrast_ratio(foreground, background);
+        assert!(
+            ratio >= minimum,
+            "{label} contrast was {ratio:.2}:1, expected at least {minimum:.1}:1"
+        );
+    }
+
+    #[test]
+    fn custom_palette_meets_wcag_contrast_targets() {
+        for dark in [true, false] {
+            let panel = if dark {
+                Color32::from_rgb(28, 30, 36)
+            } else {
+                Color32::from_rgb(248, 249, 252)
+            };
+            let tile = tile_bg(dark, false);
+            let hovered_tile = tile_bg(dark, true);
+            let button = if dark {
+                Color32::from_gray(60)
+            } else {
+                Color32::from_gray(230)
+            };
+            let text_surfaces = [panel, tile, hovered_tile];
+
+            for surface in text_surfaces {
+                assert_contrast("secondary text", secondary_text(dark), surface, 4.5);
+                assert_contrast("success text", success_color(dark), surface, 4.5);
+                assert_contrast("warning text", warning_color(dark), surface, 4.5);
+                assert_contrast("error text", error_color(dark), surface, 4.5);
+                assert_contrast("link text", link_color(dark), surface, 4.5);
+                assert_contrast("focus indicator", focus_color(dark), surface, 3.0);
+            }
+            assert_contrast("success button text", success_color(dark), button, 4.5);
+        }
+
+        assert_contrast(
+            "selected text",
+            Color32::WHITE,
+            Color32::from_rgb(90, 60, 170),
+            4.5,
+        );
     }
 
     // ── shell_quote / build_launch_cmd (POSIX) ───────────────────────────
