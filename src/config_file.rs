@@ -137,7 +137,7 @@ pub struct JuliaupConfig {
 }
 
 #[cfg(feature = "selfupdate")]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct JuliaupSelfConfig {
     #[serde(
         rename = "BackgroundSelfUpdateInterval",
@@ -306,11 +306,14 @@ fn read_config_db(paths: &GlobalPaths) -> Result<JuliaupReadonlyConfigFile> {
                     )
                 })?
             }
-            Err(error) => bail!(
-                "Could not open self configuration file {:?}: {:?}",
-                paths.juliaupselfconfig,
-                error
-            ),
+            Err(error) => match error.kind() {
+                ErrorKind::NotFound => JuliaupSelfConfig::default(),
+                other_error => bail!(
+                    "Could not open self configuration file {:?}: {:?}",
+                    paths.juliaupselfconfig,
+                    other_error
+                ),
+            },
         };
     }
 
@@ -532,16 +535,56 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
     let self_data: JuliaupSelfConfig;
     #[cfg(feature = "selfupdate")]
     {
-        self_file = std::fs::OpenOptions::new()
+        self_file = match std::fs::OpenOptions::new()
             .read(true)
             .write(true)
             .open(&paths.juliaupselfconfig)
-            .with_context(|| {
-                format!(
-                    "Failed to open juliaup self config file `{}`.",
-                    paths.juliaupselfconfig.display()
-                )
-            })?;
+        {
+            Ok(file) => file,
+            Err(error) => match error.kind() {
+                ErrorKind::NotFound => {
+                    let default_config = JuliaupSelfConfig::default();
+                    if let Some(parent) = paths.juliaupselfconfig.parent() {
+                        std::fs::create_dir_all(parent).with_context(|| {
+                            format!(
+                                "Failed to create parent directory for self configuration file `{}`.",
+                                paths.juliaupselfconfig.display()
+                            )
+                        })?;
+                    }
+                    let mut new_file = std::fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .truncate(true)
+                        .open(&paths.juliaupselfconfig)
+                        .with_context(|| {
+                            format!(
+                                "Failed to create self configuration file `{}`.",
+                                paths.juliaupselfconfig.display()
+                            )
+                        })?;
+                    serde_json::to_writer_pretty(&mut new_file, &default_config).with_context(|| {
+                        format!(
+                            "Failed to write default self configuration to `{}`.",
+                            paths.juliaupselfconfig.display()
+                        )
+                    })?;
+                    new_file.rewind().with_context(|| {
+                        format!(
+                            "Failed to rewind self configuration file `{}` after writing defaults.",
+                            paths.juliaupselfconfig.display()
+                        )
+                    })?;
+                    new_file
+                }
+                other_error => bail!(
+                    "Failed to open juliaup self config file `{}`: {:?}",
+                    paths.juliaupselfconfig.display(),
+                    other_error
+                ),
+            },
+        };
 
         let reader = BufReader::new(&self_file);
 
