@@ -8,12 +8,20 @@
 
 [target.i686-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/i686-unknown-linux-gnu:edge"
+pre-build = [
+    "dpkg --add-architecture i386",
+    "apt-get update && apt-get install -y libxcb-render0-dev:i386 libxcb-shape0-dev:i386 libxcb-xfixes0-dev:i386 libxkbcommon-dev:i386 libgl-dev:i386"
+]
 
 [target.i686-unknown-linux-musl]
 image = "ghcr.io/cross-rs/i686-unknown-linux-musl:edge"
 
 [target.aarch64-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+pre-build = [
+    "dpkg --add-architecture $CROSS_DEB_ARCH",
+    "apt-get update && apt-get install -y libxcb-render0-dev:$CROSS_DEB_ARCH libxcb-shape0-dev:$CROSS_DEB_ARCH libxcb-xfixes0-dev:$CROSS_DEB_ARCH libxkbcommon-dev:$CROSS_DEB_ARCH libgl-dev:$CROSS_DEB_ARCH"
+]
 
 [target.aarch64-unknown-linux-musl]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
@@ -22,9 +30,12 @@ image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
 # builder memcmp self-check, which panics with the newer GCC in the :edge image
 # (gcc bug 95189). Force aws-lc-sys to use its CMake builder instead, which skips
 # that check: install cmake and pass AWS_LC_SYS_CMAKE_BUILDER=1 into the container.
+# The remaining packages provide the X11/OpenGL dependencies used by juliaupgui.
 [target.x86_64-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
-pre-build = ["apt-get update && apt-get install --assume-yes cmake"]
+pre-build = [
+    "apt-get update && apt-get install --assume-yes cmake libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libgl-dev"
+]
 
 [target.x86_64-unknown-linux-gnu.env]
 passthrough = ["AWS_LC_SYS_CMAKE_BUILDER"]

@@ -5,6 +5,7 @@
       <Files>
         <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="x86_64-pc-windows-msvc" />
         <BuildOutput DestinationPath="Julia\juliaup.exe" SourceTarget="juliaup" SourcePlatform="x86_64-pc-windows-msvc" />
+        <BuildOutput DestinationPath="Julia\juliaupgui.exe" SourceTarget="juliaupgui" SourcePlatform="x86_64-pc-windows-msvc" />
         <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../../target/bundledjulia/extracted/x64" SourcePattern="**/*.*" />
         <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
         <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
@@ -15,6 +16,7 @@
       <Files>
         <BuildOutput DestinationPath="Julia\julialauncher.exe" SourceTarget="julialauncher" SourcePlatform="i686-pc-windows-msvc" />
         <BuildOutput DestinationPath="Julia\juliaup.exe" SourceTarget="juliaup" SourcePlatform="i686-pc-windows-msvc" />
+        <BuildOutput DestinationPath="Julia\juliaupgui.exe" SourceTarget="juliaupgui" SourcePlatform="i686-pc-windows-msvc" />
         <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../../target/bundledjulia/extracted/x86" SourcePattern="**/*.*" />
         <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
         <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
