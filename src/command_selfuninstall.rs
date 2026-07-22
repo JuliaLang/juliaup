@@ -55,12 +55,17 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         Err(e) => eprintln!(" Failed: {e}."),
     };
 
-    if paths.juliauphome != paths.juliaupselfhome {
-        let juliaup_binfolder_path = paths.juliaupselfhome.join("bin");
+    let juliaupselfhome = paths
+        .juliaupselfexecfolder
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Could not determine parent of own executable folder."))?;
+
+    if paths.juliauphome != juliaupselfhome {
+        let juliaup_binfolder_path = paths.juliaupselfexecfolder.clone();
         let julia_symlink_path = juliaup_binfolder_path.join("julia");
         let julialauncher_path = juliaup_binfolder_path.join("julialauncher");
         let juliaup_path = juliaup_binfolder_path.join("juliaup");
-        let juliaup_config_path = paths.juliaupselfhome.join("juliaupself.json");
+        let juliaup_config_path = paths.juliaupselfconfig.clone();
 
         eprint!("Deleting julia symlink {}.", julia_symlink_path.display());
         match std::fs::remove_file(&julia_symlink_path) {
@@ -111,13 +116,12 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
                         Err(e) => eprintln!(" Failed: {e}."),
                     };
 
-                    if paths
-                        .juliaupselfhome
+                    if juliaupselfhome
                         .read_dir()
                         .with_context(|| {
                             format!(
                                 "Failed to read Juliaup folder `{}`.",
-                                paths.juliaupselfhome.display()
+                                juliaupselfhome.display()
                             )
                         })?
                         .next()
@@ -125,9 +129,9 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
                     {
                         eprint!(
                             "Deleting the Juliaup folder {}.",
-                            paths.juliaupselfhome.display()
+                            juliaupselfhome.display()
                         );
-                        match std::fs::remove_dir(&paths.juliaupselfhome) {
+                        match std::fs::remove_dir(juliaupselfhome) {
                             Ok(_) => eprintln!(" Success."),
                             Err(e) => {
                                 eprintln!(
@@ -138,7 +142,7 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
                     } else {
                         eprintln!(
                             "The Juliaup folder {} is not empty, skipping removal of the entire Juliaup folder.",
-                            paths.juliaupselfhome.display()
+                            juliaupselfhome.display()
                         );
                     }
                 }
