@@ -609,10 +609,7 @@ pub fn load_mut_config_db(paths: &GlobalPaths) -> Result<JuliaupConfigFile> {
         {
             Ok(file) => file,
             Err(error) => match error.kind() {
-                ErrorKind::NotFound => {
-                    let file = create_initial_selfconfig_file(paths)?;
-                    file
-                }
+                ErrorKind::NotFound => create_initial_selfconfig_file(paths)?,
                 other_error => bail!(
                     "Failed to open juliaup self config file `{}`: {:?}",
                     paths.juliaupselfconfig.display(),
