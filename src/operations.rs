@@ -1159,22 +1159,72 @@ fn github_api_token() -> Option<String> {
         .find_map(|var| std::env::var(var).ok().filter(|token| !token.is_empty()))
 }
 
-/// Extracts the head commit sha from a GitHub
+/// The lifecycle state of a pull request, as reported by the GitHub API.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PrState {
+    Open,
+    Merged,
+    Closed,
+}
+
+impl PrState {
+    /// Past-tense description used in the "this channel is done" notice.
+    fn description(&self) -> Option<&'static str> {
+        match self {
+            PrState::Open => None,
+            PrState::Merged => Some("merged"),
+            PrState::Closed => Some("closed"),
+        }
+    }
+}
+
+/// The parts of a GitHub `GET /repos/{owner}/{repo}/pulls/{number}` response
+/// that juliaup cares about.
+#[derive(Clone, Debug)]
+struct PrInfo {
+    head_sha: String,
+    state: PrState,
+}
+
+/// Extracts the head commit sha and lifecycle state from a GitHub
 /// `GET /repos/{owner}/{repo}/pulls/{number}` response body.
-fn pr_head_sha_from_api_response(body: &str) -> Result<String> {
+fn pr_info_from_api_response(body: &str) -> Result<PrInfo> {
     let parsed: serde_json::Value = serde_json::from_str(body)
         .with_context(|| "Failed to parse the GitHub API response as JSON.")?;
     let sha = parsed
         .pointer("/head/sha")
         .and_then(|sha| sha.as_str())
         .ok_or_else(|| anyhow!("The GitHub API response did not contain a head commit sha."))?;
-    Ok(sha.to_lowercase())
+
+    // `merged` is only present on the single-PR endpoint, so fall back to
+    // `merged_at` and treat anything else that is not open as plain closed.
+    let merged = parsed
+        .pointer("/merged")
+        .and_then(|merged| merged.as_bool())
+        .unwrap_or_else(|| {
+            parsed
+                .pointer("/merged_at")
+                .map(|merged_at| !merged_at.is_null())
+                .unwrap_or(false)
+        });
+    let state = if merged {
+        PrState::Merged
+    } else if parsed.pointer("/state").and_then(|state| state.as_str()) == Some("closed") {
+        PrState::Closed
+    } else {
+        PrState::Open
+    };
+
+    Ok(PrInfo {
+        head_sha: sha.to_lowercase(),
+        state,
+    })
 }
 
 /// Resolves a Julia pull request number to the current head commit sha of the
-/// PR branch via the GitHub API.
+/// PR branch and its lifecycle state via the GitHub API.
 #[cfg(not(windows))]
-fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
+fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
     let url = format!(
         "https://api.github.com/repos/JuliaLang/julia/pulls/{}",
         pr_number
@@ -1211,13 +1261,13 @@ fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
         _ => {}
     }
 
-    pr_head_sha_from_api_response(&response.text()?)
+    pr_info_from_api_response(&response.text()?)
 }
 
 /// Resolves a Julia pull request number to the current head commit sha of the
-/// PR branch via the GitHub API.
+/// PR branch and its lifecycle state via the GitHub API.
 #[cfg(windows)]
-fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
+fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
     use windows::Web::Http::HttpMethod;
@@ -1287,7 +1337,7 @@ fn resolve_pr_head_sha(pr_number: u64) -> Result<String> {
         .with_context(|| "Failed to read http response.")?
         .to_string();
 
-    pr_head_sha_from_api_response(&body)
+    pr_info_from_api_response(&body)
 }
 
 /// Checks whether `url` exists via an HTTP HEAD request. Connection-level
@@ -1402,7 +1452,11 @@ fn legacy_pr_download_url_path(id: &str, arch: &str) -> Option<String> {
 /// the PR number to its head sha via the GitHub API and use that location if
 /// the build exists there, otherwise we fall back to the legacy pre-migration
 /// location in the nightlies bucket.
-fn resolve_pr_download_url(id: &str, arch: &str) -> Result<Url> {
+///
+/// Also returns the lifecycle state of the PR when the GitHub API lookup
+/// succeeded, so that callers can point out that a merged or closed PR will
+/// not produce further builds.
+fn resolve_pr_download_url(id: &str, arch: &str) -> Result<(Url, Option<PrState>)> {
     let pr_number: u64 = id
         .strip_prefix("pr")
         .unwrap_or(id)
@@ -1413,19 +1467,19 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<Url> {
     // The GitHub API lookup can fail without dooming the install (e.g.
     // anonymous requests are rate-limited), so remember the error and try
     // the legacy location before giving up.
-    let (staging_url, head_sha_error) = match resolve_pr_head_sha(pr_number) {
-        Ok(head_sha) => {
+    let (staging_url, pr_state, head_sha_error) = match resolve_pr_info(pr_number) {
+        Ok(info) => {
             let base_url = get_juliaprs_base_url()?;
-            let path = pr_staging_url_path(&head_sha, os_arch)?;
+            let path = pr_staging_url_path(&info.head_sha, os_arch)?;
             let url = base_url.join(&path).with_context(|| {
                 format!(
                     "Failed to construct a valid url from '{}' and '{}'.",
                     base_url, path
                 )
             })?;
-            (Some(url), None)
+            (Some(url), Some(info.state), None)
         }
-        Err(e) => (None, Some(e)),
+        Err(e) => (None, None, Some(e)),
     };
 
     // Note: the staging bucket only grants public GetObject (no ListBucket),
@@ -1433,7 +1487,7 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<Url> {
     // treats any unsuccessful status as "not there".
     if let Some(url) = staging_url {
         if url_exists(url.as_str())? {
-            return Ok(url);
+            return Ok((url, pr_state));
         }
     }
 
@@ -1449,7 +1503,7 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<Url> {
             )
         })?;
         if url_exists(url.as_str())? {
-            return Ok(url);
+            return Ok((url, pr_state));
         }
     }
 
@@ -1557,7 +1611,7 @@ pub fn install_non_db_version(
                 )
             })?
     } else if id.starts_with("pr") {
-        resolve_pr_download_url(&id, arch)?
+        resolve_pr_download_url(&id, arch)?.0
     } else {
         bail!("Unknown non-db channel.")
     };
@@ -2520,6 +2574,28 @@ where
     }
 }
 
+/// Tells the user that a PR channel has reached the end of its life, because
+/// the pull request it tracks was merged or closed and will therefore not
+/// produce any further builds.
+fn print_pr_finished_notice(channel: &str, state: PrState) {
+    let description = match state.description() {
+        Some(description) => description,
+        None => return,
+    };
+
+    let link = Regex::new(r"^pr(\d+)")
+        .unwrap()
+        .captures(channel)
+        .map(|caps| format!(": https://github.com/JuliaLang/julia/pull/{}", &caps[1]))
+        .unwrap_or_else(|| ".".to_string());
+
+    print_juliaup_style(
+        "Note",
+        &format!("{} was {}{}", style(channel).bold(), description, link),
+        JuliaupMessageType::Warning,
+    );
+}
+
 /// The URL a direct-download channel should currently be served from.
 ///
 /// Nightly URLs are stable (`julia-latest-*`), but PR builds are staged at a
@@ -2540,7 +2616,12 @@ fn current_direct_download_url(channel: &str, recorded_url: &str) -> String {
     });
 
     match resolved {
-        Ok(url) => url.to_string(),
+        Ok((url, pr_state)) => {
+            if let Some(state) = pr_state {
+                print_pr_finished_notice(channel, state);
+            }
+            url.to_string()
+        }
         Err(e) => {
             log::debug!(
                 "Failed to re-resolve the download location of channel '{}', keeping `{}`: {:?}",
@@ -3296,11 +3377,52 @@ mod tests {
     fn pr_head_sha_extracted_from_api_response() -> Result<()> {
         let body = r#"{"number": 12345, "head": {"ref": "some-branch", "sha": "0123456789ABCDEF0123456789abcdef01234567"}}"#;
         assert_eq!(
-            pr_head_sha_from_api_response(body)?,
+            pr_info_from_api_response(body)?.head_sha,
             "0123456789abcdef0123456789abcdef01234567"
         );
-        assert!(pr_head_sha_from_api_response("{}").is_err());
-        assert!(pr_head_sha_from_api_response("not json").is_err());
+        assert!(pr_info_from_api_response("{}").is_err());
+        assert!(pr_info_from_api_response("not json").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn pr_state_extracted_from_api_response() -> Result<()> {
+        let with = |extra: &str| {
+            format!(
+                r#"{{"head": {{"sha": "0123456789abcdef0123456789abcdef01234567"}}, {}}}"#,
+                extra
+            )
+        };
+
+        assert_eq!(
+            pr_info_from_api_response(&with(r#""state": "open", "merged": false"#))?.state,
+            PrState::Open
+        );
+        assert_eq!(
+            pr_info_from_api_response(&with(r#""state": "closed", "merged": true"#))?.state,
+            PrState::Merged
+        );
+        assert_eq!(
+            pr_info_from_api_response(&with(r#""state": "closed", "merged": false"#))?.state,
+            PrState::Closed
+        );
+        // The list endpoint has no `merged` field, only `merged_at`.
+        assert_eq!(
+            pr_info_from_api_response(&with(
+                r#""state": "closed", "merged_at": "2026-01-01T00:00:00Z""#
+            ))?
+            .state,
+            PrState::Merged
+        );
+        assert_eq!(
+            pr_info_from_api_response(&with(r#""state": "closed", "merged_at": null"#))?.state,
+            PrState::Closed
+        );
+        // A response without any state information is treated as still open.
+        assert_eq!(
+            pr_info_from_api_response(&with(r#""number": 12345"#))?.state,
+            PrState::Open
+        );
         Ok(())
     }
 }
