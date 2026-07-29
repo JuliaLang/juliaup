@@ -13,6 +13,7 @@ use cli_table::{
 };
 use itertools::Itertools;
 use numeric_sort::cmp;
+use regex::Regex;
 
 fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
     let mut combined_command = String::new();
@@ -41,10 +42,16 @@ fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
     format!("Linked to `{combined_command}`")
 }
 
-fn format_version(channel: &JuliaupConfigChannel) -> String {
+fn format_version(channel_name: &str, channel: &JuliaupConfigChannel) -> String {
     match channel {
         JuliaupConfigChannel::DirectDownloadChannel { version, .. } => {
-            format!("Development version {version}")
+            match Regex::new(r"^pr(\d+)").unwrap().captures(channel_name) {
+                Some(caps) => format!(
+                    "{version} https://github.com/JuliaLang/julia/pull/{}",
+                    &caps[1]
+                ),
+                None => version.clone(),
+            }
         }
         JuliaupConfigChannel::SystemChannel { version } => version.clone(),
         JuliaupConfigChannel::LinkedChannel { command, args } => {
@@ -133,7 +140,7 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
                 _ => "",
             },
             name: channel_name.to_string(),
-            version: format_version(channel),
+            version: format_version(channel_name, channel),
             update: get_update_info(channel_name, channel, &config_file, &versiondb_data),
         })
         .collect();
@@ -151,4 +158,61 @@ pub fn run_command_status(paths: &GlobalPaths) -> Result<()> {
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn direct_download_channel(version: &str) -> JuliaupConfigChannel {
+        JuliaupConfigChannel::DirectDownloadChannel {
+            path: "somepath".to_string(),
+            url: "https://example.com/julia.tar.gz".to_string(),
+            local_etag: "etag".to_string(),
+            server_etag: "etag".to_string(),
+            version: version.to_string(),
+            binary_path: None,
+        }
+    }
+
+    #[test]
+    fn format_version_pr_channel_shows_pr_url() {
+        assert_eq!(
+            format_version("pr59158", &direct_download_channel("1.14.0-DEV.123")),
+            "1.14.0-DEV.123 https://github.com/JuliaLang/julia/pull/59158"
+        );
+    }
+
+    #[test]
+    fn format_version_pr_channel_with_platform_suffix_shows_pr_url() {
+        assert_eq!(
+            format_version("pr59158~x64", &direct_download_channel("1.14.0-DEV.123")),
+            "1.14.0-DEV.123 https://github.com/JuliaLang/julia/pull/59158"
+        );
+    }
+
+    #[test]
+    fn format_version_nightly_channel_shows_only_version() {
+        assert_eq!(
+            format_version("nightly", &direct_download_channel("1.14.0-DEV.456")),
+            "1.14.0-DEV.456"
+        );
+        assert_eq!(
+            format_version("1.13-nightly", &direct_download_channel("1.13.0-DEV.789")),
+            "1.13.0-DEV.789"
+        );
+    }
+
+    #[test]
+    fn format_version_system_channel_unchanged() {
+        assert_eq!(
+            format_version(
+                "1.11",
+                &JuliaupConfigChannel::SystemChannel {
+                    version: "1.11.2+0.x64.apple.darwin14".to_string()
+                }
+            ),
+            "1.11.2+0.x64.apple.darwin14"
+        );
+    }
 }
