@@ -77,6 +77,9 @@ pub enum Juliaup {
     #[clap(name = "_post-update", hide = true)]
     /// Run post-update tasks (called by the old binary after extracting the new one)
     PostUpdate {},
+
+    /// Launch the graphical user interface
+    Gui {},
     // This is used for the cron jobs that we create. By using this UUID for the command
     // We can identify the cron jobs that were created by juliaup for uninstall purposes
     #[cfg(feature = "selfupdate")]

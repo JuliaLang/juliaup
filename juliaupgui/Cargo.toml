@@ -1,0 +1,21 @@
+[package]
+name = "juliaupgui"
+version = "0.1.0"
+edition = "2021"
+description = "Graphical interface for the Julia version manager"
+license = "MIT"
+
+[[bin]]
+name = "juliaupgui"
+path = "src/main.rs"
+
+[dependencies]
+juliaup = { path = ".." }
+eframe = "0.29"
+egui = "0.29"
+egui_extras = "0.29"
+anyhow = "1"
+human-panic = "2"
+itertools = "0.14"
+numeric-sort = "0.1"
+rfd = "0.15"
