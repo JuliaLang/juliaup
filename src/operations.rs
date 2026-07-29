@@ -1172,8 +1172,8 @@ impl PrState {
     fn description(&self) -> Option<&'static str> {
         match self {
             PrState::Open => None,
-            PrState::Merged => Some("has been merged"),
-            PrState::Closed => Some("has been closed"),
+            PrState::Merged => Some("merged"),
+            PrState::Closed => Some("closed"),
         }
     }
 }
@@ -2576,44 +2576,22 @@ where
 
 /// Tells the user that a PR channel has reached the end of its life, because
 /// the pull request it tracks was merged or closed and will therefore not
-/// produce any further builds, and how to get rid of the channel.
+/// produce any further builds.
 fn print_pr_finished_notice(channel: &str, state: PrState) {
     let description = match state.description() {
         Some(description) => description,
         None => return,
     };
 
-    let pr_number = Regex::new(r"^pr(\d+)")
+    let link = Regex::new(r"^pr(\d+)")
         .unwrap()
         .captures(channel)
-        .map(|caps| caps[1].to_string());
+        .map(|caps| format!(": https://github.com/JuliaLang/julia/pull/{}", &caps[1]))
+        .unwrap_or_else(|| ".".to_string());
 
-    let subject = match &pr_number {
-        Some(pr_number) => format!("pull request {}", style(format!("#{}", pr_number)).bold()),
-        None => "the pull request".to_string(),
-    };
-    let link = match &pr_number {
-        Some(pr_number) => format!(
-            "\n{:>13}https://github.com/JuliaLang/julia/pull/{}",
-            "", pr_number
-        ),
-        None => String::new(),
-    };
-
-    // The continuation lines are indented to line up with the message column
-    // of `print_juliaup_style`.
     print_juliaup_style(
         "Note",
-        &format!(
-            "{} {}, so channel '{}' will not receive further updates.{}\n\
-             {:>13}Remove it with: {}",
-            subject,
-            description,
-            channel,
-            link,
-            "",
-            style(format!("juliaup remove {}", channel)).bold(),
-        ),
+        &format!("{} was {}{}", style(channel).bold(), description, link),
         JuliaupMessageType::Warning,
     );
 }
