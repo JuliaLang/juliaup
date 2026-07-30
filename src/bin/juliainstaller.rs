@@ -132,15 +132,27 @@ struct Juliainstaller {
     /// Specify alternate path for Juliaup
     #[clap(short = 'p', long = "path")]
     alternate_path: Option<String>,
-    /// Control adding the Juliaup dir to the PATH
-    /// Use Option<bool> and default_value="yes" to force --add-to-path=[yes|no|0|1] instead of flag
-    #[clap(long = "add-to-path", value_parser = BoolishValueParser::new(), default_value = "yes")]
+    /// Add the Juliaup bin directory to PATH startup files
+    #[clap(
+        long = "add-to-path",
+        value_parser = BoolishValueParser::new(),
+        default_value = "yes",
+        value_name = "yes|no|0|1"
+    )]
     add_to_path: Option<bool>,
-    /// Manually specify the background self-update interval
-    #[clap(long = "background-selfupdate", default_value_t = 0)]
+    /// Check for Juliaup self-updates in the background every MINUTES minutes
+    #[clap(
+        long = "background-selfupdate",
+        default_value_t = 0,
+        value_name = "MINUTES"
+    )]
     background_selfupdate_interval: i64,
-    /// Manually specify the statup self-update interval
-    #[clap(long = "startup-selfupdate", default_value_t = 1440)]
+    /// Check for Juliaup self-updates when Julia starts every MINUTES minutes
+    #[clap(
+        long = "startup-selfupdate",
+        default_value_t = 1440,
+        value_name = "MINUTES"
+    )]
     startup_selfupdate_interval: i64,
 }
 
