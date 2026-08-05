@@ -438,6 +438,16 @@ pub fn get_arch() -> Result<String> {
     bail!("Running on an unknown arch: {}.", std::env::consts::ARCH)
 }
 
+pub fn format_version_for_display(value: &str) -> String {
+    match Version::parse(value) {
+        Ok(mut version) => {
+            version.build = BuildMetadata::EMPTY;
+            version.to_string()
+        }
+        Err(_) => value.to_string(),
+    }
+}
+
 pub fn parse_versionstring(value: &String) -> Result<(String, Version)> {
     let version = Version::parse(value).unwrap();
 
@@ -491,6 +501,24 @@ mod tests {
         let (p, v) = parse_versionstring(&s.to_owned()).unwrap();
         assert_eq!(p, "x64");
         assert_eq!(v, Version::new(1, 10, 10));
+    }
+
+    #[test]
+    fn format_version_for_display_removes_build_metadata() {
+        assert_eq!(
+            format_version_for_display("1.12.6+0.aarch64.apple.darwin14"),
+            "1.12.6"
+        );
+        assert_eq!(
+            format_version_for_display("1.13.0-rc1+0.x64.linux.gnu"),
+            "1.13.0-rc1"
+        );
+    }
+
+    #[test]
+    fn format_version_for_display_preserves_other_strings() {
+        assert_eq!(format_version_for_display("1.12.6"), "1.12.6");
+        assert_eq!(format_version_for_display("nightly"), "nightly");
     }
 
     #[test]
