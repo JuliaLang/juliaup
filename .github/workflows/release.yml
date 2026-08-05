@@ -243,7 +243,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@b897b7d2f083c6274295825fdbd5a39b825c3f82 # v5.0.6
+      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -389,7 +389,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@b897b7d2f083c6274295825fdbd5a39b825c3f82 # v5.0.6
+      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
