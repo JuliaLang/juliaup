@@ -1149,7 +1149,7 @@ jobs:
     - name: Update Homebrew formula
       id: bump
       continue-on-error: true
-      uses: dawidd6/action-homebrew-bump-formula@1446dca236b0440c6f02723a3f14f13be2c04ab0 # v7
+      uses: dawidd6/action-homebrew-bump-formula@a0e064e08103c01870c6d1b05168d1b726aab119 # v8
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup

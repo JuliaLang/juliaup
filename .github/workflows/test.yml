@@ -140,7 +140,7 @@ jobs:
         # scripts when restored into an old-glibc container.
         cache-key: ${{matrix.label}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419 # v2.82.7
+      uses: taiki-e/install-action@c44f6b046f1c29ae5918b1e0bfdbb2f1813836fd # v2.84.1
       with:
         tool: cross
     - name: Check build
