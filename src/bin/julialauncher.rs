@@ -7,7 +7,7 @@ use juliaup::config_file::{
     load_config_db_lockfree, load_mut_config_db, save_config_db, JuliaupConfig,
     JuliaupConfigChannel, JuliaupConfigVersion,
 };
-use juliaup::global_paths::get_paths;
+use juliaup::global_paths::{get_paths, GlobalPaths};
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
@@ -37,25 +37,9 @@ pub struct UserError {
     msg: String,
 }
 
-fn get_juliaup_path() -> Result<PathBuf> {
-    let my_own_path = std::env::current_exe()
-        .with_context(|| "std::env::current_exe() did not find its own path.")?
-        .canonicalize()
-        .with_context(|| "Failed to canonicalize the path to the Julia launcher.")?;
-
-    let juliaup_path = my_own_path
-        .parent()
-        .unwrap() // unwrap OK here because this can't happen
-        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
-
-    Ok(juliaup_path)
-}
-
-fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
+fn do_initial_setup(juliaupconfig_path: &Path, path: &GlobalPaths) -> Result<()> {
     if !juliaupconfig_path.exists() {
-        let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
-
-        std::process::Command::new(juliaup_path)
+        std::process::Command::new(&path.juliaupselfexec)
             .arg("46029ef5-0b73-4a71-bff3-d0d05de42aac") // This is our internal command to do the initial setup
             .status()
             .with_context(|| "Failed to start juliaup for the initial setup.")?;
@@ -65,6 +49,7 @@ fn do_initial_setup(juliaupconfig_path: &Path) -> Result<()> {
 
 fn run_versiondb_update(
     config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    paths: &GlobalPaths,
 ) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
@@ -82,10 +67,7 @@ fn run_versiondb_update(
             };
 
         if should_run {
-            let juliaup_path =
-                get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
-
-            std::process::Command::new(juliaup_path)
+            std::process::Command::new(&paths.juliaupselfexec)
                 .args(["0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf"])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -99,7 +81,10 @@ fn run_versiondb_update(
 }
 
 #[cfg(feature = "selfupdate")]
-fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+fn run_selfupdate(
+    config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    paths: &GlobalPaths,
+) -> Result<()> {
     use chrono::Utc;
     use std::process::Stdio;
 
@@ -113,10 +98,7 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
         };
 
         if should_run {
-            let juliaup_path =
-                get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
-
-            std::process::Command::new(juliaup_path)
+            std::process::Command::new(&paths.juliaupselfexec)
                 .args(["self", "update"])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -130,7 +112,10 @@ fn run_selfupdate(config_file: &juliaup::config_file::JuliaupReadonlyConfigFile)
 }
 
 #[cfg(not(feature = "selfupdate"))]
-fn run_selfupdate(_config_file: &juliaup::config_file::JuliaupReadonlyConfigFile) -> Result<()> {
+fn run_selfupdate(
+    _config_file: &juliaup::config_file::JuliaupReadonlyConfigFile,
+    _paths: &GlobalPaths,
+) -> Result<()> {
     Ok(())
 }
 
@@ -251,7 +236,7 @@ fn set_auto_install_preference(
 
 fn spawn_juliaup_add(
     channel: &str,
-    _paths: &juliaup::global_paths::GlobalPaths,
+    paths: &juliaup::global_paths::GlobalPaths,
     is_automatic: bool,
 ) -> Result<()> {
     if is_automatic {
@@ -268,9 +253,7 @@ fn spawn_juliaup_add(
         );
     }
 
-    let juliaup_path = get_juliaup_path().with_context(|| "Failed to obtain juliaup path.")?;
-
-    let status = std::process::Command::new(juliaup_path)
+    let status = std::process::Command::new(&paths.juliaupselfexec)
         .args(["add", channel])
         .status()
         .with_context(|| format!("Failed to spawn juliaup to install channel '{}'", channel))?;
@@ -621,7 +604,7 @@ fn run_app() -> Result<i32> {
 
     let paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
-    do_initial_setup(&paths.juliaupconfig)
+    do_initial_setup(&paths.juliaupconfig, &paths)
         .with_context(|| "The Julia launcher failed to run the initial setup steps.")?;
 
     // Read the configuration without taking the configuration lock, so that
@@ -745,10 +728,10 @@ fn run_app() -> Result<i32> {
                     ctrlc::set_handler(|| ())
                         .with_context(|| "Failed to set the Ctrl-C handler.")?;
 
-                    run_versiondb_update(&config_file)
+                    run_versiondb_update(&config_file, &paths)
                         .with_context(|| "Failed to run version db update")?;
 
-                    run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+                    run_selfupdate(&config_file, &paths).with_context(|| "Failed to run selfupdate.")?;
                 }
                 Err(_) => panic!("Could not double-fork"),
             }
@@ -809,9 +792,9 @@ fn run_app() -> Result<i32> {
             )
         };
 
-        run_versiondb_update(&config_file).with_context(|| "Failed to run version db update")?;
+        run_versiondb_update(&config_file, &paths).with_context(|| "Failed to run version db update")?;
 
-        run_selfupdate(&config_file).with_context(|| "Failed to run selfupdate.")?;
+        run_selfupdate(&config_file, &paths).with_context(|| "Failed to run selfupdate.")?;
 
         let status = child_process
             .wait()

@@ -1,7 +1,5 @@
 use crate::get_juliaup_target;
-#[cfg(feature = "selfupdate")]
-use anyhow::Context;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::path::PathBuf;
 pub struct GlobalPaths {
     pub juliauphome: PathBuf,
@@ -9,11 +7,9 @@ pub struct GlobalPaths {
     pub lockfile: PathBuf,
     pub versiondb: PathBuf,
     #[cfg(feature = "selfupdate")]
-    pub juliaupselfhome: PathBuf,
-    #[cfg(feature = "selfupdate")]
     pub juliaupselfconfig: PathBuf,
-    #[cfg(feature = "selfupdate")]
-    pub juliaupselfbin: PathBuf,
+    pub juliaupselfexecfolder: PathBuf,
+    pub juliaupselfexec: PathBuf,
 }
 
 fn get_juliaup_home_path() -> Result<PathBuf> {
@@ -56,15 +52,26 @@ fn get_default_juliaup_home_path() -> Result<PathBuf> {
 pub fn get_paths() -> Result<GlobalPaths> {
     let juliauphome = get_juliaup_home_path()?;
 
-    #[cfg(feature = "selfupdate")]
     let my_own_path = std::env::current_exe()
         .with_context(|| "Could not determine the path of the running exe.")?;
 
-    #[cfg(feature = "selfupdate")]
-    let juliaupselfbin = my_own_path
+    let canonicalized = if let Ok(canonical) = dunce::canonicalize(&my_own_path) {
+        canonical
+    } else {
+        my_own_path
+    };
+
+    let juliaupselfexecfolder = canonicalized
         .parent()
         .ok_or_else(|| anyhow!("Could not determine parent."))?
         .to_path_buf();
+
+    let juliaupselfexec = juliaupselfexecfolder
+        .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
+    // `get_paths()` is called from both `julialauncher` and `juliaup`. When the
+    // launcher calls it, `current_exe()` returns the launcher's path, not
+    // juliaup's — they are siblings in the bin dir, so we go `parent()` to get
+    // the bin dir, then rejoin `juliaup` to find the juliaup binary.
 
     let juliaupconfig = juliauphome.join("juliaup.json");
 
@@ -73,15 +80,10 @@ pub fn get_paths() -> Result<GlobalPaths> {
     let lockfile = juliauphome.join(".juliaup-lock");
 
     #[cfg(feature = "selfupdate")]
-    let juliaupselfhome = my_own_path
+    let juliaupselfconfig = juliaupselfexecfolder
         .parent()
-        .ok_or_else(|| anyhow!("Failed to get path of folder of own executable."))?
-        .parent()
-        .ok_or_else(|| anyhow!("Failed to get parent path of folder of own executable."))?
-        .to_path_buf();
-
-    #[cfg(feature = "selfupdate")]
-    let juliaupselfconfig = juliaupselfhome.join("juliaupself.json");
+        .ok_or_else(|| anyhow!("Failed to get parent path of own executable folder."))?
+        .join("juliaupself.json");
 
     Ok(GlobalPaths {
         juliauphome,
@@ -89,10 +91,8 @@ pub fn get_paths() -> Result<GlobalPaths> {
         lockfile,
         versiondb,
         #[cfg(feature = "selfupdate")]
-        juliaupselfhome,
-        #[cfg(feature = "selfupdate")]
         juliaupselfconfig,
-        #[cfg(feature = "selfupdate")]
-        juliaupselfbin,
+        juliaupselfexecfolder,
+        juliaupselfexec,
     })
 }
