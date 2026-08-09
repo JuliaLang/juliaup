@@ -67,7 +67,7 @@
         AppListEntry="none">
         <uap:DefaultTile
           Wide310x150Logo="Images\Wide310x150Logo.png"
-          ShortName="Juliaup"
+          ShortName="Julia"
           Square71x71Logo="Images\SmallTile.png"
           Square310x310Logo="Images\LargeTile.png">
           <uap:ShowNameOnTiles>
