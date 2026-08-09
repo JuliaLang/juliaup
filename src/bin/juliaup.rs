@@ -175,8 +175,6 @@ fn main() -> Result<()> {
                     exe.display()
                 );
             }
-            // Ensure application shortcut exists for this install
-            let _ = juliaup::command_app_shortcut::create_app_shortcut(&exe);
             std::process::Command::new(&exe)
                 .status()
                 .with_context(|| format!("Failed to launch GUI at '{}'", exe.display()))
