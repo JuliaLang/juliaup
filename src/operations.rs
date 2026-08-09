@@ -2878,12 +2878,11 @@ fn prompt_and_codesign_pr_build(dir: &Path) -> Result<bool> {
             eprint!("\nWould you like to automatically codesign this PR build now? [Y/n]: ");
             io::stderr().flush()?;
 
+            // An empty read means stdin is closed (piped or scripted input). Fall
+            // back to the `[Y/n]` default rather than failing, so non-interactive
+            // installs keep working the way they did before.
             let mut input = String::new();
-            if io::stdin().read_line(&mut input)? == 0 {
-                bail!(
-                    "Cannot prompt for PR build codesigning because standard input is unavailable."
-                );
-            }
+            io::stdin().read_line(&mut input)?;
             !matches!(input.trim().to_ascii_lowercase().as_str(), "n" | "no")
         }
     };
