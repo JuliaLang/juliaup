@@ -541,7 +541,8 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = &ui.ctx().clone();
         self.poll();
 
         let splash_t = self.splash_start.elapsed().as_secs_f32();
@@ -553,52 +554,50 @@ impl eframe::App for App {
         // ── title + tab bar ───────────────────────────────────────────────
         // We need the header logo rect to animate the dots sliding there
         let mut logo_screen_rect: Option<egui::Rect> = None;
-        egui::TopBottomPanel::top("top")
-            .min_height(40.0)
-            .show(ctx, |ui| {
-                ui.add_space(5.0);
-                ui.horizontal_wrapped(|ui| {
-                    ui.add_space(10.0);
-                    // Always allocate space for the logo so layout is stable
-                    let (rect, _) =
-                        ui.allocate_exact_size(egui::Vec2::splat(26.0), egui::Sense::hover());
-                    logo_screen_rect = Some(rect);
-                    // Always paint the static logo
-                    if ui.is_rect_visible(rect) {
-                        paint_julia_dots(&ui.painter_at(rect), rect);
-                    }
-                    ui.add_space(4.0);
-                    ui.label(RichText::new("Juliaup").size(20.0).strong());
-                    ui.add_space(8.0);
-                    ui.separator();
-                    ui.add_space(4.0);
-                    ui.label(
-                        RichText::new("Installation manager for the Julia programming language")
-                            .size(12.0)
-                            .color(secondary_text(ui.visuals().dark_mode)),
-                    );
+        egui::Panel::top("top").min_size(40.0).show(ui, |ui| {
+            ui.add_space(5.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.add_space(10.0);
+                // Always allocate space for the logo so layout is stable
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::Vec2::splat(26.0), egui::Sense::hover());
+                logo_screen_rect = Some(rect);
+                // Always paint the static logo
+                if ui.is_rect_visible(rect) {
+                    paint_julia_dots(&ui.painter_at(rect), rect);
+                }
+                ui.add_space(4.0);
+                ui.label(RichText::new("Juliaup").size(20.0).strong());
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.label(
+                    RichText::new("Installation manager for the Julia programming language")
+                        .size(12.0)
+                        .color(secondary_text(ui.visuals().dark_mode)),
+                );
 
-                    // Tabs listed in reverse because the layout is right-to-left
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(10.0);
-                        for (t, label) in [
-                            (Tab::About, "About"),
-                            (Tab::Config, "Configuration"),
-                            (Tab::Available, "Available"),
-                            (Tab::Installed, "Installed"),
-                        ] {
-                            ui.selectable_value(&mut self.tab, t, label);
-                            ui.add_space(1.0);
-                        }
-                    });
+                // Tabs listed in reverse because the layout is right-to-left
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(10.0);
+                    for (t, label) in [
+                        (Tab::About, "About"),
+                        (Tab::Config, "Configuration"),
+                        (Tab::Available, "Available"),
+                        (Tab::Installed, "Installed"),
+                    ] {
+                        ui.selectable_value(&mut self.tab, t, label);
+                        ui.add_space(1.0);
+                    }
                 });
-                ui.add_space(3.0);
             });
+            ui.add_space(3.0);
+        });
 
         // ── activity panel ────────────────────────────────────────────────
-        egui::TopBottomPanel::bottom("status")
+        egui::Panel::bottom("status")
             .resizable(false)
-            .show(ctx, |ui| {
+            .show(ui, |ui| {
                 ui.add_space(2.0);
                 ui.horizontal(|ui| {
                     ui.add_space(8.0);
@@ -671,7 +670,7 @@ impl eframe::App for App {
             });
 
         // ── main content ──────────────────────────────────────────────────
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.add_space(4.0);
             match self.tab {
                 Tab::Installed => tab_installed(self, ui),
@@ -943,7 +942,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         // Subtle hover effects
                         let fill = tile_bg(dark, hovered);
                         let stroke_w = if hovered { 2.0_f32 } else { 1.5_f32 };
-                        let rounding = egui::Rounding::same(8.0);
+                        let rounding = egui::CornerRadius::same(8);
 
                         // Paint the frame manually at the allocated rect
                         ui.painter().rect(
@@ -951,6 +950,7 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             rounding,
                             fill,
                             egui::Stroke::new(stroke_w, border_col),
+                            egui::StrokeKind::Inside,
                         );
 
                         // Place child UI inside the tile rect
@@ -1142,9 +1142,10 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         };
                         ui.painter().rect(
                             add_rect,
-                            egui::Rounding::same(8.0),
+                            egui::CornerRadius::same(8),
                             add_fill,
                             egui::Stroke::new(add_stroke_w, add_border),
+                            egui::StrokeKind::Inside,
                         );
                         // Center the label in the tile
                         ui.painter().text(
@@ -2059,7 +2060,7 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
                 ui.horizontal(|ui| {
                     let version_text = format!("Version {}", app.juliaup_version);
                     let btn_text = "Check for updates";
-                    let est_width = ui.fonts(|f| {
+                    let est_width = ui.ctx().fonts_mut(|f| {
                         f.layout_no_wrap(
                             version_text.clone(),
                             egui::FontId::proportional(12.0),
@@ -2068,7 +2069,7 @@ fn tab_about(app: &mut App, ui: &mut egui::Ui) {
                         .size()
                         .x
                     }) + 6.0
-                        + ui.fonts(|f| {
+                        + ui.ctx().fonts_mut(|f| {
                             f.layout_no_wrap(
                                 btn_text.into(),
                                 egui::FontId::proportional(12.0),
@@ -3141,7 +3142,7 @@ fn ease_out_cubic(t: f32) -> f32 {
 }
 
 fn paint_splash(ctx: &egui::Context, t: f32, _logo_rect: Option<egui::Rect>) {
-    let screen = ctx.screen_rect();
+    let screen = ctx.viewport_rect();
     let painter = ctx.layer_painter(egui::LayerId::new(
         egui::Order::Foreground,
         egui::Id::new("splash"),
@@ -3158,7 +3159,7 @@ fn paint_splash(ctx: &egui::Context, t: f32, _logo_rect: Option<egui::Rect>) {
         (200.0 * (1.0 - ease_out_cubic(p))) as u8
     };
     if alpha > 0 {
-        let (sr, sg, sb) = scrim_base(ctx.style().visuals.dark_mode);
+        let (sr, sg, sb) = scrim_base(ctx.theme() == egui::Theme::Dark);
         painter.rect_filled(
             screen,
             0.0,
@@ -3229,13 +3230,13 @@ fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
         visuals.error_fg_color = error_color(dark);
 
         // Rounded controls
-        let r = egui::Rounding::same(5.0);
-        visuals.widgets.noninteractive.rounding = r;
-        visuals.widgets.inactive.rounding = r;
-        visuals.widgets.hovered.rounding = r;
-        visuals.widgets.active.rounding = r;
-        visuals.menu_rounding = r;
-        visuals.window_rounding = egui::Rounding::same(8.0);
+        let r = egui::CornerRadius::same(5);
+        visuals.widgets.noninteractive.corner_radius = r;
+        visuals.widgets.inactive.corner_radius = r;
+        visuals.widgets.hovered.corner_radius = r;
+        visuals.widgets.active.corner_radius = r;
+        visuals.menu_corner_radius = r;
+        visuals.window_corner_radius = egui::CornerRadius::same(8);
 
         // Accent colour for selected items (Julia purple-ish)
         visuals.selection.bg_fill = Color32::from_rgb(90, 60, 170);
@@ -3274,7 +3275,7 @@ fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
         style.spacing.button_padding = egui::Vec2::new(7.0, 3.0);
         style.spacing.item_spacing = egui::Vec2::new(6.0, 4.0);
         style.spacing.interact_size.y = 24.0;
-        style.spacing.window_margin = egui::Margin::same(8.0);
+        style.spacing.window_margin = egui::Margin::same(8);
         style.visuals.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         ctx.set_style_of(theme, style);
@@ -3509,10 +3510,11 @@ mod tests {
 
         assert_eq!(ctx.theme(), egui::Theme::Light);
         assert_eq!(
-            ctx.style().visuals.panel_fill,
+            ctx.style_of(ctx.theme()).visuals.panel_fill,
             Color32::from_rgb(248, 249, 252)
         );
-        let _ = ctx.end_pass();
+        // epaint panics if a `TexturesDelta` is dropped unapplied.
+        ctx.end_pass().textures_delta.clear();
     }
 
     fn relative_luminance(color: Color32) -> f32 {
