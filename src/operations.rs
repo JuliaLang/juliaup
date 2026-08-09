@@ -1221,10 +1221,21 @@ fn pr_info_from_api_response(body: &str) -> Result<PrInfo> {
     })
 }
 
-/// Resolves a Julia pull request number to the current head commit sha of the
-/// PR branch and its lifecycle state via the GitHub API.
+fn pr_title_from_api_response(body: &str) -> Result<String> {
+    let parsed: serde_json::Value = serde_json::from_str(body)
+        .with_context(|| "Failed to parse the GitHub API response as JSON.")?;
+    let title = parsed
+        .get("title")
+        .and_then(|title| title.as_str())
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+        .ok_or_else(|| anyhow!("The GitHub API response did not contain a PR title."))?;
+    Ok(title.to_string())
+}
+
+/// Fetches the GitHub API response for a Julia pull request.
 #[cfg(not(windows))]
-fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
+fn github_pr_api_response(pr_number: u64) -> Result<String> {
     let url = format!(
         "https://api.github.com/repos/JuliaLang/julia/pulls/{}",
         pr_number
@@ -1261,13 +1272,12 @@ fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
         _ => {}
     }
 
-    pr_info_from_api_response(&response.text()?)
+    Ok(response.text()?)
 }
 
-/// Resolves a Julia pull request number to the current head commit sha of the
-/// PR branch and its lifecycle state via the GitHub API.
+/// Fetches the GitHub API response for a Julia pull request.
 #[cfg(windows)]
-fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
+fn github_pr_api_response(pr_number: u64) -> Result<String> {
     use windows::core::HSTRING;
     use windows::Foundation::Uri;
     use windows::Web::Http::HttpMethod;
@@ -1337,7 +1347,18 @@ fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
         .with_context(|| "Failed to read http response.")?
         .to_string();
 
-    pr_info_from_api_response(&body)
+    Ok(body)
+}
+
+/// Resolves a Julia pull request number to the current head commit sha of the
+/// PR branch and its lifecycle state via the GitHub API.
+fn resolve_pr_info(pr_number: u64) -> Result<PrInfo> {
+    pr_info_from_api_response(&github_pr_api_response(pr_number)?)
+}
+
+/// Returns the current title of a Julia pull request from the GitHub API.
+pub fn get_julia_pr_title(pr_number: u64) -> Result<String> {
+    pr_title_from_api_response(&github_pr_api_response(pr_number)?)
 }
 
 /// Checks whether `url` exists via an HTTP HEAD request. Connection-level
@@ -2831,19 +2852,42 @@ fn download_direct_download_etags(
 }
 
 #[cfg(target_os = "macos")]
+fn parse_pr_codesign_choice(value: &str) -> Result<bool> {
+    if value.eq_ignore_ascii_case("yes") {
+        Ok(true)
+    } else if value.eq_ignore_ascii_case("no") {
+        Ok(false)
+    } else {
+        bail!("Invalid JULIAUP_PR_CODESIGN value '{value}'; expected 'yes' or 'no'.")
+    }
+}
+
+#[cfg(target_os = "macos")]
 fn prompt_and_codesign_pr_build(dir: &Path) -> Result<bool> {
     use std::io::{self, Write};
 
     eprintln!("\nWARNING: PR builds are not code-signed for macOS.");
     eprintln!("         The Julia binary will fail to run unless you codesign it locally.");
-    eprint!("\nWould you like to automatically codesign this PR build now? [Y/n]: ");
-    io::stderr().flush()?;
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    let input = input.trim().to_lowercase();
+    let should_codesign = match std::env::var("JULIAUP_PR_CODESIGN") {
+        Ok(value) => parse_pr_codesign_choice(&value)?,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            bail!("JULIAUP_PR_CODESIGN must contain valid Unicode.")
+        }
+        Err(std::env::VarError::NotPresent) => {
+            eprint!("\nWould you like to automatically codesign this PR build now? [Y/n]: ");
+            io::stderr().flush()?;
 
-    if input == "n" || input == "no" {
+            // An empty read means stdin is closed (piped or scripted input). Fall
+            // back to the `[Y/n]` default rather than failing, so non-interactive
+            // installs keep working the way they did before.
+            let mut input = String::new();
+            io::stdin().read_line(&mut input)?;
+            !matches!(input.trim().to_ascii_lowercase().as_str(), "n" | "no")
+        }
+    };
+
+    if !should_codesign {
         eprintln!("\nSkipping codesigning. You can manually codesign later with:");
         eprintln!(
             "  find {} -type f -perm +111 -exec codesign --force --sign - {{}} \\;",
@@ -2941,6 +2985,16 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     use std::sync::{Mutex, OnceLock};
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn pr_codesign_choice_requires_an_explicit_valid_value() {
+        assert!(parse_pr_codesign_choice("yes").unwrap());
+        assert!(parse_pr_codesign_choice("YES").unwrap());
+        assert!(!parse_pr_codesign_choice("no").unwrap());
+        assert!(parse_pr_codesign_choice("").is_err());
+        assert!(parse_pr_codesign_choice("true").is_err());
+    }
 
     #[cfg(target_os = "macos")]
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
@@ -3423,6 +3477,16 @@ mod tests {
             pr_info_from_api_response(&with(r#""number": 12345"#))?.state,
             PrState::Open
         );
+        Ok(())
+    }
+
+    #[test]
+    fn pr_title_extracted_from_api_response() -> Result<()> {
+        let body = r#"{"number": 12345, "title": "Fix macOS PR installs"}"#;
+        assert_eq!(pr_title_from_api_response(body)?, "Fix macOS PR installs");
+        assert!(pr_title_from_api_response(r#"{"title": "  "}"#).is_err());
+        assert!(pr_title_from_api_response("{}").is_err());
+        assert!(pr_title_from_api_response("not json").is_err());
         Ok(())
     }
 }

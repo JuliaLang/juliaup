@@ -1,3 +1,10 @@
+[workspace]
+members = [".", "juliaupgui"]
+# Deliberately no `default-members`: bare `cargo build`/`test`/`install` should
+# keep selecting just the root package, as they did before the GUI existed.
+# juliaupgui is built and tested through an explicit `-p juliaupgui`.
+resolver = "2"
+
 [package]
 name = "juliaup"
 version = "1.21.0"
