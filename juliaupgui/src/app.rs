@@ -3337,6 +3337,13 @@ pub fn run(paths: GlobalPaths) -> anyhow::Result<()> {
             .with_icon(icon)
             .with_inner_size([860.0, 540.0])
             .with_min_inner_size([754.0, 380.0]),
+        // Do not use winit's `run_on_demand`. Returning from the event loop
+        // tears the window down while NSApplication is still alive, and AppKit
+        // then throws while unregistering its touch bar KVO observer on the
+        // dead window. An unhandled ObjC exception becomes SIGILL, so closing
+        // the window killed the process with "illegal hardware instruction".
+        // Letting the event loop own shutdown avoids that path entirely.
+        run_and_return: false,
         ..Default::default()
     };
 
