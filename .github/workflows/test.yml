@@ -334,3 +334,41 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
     - name: Test juliaupgui
       run: cargo test -p juliaupgui
+
+  # FreeBSD needs its own job: the GUI's X11/xkb/OpenGL dependencies come from
+  # ports, so it cannot be cross-compiled from the base-only cross sysroot the
+  # way the CLI is. It is built and tested inside a real FreeBSD VM instead.
+  test-juliaupgui-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Free Disk Space
+      uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+      with:
+        tool-cache: true
+        large-packages: false
+    - name: Test juliaupgui on FreeBSD
+      uses: cross-platform-actions/action@5ea7e8e4677bd726033a10b094ba1c5762b15dee # v1.3.0
+      with:
+        operating_system: freebsd
+        version: '13.4'
+        architecture: x86-64
+        cpu_count: 4
+        memory: '12G'
+        sync_files: runner-to-vm
+        shell: sh
+        run: |
+          df -h
+          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+          . "${HOME}/.cargo/env"
+          export RUST_BACKTRACE=full
+          # Clean up to maximize available disk space
+          rm -rf target
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/git/db
+          pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+          pkg clean -y
+          df -h
+          export CARGO_INCREMENTAL=0
+          cargo test --verbose -p juliaupgui

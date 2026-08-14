@@ -291,6 +291,12 @@ jobs:
           df -h
           export CARGO_INCREMENTAL=0
           cargo build --verbose --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
+          # juliaupgui needs X11/xkb/OpenGL headers, which live in ports rather
+          # than the FreeBSD base system. Unlike the other targets, the GUI is
+          # built inside this VM instead of via cross, because the cross FreeBSD
+          # sysroot only carries base.
+          pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+          cargo build --verbose --release -p juliaupgui --target ${{matrix.target}}
     - uses: actions/upload-artifact@v7
       with:
         name: juliaup-${{matrix.label}}
@@ -560,6 +566,7 @@ jobs:
         chmod a+rx target/aarch64-unknown-linux-musl/julialauncher
         chmod a+rx target/x86_64-unknown-freebsd/juliaup
         chmod a+rx target/x86_64-unknown-freebsd/julialauncher
+        chmod a+rx -f target/x86_64-unknown-freebsd/juliaupgui || true
     - name: Export version
       run: |
         export VERSION=$(echo $GH_REF | sed 's:refs/tags/v::')

@@ -1853,6 +1853,17 @@ fn tab_config(app: &mut App, ui: &mut egui::Ui) {
                             {
                                 dialog = dialog.set_directory("/usr/bin");
                             }
+                            // On the BSDs, terminal emulators come from ports/pkg,
+                            // which install under /usr/local rather than /usr.
+                            #[cfg(any(
+                                target_os = "freebsd",
+                                target_os = "dragonfly",
+                                target_os = "netbsd",
+                                target_os = "openbsd"
+                            ))]
+                            {
+                                dialog = dialog.set_directory("/usr/local/bin");
+                            }
                             if let Some(path) = dialog.pick_file() {
                                 app.terminal_app = path.display().to_string();
                                 save_terminal_pref(&app.paths, &app.terminal_app);
