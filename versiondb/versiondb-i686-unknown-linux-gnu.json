@@ -569,6 +569,12 @@
         },
         "1.13.0-rc1+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.13/julia-1.13.0-rc1-linux-i686.tar.gz"
+        },
+        "1.13.0-rc2+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.13/julia-1.13.0-rc2-linux-i686.tar.gz"
+        },
+        "1.13.0-rc3+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.13/julia-1.13.0-rc3-linux-i686.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1305,7 +1311,7 @@
             "Version": "1.12.6+0.x86.linux.gnu"
         },
         "1.13": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "1.13.0-alpha2": {
             "Version": "1.13.0-alpha2+0.x86.linux.gnu"
@@ -1337,8 +1343,20 @@
         "1.13.0-rc1~x86": {
             "Version": "1.13.0-rc1+0.x86.linux.gnu"
         },
+        "1.13.0-rc2": {
+            "Version": "1.13.0-rc2+0.x86.linux.gnu"
+        },
+        "1.13.0-rc2~x86": {
+            "Version": "1.13.0-rc2+0.x86.linux.gnu"
+        },
+        "1.13.0-rc3": {
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
+        },
+        "1.13.0-rc3~x86": {
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
+        },
         "1.13~x86": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "1.1~x86": {
             "Version": "1.1.1+0.x86.linux.gnu"
@@ -1839,16 +1857,16 @@
             "Version": "1.12.6+0.x86.linux.gnu"
         },
         "alpha": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "alpha~x86": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "beta": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "beta~x86": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "lts": {
             "Version": "1.10.11+0.x86.linux.gnu"
@@ -1857,10 +1875,10 @@
             "Version": "1.10.11+0.x86.linux.gnu"
         },
         "rc": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "rc~x86": {
-            "Version": "1.13.0-rc1+0.x86.linux.gnu"
+            "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "release": {
             "Version": "1.12.6+0.x86.linux.gnu"
@@ -1869,5 +1887,5 @@
             "Version": "1.12.6+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.87"
+    "Version": "1.0.89"
 }
