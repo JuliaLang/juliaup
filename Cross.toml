@@ -41,6 +41,9 @@ pre-build = [
 passthrough = ["AWS_LC_SYS_CMAKE_BUILDER"]
 
 # FreeBSD is cross-compiled (HOST != target), so aws-lc-sys skips the memcmp
-# self-check; only the newer glibc from :edge is needed here.
+# self-check; only the newer glibc from :edge is needed here. No X11/OpenGL
+# pre-build packages: apt would install them for Linux, not into the FreeBSD
+# sysroot, which carries base only. juliaupgui is therefore built and tested
+# inside a real FreeBSD VM (see the workflows) rather than through cross.
 [target.x86_64-unknown-freebsd]
 image = "ghcr.io/cross-rs/x86_64-unknown-freebsd:edge"
