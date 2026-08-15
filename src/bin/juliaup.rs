@@ -175,10 +175,18 @@ fn main() -> Result<()> {
                     exe.display()
                 );
             }
-            std::process::Command::new(&exe)
+            let status = std::process::Command::new(&exe)
                 .status()
-                .with_context(|| format!("Failed to launch GUI at '{}'", exe.display()))
-                .map(|_| ())
+                .with_context(|| format!("Failed to launch GUI at '{}'", exe.display()))?;
+            // Surface a crash or non-zero exit instead of reporting success.
+            // On Unix `status` renders signal deaths as e.g. `signal: 4 (SIGILL)`.
+            if !status.success() {
+                anyhow::bail!(
+                    "The GUI at '{}' exited abnormally ({status}).",
+                    exe.display()
+                );
+            }
+            Ok(())
         }
     }
 }
