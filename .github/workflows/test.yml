@@ -367,8 +367,8 @@ jobs:
           rm -rf target
           rm -rf ~/.cargo/registry/cache
           rm -rf ~/.cargo/git/db
-          pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
-          pkg clean -y
+          sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+          sudo pkg clean -y
           df -h
           export CARGO_INCREMENTAL=0
           cargo test --verbose -p juliaupgui
