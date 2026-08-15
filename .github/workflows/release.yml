@@ -295,7 +295,7 @@ jobs:
           # than the FreeBSD base system. Unlike the other targets, the GUI is
           # built inside this VM instead of via cross, because the cross FreeBSD
           # sysroot only carries base.
-          pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+          sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
           cargo build --verbose --release -p juliaupgui --target ${{matrix.target}}
     - uses: actions/upload-artifact@v7
       with:
