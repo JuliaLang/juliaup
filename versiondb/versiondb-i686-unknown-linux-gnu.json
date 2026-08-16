@@ -459,6 +459,9 @@
         "1.10.11+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.10/julia-1.10.11-linux-i686.tar.gz"
         },
+        "1.10.12+0.x86.linux.gnu": {
+            "UrlPath": "bin/linux/x86/1.10/julia-1.10.12-linux-i686.tar.gz"
+        },
         "1.11.0-alpha1+0.x86.linux.gnu": {
             "UrlPath": "bin/linux/x86/1.11/julia-1.11.0-alpha1-linux-i686.tar.gz"
         },
@@ -990,7 +993,7 @@
             "Version": "1.1.1+0.x86.linux.gnu"
         },
         "1.10": {
-            "Version": "1.10.11+0.x86.linux.gnu"
+            "Version": "1.10.12+0.x86.linux.gnu"
         },
         "1.10.0": {
             "Version": "1.10.0+0.x86.linux.gnu"
@@ -1055,6 +1058,12 @@
         "1.10.11~x86": {
             "Version": "1.10.11+0.x86.linux.gnu"
         },
+        "1.10.12": {
+            "Version": "1.10.12+0.x86.linux.gnu"
+        },
+        "1.10.12~x86": {
+            "Version": "1.10.12+0.x86.linux.gnu"
+        },
         "1.10.1~x86": {
             "Version": "1.10.1+0.x86.linux.gnu"
         },
@@ -1107,7 +1116,7 @@
             "Version": "1.10.9+0.x86.linux.gnu"
         },
         "1.10~x86": {
-            "Version": "1.10.11+0.x86.linux.gnu"
+            "Version": "1.10.12+0.x86.linux.gnu"
         },
         "1.11": {
             "Version": "1.11.9+0.x86.linux.gnu"
@@ -1878,10 +1887,10 @@
             "Version": "1.13.0-rc3+0.x86.linux.gnu"
         },
         "lts": {
-            "Version": "1.10.11+0.x86.linux.gnu"
+            "Version": "1.10.12+0.x86.linux.gnu"
         },
         "lts~x86": {
-            "Version": "1.10.11+0.x86.linux.gnu"
+            "Version": "1.10.12+0.x86.linux.gnu"
         },
         "rc": {
             "Version": "1.13.0-rc3+0.x86.linux.gnu"
@@ -1896,5 +1905,5 @@
             "Version": "1.12.7+0.x86.linux.gnu"
         }
     },
-    "Version": "1.0.90"
+    "Version": "1.0.91"
 }
