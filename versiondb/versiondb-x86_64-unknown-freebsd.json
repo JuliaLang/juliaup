@@ -333,6 +333,9 @@
         "1.10.11+0.x64.unknown.freebsd11.1": {
             "UrlPath": "bin/freebsd/x64/1.10/julia-1.10.11-freebsd-x86_64.tar.gz"
         },
+        "1.10.12+0.x64.unknown.freebsd11.1": {
+            "UrlPath": "bin/freebsd/x64/1.10/julia-1.10.12-freebsd-x86_64.tar.gz"
+        },
         "1.11.0-alpha1+0.x64.unknown.freebsd11.1": {
             "UrlPath": "bin/freebsd/x64/1.11/julia-1.11.0-alpha1-freebsd-x86_64.tar.gz"
         },
@@ -588,7 +591,7 @@
             "Version": "1.1.1+0.x64.unknown.freebsd11.1"
         },
         "1.10": {
-            "Version": "1.10.11+0.x64.unknown.freebsd11.1"
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
         },
         "1.10.0": {
             "Version": "1.10.0+0.x64.unknown.freebsd11.1"
@@ -653,6 +656,12 @@
         "1.10.11~x64": {
             "Version": "1.10.11+0.x64.unknown.freebsd11.1"
         },
+        "1.10.12": {
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
+        },
+        "1.10.12~x64": {
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
+        },
         "1.10.1~x64": {
             "Version": "1.10.1+0.x64.unknown.freebsd11.1"
         },
@@ -705,7 +714,7 @@
             "Version": "1.10.9+0.x64.unknown.freebsd11.1"
         },
         "1.10~x64": {
-            "Version": "1.10.11+0.x64.unknown.freebsd11.1"
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
         },
         "1.11": {
             "Version": "1.11.9+0.x64.unknown.freebsd11.1"
@@ -1476,10 +1485,10 @@
             "Version": "1.13.0-rc3+0.x64.unknown.freebsd11.1"
         },
         "lts": {
-            "Version": "1.10.11+0.x64.unknown.freebsd11.1"
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
         },
         "lts~x64": {
-            "Version": "1.10.11+0.x64.unknown.freebsd11.1"
+            "Version": "1.10.12+0.x64.unknown.freebsd11.1"
         },
         "rc": {
             "Version": "1.13.0-rc3+0.x64.unknown.freebsd11.1"
@@ -1494,5 +1503,5 @@
             "Version": "1.12.7+0.x64.unknown.freebsd11.1"
         }
     },
-    "Version": "1.0.90"
+    "Version": "1.0.91"
 }
