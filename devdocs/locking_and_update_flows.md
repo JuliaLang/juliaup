@@ -148,12 +148,19 @@ flowchart TD
     inst -->|yes| ret["print + return"]
     inst -->|no| dl["download_version_to_temp<br/><b>NO lock held</b>"]
     dl --> wl["load_mut_config_db<br/><b>exclusive lock</b>"]
-    wl --> recheck{"installed by<br/>another process?"}
-    recheck -->|yes| ret2["print + return"]
-    recheck -->|no| commit["commit_version_install<br/>(rename temp → final)"]
+    wl --> recheck{"concurrent channel<br/>with same name?"}
+    recheck -->|"same system version<br/>or explicit non-system channel"| ret2["discard download<br/>print + return"]
+    recheck -->|"different system version<br/>or no channel"| commit["commit_version_install<br/>(rename temp → final)"]
     commit --> cfg["insert channel + save_config_db"]
     cfg --> done(["release"])
 ```
+
+The commit re-check is version-aware. A concurrent system channel at the same
+version makes the download redundant, while a system channel at a different
+version is moved to the version resolved by this `add` and the download is
+registered for reuse. Concurrent linked, direct-download, and alias channels
+are explicit claims on the channel name, so `add` preserves them and discards
+its database-version download.
 
 For nightly/PR channels (`add_non_db`), `install_non_db_version` →
 `install_from_url` downloads into a temp dir and atomically renames into place
