@@ -30,7 +30,8 @@ fn command_initial_setup() {
                             .and(predicate::str::contains("done.\n"))
                             .or(predicate::str::contains("Mounting installer")),
                     ),
-            ),
+            )
+            .and(predicate::str::contains("+0.").not()),
         );
 
     depot_dir
