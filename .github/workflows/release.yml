@@ -270,7 +270,7 @@ jobs:
         large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@5ea7e8e4677bd726033a10b094ba1c5762b15dee # v1.3.0
+      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -424,7 +424,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@5ea7e8e4677bd726033a10b094ba1c5762b15dee # v1.3.0
+      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
       with:
         operating_system: freebsd
         version: '13.4'
