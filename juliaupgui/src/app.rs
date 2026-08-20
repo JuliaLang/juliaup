@@ -1028,10 +1028,9 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             }
 
                             // ── buttons, pinned to the bottom of the tile ──
-                            // The tile ui is sized to the whole tile up front,
-                            // so its `min_rect` says nothing about how tall the
-                            // content above actually is. Stack the rows upward
-                            // from the bottom instead of measuring.
+                            // `min_rect` spans the full tile, not the content
+                            // above it, so stack the rows up from the bottom
+                            // rather than measuring.
                             let btn_h = 24.0;
                             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                                 // ── secondary actions row ──
@@ -3186,11 +3185,9 @@ fn update_info(
     }
 }
 
-/// Julia versions carry a `+<build>.<platform>` tag that is the same for every
-/// build of a channel on a given machine, and it is already shown on the
-/// version line. Drop it from the update badge, which only has a 168pt tile to
-/// live in. Keep it when it differs from what is installed, since a change of
-/// platform is worth seeing.
+/// Drops the `+<build>.<platform>` tag when it matches the installed version:
+/// the version line above already shows it, and the badge has a 168pt tile to
+/// fit in. A differing platform is worth seeing, so keep that.
 fn short_target_version(installed: &str, target: &str) -> String {
     match (installed.split_once('+'), target.split_once('+')) {
         (Some((_, installed_tag)), Some((core, target_tag))) if installed_tag == target_tag => {
@@ -3271,9 +3268,8 @@ fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
 
 // ── theme ─────────────────────────────────────────────────────────────────────
 
-/// egui's proportional font (Ubuntu-Light) has no arrows, so `→` renders as a
-/// tofu box everywhere we use one. Hack ships with egui and covers them, so
-/// append it as a last-resort fallback for the proportional family.
+/// Ubuntu-Light, egui's proportional font, has no arrows, so `→` renders as a
+/// tofu box. Hack ships with egui and covers them; append it as a fallback.
 fn install_font_fallbacks(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {

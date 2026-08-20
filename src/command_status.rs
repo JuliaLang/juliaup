@@ -43,16 +43,12 @@ fn format_linked_command(command: &str, args: &Option<Vec<String>>) -> String {
     format!("Linked to `{combined_command}`")
 }
 
-/// Julia versions carry a `+<build>.<platform>` tag that is the same for every
-/// build on a given machine, so it is the first thing to drop when the table
-/// does not fit the terminal.
 fn strip_build_tag(version: &str) -> &str {
     version.split_once('+').map_or(version, |(core, _)| core)
 }
 
 /// The update column only has to say what changes, and the build tag almost
-/// never does. Keep it when it differs from what is installed, since a change
-/// of platform is worth seeing.
+/// never does. Keep it when it differs: a change of platform is worth seeing.
 fn short_target_version(installed: &str, target: &str) -> String {
     match (installed.split_once('+'), target.split_once('+')) {
         (Some((_, installed_tag)), Some((core, target_tag))) if installed_tag == target_tag => {
