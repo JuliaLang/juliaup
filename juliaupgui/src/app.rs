@@ -1035,28 +1035,33 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                             let btn_h = 24.0;
                             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                                 // ── secondary actions row ──
-                                if !row.is_default {
+                                // The default channel cannot be re-defaulted or
+                                // removed, but it can still be updated.
+                                let has_update = row.update.is_some();
+                                let actions =
+                                    usize::from(!row.is_default) * 2 + usize::from(has_update);
+                                if actions > 0 {
                                     ui.horizontal(|ui| {
                                         ui.spacing_mut().item_spacing.x = 4.0;
-                                        let has_update = row.update.is_some();
-                                        let action_w = if has_update {
-                                            (TILE_W - 8.0) / 3.0
-                                        } else {
-                                            (TILE_W - 4.0) / 2.0
-                                        };
-                                        if accessible_button_name(
-                                            ui.add_sized(
-                                                [action_w, btn_h],
-                                                egui::Button::new(
-                                                    RichText::new("Default").size(12.0),
+                                        let action_w =
+                                            (TILE_W - 4.0 * (actions - 1) as f32) / actions as f32;
+                                        if !row.is_default
+                                            && accessible_button_name(
+                                                ui.add_sized(
+                                                    [action_w, btn_h],
+                                                    egui::Button::new(
+                                                        RichText::new("Default").size(12.0),
+                                                    ),
                                                 ),
-                                            ),
-                                            format!("Set Julia channel {} as default", row.name),
-                                        )
-                                        .on_hover_text(
-                                            "Use this channel when no version is specified",
-                                        )
-                                        .clicked()
+                                                format!(
+                                                    "Set Julia channel {} as default",
+                                                    row.name
+                                                ),
+                                            )
+                                            .on_hover_text(
+                                                "Use this channel when no version is specified",
+                                            )
+                                            .clicked()
                                         {
                                             set_def = Some(row.name.clone());
                                         }
@@ -1075,17 +1080,18 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                         {
                                             do_update = Some(row.name.clone());
                                         }
-                                        if accessible_button_name(
-                                            ui.add_sized(
-                                                [action_w, btn_h],
-                                                egui::Button::new(
-                                                    RichText::new("Remove").size(12.0),
+                                        if !row.is_default
+                                            && accessible_button_name(
+                                                ui.add_sized(
+                                                    [action_w, btn_h],
+                                                    egui::Button::new(
+                                                        RichText::new("Remove").size(12.0),
+                                                    ),
                                                 ),
-                                            ),
-                                            format!("Remove Julia channel {}", row.name),
-                                        )
-                                        .on_hover_text("Remove this channel")
-                                        .clicked()
+                                                format!("Remove Julia channel {}", row.name),
+                                            )
+                                            .on_hover_text("Remove this channel")
+                                            .clicked()
                                         {
                                             do_remove = Some(row.name.clone());
                                         }
