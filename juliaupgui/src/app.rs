@@ -39,8 +39,17 @@ struct InstalledRow {
     name: String,
     version: String,
     is_default: bool,
-    update: Option<String>,
+    update: Option<UpdateInfo>,
     pr_number: Option<String>,
+}
+
+/// A pending channel update, split into what fits in the UI and what does not.
+#[derive(Clone)]
+struct UpdateInfo {
+    /// Short text for the tile badge and the list column, e.g. `1.10.12`.
+    label: String,
+    /// Full text for the tooltip, e.g. `Update to 1.10.12+0.aarch64.apple.darwin14`.
+    detail: String,
 }
 
 #[derive(Clone)]
@@ -224,6 +233,7 @@ pub struct App {
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>, paths: GlobalPaths) -> Self {
         let paths = Arc::new(paths);
+        install_font_fallbacks(&cc.egui_ctx);
         let theme_mode = load_theme_pref(&paths);
         apply_theme(&cc.egui_ctx, theme_mode);
         let (op_tx, op_rx) = mpsc::sync_channel::<(Op, Arc<GlobalPaths>)>(8);
@@ -989,7 +999,8 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                         .color(secondary_text(ui.visuals().dark_mode)),
                                 )
                                 .truncate(),
-                            );
+                            )
+                            .on_hover_text(&row.version);
 
                             if row.is_default || row.update.is_some() {
                                 ui.add_space(4.0);
@@ -1003,112 +1014,124 @@ fn tab_installed_tiles(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                                         );
                                     }
                                     if let Some(upd) = &row.update {
-                                        ui.label(
-                                            RichText::new(format!("Update: {upd}"))
-                                                .size(12.0)
-                                                .color(warning_color(ui.visuals().dark_mode)),
-                                        );
+                                        ui.add(
+                                            egui::Label::new(
+                                                RichText::new(format!("Update: {}", upd.label))
+                                                    .size(12.0)
+                                                    .color(warning_color(ui.visuals().dark_mode)),
+                                            )
+                                            .truncate(),
+                                        )
+                                        .on_hover_text(upd.detail.as_str());
                                     }
                                 });
                             }
 
-                            // ── push buttons to bottom ──
-                            let used = ui.min_rect().height();
+                            // ── buttons, pinned to the bottom of the tile ──
+                            // The tile ui is sized to the whole tile up front,
+                            // so its `min_rect` says nothing about how tall the
+                            // content above actually is. Stack the rows upward
+                            // from the bottom instead of measuring.
                             let btn_h = 24.0;
-                            let btn_rows = if row.is_default { 1 } else { 2 };
-                            let buttons_h = btn_h * btn_rows as f32 + 4.0 * (btn_rows - 1) as f32;
-                            let remaining = (TILE_H - used - buttons_h).max(0.0);
-                            ui.add_space(remaining);
-
-                            // ── Launch row ──
-                            ui.horizontal(|ui| {
-                                ui.spacing_mut().item_spacing.x = 4.0;
-                                let launch_w = (TILE_W - 4.0) / 2.0;
-                                if accessible_button_name(
-                                    ui.add_sized(
-                                        [launch_w, btn_h],
-                                        egui::Button::new(
-                                            RichText::new("Launch")
-                                                .size(12.0)
-                                                .color(success_color(ui.visuals().dark_mode)),
-                                        ),
-                                    ),
-                                    format!("Launch Julia channel {}", row.name),
-                                )
-                                .on_hover_text(format!("Start julia +{}", row.name))
-                                .clicked()
-                                {
-                                    do_launch = Some(row.name.clone());
-                                }
-                                if accessible_button_name(
-                                    ui.add_sized(
-                                        [launch_w, btn_h],
-                                        egui::Button::new(RichText::new("Custom...").size(12.0)),
-                                    ),
-                                    format!(
-                                        "Launch Julia channel {} with custom options",
-                                        row.name
-                                    ),
-                                )
-                                .on_hover_text("Launch with custom project & args")
-                                .clicked()
-                                {
-                                    app.custom_launch_channel = Some(row.name.clone());
-                                }
-                            });
-
-                            // ── secondary actions row ──
-                            if !row.is_default {
-                                ui.add_space(4.0);
-                                ui.horizontal(|ui| {
-                                    ui.spacing_mut().item_spacing.x = 4.0;
-                                    let has_update = row.update.is_some();
-                                    let action_w = if has_update {
-                                        (TILE_W - 8.0) / 3.0
-                                    } else {
-                                        (TILE_W - 4.0) / 2.0
-                                    };
-                                    if accessible_button_name(
-                                        ui.add_sized(
-                                            [action_w, btn_h],
-                                            egui::Button::new(RichText::new("Default").size(12.0)),
-                                        ),
-                                        format!("Set Julia channel {} as default", row.name),
-                                    )
-                                    .on_hover_text("Use this channel when no version is specified")
-                                    .clicked()
-                                    {
-                                        set_def = Some(row.name.clone());
-                                    }
-                                    if has_update
-                                        && accessible_button_name(
+                            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+                                // ── secondary actions row ──
+                                if !row.is_default {
+                                    ui.horizontal(|ui| {
+                                        ui.spacing_mut().item_spacing.x = 4.0;
+                                        let has_update = row.update.is_some();
+                                        let action_w = if has_update {
+                                            (TILE_W - 8.0) / 3.0
+                                        } else {
+                                            (TILE_W - 4.0) / 2.0
+                                        };
+                                        if accessible_button_name(
                                             ui.add_sized(
                                                 [action_w, btn_h],
                                                 egui::Button::new(
-                                                    RichText::new("Update").size(12.0),
+                                                    RichText::new("Default").size(12.0),
                                                 ),
                                             ),
-                                            format!("Update Julia channel {}", row.name),
+                                            format!("Set Julia channel {} as default", row.name),
                                         )
-                                        .on_hover_text("Update to latest")
+                                        .on_hover_text(
+                                            "Use this channel when no version is specified",
+                                        )
                                         .clicked()
+                                        {
+                                            set_def = Some(row.name.clone());
+                                        }
+                                        if has_update
+                                            && accessible_button_name(
+                                                ui.add_sized(
+                                                    [action_w, btn_h],
+                                                    egui::Button::new(
+                                                        RichText::new("Update").size(12.0),
+                                                    ),
+                                                ),
+                                                format!("Update Julia channel {}", row.name),
+                                            )
+                                            .on_hover_text("Update to latest")
+                                            .clicked()
+                                        {
+                                            do_update = Some(row.name.clone());
+                                        }
+                                        if accessible_button_name(
+                                            ui.add_sized(
+                                                [action_w, btn_h],
+                                                egui::Button::new(
+                                                    RichText::new("Remove").size(12.0),
+                                                ),
+                                            ),
+                                            format!("Remove Julia channel {}", row.name),
+                                        )
+                                        .on_hover_text("Remove this channel")
+                                        .clicked()
+                                        {
+                                            do_remove = Some(row.name.clone());
+                                        }
+                                    });
+                                    ui.add_space(4.0);
+                                }
+
+                                // ── Launch row ──
+                                ui.horizontal(|ui| {
+                                    ui.spacing_mut().item_spacing.x = 4.0;
+                                    let launch_w = (TILE_W - 4.0) / 2.0;
+                                    if accessible_button_name(
+                                        ui.add_sized(
+                                            [launch_w, btn_h],
+                                            egui::Button::new(
+                                                RichText::new("Launch")
+                                                    .size(12.0)
+                                                    .color(success_color(ui.visuals().dark_mode)),
+                                            ),
+                                        ),
+                                        format!("Launch Julia channel {}", row.name),
+                                    )
+                                    .on_hover_text(format!("Start julia +{}", row.name))
+                                    .clicked()
                                     {
-                                        do_update = Some(row.name.clone());
+                                        do_launch = Some(row.name.clone());
                                     }
                                     if accessible_button_name(
                                         ui.add_sized(
-                                            [action_w, btn_h],
-                                            egui::Button::new(RichText::new("Remove").size(12.0)),
+                                            [launch_w, btn_h],
+                                            egui::Button::new(
+                                                RichText::new("Custom...").size(12.0),
+                                            ),
                                         ),
-                                        format!("Remove Julia channel {}", row.name),
+                                        format!(
+                                            "Launch Julia channel {} with custom options",
+                                            row.name
+                                        ),
                                     )
-                                    .on_hover_text("Remove this channel")
+                                    .on_hover_text("Launch with custom project & args")
                                     .clicked()
                                     {
-                                        do_remove = Some(row.name.clone());
+                                        app.custom_launch_channel = Some(row.name.clone());
                                     }
                                 });
-                            }
+                            });
                         }
                     } else {
                         // "Add another channel" tile
@@ -1249,19 +1272,27 @@ fn tab_installed_list(app: &mut App, ui: &mut egui::Ui, state: &AppState) {
                         });
                     });
                     cells.col(|ui| {
-                        ui.label(
-                            RichText::new(&row.version)
-                                .size(13.0)
-                                .color(secondary_text(ui.visuals().dark_mode)),
-                        );
+                        ui.add(
+                            egui::Label::new(
+                                RichText::new(&row.version)
+                                    .size(13.0)
+                                    .color(secondary_text(ui.visuals().dark_mode)),
+                            )
+                            .truncate(),
+                        )
+                        .on_hover_text(&row.version);
                     });
                     cells.col(|ui| {
                         if let Some(upd) = &row.update {
-                            ui.label(
-                                RichText::new(upd)
-                                    .size(12.0)
-                                    .color(warning_color(ui.visuals().dark_mode)),
-                            );
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(&upd.label)
+                                        .size(12.0)
+                                        .color(warning_color(ui.visuals().dark_mode)),
+                                )
+                                .truncate(),
+                            )
+                            .on_hover_text(upd.detail.as_str());
                         } else {
                             ui.label(
                                 RichText::new("Current")
@@ -3122,24 +3153,44 @@ fn update_info(
     ch: &JuliaupConfigChannel,
     config: &juliaup::config_file::JuliaupReadonlyConfigFile,
     versiondb: &JuliaupVersionDB,
-) -> Option<String> {
+) -> Option<UpdateInfo> {
     match ch {
         JuliaupConfigChannel::DirectDownloadChannel {
             local_etag,
             server_etag,
             ..
-        } => (local_etag != server_etag).then(|| "Update available".to_string()),
+        } => (local_etag != server_etag).then(|| UpdateInfo {
+            label: "available".to_string(),
+            detail: "A newer build of this channel is available".to_string(),
+        }),
         JuliaupConfigChannel::SystemChannel { version } => versiondb
             .available_channels
             .get(name)
             .filter(|c| &c.version != version)
-            .map(|c| format!("→ {}", c.version)),
+            .map(|c| UpdateInfo {
+                label: short_target_version(version, &c.version),
+                detail: format!("Update to {}", c.version),
+            }),
         JuliaupConfigChannel::LinkedChannel { .. } => None,
         JuliaupConfigChannel::AliasChannel { target, .. } => config
             .data
             .installed_channels
             .get(target)
             .and_then(|tc| update_info(target, tc, config, versiondb)),
+    }
+}
+
+/// Julia versions carry a `+<build>.<platform>` tag that is the same for every
+/// build of a channel on a given machine, and it is already shown on the
+/// version line. Drop it from the update badge, which only has a 168pt tile to
+/// live in. Keep it when it differs from what is installed, since a change of
+/// platform is worth seeing.
+fn short_target_version(installed: &str, target: &str) -> String {
+    match (installed.split_once('+'), target.split_once('+')) {
+        (Some((_, installed_tag)), Some((core, target_tag))) if installed_tag == target_tag => {
+            core.to_string()
+        }
+        _ => target.to_string(),
     }
 }
 
@@ -3213,6 +3264,17 @@ fn paint_julia_dots(p: &egui::Painter, rect: egui::Rect) {
 }
 
 // ── theme ─────────────────────────────────────────────────────────────────────
+
+/// egui's proportional font (Ubuntu-Light) has no arrows, so `→` renders as a
+/// tofu box everywhere we use one. Hack ships with egui and covers them, so
+/// append it as a last-resort fallback for the proportional family.
+fn install_font_fallbacks(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+    if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+        family.push("Hack".to_owned());
+    }
+    ctx.set_fonts(fonts);
+}
 
 fn apply_theme(ctx: &egui::Context, mode: ThemeMode) {
     for theme in [egui::Theme::Dark, egui::Theme::Light] {
@@ -3369,6 +3431,62 @@ pub fn run(paths: GlobalPaths) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── update badge text ─────────────────────────────────────────────────
+
+    #[test]
+    fn short_target_version_drops_the_shared_build_tag() {
+        assert_eq!(
+            short_target_version(
+                "1.10.11+0.aarch64.apple.darwin14",
+                "1.10.12+0.aarch64.apple.darwin14"
+            ),
+            "1.10.12"
+        );
+    }
+
+    #[test]
+    fn short_target_version_keeps_a_differing_build_tag() {
+        assert_eq!(
+            short_target_version(
+                "1.10.11+0.x64.apple.darwin14",
+                "1.10.12+0.aarch64.apple.darwin14"
+            ),
+            "1.10.12+0.aarch64.apple.darwin14"
+        );
+    }
+
+    #[test]
+    fn short_target_version_passes_through_untagged_versions() {
+        assert_eq!(
+            short_target_version("1.14.0-DEV.1", "1.14.0-DEV.2"),
+            "1.14.0-DEV.2"
+        );
+    }
+
+    // ── fonts ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn proportional_font_renders_arrows_after_fallback() {
+        // egui hands back texture deltas that panic if simply dropped.
+        fn pass(ctx: &egui::Context) {
+            ctx.run_ui(Default::default(), |_| {})
+                .textures_delta
+                .clear();
+        }
+
+        let arrow = egui::FontId::proportional(12.0);
+        let ctx = egui::Context::default();
+        pass(&ctx);
+        assert!(
+            !ctx.fonts_mut(|f| f.has_glyph(&arrow, '\u{2192}')),
+            "egui's default proportional font now covers arrows; install_font_fallbacks can go"
+        );
+
+        install_font_fallbacks(&ctx);
+        pass(&ctx);
+        assert!(ctx.fonts_mut(|f| f.has_glyph(&arrow, '\u{2192}')));
+    }
 
     // ── clean_line ────────────────────────────────────────────────────────
 
