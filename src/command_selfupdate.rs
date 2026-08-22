@@ -8,7 +8,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::operations::{download_extract_sans_parent, download_juliaup_version};
     use crate::utils::get_juliaserver_base_url;
     use crate::{get_juliaup_target, get_own_version};
-    use anyhow::{anyhow, bail};
+    use anyhow::bail;
 
     update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
 
@@ -100,27 +100,17 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
                 )
             })?;
 
-        let my_own_path = std::env::current_exe()
-            .with_context(|| "Could not determine the path of the running exe.")?;
-
-        let my_own_folder = my_own_path
-            .parent()
-            .ok_or_else(|| anyhow!("Could not determine parent."))?;
-
         eprintln!(
             "Found new version {} on channel {}.",
             version, juliaup_channel
         );
 
-        download_extract_sans_parent(new_juliaup_url.as_ref(), my_own_folder, 0)?;
+        download_extract_sans_parent(new_juliaup_url.as_ref(), &paths.juliaupselfexecfolder, 0)?;
 
-        let new_juliaup = my_own_folder.join(format!("juliaup{}", std::env::consts::EXE_SUFFIX));
-        if let Err(e) = std::process::Command::new(&new_juliaup)
+        std::process::Command::new(&paths.juliaupselfexec)
             .arg("_post-update")
             .status()
-        {
-            eprintln!("Warning: post-update hook failed: {e}");
-        }
+            .with_context(|| "Failed to run post-update hook.")?;
 
         eprintln!("Updated Juliaup to version {}.", version);
     }
