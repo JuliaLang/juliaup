@@ -243,7 +243,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
+      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -255,7 +255,7 @@ jobs:
         AWS_LC_SYS_CMAKE_BUILDER: "1"
     - name: Build juliaupgui
       if: ${{ ! contains(matrix.target, 'freebsd') && ! contains(matrix.label, 'portable') && ! contains(matrix.target, 'musl') }}
-      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
+      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -404,7 +404,7 @@ jobs:
         target: ${{matrix.target}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
+      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}

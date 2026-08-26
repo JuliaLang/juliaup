@@ -140,11 +140,11 @@ jobs:
         # scripts when restored into an old-glibc container.
         cache-key: ${{matrix.label}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@b20dedce73af6905cdc30d6611090c9b67557c8d # v2.85.12
+      uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
       with:
         tool: cross
     - name: Check build
-      uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
+      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
       with:
         command: check
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
