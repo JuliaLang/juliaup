@@ -241,6 +241,11 @@ jobs:
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
         target: ${{matrix.target}}
+        # Without this, all matrix jobs on one OS share a single job-id-based
+        # cache key. The cross containers differ in glibc version (see
+        # Cross.toml), so a target/ dir saved by a new-glibc job breaks build
+        # scripts when restored into an old-glibc container.
+        cache-key: ${{matrix.label}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
@@ -402,6 +407,11 @@ jobs:
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
         target: ${{matrix.target}}
+        # Without this, all matrix jobs on one OS share a single job-id-based
+        # cache key. The cross containers differ in glibc version (see
+        # Cross.toml), so a target/ dir saved by a new-glibc job breaks build
+        # scripts when restored into an old-glibc container.
+        cache-key: ${{matrix.label}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       uses: clechasseur/rs-cargo@8ccb6817fc46c9af3b058a5a7b31932edb82cf13 # v5.0.7
