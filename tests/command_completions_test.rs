@@ -50,6 +50,30 @@ fn completions_zsh() {
 }
 
 #[test]
+fn completions_zsh_compdef_is_first_line() {
+    // zsh's compinit only recognizes a file in $fpath as a completion
+    // function if `#compdef` is literally the first line (see #1580), so
+    // this pins that invariant regardless of what else gets written before
+    // the rest of the generated completion script.
+    let depot_dir = tempfile::Builder::new()
+        .prefix("juliauptest")
+        .tempdir()
+        .unwrap();
+
+    let output = cargo_bin_cmd!("juliaup")
+        .arg("completions")
+        .arg("zsh")
+        .env("JULIA_DEPOT_PATH", depot_dir.path())
+        .env("JULIAUP_DEPOT_PATH", depot_dir.path())
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let first_line = stdout.lines().next().unwrap();
+    assert_eq!(first_line, "#compdef juliaup");
+}
+
+#[test]
 fn completions_fish() {
     test_shell_completion(
         "fish",
