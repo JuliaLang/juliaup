@@ -891,7 +891,7 @@ jobs:
     - uses: actions/upload-artifact@v7
       with:
         name: storepackage
-        path: target\msix\winstoremsix\*.appxbundle
+        path: target\msix\winstoremsix\*.msixbundle
     - uses: actions/upload-artifact@v7
       with:
         name: winappinstaller
@@ -1047,9 +1047,7 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $bundle = Get-ChildItem storepackage\*.appxbundle | Select-Object -First 1
-        # msstore-cli only accepts .msix/.msixbundle/.msixupload extensions; the formats are identical
-        $bundle = (Rename-Item $bundle.FullName ([IO.Path]::ChangeExtension($bundle.FullName, ".msixbundle")) -PassThru).FullName
+        $bundle = (Get-ChildItem storepackage\*.msixbundle | Select-Object -First 1).FullName
         $maxAttempts = 3
         for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
           msstore reconfigure --tenantId $env:TENANTID --sellerId $env:SELLERID --clientId $env:CLIENTID --clientSecret $env:CLIENTSECRET
@@ -1081,9 +1079,7 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $bundle = Get-ChildItem storepackage\*.appxbundle | Select-Object -First 1
-        # msstore-cli only accepts .msix/.msixbundle/.msixupload extensions; the formats are identical
-        $bundle = (Rename-Item $bundle.FullName ([IO.Path]::ChangeExtension($bundle.FullName, ".msixbundle")) -PassThru).FullName
+        $bundle = (Get-ChildItem storepackage\*.msixbundle | Select-Object -First 1).FullName
         $maxAttempts = 3
         for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
           msstore reconfigure --tenantId $env:TENANTID --sellerId $env:SELLERID --clientId $env:CLIENTID --clientSecret $env:CLIENTSECRET
@@ -1115,9 +1111,7 @@ jobs:
         CLIENTID: ${{ secrets.CLIENTID }}
         CLIENTSECRET: ${{ secrets.CLIENTSECRET }}
       run: |
-        $bundle = Get-ChildItem storepackage\*.appxbundle | Select-Object -First 1
-        # msstore-cli only accepts .msix/.msixbundle/.msixupload extensions; the formats are identical
-        $bundle = (Rename-Item $bundle.FullName ([IO.Path]::ChangeExtension($bundle.FullName, ".msixbundle")) -PassThru).FullName
+        $bundle = (Get-ChildItem storepackage\*.msixbundle | Select-Object -First 1).FullName
         $maxAttempts = 3
         for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
           msstore reconfigure --tenantId $env:TENANTID --sellerId $env:SELLERID --clientId $env:CLIENTID --clientSecret $env:CLIENTSECRET
