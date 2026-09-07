@@ -10,7 +10,8 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
     use crate::{get_juliaup_target, get_own_version};
     use anyhow::{anyhow, bail};
 
-    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
+    // Refresh the version catalog without polling nightly/PR builds.
+    update_version_db(&None, false, paths).with_context(|| "Failed to update versions db.")?;
 
     // Read the configured juliaup channel under a short-lived shared lock, then
     // release it before any network operations. Holding the exclusive lock across
@@ -135,7 +136,8 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
         Win32::{System::Console::GetConsoleWindow, UI::Shell::IInitializeWithWindow},
     };
 
-    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
+    // Refresh the version catalog without polling nightly/PR builds.
+    update_version_db(&None, false, paths).with_context(|| "Failed to update versions db.")?;
 
     let update_manager = windows::Services::Store::StoreContext::GetDefault()
         .with_context(|| "Failed to get the store context.")?;
@@ -184,6 +186,7 @@ pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
 
 #[cfg(not(any(feature = "windowsstore", feature = "selfupdate")))]
 pub fn run_command_selfupdate(paths: &GlobalPaths) -> Result<()> {
-    update_version_db(&None, paths).with_context(|| "Failed to update versions db.")?;
+    // Refresh the version catalog without polling nightly/PR builds.
+    update_version_db(&None, false, paths).with_context(|| "Failed to update versions db.")?;
     Ok(())
 }
