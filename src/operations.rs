@@ -1799,8 +1799,9 @@ fn create_system_channel_symlink(
         print_juliaup_style(
             "Updating",
             &format!(
-                "symlink {} ( {} -> {} )",
+                "symlink {} at {} ( {} -> {} )",
                 symlink_name,
+                symlink_path.display(),
                 prev_target.to_string_lossy(),
                 version
             ),
@@ -1809,7 +1810,12 @@ fn create_system_channel_symlink(
     } else {
         print_juliaup_style(
             "Creating",
-            &format!("symlink {} for Julia {}", symlink_name, version),
+            &format!(
+                "symlink {} at {} for Julia {}",
+                symlink_name,
+                symlink_path.display(),
+                version
+            ),
             JuliaupMessageType::Progress,
         );
     }
@@ -1838,8 +1844,9 @@ fn create_direct_download_symlink(
         print_juliaup_style(
             "Updating",
             &format!(
-                "symlink {} ( {} -> {} )",
+                "symlink {} at {} ( {} -> {} )",
                 symlink_name,
+                symlink_path.display(),
                 prev_target.to_string_lossy(),
                 version
             ),
@@ -1848,7 +1855,12 @@ fn create_direct_download_symlink(
     } else {
         print_juliaup_style(
             "Creating",
-            &format!("symlink {} for Julia {}", symlink_name, version),
+            &format!(
+                "symlink {} at {} for Julia {}",
+                symlink_name,
+                symlink_path.display(),
+                version
+            ),
             JuliaupMessageType::Progress,
         );
     }
@@ -1879,8 +1891,9 @@ fn create_linked_channel_shim(
         print_juliaup_style(
             "Updating",
             &format!(
-                "shim {} ( {} -> {} )",
+                "shim {} at {} ( {} -> {} )",
                 symlink_name,
+                symlink_path.display(),
                 prev_target.to_string_lossy(),
                 formatted_command
             ),
@@ -1889,7 +1902,12 @@ fn create_linked_channel_shim(
     } else {
         print_juliaup_style(
             "Creating",
-            &format!("shim {} for {}", symlink_name, formatted_command),
+            &format!(
+                "shim {} at {} for {}",
+                symlink_name,
+                symlink_path.display(),
+                formatted_command
+            ),
             JuliaupMessageType::Progress,
         );
     }
