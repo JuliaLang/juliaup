@@ -140,7 +140,7 @@ jobs:
         # scripts when restored into an old-glibc container.
         cache-key: ${{matrix.label}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@5b4d68e2e660441203ab128a23676f1e4faf1532 # v2.86.3
+      uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2.87.4
       with:
         tool: cross
     - name: Check build
@@ -267,7 +267,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
+      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -348,7 +348,7 @@ jobs:
         tool-cache: true
         large-packages: false
     - name: Test juliaupgui on FreeBSD
-      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
+      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
         operating_system: freebsd
         version: '13.4'
