@@ -231,7 +231,7 @@ fn commit_channel_update(
 }
 
 pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
-    update_version_db(channel, paths).with_context(|| "Failed to update versions db.")?;
+    update_version_db(channel, true, paths).with_context(|| "Failed to update versions db.")?;
 
     let version_db =
         load_versions_db(paths).with_context(|| "`update` command failed to load versions db.")?;

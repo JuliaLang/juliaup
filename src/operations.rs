@@ -2368,7 +2368,11 @@ pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -
     Ok(())
 }
 
-pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
+pub fn update_version_db(
+    channel: &Option<String>,
+    update_direct_downloads: bool,
+    paths: &GlobalPaths,
+) -> Result<()> {
     print_juliaup_style(
         "Checking",
         "for new Julia versions",
@@ -2491,7 +2495,11 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         delete_old_version_db = true;
     }
 
-    let direct_download_etags = download_direct_download_etags(channel, &old_config_file.data)?;
+    let direct_download_etags = if update_direct_downloads {
+        download_direct_download_etags(channel, &old_config_file.data)?
+    } else {
+        Vec::new()
+    };
 
     let mut new_config_file = load_mut_config_db(paths).with_context(|| {
         "`run_command_update_version_db` command failed to load configuration db."
@@ -2548,7 +2556,13 @@ pub fn update_version_db(channel: &Option<String>, paths: &GlobalPaths) -> Resul
         }
     }
 
-    new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
+    // Self-update skips nightly/PR checks, so leave this timestamp unchanged:
+    // the launcher uses it to decide when those checks are due. Changing it
+    // would also cause a concurrent refresh that checks nightly/PR builds to
+    // discard its results at the configuration equality check above.
+    if update_direct_downloads {
+        new_config_file.data.last_version_db_update = Some(chrono::Utc::now());
+    }
 
     if let Some(temp_versiondb_download_path) = temp_versiondb_download_path {
         retry_rename(&temp_versiondb_download_path, &paths.versiondb)?;
