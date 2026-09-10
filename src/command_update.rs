@@ -13,6 +13,7 @@ use crate::operations::{
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -55,11 +56,18 @@ impl PreparedUpdate {
 /// Phase 1 (no lock held): decide whether `channel` needs updating based on a
 /// configuration snapshot and, if so, perform the network download. Returns
 /// `None` when the channel is already up to date or is not updatable.
+///
+/// `pending_downloads` tracks versions that an earlier channel in the same
+/// update run has already downloaded, so that several channels resolving to
+/// the same new version (e.g. `release` and `1.13`) only download it once.
+/// The corresponding commits happen in prepare order, so the first one
+/// installs the version and the later ones only move their channel pointer.
 fn prepare_channel_update(
     config_db: &JuliaupConfig,
     channel: &str,
     version_db: &JuliaupVersionDB,
     ignore_non_updatable_channel: bool,
+    pending_downloads: &mut HashSet<String>,
     paths: &GlobalPaths,
 ) -> Result<Option<PreparedUpdate>> {
     let current_version = config_db.installed_channels.get(channel).ok_or_else(|| anyhow!("Trying to get the installed version for a channel that does not exist in the config database."))?;
@@ -112,22 +120,26 @@ fn prepare_channel_update(
                         JuliaupMessageType::Progress,
                     );
 
-                    // Only download if the target version is not already installed.
+                    // Only download if the target version is not already installed
+                    // and has not already been downloaded for another channel in
+                    // this update run.
                     let downloaded = if config_db
                         .installed_versions
                         .contains_key(&should_version.version)
+                        || pending_downloads.contains(&should_version.version)
                     {
                         None
                     } else {
-                        Some(
+                        let downloaded =
                             download_version_to_temp(&should_version.version, version_db, paths)
                                 .with_context(|| {
                                     format!(
                                         "Failed to download '{}' while updating channel '{}'.",
                                         should_version.version, channel
                                     )
-                                })?,
-                        )
+                                })?;
+                        pending_downloads.insert(should_version.version.clone());
+                        Some(downloaded)
                     };
 
                     Ok(Some(PreparedUpdate::System {
@@ -205,6 +217,15 @@ fn commit_channel_update(
                         )
                     },
                 )?;
+            } else if !config_db.installed_versions.contains_key(&new_version) {
+                // The download for this version was owned by another channel in
+                // this run (or was expected to be installed already) and did not
+                // make it into the configuration.
+                bail!(
+                    "Failed to update '{}' because version '{}' is not installed.",
+                    channel,
+                    new_version
+                );
             }
 
             config_db.installed_channels.insert(
@@ -278,8 +299,16 @@ pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Resu
     };
 
     let mut prepared_updates = Vec::new();
+    let mut pending_downloads = HashSet::new();
     for name in channels_to_update {
-        match prepare_channel_update(&config_snapshot, &name, &version_db, update_all, paths) {
+        match prepare_channel_update(
+            &config_snapshot,
+            &name,
+            &version_db,
+            update_all,
+            &mut pending_downloads,
+            paths,
+        ) {
             Ok(Some(prepared)) => prepared_updates.push(prepared),
             Ok(None) => {}
             Err(e) => {
