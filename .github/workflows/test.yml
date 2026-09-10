@@ -240,9 +240,11 @@ jobs:
       shell: bash
       run: |
         ver=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        # stable-i686-gnu keeps the x86_64 host toolchain and cross-compiles to the
+        # i686 target: rustup >= 1.29.1 refuses to install i686 Windows host
+        # toolchains on 64-bit Windows without --force-non-host.
         case "${{ matrix.toolchain }}" in
           stable-gnu) echo "name=${ver}-x86_64-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
-          stable-i686-gnu) echo "name=${ver}-i686-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
           *) echo "name=${ver}" >> "$GITHUB_OUTPUT" ;;
         esac
     - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
