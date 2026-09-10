@@ -275,7 +275,7 @@ jobs:
         large-packages: false
     - name: FreeBSD release build
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
+      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -434,7 +434,7 @@ jobs:
         large-packages: false
     - name: Test FreeBSD
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@24ef01df165c76df1ed2b9f9e9212e78dc2fc963 # v1.4.0
+      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -735,7 +735,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3.0.1
+      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -844,7 +844,7 @@ jobs:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3.0.1
+      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -947,7 +947,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3.0.1
+      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
