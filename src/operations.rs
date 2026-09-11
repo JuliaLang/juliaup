@@ -553,11 +553,25 @@ pub fn download_extract_sans_parent(
         .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::Partial)
         .with_context(|| "Failed to set input stream options.")?;
 
-    let mut content_length: u64 = 0;
-    let pb = if http_response_content.TryComputeLength(&mut content_length)? {
-        ProgressBar::new(content_length)
-    } else {
-        ProgressBar::new_spinner()
+    // Prefer the Content-Length header. With ResponseHeadersRead,
+    // TryComputeLength often cannot determine size yet (returns false or 0),
+    // and ProgressBar::new(0)/spinner makes {total_bytes} grow with downloads.
+    let content_length = http_response_content
+        .Headers()
+        .ok()
+        .and_then(|headers| headers.ContentLength().ok())
+        .and_then(|length| length.Value().ok())
+        .or_else(|| {
+            let mut length = 0u64;
+            match http_response_content.TryComputeLength(&mut length) {
+                Ok(true) if length > 0 => Some(length),
+                _ => None,
+            }
+        });
+
+    let pb = match content_length {
+        Some(len) => ProgressBar::new(len),
+        None => ProgressBar::new_spinner(),
     };
 
     pb.set_prefix(DOWNLOADING_PREFIX);
