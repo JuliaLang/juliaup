@@ -546,8 +546,11 @@ pub fn download_extract_sans_parent(
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
         .with_context(|| "Failed to create DataReader.")?;
 
+    // Prefer Partial over ReadAhead so LoadAsync can return as network bytes
+    // arrive, instead of prefetching large buffers that make the progress bar
+    // jump straight to {total}/{total}.
     reader
-        .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
+        .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::Partial)
         .with_context(|| "Failed to set input stream options.")?;
 
     let mut content_length: u64 = 0;
@@ -559,11 +562,15 @@ pub fn download_extract_sans_parent(
 
     pb.set_prefix(DOWNLOADING_PREFIX);
     pb.set_style(bar_style());
+    // Draw 0/{total} immediately so the bar is visible before the first chunk.
+    pb.tick();
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
+    pb.finish();
 
     Ok(last_modified)
 }
