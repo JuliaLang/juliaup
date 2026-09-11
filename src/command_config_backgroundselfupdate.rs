@@ -33,7 +33,7 @@ pub fn run_command_config_backgroundselfupdate(
 
                 match value {
                     Some(value) => {
-                        install_background_selfupdate(value).unwrap();
+                        install_background_selfupdate(value, paths).unwrap();
                     }
                     None => {
                         uninstall_background_selfupdate().unwrap();

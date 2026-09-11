@@ -750,6 +750,10 @@ mod tests {
         GlobalPaths {
             juliauphome: dir.to_path_buf(),
             juliaupconfig: dir.join("juliaup.json"),
+            juliaupselfexecfolder: dir.join("bin"),
+            juliaupselfexec: dir
+                .join("bin")
+                .join(format!("juliaup{}", std::env::consts::EXE_SUFFIX)),
             lockfile: dir.join(".juliaup-lock"),
             versiondb: dir.join("versiondb-test.json"),
         }
