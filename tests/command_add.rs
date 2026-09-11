@@ -1,3 +1,4 @@
+use predicates::boolean::PredicateBooleanExt;
 use predicates::prelude::predicate;
 
 mod utils;
@@ -83,4 +84,46 @@ fn command_add_pr_warning() {
         .stderr(predicate::str::contains(
             "Review code at https://github.com/JuliaLang/julia/pull/123",
         ));
+}
+
+#[test]
+fn command_add_reuses_installed_version() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .arg("add")
+        .arg("1.10")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Installing Julia 1.10."));
+
+    let version_output = env
+        .julia()
+        .arg("+1.10")
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let version = std::str::from_utf8(&version_output).unwrap();
+
+    // The version is already installed for the `1.10` channel, so adding it
+    // by exact version must only add the channel and not download it again.
+    env.juliaup()
+        .arg("add")
+        .arg(version)
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Installing").not());
+
+    env.julia()
+        .arg(format!("+{}", version))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout(version.to_string());
 }

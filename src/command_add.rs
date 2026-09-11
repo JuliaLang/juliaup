@@ -10,7 +10,7 @@ use crate::operations::{
 };
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use regex::Regex;
 use tempfile::TempDir;
 
@@ -23,6 +23,10 @@ enum AddChannelOutcome {
 /// Commits a downloaded database version after re-checking the channel under
 /// the exclusive configuration lock.
 ///
+/// `downloaded` is `None` when the required version was already installed and
+/// no download was made; the caller must have verified under the same
+/// exclusive lock that the version is still installed.
+///
 /// A concurrent system-channel install only wins when it selected the same
 /// version. If it selected a different version, keep the completed download
 /// and move the channel to the version this `add` resolved before downloading.
@@ -30,7 +34,7 @@ enum AddChannelOutcome {
 fn commit_downloaded_channel(
     channel: &str,
     required_version: &str,
-    downloaded: TempDir,
+    downloaded: Option<TempDir>,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
 ) -> Result<AddChannelOutcome> {
@@ -40,7 +44,23 @@ fn commit_downloaded_channel(
         None => {}
     }
 
-    commit_version_install(downloaded, required_version, config_data, paths)?;
+    match downloaded {
+        Some(downloaded) => {
+            commit_version_install(downloaded, required_version, config_data, paths)?
+        }
+        None => {
+            if !config_data
+                .installed_versions
+                .contains_key(required_version)
+            {
+                bail!(
+                    "Failed to add '{}' because version '{}' is not installed.",
+                    channel,
+                    required_version
+                );
+            }
+        }
+    }
 
     config_data.installed_channels.insert(
         channel.to_string(),
@@ -79,7 +99,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
 
     // Check whether the channel is already installed before downloading. This
     // read only briefly takes a shared lock, which is released immediately.
-    {
+    let version_already_installed = {
         let config_file = load_config_db(paths, None)
             .with_context(|| "`add` command failed to load configuration data.")?;
 
@@ -87,15 +107,48 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
             eprintln!("'{}' is already installed.", channel);
             return Ok(());
         }
-    }
+
+        config_file
+            .data
+            .installed_versions
+            .contains_key(required_version)
+    };
 
     // Download and extract the version without holding the configuration lock,
-    // so concurrent juliaup processes (and the launcher) are not blocked.
-    let downloaded = download_version_to_temp(required_version, &version_db, paths)?;
+    // so concurrent juliaup processes (and the launcher) are not blocked. If
+    // another channel already installed the required version, skip the
+    // download and only move the channel pointer below.
+    let mut downloaded = if version_already_installed {
+        None
+    } else {
+        Some(download_version_to_temp(
+            required_version,
+            &version_db,
+            paths,
+        )?)
+    };
 
     // Re-acquire the exclusive lock to commit the installation.
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`add` command failed to load configuration data.")?;
+
+    // A version seen as installed above may have been removed concurrently
+    // (e.g. by `juliaup gc`); download it after all, again without the lock.
+    if downloaded.is_none()
+        && !config_file
+            .data
+            .installed_versions
+            .contains_key(required_version)
+    {
+        drop(config_file);
+        downloaded = Some(download_version_to_temp(
+            required_version,
+            &version_db,
+            paths,
+        )?);
+        config_file = load_mut_config_db(paths)
+            .with_context(|| "`add` command failed to load configuration data.")?;
+    }
 
     if commit_downloaded_channel(
         channel,
@@ -266,8 +319,13 @@ mod tests {
             },
         );
 
-        let outcome =
-            commit_downloaded_channel("1.10", "1.10.12+0.test", downloaded, &mut config, &paths)?;
+        let outcome = commit_downloaded_channel(
+            "1.10",
+            "1.10.12+0.test",
+            Some(downloaded),
+            &mut config,
+            &paths,
+        )?;
 
         assert_eq!(outcome, AddChannelOutcome::Installed);
         assert!(config.installed_versions.contains_key("1.10.12+0.test"));
@@ -305,12 +363,59 @@ mod tests {
             },
         );
 
-        let outcome =
-            commit_downloaded_channel("1.10", "1.10.12+0.test", downloaded, &mut config, &paths)?;
+        let outcome = commit_downloaded_channel(
+            "1.10",
+            "1.10.12+0.test",
+            Some(downloaded),
+            &mut config,
+            &paths,
+        )?;
 
         assert_eq!(outcome, AddChannelOutcome::AlreadyInstalled);
         assert!(!downloaded_path.exists());
         assert_eq!(std::fs::read_to_string(target.join("julia"))?, "existing");
+        Ok(())
+    }
+
+    #[test]
+    fn already_installed_version_commits_without_download() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let paths = test_paths(dir.path());
+        let mut config = JuliaupConfig::default();
+
+        config.installed_versions.insert(
+            "1.10.12+0.test".to_string(),
+            installed_version("./julia-1.10.12+0.test"),
+        );
+        config.installed_channels.insert(
+            "release".to_string(),
+            JuliaupConfigChannel::SystemChannel {
+                version: "1.10.12+0.test".to_string(),
+            },
+        );
+
+        let outcome =
+            commit_downloaded_channel("1.10", "1.10.12+0.test", None, &mut config, &paths)?;
+
+        assert_eq!(outcome, AddChannelOutcome::Installed);
+        assert!(matches!(
+            config.installed_channels.get("1.10"),
+            Some(JuliaupConfigChannel::SystemChannel { version })
+                if version == "1.10.12+0.test"
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_version_without_download_fails() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let paths = test_paths(dir.path());
+        let mut config = JuliaupConfig::default();
+
+        let result = commit_downloaded_channel("1.10", "1.10.12+0.test", None, &mut config, &paths);
+
+        assert!(result.is_err());
+        assert!(!config.installed_channels.contains_key("1.10"));
         Ok(())
     }
 
@@ -326,8 +431,13 @@ mod tests {
         let downloaded = downloaded_install(dir.path(), "downloaded")?;
         let downloaded_path = downloaded.path().to_path_buf();
 
-        let outcome =
-            commit_downloaded_channel("1.10", "1.10.12+0.test", downloaded, &mut config, &paths)?;
+        let outcome = commit_downloaded_channel(
+            "1.10",
+            "1.10.12+0.test",
+            Some(downloaded),
+            &mut config,
+            &paths,
+        )?;
 
         assert_eq!(outcome, AddChannelOutcome::AlreadyInstalled);
         assert!(!downloaded_path.exists());
