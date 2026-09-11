@@ -507,8 +507,15 @@ pub fn download_extract_sans_parent(
     let request_uri = windows::Foundation::Uri::CreateUri(&HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
+    // Use ResponseHeadersRead so the body streams as we unpack. The default
+    // GetAsync completion option (ResponseContentRead) downloads the entire
+    // payload before returning, which makes the progress bar appear only after
+    // the network transfer has already finished (see #1281).
     let http_response = http_client
-        .GetAsync(&request_uri)
+        .GetWithOptionAsync(
+            &request_uri,
+            windows::Web::Http::HttpCompletionOption::ResponseHeadersRead,
+        )
         .with_context(|| "Failed to initiate download.")?
         .join()
         .with_context(|| "Failed to complete async download operation.")?;
