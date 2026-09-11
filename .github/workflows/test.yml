@@ -267,7 +267,7 @@ jobs:
         # Removing "large packages" alone takes a couple of minutes, it could
         # be switched to true if more space is needed (it'd save ~5 GB or so)
         large-packages: false
-    - name: Test FreeBSD
+    - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
@@ -278,20 +278,23 @@ jobs:
         memory: '12G'
         sync_files: runner-to-vm
         shell: sh
-        run: |
-          df -h
-          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
-          . "${HOME}/.cargo/env"
-          export RUST_BACKTRACE=full
-          # Clean up to maximize available disk space
-          rm -rf target
-          rm -rf ~/.cargo/registry/cache
-          rm -rf ~/.cargo/git/db
-          pkg clean -y
-          df -h
-          export CARGO_INCREMENTAL=0
-          cargo test --verbose --target ${{matrix.target}} --features ${{matrix.features}}
+    - name: Test FreeBSD
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      shell: cpa.sh {0} --sync-files runner-to-vm
+      run: |
+        df -h
+        RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+        . "${HOME}/.cargo/env"
+        export RUST_BACKTRACE=full
+        # Clean up to maximize available disk space
+        rm -rf target
+        rm -rf ~/.cargo/registry/cache
+        rm -rf ~/.cargo/git/db
+        pkg clean -y
+        df -h
+        export CARGO_INCREMENTAL=0
+        cargo test --verbose --target ${{matrix.target}} --features ${{matrix.features}}
 
   test-selfupdate:
     # Exercises the real `juliaup self update` code path end-to-end against a
@@ -371,7 +374,7 @@ jobs:
       with:
         tool-cache: true
         large-packages: false
-    - name: Test juliaupgui on FreeBSD
+    - name: Start FreeBSD VM
       uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
         operating_system: freebsd
@@ -381,18 +384,20 @@ jobs:
         memory: '12G'
         sync_files: runner-to-vm
         shell: sh
-        run: |
-          df -h
-          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
-          . "${HOME}/.cargo/env"
-          export RUST_BACKTRACE=full
-          # Clean up to maximize available disk space
-          rm -rf target
-          rm -rf ~/.cargo/registry/cache
-          rm -rf ~/.cargo/git/db
-          sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
-          sudo pkg clean -y
-          df -h
-          export CARGO_INCREMENTAL=0
-          cargo test --verbose -p juliaupgui
+    - name: Test juliaupgui on FreeBSD
+      shell: cpa.sh {0} --sync-files runner-to-vm
+      run: |
+        df -h
+        RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+        . "${HOME}/.cargo/env"
+        export RUST_BACKTRACE=full
+        # Clean up to maximize available disk space
+        rm -rf target
+        rm -rf ~/.cargo/registry/cache
+        rm -rf ~/.cargo/git/db
+        sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+        sudo pkg clean -y
+        df -h
+        export CARGO_INCREMENTAL=0
+        cargo test --verbose -p juliaupgui

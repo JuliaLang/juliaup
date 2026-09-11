@@ -277,7 +277,7 @@ jobs:
         # Removing "large packages" alone takes a couple of minutes, it could
         # be switched to true if more space is needed (it'd save ~5 GB or so)
         large-packages: false
-    - name: FreeBSD release build
+    - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
@@ -287,25 +287,28 @@ jobs:
         cpu_count: 4
         memory: '12G'
         shell: sh
-        run: |
-          df -h
-          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
-          . "${HOME}/.cargo/env"
-          # Clean up to maximize available disk space
-          rm -rf target
-          rm -rf ~/.cargo/registry/cache
-          rm -rf ~/.cargo/git/db
-          pkg clean -y
-          df -h
-          export CARGO_INCREMENTAL=0
-          cargo build --verbose --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
-          # juliaupgui needs X11/xkb/OpenGL headers, which live in ports rather
-          # than the FreeBSD base system. Unlike the other targets, the GUI is
-          # built inside this VM instead of via cross, because the cross FreeBSD
-          # sysroot only carries base.
-          sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
-          cargo build --verbose --release -p juliaupgui --target ${{matrix.target}}
+    - name: FreeBSD release build
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      shell: cpa.sh {0}
+      run: |
+        df -h
+        RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+        . "${HOME}/.cargo/env"
+        # Clean up to maximize available disk space
+        rm -rf target
+        rm -rf ~/.cargo/registry/cache
+        rm -rf ~/.cargo/git/db
+        pkg clean -y
+        df -h
+        export CARGO_INCREMENTAL=0
+        cargo build --verbose --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
+        # juliaupgui needs X11/xkb/OpenGL headers, which live in ports rather
+        # than the FreeBSD base system. Unlike the other targets, the GUI is
+        # built inside this VM instead of via cross, because the cross FreeBSD
+        # sysroot only carries base.
+        sudo pkg install -y pkgconf libX11 libxcb libxkbcommon mesa-libs
+        cargo build --verbose --release -p juliaupgui --target ${{matrix.target}}
     - uses: actions/upload-artifact@v7
       with:
         name: juliaup-${{matrix.label}}
@@ -463,7 +466,7 @@ jobs:
         # Removing "large packages" alone takes a couple of minutes, it could
         # be switched to true if more space is needed (it'd save ~5 GB or so)
         large-packages: false
-    - name: Test FreeBSD
+    - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
       with:
@@ -474,18 +477,21 @@ jobs:
         memory: '12G'
         sync_files: runner-to-vm
         shell: sh
-        run: |
-          df -h
-          RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
-          fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
-          . "${HOME}/.cargo/env"
-          export RUST_BACKTRACE=full
-          # Clean up to maximize available disk space
-          rm -rf target
-          rm -rf ~/.cargo/registry/cache
-          rm -rf ~/.cargo/git/db
-          df -h
-          CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
+    - name: Test FreeBSD
+      if: ${{ contains(matrix.target, 'freebsd') }}
+      shell: cpa.sh {0} --sync-files runner-to-vm
+      run: |
+        df -h
+        RUST_VERSION=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
+        fetch https://sh.rustup.rs -o - | sh -s -- -y --default-toolchain "$RUST_VERSION" --profile minimal
+        . "${HOME}/.cargo/env"
+        export RUST_BACKTRACE=full
+        # Clean up to maximize available disk space
+        rm -rf target
+        rm -rf ~/.cargo/registry/cache
+        rm -rf ~/.cargo/git/db
+        df -h
+        CARGO_INCREMENTAL=0 cargo test --target ${{matrix.target}} --features ${{matrix.features}}
   package-unix:
     needs: [build-juliaup,build-juliaupgui-linux,test-juliaup]
     environment: package
