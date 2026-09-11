@@ -2,7 +2,7 @@
 
 This repository contains a cross-platform installer for the Julia programming language.
 
-The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction.
+The installer also bundles a full Julia version manager called `juliaup`. One can use `juliaup` to install specific Julia versions, it alerts users when new Julia versions are released and provides a convenient Julia release channel abstraction. It comes as both a command line tool and a graphical application, the [Juliaup GUI](#juliaup-gui).
 
 ## Status
 
@@ -72,7 +72,7 @@ curl -fsSL https://install.julialang.org | sh -s -- \
 
 ### Software Repositories
 
-**Important note:** As of now, we strongly recommend to install Juliaup via the Windows Store or `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future).
+**Important note:** As of now, we strongly recommend to install Juliaup via the Windows Store or `curl` command above rather than through OS-specific software repositories (see below) as the Juliaup variants provided by the latter currently have some drawbacks (that we hope to lift in the future). In particular, some of these packages only build the command line tools and not the [Juliaup GUI](#juliaup-gui).
 
 ##### [Homebrew](https://brew.sh)
 
@@ -119,6 +119,8 @@ If you use GitHub Actions as your CI provider, you can use the [`julia-actions/i
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
+Most of this can also be done from the [Juliaup GUI](#juliaup-gui).
+
 Here are some of the things you can do with `juliaup`:
 - `juliaup list` lists all the available channels.
 - `juliaup update` installs the latest available Julia version for all your channels.
@@ -143,6 +145,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup override unset --nonexistent` removes all directory overrides for paths that no longer exist.
 - Tab completions for `juliaup` commands and `julia +channel` selection are automatically installed for Bash and Zsh (sourced from `~/.juliaup/completions/`). For other shells you can generate them manually, e.g. `juliaup completions fish > ~/.config/fish/completions/juliaup.fish`. Supported shells: `bash`, `zsh`, `fish`, `elvish`, `powershell`, and `nushell`.
 - `juliaup config --help` lists all available configuration keys; `juliaup config <key> --help` shows accepted values for a specific key.
+- `juliaup gui` opens the [Juliaup GUI](#juliaup-gui).
 - `juliaup` shows you what other commands are available.
 
 The available system provided channels are:
@@ -160,6 +163,24 @@ The available system provided channels are:
 - major version channels, e.g. `1`.
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
+
+## Juliaup GUI
+
+Juliaup includes a graphical application for managing Julia versions. It is installed alongside `juliaup` by all of the official installers on Windows, Mac, Linux, and FreeBSD, and can be started with
+
+```
+juliaup gui
+```
+
+or by running `juliaupgui` directly. On Windows it also has a "Juliaup GUI" entry in the start menu. On other platforms it is only started from the command line for now; application menu entries and icons there are planned.
+
+The GUI covers the everyday tasks of the command line tool:
+
+- **Installed** shows your channels with their versions and update state. From there you can launch Julia in a terminal, optionally with a project and extra arguments, set the default channel, update, or remove a channel.
+- **Available** lists every channel that can be installed, including specific versions, prereleases, nightlies, and PR builds.
+- **Settings** exposes the Juliaup configuration keys, directory overrides, garbage collection of unused Julia versions, and updating Juliaup itself.
+
+On Linux the GUI is a graphical program like any other and needs a desktop session (X11 or Wayland) with OpenGL available. It runs on any distribution with glibc 2.28 or newer, which is any mainstream release since 2018.
 
 ## Using installed Julia versions
 
@@ -216,6 +237,8 @@ If your custom mirror server does not support `etag` headers, these channels wil
 
 For juliaup developers, information on how to build juliaup locally, update julia versions, and release updates
 can be found in the wiki https://github.com/JuliaLang/juliaup/wiki
+
+The GUI lives in the `juliaupgui` workspace package and is built and tested separately from the command line tool with `cargo build -p juliaupgui` and `cargo test -p juliaupgui`. On Linux, install the xcb, xkbcommon, and OpenGL development packages first.
 
 To use unstable preview versions of juliaup (e.g. to get a patch before it makes it into the latest release), use
 
