@@ -1,0 +1,47 @@
+name: Build juliaupgui for Linux
+description: >
+  Builds juliaupgui against an old glibc and checks the result. Must run in a
+  job whose `container` is a manylinux_2_28 image (AlmaLinux 8, glibc 2.28)
+  matching the target architecture.
+
+  Linux installs of juliaup use the static musl build of the CLI, which cannot
+  dlopen the X11/Wayland/OpenGL libraries the GUI needs at runtime. The GUI is
+  therefore built dynamically against glibc here and shipped alongside the
+  musl binaries, so it has to keep running on any glibc >= 2.28 distribution.
+inputs:
+  target:
+    description: Rust target tuple, x86_64-unknown-linux-gnu or aarch64-unknown-linux-gnu
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install build dependencies
+      shell: bash
+      # cmake and perl are for aws-lc-sys: its cc builder runs a memcmp self-check
+      # that panics with the toolset's GCC (gcc bug 95189), so the CMake builder
+      # is used instead (see AWS_LC_SYS_CMAKE_BUILDER below). The rest are the
+      # X11/xkb/OpenGL headers eframe's dependencies want at build time.
+      run: dnf install -y cmake perl libxkbcommon-devel libxcb-devel mesa-libGL-devel
+    - name: Install Rust
+      shell: bash
+      # rustup picks the channel and components up from rust-toolchain.toml.
+      run: |
+        curl --proto '=https' --tlsv1.2 --retry 10 -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+    - name: Build juliaupgui
+      shell: bash
+      run: cargo build --release -p juliaupgui --target ${{ inputs.target }}
+      env:
+        AWS_LC_SYS_CMAKE_BUILDER: "1"
+    - name: Check glibc floor
+      shell: bash
+      run: |
+        bin=target/${{ inputs.target }}/release/juliaupgui
+        readelf -d "$bin" | grep NEEDED
+        floor=$(objdump -T "$bin" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -Vu | tail -1)
+        echo "highest glibc symbol version: $floor"
+        newest=$(printf '%s\n' GLIBC_2.28 "$floor" | sort -V | tail -1)
+        if [ "$newest" != GLIBC_2.28 ]; then
+          echo "::error::juliaupgui requires $floor but must run on glibc 2.28"
+          exit 1
+        fi
