@@ -119,7 +119,7 @@ If you use GitHub Actions as your CI provider, you can use the [`julia-actions/i
 
 Once you have installed Juliaup, `julia` is on the `PATH`, and on Windows there is a start menu shortcut and it will show up as a profile in Windows Terminal. Any of those will start Julia. The VS Code extension will also automatically find this Julia installation.
 
-Everything below can also be done from the [Juliaup GUI](#juliaup-gui).
+Most of this can also be done from the [Juliaup GUI](#juliaup-gui).
 
 Here are some of the things you can do with `juliaup`:
 - `juliaup list` lists all the available channels.
@@ -174,7 +174,7 @@ juliaup gui
 
 or by running `juliaupgui` directly. On Windows it also has a "Juliaup GUI" entry in the start menu. On other platforms it is only started from the command line for now; application menu entries and icons there are planned.
 
-The GUI covers everything the command line tool does:
+The GUI covers the everyday tasks of the command line tool:
 
 - **Installed** shows your channels with their versions and update state. From there you can launch Julia in a terminal, optionally with a project and extra arguments, set the default channel, update, or remove a channel.
 - **Available** lists every channel that can be installed, including specific versions, prereleases, nightlies, and PR builds.
