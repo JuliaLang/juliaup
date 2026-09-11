@@ -507,8 +507,15 @@ pub fn download_extract_sans_parent(
     let request_uri = windows::Foundation::Uri::CreateUri(&HSTRING::from(url))
         .with_context(|| "Failed to convert url string to Uri.")?;
 
+    // Use ResponseHeadersRead so the body streams as we unpack. The default
+    // GetAsync completion option (ResponseContentRead) downloads the entire
+    // payload before returning, which makes the progress bar appear only after
+    // the network transfer has already finished (see #1281).
     let http_response = http_client
-        .GetAsync(&request_uri)
+        .GetWithOptionAsync(
+            &request_uri,
+            windows::Web::Http::HttpCompletionOption::ResponseHeadersRead,
+        )
         .with_context(|| "Failed to initiate download.")?
         .join()
         .with_context(|| "Failed to complete async download operation.")?;
@@ -539,24 +546,45 @@ pub fn download_extract_sans_parent(
     let reader = windows::Storage::Streams::DataReader::CreateDataReader(&response_stream)
         .with_context(|| "Failed to create DataReader.")?;
 
+    // Prefer Partial over ReadAhead so LoadAsync can return as network bytes
+    // arrive, instead of prefetching large buffers that make the progress bar
+    // jump straight to {total}/{total}.
     reader
-        .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::ReadAhead)
+        .SetInputStreamOptions(windows::Storage::Streams::InputStreamOptions::Partial)
         .with_context(|| "Failed to set input stream options.")?;
 
-    let mut content_length: u64 = 0;
-    let pb = if http_response_content.TryComputeLength(&mut content_length)? {
-        ProgressBar::new(content_length)
-    } else {
-        ProgressBar::new_spinner()
+    // Prefer the Content-Length header. With ResponseHeadersRead,
+    // TryComputeLength often cannot determine size yet (returns false or 0),
+    // and ProgressBar::new(0)/spinner makes {total_bytes} grow with downloads.
+    let content_length = http_response_content
+        .Headers()
+        .ok()
+        .and_then(|headers| headers.ContentLength().ok())
+        .and_then(|length| length.Value().ok())
+        .or_else(|| {
+            let mut length = 0u64;
+            match http_response_content.TryComputeLength(&mut length) {
+                Ok(true) if length > 0 => Some(length),
+                _ => None,
+            }
+        });
+
+    let pb = match content_length {
+        Some(len) => ProgressBar::new(len),
+        None => ProgressBar::new_spinner(),
     };
 
     pb.set_prefix(DOWNLOADING_PREFIX);
     pb.set_style(bar_style());
+    // Draw 0/{total} immediately so the bar is visible before the first chunk.
+    pb.tick();
 
     let response_with_pb = pb.wrap_read(DataReaderWrap(reader));
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
+
+    pb.finish();
 
     Ok(last_modified)
 }
