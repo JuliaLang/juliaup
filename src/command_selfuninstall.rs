@@ -60,6 +60,7 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
         let julia_symlink_path = juliaup_binfolder_path.join("julia");
         let julialauncher_path = juliaup_binfolder_path.join("julialauncher");
         let juliaup_path = juliaup_binfolder_path.join("juliaup");
+        let juliaupgui_path = juliaup_binfolder_path.join("juliaupgui");
         let juliaup_config_path = paths.juliaupselfhome.join("juliaupself.json");
 
         eprint!("Deleting julia symlink {}.", julia_symlink_path.display());
@@ -82,6 +83,15 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
             Ok(_) => eprintln!(" Success."),
             Err(e) => eprintln!(" Failed: {e}."),
         };
+
+        // Installs from before the GUI shipped do not have it.
+        if juliaupgui_path.exists() {
+            eprint!("Deleting juliaupgui binary {}.", juliaupgui_path.display());
+            match std::fs::remove_file(&juliaupgui_path) {
+                Ok(_) => eprintln!(" Success."),
+                Err(e) => eprintln!(" Failed: {e}."),
+            };
+        }
 
         if juliaup_binfolder_path
             .read_dir()
