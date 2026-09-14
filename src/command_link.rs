@@ -27,7 +27,7 @@ pub fn run_command_link(
         bail!("Channel name `{}` is already used.", channel)
     }
 
-    if is_valid_channel(&versiondb_data, &channel.to_string())? {
+    if is_valid_channel(&versiondb_data, channel) {
         eprintln!("WARNING: The channel name `{channel}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.");
     }
 
@@ -39,7 +39,7 @@ pub fn run_command_link(
             if let JuliaupConfigChannel::AliasChannel { .. } = target_info {
                 bail!("Cannot create an alias to another alias `{}`. Please create an alias directly to the target channel instead.", target_channel);
             }
-        } else if !is_valid_channel(&versiondb_data, &target_channel.to_string())? {
+        } else if !is_valid_channel(&versiondb_data, target_channel) {
             bail!("Target channel `{}` is not installed and is not a valid system channel. Please run `juliaup add {}` first or check `juliaup list` for available channels.", target_channel, target_channel);
         }
 

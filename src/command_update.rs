@@ -1,3 +1,4 @@
+use crate::channel_name::is_pr_channel;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::{
     get_read_lock, load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel,
@@ -8,7 +9,7 @@ use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 use crate::operations::create_symlink;
 use crate::operations::{
     commit_version_install, download_version_to_temp, garbage_collect_versions, install_from_url,
-    is_pr_channel, update_version_db,
+    update_version_db,
 };
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
