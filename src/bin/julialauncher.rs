@@ -3,13 +3,14 @@ use console::{style, Term};
 use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
+use juliaup::channel_name::{is_nightly_channel, is_pr_channel};
 use juliaup::config_file::{
     load_config_db_lockfree, load_mut_config_db, save_config_db, JuliaupConfig,
     JuliaupConfigChannel, JuliaupConfigVersion,
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::{is_pr_channel, is_valid_channel};
+use juliaup::operations::is_valid_channel;
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
@@ -317,13 +318,6 @@ fn check_channel_uptodate(
     Ok(())
 }
 
-fn is_nightly_channel(channel: &str) -> bool {
-    use regex::Regex;
-    let nightly_re =
-        Regex::new(r"^((?:nightly|latest)|(\d+\.\d+)-(?:nightly|latest))(~|$)").unwrap();
-    nightly_re.is_match(channel)
-}
-
 #[derive(Debug)]
 enum JuliaupChannelSource {
     CmdLine,
@@ -349,7 +343,7 @@ fn get_julia_path_from_channel(
         _ => (channel.to_string(), Vec::new()),
     };
 
-    let channel_valid = is_valid_channel(versions_db, &resolved_channel)?;
+    let channel_valid = is_valid_channel(versions_db, &resolved_channel);
 
     // First check if the channel is already installed
     if let Some(channel_info) = config_data.installed_channels.get(&resolved_channel) {

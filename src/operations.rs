@@ -1,3 +1,4 @@
+use crate::channel_name::{is_pr_channel, ChannelName};
 use crate::cli::Juliaup;
 use crate::command_completions::write_completion_files;
 use crate::config_file::get_read_lock;
@@ -990,19 +991,11 @@ pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
     Ok(channels)
 }
 
-// considers the nightly channels as system channels
-// XXX: does not account for PR channels
-pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
-    let regular = versions_db.has_channel(channel);
-
-    let nightly_chans = get_channel_variations("nightly")?;
-
-    let nightly = nightly_chans.contains(channel);
-    Ok(regular || nightly)
-}
-
-pub fn is_pr_channel(channel: &str) -> bool {
-    Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel)
+/// Recognizes database channels and nightly/PR channel syntax. Availability
+/// of direct downloads is checked when resolving the build.
+pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &str) -> bool {
+    versions_db.has_channel(channel)
+        || ChannelName::parse(channel).is_ok_and(|name| name.is_direct_download())
 }
 
 fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {

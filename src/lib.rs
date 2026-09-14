@@ -1,5 +1,6 @@
 use anyhow::Context;
 
+pub mod channel_name;
 pub mod cli;
 pub mod cli_styles;
 pub mod command_add;

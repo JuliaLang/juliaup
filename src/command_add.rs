@@ -1,3 +1,4 @@
+use crate::channel_name::{ChannelBase, ChannelName};
 use crate::config_file::{
     load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
 };
@@ -11,7 +12,6 @@ use crate::operations::{
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Result};
-use regex::Regex;
 use tempfile::TempDir;
 
 #[derive(Debug, PartialEq)]
@@ -73,12 +73,9 @@ fn commit_downloaded_channel(
 }
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
-    // This regex is dynamically compiled, but its runtime is negligible compared to downloading Julia
-    if Regex::new(r"^(?:pr\d+|nightly|\d+\.\d+-nightly)(?:~|$)")
-        .unwrap()
-        .is_match(channel)
-    {
-        return add_non_db(channel, paths);
+    let name = ChannelName::parse(channel)?;
+    if name.is_direct_download() {
+        return add_non_db(channel, &name, paths);
     }
 
     update_version_db(&Some(channel.to_string()), true, paths)
@@ -197,7 +194,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     Ok(())
 }
 
-fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
+fn add_non_db(channel: &str, name: &ChannelName, paths: &GlobalPaths) -> Result<()> {
     // Check whether the channel is already installed before downloading. This
     // read only briefly takes a shared lock, which is released immediately.
     {
@@ -211,8 +208,7 @@ fn add_non_db(channel: &str, paths: &GlobalPaths) -> Result<()> {
     }
 
     // Warn about security implications of PR builds
-    if let Some(caps) = Regex::new(r"^pr(\d+)").unwrap().captures(channel) {
-        let pr_number = &caps[1];
+    if let ChannelBase::Pr(pr_number) = name.base {
         eprintln!(
             "\nWARNING: Note that unmerged PRs may not have been reviewed for security issues etc."
         );
