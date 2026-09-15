@@ -4,10 +4,7 @@ use itertools::Itertools;
 use juliaup::command_config_autoinstall::run_command_config_autoinstall;
 use juliaup::command_config_manifestversiondetect::run_command_config_manifestversiondetect;
 use juliaup::command_config_versionsdbupdate::run_command_config_versionsdbupdate;
-use juliaup::command_default::run_command_default;
-use juliaup::command_gc::run_command_gc;
-use juliaup::command_override::{run_command_override_set, run_command_override_unset};
-use juliaup::command_update_version_db::run_command_update_version_db;
+use juliaup::command_override::run_command_override_unset;
 use juliaup::config_file::{
     load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel, JuliaupConfigSettings,
 };
@@ -2887,9 +2884,10 @@ fn worker(rx: mpsc::Receiver<(Op, Arc<GlobalPaths>)>, tx: mpsc::Sender<Msg>) {
     }
 }
 
-// Operations that produce streaming output (add, remove, update, link, self-update)
-// spawn a juliaup subprocess to relay progress lines to the UI.
-// Quick config changes are called directly as library functions.
+// Operations that print status lines (add, remove, update, link, self-update,
+// gc, default, override set, update-version-db) spawn a juliaup subprocess so
+// the output is relayed to the UI log instead of landing on our own stderr.
+// Quiet config changes are called directly as library functions.
 fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
     match op {
         Op::Reload => match load_state(paths) {
@@ -2923,7 +2921,7 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
                 Err(e) => Msg::Err(format!("{e}")),
             }
         }
-        Op::SetDefault(ch) => match run_command_default(ch, paths) {
+        Op::SetDefault(ch) => match spawn_and_stream(&["default", ch], tx) {
             Ok(_) => Msg::Ok(format!("Default set to '{ch}'")),
             Err(e) => Msg::Err(format!("{e}")),
         },
@@ -2931,16 +2929,19 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
             Ok(_) => Msg::Ok("Juliaup updated successfully".to_string()),
             Err(e) => Msg::Err(format!("{e}")),
         },
-        Op::Gc => match run_command_gc(false, paths) {
+        Op::Gc => match spawn_and_stream(&["gc"], tx) {
             Ok(_) => Msg::Ok("Garbage collection complete".to_string()),
             Err(e) => Msg::Err(format!("{e}")),
         },
-        Op::UpdateVersionDb => match run_command_update_version_db(paths) {
-            Ok(_) => Msg::Ok("Version database updated".to_string()),
-            Err(e) => Msg::Err(format!("{e}")),
-        },
+        // Hidden subcommand name for `update-version-db`, same as julialauncher uses.
+        Op::UpdateVersionDb => {
+            match spawn_and_stream(&["0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf"], tx) {
+                Ok(_) => Msg::Ok("Version database updated".to_string()),
+                Err(e) => Msg::Err(format!("{e}")),
+            }
+        }
         Op::SetVersionsDbInterval(v) => {
-            match run_command_config_versionsdbupdate(Some(*v), false, paths) {
+            match run_command_config_versionsdbupdate(Some(*v), true, paths) {
                 Ok(_) => Msg::Ok(format!("DB update interval set to {v} min")),
                 Err(e) => Msg::Err(format!("{e}")),
             }
@@ -2953,24 +2954,24 @@ fn exec(op: &Op, paths: &GlobalPaths, tx: &mpsc::Sender<Msg>) -> Msg {
                     "false".to_string()
                 }
             });
-            match run_command_config_autoinstall(s, false, paths) {
+            match run_command_config_autoinstall(s, true, paths) {
                 Ok(_) => Msg::Ok("Auto-install setting saved".to_string()),
                 Err(e) => Msg::Err(format!("{e}")),
             }
         }
         Op::SetManifestDetect(v) => {
-            match run_command_config_manifestversiondetect(Some(*v), false, paths) {
+            match run_command_config_manifestversiondetect(Some(*v), true, paths) {
                 Ok(_) => Msg::Ok("Manifest version detect updated".to_string()),
                 Err(e) => Msg::Err(format!("{e}")),
             }
         }
         #[cfg(not(windows))]
-        Op::SetChannelSymlinks(v) => match run_command_config_symlinks(Some(*v), false, paths) {
+        Op::SetChannelSymlinks(v) => match run_command_config_symlinks(Some(*v), true, paths) {
             Ok(_) => Msg::Ok("Channel symlinks setting updated".to_string()),
             Err(e) => Msg::Err(format!("{e}")),
         },
         Op::SetOverride { path, channel } => {
-            match run_command_override_set(paths, channel.clone(), Some(path.clone())) {
+            match spawn_and_stream(&["override", "set", channel, "--path", path], tx) {
                 Ok(_) => Msg::Ok(format!("Override set: {path} → {channel}")),
                 Err(e) => Msg::Err(format!("{e}")),
             }
