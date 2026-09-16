@@ -57,7 +57,7 @@ static CUSTOM_PR_SERVER_WARNING_SHOWN: OnceLock<()> = OnceLock::new();
 /// ::1). Plain HTTP is permitted for these because the traffic never leaves the
 /// machine; this is used by the integration tests that spin up a local mock
 /// server, and by anyone pointing juliaup at a loopback mirror.
-fn is_loopback_http(url: &Url) -> bool {
+pub(crate) fn is_loopback_http(url: &Url) -> bool {
     url.scheme() == "http"
         && matches!(
             url.host_str(),

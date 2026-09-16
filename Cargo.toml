@@ -72,6 +72,7 @@ toml = "1.1"
 retry = "2"
 
 [target.'cfg(windows)'.dependencies]
+windows-future = "0.3"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Console", "Win32_System_Threading", "Services_Store", "Foundation", "Foundation_Collections", "Web_Http", "Web_Http_Headers", "Storage_Streams", "Management_Deployment"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -10,7 +10,8 @@ use juliaup::config_file::{
 };
 use juliaup::global_paths::GlobalPaths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::{get_channel_variations, get_julia_pr_title};
+use juliaup::nightlies_db::NightliesDb;
+use juliaup::operations::{available_nightly_channels, get_julia_pr_title};
 use juliaup::versions_file::load_versions_db;
 use numeric_sort::cmp;
 use std::collections::{HashMap, HashSet};
@@ -1497,7 +1498,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
     // ── build parent-child tree ───────────────────────────────────────
     let channel_set: HashSet<&str> = rows.iter().map(|r| r.channel.as_str()).collect();
 
-    // For each channel, find its direct parent (longest prefix match separated by . - ~)
+    // For each channel, find its direct parent (longest prefix match separated by . - + ~)
     let mut parent_of: HashMap<&str, &str> = HashMap::new();
     let mut children_of: HashMap<&str, Vec<usize>> = HashMap::new();
     for (i, row) in rows.iter().enumerate() {
@@ -1509,7 +1510,7 @@ fn tab_available(app: &mut App, ui: &mut egui::Ui) {
                 && ch.starts_with(other)
                 && matches!(
                     ch.as_bytes().get(other.len()),
-                    Some(b'.') | Some(b'-') | Some(b'~')
+                    Some(b'.') | Some(b'-') | Some(b'+') | Some(b'~')
                 )
                 && other.len() > best_len
             {
@@ -3021,7 +3022,8 @@ fn load_state(paths: &GlobalPaths) -> anyhow::Result<AppState> {
     let installed = build_installed(&config, &versiondb);
     let installed_keys: std::collections::HashSet<_> =
         config.data.installed_channels.keys().cloned().collect();
-    let available = build_available(&versiondb, &installed_keys)?;
+    let nightlies = juliaup::operations::nightlies_db_for_listing(paths);
+    let available = build_available(&versiondb, nightlies.as_ref(), &installed_keys)?;
     let overrides = config
         .data
         .overrides
@@ -3103,13 +3105,10 @@ fn pr_link_hover_text(number: &str, title: Option<&str>) -> String {
 
 fn build_available(
     versiondb: &JuliaupVersionDB,
+    nightlies: Option<&NightliesDb>,
     installed: &std::collections::HashSet<String>,
 ) -> anyhow::Result<Vec<AvailableRow>> {
-    let non_db: Vec<String> = get_channel_variations("nightly")?
-        .into_iter()
-        .chain(get_channel_variations("x.y-nightly")?)
-        .chain(get_channel_variations("pr{number}")?)
-        .collect();
+    let non_db = available_nightly_channels(nightlies)?;
 
     let rows: Vec<AvailableRow> = versiondb
         .available_channels
@@ -3120,9 +3119,9 @@ fn build_available(
             version: info.version.clone(),
             installed: installed.contains(ch),
         })
-        .chain(non_db.into_iter().map(|ch| AvailableRow {
+        .chain(non_db.into_iter().map(|(ch, build)| AvailableRow {
             installed: installed.contains(&ch),
-            version: "dynamic".to_string(),
+            version: build,
             channel: ch,
         }))
         .collect();
