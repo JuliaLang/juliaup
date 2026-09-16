@@ -13,7 +13,6 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
-use crate::utils::check_server_supports_nightlies;
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaprs_base_url;
@@ -253,7 +252,7 @@ fn show_install_progress(message: &str) {
 }
 
 #[cfg(target_os = "macos")]
-pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
+fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Result<String> {
     use std::fs::File;
     use std::io::Write;
 
@@ -320,9 +319,10 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     let etag = response
         .headers()
         .get("etag")
-        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?
-        .to_str()?
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
         .to_string();
+    validate_artifact_etag(&etag, url, require_etag)?;
 
     // Download to temporary DMG file
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
@@ -431,24 +431,45 @@ fn dmg_url_from_tarball(url: &url::Url) -> url::Url {
 }
 
 #[cfg(target_os = "macos")]
-fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
+fn try_download_dmg_with_fallback(
+    url: &url::Url,
+    target_path: &Path,
+    require_etag: bool,
+) -> Result<(String, bool)> {
     let dmg_url = dmg_url_from_tarball(url);
 
-    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path, require_etag) {
         strip_quarantine_attribute(target_path);
         return Ok((etag, true));
     }
 
-    let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
+    let etag = download_extract_archive(url.as_ref(), target_path, 1, require_etag)?;
     strip_quarantine_attribute(target_path);
     Ok((etag, false))
 }
 
-#[cfg(not(windows))]
+fn validate_artifact_etag(etag: &str, url: &str, required: bool) -> Result<()> {
+    if required && etag.is_empty() {
+        bail!("The download from `{}` has no etag header, which is required for nightly and PR updates.", url);
+    }
+    Ok(())
+}
+
+/// Regular releases and juliaup itself do not require artifact ETags.
 pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
+) -> Result<String> {
+    download_extract_archive(url, target_path, levels_to_skip, false)
+}
+
+#[cfg(not(windows))]
+fn download_extract_archive(
+    url: &str,
+    target_path: &Path,
+    levels_to_skip: usize,
+    require_etag: bool,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
     let response = http_client()?
@@ -474,6 +495,7 @@ pub fn download_extract_sans_parent(
         .map(|etag| etag.to_str().unwrap_or("").to_string())
         .unwrap_or_default();
 
+    validate_artifact_etag(&last_modified, url, require_etag)?;
     let response_with_pb = pb.wrap_read(response);
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
@@ -503,10 +525,11 @@ impl std::io::Read for DataReaderWrap {
 }
 
 #[cfg(windows)]
-pub fn download_extract_sans_parent(
+fn download_extract_archive(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
+    require_etag: bool,
 ) -> Result<String> {
     use windows::core::HSTRING;
 
@@ -541,6 +564,7 @@ pub fn download_extract_sans_parent(
         .map(|etag| etag.to_string())
         .unwrap_or_default();
 
+    validate_artifact_etag(&last_modified, url, require_etag)?;
     let http_response_content = http_response
         .Content()
         .with_context(|| "Failed to obtain content from http response.")?;
@@ -846,7 +870,8 @@ pub fn download_version_to_temp(
 
         #[cfg(target_os = "macos")]
         let used_dmg = {
-            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, temp_dir.path())?;
+            let (_, used_dmg) =
+                try_download_dmg_with_fallback(&download_url, temp_dir.path(), false)?;
             used_dmg
         };
 
@@ -1094,17 +1119,6 @@ pub fn install_from_url(
     #[cfg_attr(not(target_os = "macos"), allow(unused))] is_pr: bool,
     paths: &GlobalPaths,
 ) -> Result<(crate::config_file::JuliaupConfigChannel, bool)> {
-    // Check if the nightly server supports etag headers (required for nightly/PR channels)
-    // Do this BEFORE downloading to avoid wasting bandwidth
-    if !check_server_supports_nightlies()
-        .context("Failed to check if nightly server supports etag headers")?
-    {
-        bail!(
-            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
-            Nightly and PR channels cannot be installed from this server."
-        );
-    }
-
     // Download and extract into a temporary directory
     let temp_dir = Builder::new()
         .prefix("julia-temp-")
@@ -1112,11 +1126,11 @@ pub fn install_from_url(
         .expect("Failed to create temporary directory");
 
     #[cfg(target_os = "macos")]
-    let (server_etag, used_dmg) = try_download_dmg_with_fallback(url, temp_dir.path())?;
+    let (server_etag, used_dmg) = try_download_dmg_with_fallback(url, temp_dir.path(), true)?;
 
     #[cfg(not(target_os = "macos"))]
     let (server_etag, used_dmg) = {
-        let download_result = download_extract_sans_parent(url.as_ref(), temp_dir.path(), 1);
+        let download_result = download_extract_archive(url.as_ref(), temp_dir.path(), 1, true);
         match download_result {
             Ok(last_updated) => (last_updated, false),
             Err(e) => {
@@ -1577,16 +1591,6 @@ pub fn install_non_db_version(
     name: &String,
     paths: &GlobalPaths,
 ) -> Result<(crate::config_file::JuliaupConfigChannel, bool)> {
-    // Check if the nightly server supports etag headers (required for nightly/PR channels)
-    if !check_server_supports_nightlies()
-        .context("Failed to check if nightly server supports etag headers")?
-    {
-        bail!(
-            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
-            Nightly and PR channels cannot be installed from this server."
-        );
-    }
-
     // Determine the download URL
     let mut parts = name.splitn(2, '-');
 
@@ -2730,9 +2734,6 @@ fn download_direct_download_etags(
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
-    // Check if the server supports etag headers (required for nightly/PR updates)
-    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
-
     let http_client = http_client()?;
 
     let mut requests = Vec::new();
@@ -2749,13 +2750,6 @@ fn download_direct_download_etags(
             url, binary_path, ..
         } = installed_channel
         {
-            // If server doesn't support etag, we can't check for updates on nightly/PR channels
-            // Return None gracefully so the update process can continue with other channels
-            if !server_supports_etag {
-                requests.push((channel_name.clone(), None));
-                continue;
-            }
-
             let http_client = http_client.clone();
             let url_clone = url.clone();
             let binary_path_clone = binary_path.clone();
@@ -2819,9 +2813,6 @@ fn download_direct_download_etags(
 ) -> Result<DirectDownloadUpdateInfo> {
     use std::sync::Arc;
 
-    // Check if the server supports etag headers (required for nightly/PR updates)
-    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
-
     let client = Arc::new(http_client()?);
 
     let mut requests = Vec::new();
@@ -2838,13 +2829,6 @@ fn download_direct_download_etags(
             url, binary_path, ..
         } = installed_channel
         {
-            // If server doesn't support etag, we can't check for updates on nightly/PR channels
-            // Return None gracefully so the update process can continue with other channels
-            if !server_supports_etag {
-                requests.push((channel_name.clone(), None));
-                continue;
-            }
-
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let binary_path_clone = binary_path.clone();
@@ -3294,7 +3278,7 @@ mod tests {
 
         let url = url::Url::parse(&format!("http://{}/julia.tar.gz", addr))?;
         let target_dir = tempfile::TempDir::new()?;
-        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path())?;
+        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path(), true)?;
 
         assert!(!used_dmg);
         assert_eq!(etag, "\"tar-etag\"");
