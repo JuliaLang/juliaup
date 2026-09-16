@@ -156,13 +156,19 @@ The available system provided channels are:
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
-- `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch`.
+- `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch. `juliaup list` shows which release branches currently have nightly builds.
+- `nightly+variant` and `x.y-nightly+variant`: a build variant of a nightly channel, i.e. the same sources built with a different configuration. The variants currently produced are `opt` (a PGO+LTO+BOLT optimized build), `assert` (with assertions enabled, for debugging Julia itself) and `nogpl` (without GPL-licensed libraries); `juliaup list` shows the ones available for your platform, e.g. `nightly+opt` or `1.13-nightly+nogpl`.
 - `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has successfully built Julia on that branch within roughly the last 90 days: PR builds expire, but re-running CI on the pull request uploads fresh ones.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.
 
-All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
+Variant combinations use `+`, for example `julia +nightly+assert+opt` or
+`juliaup add 1.13-nightly+assert+opt~x64`, **if that combination is published**.
+Use the exact spelling shown by `juliaup list`; another ordering is not an alias.
+Release and PR variants are not currently supported.
+
+All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
 
 ## Juliaup GUI
 
@@ -231,7 +237,30 @@ Juliaup by default downloads julia binary tarballs from the official server "htt
 If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-party mirror server.
 
 **Note:** Nightly and PR channels (e.g., `nightly`, `pr123`) require the server to provide `etag` headers in HTTP responses for version tracking.
-If your custom mirror server does not support `etag` headers, these channels will not be available. Regular versioned Julia releases will still work normally.
+Downloads for these channels must include an `etag` header; a missing header prevents installation. Regular versioned Julia releases do not require it.
+
+Nightly channels are discovered through VersionsJSONUtil's `bin/nightlies.json`
+on `JULIAUP_SERVER`. Mirrors must serve this catalog for new nightly installations.
+See the [catalog guide](devdocs/nightly_database.md) for selection and refresh
+behavior. There is no fallback to constructing nightly download URLs when
+metadata is unavailable.
+
+The nightly builds themselves are downloaded from the published URLs. If
+`JULIAUP_NIGHTLY_SERVER` is set, URLs on the official nightly server
+"https://julialangnightlies-s3.julialang.org" are redirected to that mirror;
+artifacts on other hosts keep their published URLs. HTTPS is required, with HTTP
+allowed for loopback mirrors. Nightly updates check the artifact URL recorded at
+installation. On macOS, both releases and nightlies try the corresponding DMG
+before falling back to the tarball.
+
+`add` refreshes the nightly catalog before resolving a new installation.
+`list` and GUI startup/reloads check missing or older-than-24-hour metadata with a
+five-second timeout and cached fallback. Without usable metadata, release listing
+still works and generic nightly placeholders are shown. Periodic background
+nightly metadata checks run only for users with installed nightlies, reusing
+metadata fetched within the last 24 hours. Launching an
+installed channel requires no metadata download. Ordinary nightly rebuilds are
+detected through artifact ETags, independently of metadata publication.
 
 ## Development guides
 
