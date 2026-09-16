@@ -8,6 +8,8 @@ pub struct GlobalPaths {
     pub juliaupconfig: PathBuf,
     pub lockfile: PathBuf,
     pub versiondb: PathBuf,
+    /// The cached nightly catalog, see `nightlies_db`.
+    pub nightliesdb: PathBuf,
     #[cfg(feature = "selfupdate")]
     pub juliaupselfhome: PathBuf,
     #[cfg(feature = "selfupdate")]
@@ -70,6 +72,8 @@ pub fn get_paths() -> Result<GlobalPaths> {
 
     let versiondb = juliauphome.join(format!("versiondb-{}.json", get_juliaup_target()));
 
+    let nightliesdb = juliauphome.join("nightlies-cache.json");
+
     let lockfile = juliauphome.join(".juliaup-lock");
 
     #[cfg(feature = "selfupdate")]
@@ -88,6 +92,7 @@ pub fn get_paths() -> Result<GlobalPaths> {
         juliaupconfig,
         lockfile,
         versiondb,
+        nightliesdb,
         #[cfg(feature = "selfupdate")]
         juliaupselfhome,
         #[cfg(feature = "selfupdate")]

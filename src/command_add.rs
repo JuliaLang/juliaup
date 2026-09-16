@@ -6,8 +6,7 @@ use crate::global_paths::GlobalPaths;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::{
-    channel_to_name, commit_version_install, download_version_to_temp, install_non_db_version,
-    update_version_db,
+    commit_version_install, download_version_to_temp, install_non_db_version, update_version_db,
 };
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
@@ -74,6 +73,14 @@ fn commit_downloaded_channel(
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let name = ChannelName::parse(channel)?;
+    if !name.variants.is_empty() && !name.is_nightly() {
+        bail!(
+            "'{}' is not a valid channel name: build variants such as `{}` are only available for nightly channels (e.g. `nightly{}`).",
+            channel,
+            name.variant_suffix(),
+            name.variant_suffix()
+        );
+    }
     if name.is_direct_download() {
         return add_non_db(channel, &name, paths);
     }
@@ -219,8 +226,7 @@ fn add_non_db(channel: &str, name: &ChannelName, paths: &GlobalPaths) -> Result<
     }
 
     // Download and extract the version without holding the configuration lock.
-    let name = channel_to_name(channel)?;
-    let (config_channel, _used_dmg) = install_non_db_version(channel, &name, paths)?;
+    let (config_channel, _used_dmg) = install_non_db_version(channel, paths)?;
 
     // Re-acquire the exclusive lock to commit the installation.
     let mut config_file = load_mut_config_db(paths)
@@ -274,6 +280,7 @@ mod tests {
             juliaupconfig: dir.join("juliaup.json"),
             lockfile: dir.join(".juliaup-lock"),
             versiondb: dir.join("versiondb-test.json"),
+            nightliesdb: dir.join("nightlies-test.json"),
             #[cfg(feature = "selfupdate")]
             juliaupselfhome: dir.to_path_buf(),
             #[cfg(feature = "selfupdate")]

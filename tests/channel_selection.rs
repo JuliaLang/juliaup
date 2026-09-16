@@ -1,7 +1,7 @@
 use predicates::str::contains;
 
 mod utils;
-use utils::TestEnv;
+use utils::{NightlyMetadataServer, TestEnv};
 
 #[test]
 fn channel_selection() {
@@ -119,8 +119,10 @@ fn channel_selection() {
         ));
 
     // https://github.com/JuliaLang/juliaup/issues/820
-    // Command line channel selector should auto-install valid channels including nightly
-    env.julia()
+    // Command line channel selector should auto-install valid channels including nightly.
+    let metadata = NightlyMetadataServer::new();
+    metadata
+        .julia(&env)
         .arg("+nightly")
         .arg("-e")
         .arg("print(\"SUCCESS\")") // Use SUCCESS instead of VERSION since nightly version can vary

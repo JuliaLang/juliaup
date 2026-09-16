@@ -2,7 +2,7 @@ use predicates::boolean::PredicateBooleanExt;
 use predicates::prelude::predicate;
 
 mod utils;
-use utils::TestEnv;
+use utils::{NightlyMetadataServer, TestEnv};
 
 #[test]
 fn command_add() {
@@ -15,31 +15,18 @@ fn command_add() {
         .success()
         .stdout("");
 
-    env.juliaup()
+    let metadata = NightlyMetadataServer::new();
+    metadata
+        .juliaup(&env)
         .arg("add")
         .arg("nightly")
         .assert()
         .success()
         .stdout("");
 
-    // Versioned nightly artifacts eventually expire. Exercise the newest
-    // non-master nightly instead of pinning a retired release branch.
-    let versioned_nightly_output = env
-        .julia()
-        .arg("+nightly")
-        .arg("--startup-file=no")
-        .arg("-e")
-        .arg("print(VERSION.major, '.', VERSION.minor - 1, \"-nightly\")")
-        .assert()
-        .success()
-        .get_output()
-        .stdout
-        .clone();
-    let versioned_nightly = std::str::from_utf8(&versioned_nightly_output).unwrap();
-
-    env.juliaup()
-        .arg("add")
-        .arg(versioned_nightly)
+    metadata
+        .juliaup(&env)
+        .args(["add", "1.0-nightly"])
         .assert()
         .success()
         .stdout("");
@@ -64,6 +51,64 @@ fn command_add() {
             )
             .unwrap(),
         );
+}
+
+#[test]
+fn command_add_unknown_nightly_variant() {
+    let env = TestEnv::new();
+
+    let metadata = NightlyMetadataServer::new();
+    metadata
+        .juliaup(&env)
+        .arg("add")
+        .arg("nightly+bogus")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("'nightly' has no '+bogus' build"));
+
+    // Variants are only produced for nightlies.
+    env.juliaup()
+        .arg("add")
+        .arg("release+opt")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "build variants such as `+opt` are only available for nightly channels",
+        ));
+}
+
+// The `nogpl` variant is built for linux/x86_64 (and macOS and Windows on
+// x86_64, where this test would additionally exercise code signing).
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn command_add_nightly_variant() {
+    let env = TestEnv::new();
+
+    let metadata = NightlyMetadataServer::new();
+    metadata
+        .juliaup(&env)
+        .arg("add")
+        .arg("nightly+nogpl")
+        .assert()
+        .success()
+        .stderr(predicate::str::contains(
+            "Installing Julia latest-linuxnogpl-x86_64",
+        ));
+
+    env.julia()
+        .arg("+nightly+nogpl")
+        .arg("--startup-file=no")
+        .arg("-e")
+        .arg("print(Base.USE_GPL_LIBS)")
+        .assert()
+        .success()
+        .stdout("false");
+
+    env.juliaup()
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("nightly+nogpl"));
 }
 
 #[test]

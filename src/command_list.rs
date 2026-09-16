@@ -1,4 +1,4 @@
-use crate::operations::{channel_to_name, get_channel_variations};
+use crate::operations::{available_nightly_channels, nightlies_db_for_listing};
 use crate::{global_paths::GlobalPaths, versions_file::load_versions_db};
 use anyhow::{Context, Result};
 use cli_table::{
@@ -20,20 +20,10 @@ pub fn run_command_list(paths: &GlobalPaths) -> Result<()> {
     let versiondb_data =
         load_versions_db(paths).with_context(|| "`list` command failed to load versions db.")?;
 
-    let non_db_channels: Vec<String> = (get_channel_variations("nightly")?)
+    let nightlies = nightlies_db_for_listing(paths);
+    let non_db_rows: Vec<ChannelRow> = available_nightly_channels(nightlies.as_ref())?
         .into_iter()
-        .chain(get_channel_variations("x.y-nightly")?)
-        .chain(get_channel_variations("pr{number}")?)
-        .collect();
-    let non_db_rows: Vec<ChannelRow> = non_db_channels
-        .into_iter()
-        .map(|channel| {
-            let name = channel_to_name(&channel).expect("Failed to identify version");
-            ChannelRow {
-                name: channel,
-                version: name,
-            }
-        })
+        .map(|(name, version)| ChannelRow { name, version })
         .collect();
 
     let rows_in_table: Vec<_> = versiondb_data

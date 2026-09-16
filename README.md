@@ -156,13 +156,18 @@ The available system provided channels are:
 - `beta`: always points to the latest beta version if one exists. If a newer release candidate exists, it will point to that, and if there is neither a beta or rc candidate available it will point to the same version as the `release` channel.
 - `rc`: same as `beta`, but only starts with release candidate versions.
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
-- `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch`.
+- `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch. `juliaup list` shows which release branches currently have nightly builds.
+- `nightly+variant` and `x.y-nightly+variant`: a build variant of a nightly channel, i.e. the same sources built with a different configuration. Current variants are `opt` (optimized with PGO, LTO and BOLT), `assert` (with assertions enabled, for debugging Julia itself) and `nogpl` (without GPL-licensed libraries). `juliaup list` shows the ones available for your platform, e.g. `nightly+opt` or `1.13-nightly+nogpl`.
 - `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has successfully built Julia on that branch within roughly the last 90 days: PR builds expire, but re-running CI on the pull request uploads fresh ones.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
 - major version channels, e.g. `1`.
 
-All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version.
+Builds that combine several variants are named by chaining them, e.g. `nightly+assert+opt`.
+Use the channel name exactly as `juliaup list` shows it: `nightly+opt+assert` is not accepted.
+Variants are not available for releases or PR builds.
+
+All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
 
 ## Juliaup GUI
 
@@ -231,7 +236,13 @@ Juliaup by default downloads julia binary tarballs from the official server "htt
 If requested, the environment variable `JULIAUP_SERVER` can be used to tell Juliaup to use a third-party mirror server.
 
 **Note:** Nightly and PR channels (e.g., `nightly`, `pr123`) require the server to provide `etag` headers in HTTP responses for version tracking.
-If your custom mirror server does not support `etag` headers, these channels will not be available. Regular versioned Julia releases will still work normally.
+Installing these channels fails if the download has no `etag` header. Regular versioned Julia releases do not need it.
+
+Juliaup learns which nightly channels and variants exist from the `bin/nightlies.json` catalog on `JULIAUP_SERVER`,
+so a mirror has to provide that file to support installing nightlies.
+The catalog links to the builds on "https://julialangnightlies-s3.julialang.org" (and some other hosts);
+set `JULIAUP_NIGHTLY_SERVER` to download the builds on that server from a mirror instead.
+See [devdocs/nightly_database.md](devdocs/nightly_database.md) for details.
 
 ## Development guides
 
