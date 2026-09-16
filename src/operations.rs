@@ -49,11 +49,17 @@ const DOWNLOADING_PREFIX: &str = " Downloading";
 
 /// Creates an HTTP client with a proper User-Agent header.
 /// Some CDNs (like CloudFront) block requests without User-Agent.
+///
+/// Hyper's default HTTP/2 stream window is 2 MiB. The blocking reader releases
+/// capacity as the consumer drains it, so gzip/tar pauses can make the server
+/// wait for WINDOW_UPDATE round trips. HTTP/1.1 relies on TCP receive buffering
+/// instead and was substantially faster in nightly download benchmarks.
 #[cfg(not(windows))]
 fn http_client() -> Result<reqwest::blocking::Client> {
     let user_agent = format!("juliaup/{}", env!("CARGO_PKG_VERSION"));
     reqwest::blocking::Client::builder()
         .user_agent(user_agent)
+        .http1_only()
         .build()
         .with_context(|| "Failed to create HTTP client")
 }
