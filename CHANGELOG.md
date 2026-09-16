@@ -2,6 +2,19 @@
 # Changelog
 <!-- markdownlint-disable MD024 -->
 
+## Unreleased
+
+### Changed
+
+- Discover nightly channels and build variants through VersionsJSONUtil’s `nightlies.json`;
+  variant names use the exact spelling published by `juliaup list`.
+- Mirrors must provide `bin/nightlies.json` for new nightly installations.
+- Refresh aged nightly listings with a bounded timeout and cached fallback, and
+  avoid periodic nightly metadata downloads for users without installed nightlies.
+- Preserve versioned nightly selection for unreleased patch versions when the
+  metadata cache is absent; reject unsupported PR-variant install prompts.
+- Check required nightly/PR ETag headers before extracting downloads.
+
 ## [1.19.8] - 2/8/2026
 
 ### Changed
