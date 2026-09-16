@@ -328,6 +328,64 @@ fn release_only_updates_do_not_fetch_nightly_metadata() {
     assert_eq!(mirror.payloads.load(Ordering::SeqCst), 0);
 }
 
+#[test]
+fn unsupported_pr_variants_never_trigger_auto_install() {
+    let env = TestEnv::new();
+    env.juliaup()
+        .args(["config", "autoinstallchannels", "true"])
+        .assert()
+        .success();
+    env.julia()
+        .arg("+pr123+opt")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid Juliaup channel"))
+        .stderr(predicate::str::contains("juliaup add pr123+opt").not())
+        .stderr(predicate::str::contains("Installing").not());
+    env.julia()
+        .env("JULIAUP_CHANNEL", "pr123+opt")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid Juliaup channel"))
+        .stderr(predicate::str::contains("juliaup add pr123+opt").not());
+}
+
+#[test]
+fn manifest_without_metadata_launches_installed_series_nightly() {
+    let env = TestEnv::new();
+    let mirror = Mirror::new();
+    // The bundled release database contains this series. Use an implausibly
+    // high patch to exercise its unreleased-patch fallback.
+    *mirror.catalog.lock().unwrap() = CATALOG
+        .replace("\"nightly\"", "\"1.10-nightly\"")
+        .replace("\"files\": [], \"variants\":", "\"files\":")
+        .replace("[\"opt\"]", "[]");
+    mirror
+        .command(&env)
+        .args(["add", "1.10-nightly"])
+        .assert()
+        .success();
+    std::fs::remove_file(cache_path(&env)).unwrap();
+    let project = env.home_path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    std::fs::write(project.join("Project.toml"), "[deps]\n").unwrap();
+    std::fs::write(
+        project.join("Manifest.toml"),
+        "julia_version = \"1.10.999\"\n",
+    )
+    .unwrap();
+    env.juliaup()
+        .args(["config", "manifestversiondetect", "true"])
+        .assert()
+        .success();
+    env.julia()
+        .current_dir(project)
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.1");
+}
+
 fn age_cache(env: &TestEnv) {
     let mut cache: serde_json::Value =
         serde_json::from_slice(&std::fs::read(cache_path(env)).unwrap()).unwrap();

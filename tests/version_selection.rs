@@ -1,7 +1,9 @@
+mod utils;
 use indoc::indoc;
 use juliaup::jsonstructs_versionsdb::{
     JuliaupVersionDB, JuliaupVersionDBChannel, JuliaupVersionDBVersion,
 };
+use juliaup::nightlies_db::NightliesDb;
 use juliaup::version_selection::{LOAD_PATH_SEPARATOR, *};
 use std::collections::HashMap;
 use std::fs;
@@ -645,6 +647,13 @@ fn test_find_highest_versioned_manifest_invalid_names() {
     assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.11.toml");
 }
 
+fn test_nightlies(channels: &[&str]) -> NightliesDb {
+    let db: serde_json::Map<String, serde_json::Value> = channels.iter().map(|channel| {
+        (channel.to_string(), serde_json::json!({"files": [utils::nightly_artifact("https://example.invalid/julia.tar.gz")]}))
+    }).collect();
+    NightliesDb::parse(&serde_json::Value::Object(db).to_string()).unwrap()
+}
+
 #[test]
 fn test_resolve_auto_channel_high_patch_version() {
     // Test that a patch version higher than any known minor version uses X.Y-nightly
@@ -656,17 +665,32 @@ fn test_resolve_auto_channel_high_patch_version() {
         .build();
 
     // Test 1: Version 1.12.55 (higher patch than any known) should resolve to 1.12-nightly
-    let result = resolve_auto_channel("1.12.55".to_string(), &versions_db);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "1.12-nightly");
+    let nightlies = test_nightlies(&["1.12-nightly"]);
+    assert_eq!(
+        resolve_auto_channel("1.12.55".to_string(), &versions_db, Some(&nightlies)).unwrap(),
+        "1.12-nightly"
+    );
+    assert_eq!(
+        resolve_auto_channel("1.12.55".to_string(), &versions_db, None).unwrap(),
+        "1.12-nightly"
+    );
+    assert_eq!(
+        resolve_auto_channel(
+            "1.12.55".to_string(),
+            &versions_db,
+            Some(&test_nightlies(&[]))
+        )
+        .unwrap(),
+        "nightly"
+    );
 
     // Test 2: Version 1.12.1 (exact match) should resolve to itself
-    let result = resolve_auto_channel("1.12.1".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.1".to_string(), &versions_db, None);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.1");
 
     // Test 3: Version 1.12.0 (exact match) should resolve to itself
-    let result = resolve_auto_channel("1.12.0".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.0".to_string(), &versions_db, None);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.0");
 }
@@ -682,7 +706,7 @@ fn test_resolve_auto_channel_higher_than_any_version() {
         .build();
 
     // Version 1.13.0 (higher than any known version) should resolve to nightly
-    let result = resolve_auto_channel("1.13.0".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.13.0".to_string(), &versions_db, None);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "nightly");
 }
@@ -696,12 +720,11 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .add_version("1.12.1")
         .add_channel("1.12.1", "1.12.1")
         .add_channel("1.12.0-rc1", "1.12.0-rc1")
-        .add_channel("1.12-nightly", "1.12.2-DEV")
-        .add_channel("1.13-nightly", "1.13.0-DEV")
         .build();
+    let nightlies = test_nightlies(&["1.12-nightly", "1.13-nightly", "nightly"]);
 
     // Test 1: Exact match - 1.12.0-rc1 exists, so use it
-    let result = resolve_auto_channel("1.12.0-rc1".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.0-rc1".to_string(), &versions_db, Some(&nightlies));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.0-rc1");
 
@@ -713,28 +736,51 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .add_version("1.12.1")
         .add_channel("1.12.1", "1.12.1")
         .add_channel("1.12.1-rc1", "1.12.1-rc1") // Prerelease of stable version
-        .add_channel("1.12-nightly", "1.12.2-DEV")
         .build();
 
-    let result = resolve_auto_channel("1.12.1-rc1".to_string(), &versions_db_with_rc);
+    let result = resolve_auto_channel(
+        "1.12.1-rc1".to_string(),
+        &versions_db_with_rc,
+        Some(&nightlies),
+    );
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.1-rc1");
 
     // Test 3: CRITICAL - 1.12.1-DEV < 1.12.1 in SemVer ordering, but should still use nightly
     // This is the common case when a manifest is generated on nightly
-    let result = resolve_auto_channel("1.12.1-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.1-DEV".to_string(), &versions_db, Some(&nightlies));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12-nightly");
 
     // Test 4: 1.13.0-DEV should use 1.13-nightly
-    let result = resolve_auto_channel("1.13.0-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.13.0-DEV".to_string(), &versions_db, Some(&nightlies));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.13-nightly");
 
     // Test 5: 1.14.0-DEV (no 1.14-nightly exists), should use main nightly
-    let result = resolve_auto_channel("1.14.0-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.14.0-DEV".to_string(), &versions_db, Some(&nightlies));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "nightly");
+}
+
+#[test]
+fn test_resolve_auto_channel_requires_a_compatible_standard_build() {
+    let versions_db = TestVersionsDbBuilder::new().add_version("1.12.1").build();
+    let mut nightlies = test_nightlies(&["1.12-nightly"]);
+    let entry = nightlies.channels.get_mut("1.12-nightly").unwrap();
+    let mut standard = entry.files.remove(0);
+    standard.variants = vec!["opt".into()];
+    entry.variants.push(standard);
+    assert_eq!(
+        resolve_auto_channel("1.12.1-DEV".to_string(), &versions_db, Some(&nightlies)).unwrap(),
+        "nightly"
+    );
+    let mut nightlies = test_nightlies(&["1.12-nightly"]);
+    nightlies.channels.get_mut("1.12-nightly").unwrap().files[0].triplet = "unsupported-abi".into();
+    assert_eq!(
+        resolve_auto_channel("1.12.1-DEV".to_string(), &versions_db, Some(&nightlies)).unwrap(),
+        "nightly"
+    );
 }
 
 // Helper to build a test versions database
