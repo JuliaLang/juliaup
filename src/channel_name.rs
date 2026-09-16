@@ -1,14 +1,11 @@
 //! Parsing of channel names.
 //!
-//! A channel name is `<base>[~<arch>]`. The base is a channel from the
-//! versions database (`release`, `lts`, `1.13`, `1.13.2`, ...), a nightly
-//! channel (`nightly` for `master`, `1.13-nightly` for `release-1.13`) or a
-//! pull request build (`pr12345`). The optional arch suffix (`x64`, `x86`,
-//! `aarch64`) selects a build for another architecture, e.g. `nightly~x86`.
+//! A channel name is `<base>[+<variant>...][~<arch>]`.
 //!
-//! This is the one place that decides what kind of channel a name refers to;
-//! whether the channel actually exists is decided by the versions database
-//! (for `Db` channels) or by the build server (for nightly and PR channels).
+//! The base names a versions-database channel, `nightly`, `x.y-nightly`,
+//! or `pr<number>`. Variants select a build configuration; their exact spelling is
+//! the sorted token order shown by listing. The optional architecture suffix selects
+//! a build for another architecture. Availability is resolved separately.
 
 use anyhow::{bail, Result};
 use std::fmt;
@@ -64,6 +61,8 @@ impl fmt::Display for ChannelBase {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChannelName {
     pub base: ChannelBase,
+    /// The `+<variant>` parts, preserved exactly as supplied.
+    pub variants: Vec<String>,
     /// The `~<arch>` suffix, if any. Kept verbatim: for `Db` channels it is
     /// part of the versions database key, and for the other channels the
     /// build server decides which architectures exist.
@@ -72,17 +71,34 @@ pub struct ChannelName {
 
 impl ChannelName {
     pub fn parse(channel: &str) -> Result<Self> {
-        let (base, arch) = match channel.split_once('~') {
-            Some((base, arch)) => (base, Some(arch)),
+        let (name, arch) = match channel.split_once('~') {
+            Some((name, arch)) => (name, Some(arch)),
             None => (channel, None),
         };
+        let mut parts = name.split('+');
+        let base = parts.next().unwrap_or_default();
+        let variants: Vec<String> = parts.map(str::to_string).collect();
 
-        if base.is_empty() || arch.is_some_and(|arch| arch.is_empty() || arch.contains('~')) {
+        let valid_variant = |variant: &String| {
+            !variant.is_empty() && variant.bytes().all(|b| b.is_ascii_alphanumeric())
+        };
+        if arch.is_some_and(|arch| arch.contains('+')) {
+            bail!(
+                "'{}' is not a valid channel name: build variants go before the `~arch` suffix, e.g. `{}+opt~x64`.",
+                channel,
+                base
+            );
+        }
+        if base.is_empty()
+            || !variants.iter().all(valid_variant)
+            || arch.is_some_and(|arch| arch.is_empty() || arch.contains('~'))
+        {
             bail!("'{}' is not a valid channel name.", channel);
         }
 
         Ok(ChannelName {
             base: ChannelBase::parse(base),
+            variants,
             arch: arch.map(str::to_string),
         })
     }
@@ -100,11 +116,16 @@ impl ChannelName {
     pub fn is_direct_download(&self) -> bool {
         self.is_nightly() || self.is_pr()
     }
+
+    /// The `+<variant>...` part of the name, empty for the standard build.
+    pub fn variant_suffix(&self) -> String {
+        self.variants.iter().map(|v| format!("+{}", v)).collect()
+    }
 }
 
 impl fmt::Display for ChannelName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.base)?;
+        write!(f, "{}{}", self.base, self.variant_suffix())?;
         if let Some(arch) = &self.arch {
             write!(f, "~{}", arch)?;
         }
@@ -173,8 +194,40 @@ mod tests {
     }
 
     #[test]
+    fn parses_variants() {
+        let name = parse("1.13-nightly+opt");
+        assert!(name.is_nightly());
+        assert_eq!(name.variants, ["opt"]);
+        assert_eq!(name.arch, None);
+
+        let name = parse("nightly+opt+assert~x64");
+        assert_eq!(name.variants, ["opt", "assert"]);
+        assert_eq!(name.arch.as_deref(), Some("x64"));
+        assert_ne!(name, parse("nightly+assert+opt+opt~x64"));
+        assert_eq!(name.variant_suffix(), "+opt+assert");
+
+        // Variants parse on any base; whether they exist is decided later.
+        assert_eq!(
+            parse("release+opt").base,
+            ChannelBase::Db("release".to_string())
+        );
+        assert_eq!(parse("pr123+opt").base, ChannelBase::Pr(123));
+        assert!(parse("release").variants.is_empty());
+    }
+
+    #[test]
     fn rejects_malformed_names() {
-        for channel in ["", "~x64", "nightly~", "nightly~x64~x86"] {
+        for channel in [
+            "",
+            "~x64",
+            "nightly~",
+            "nightly~x64~x86",
+            "nightly+",
+            "+opt",
+            "nightly++opt",
+            "nightly+opt-2",
+            "nightly~x64+opt",
+        ] {
             assert!(ChannelName::parse(channel).is_err(), "{channel:?}");
         }
     }
@@ -188,6 +241,8 @@ mod tests {
             "pr7~aarch64",
             "release",
             "1.13.2~x64",
+            "nightly+opt",
+            "1.13-nightly+assert+opt~x64",
         ] {
             assert_eq!(parse(channel).to_string(), channel);
         }
@@ -197,6 +252,7 @@ mod tests {
     fn predicates() {
         assert!(is_nightly_channel("nightly~x64"));
         assert!(is_nightly_channel("1.13-nightly"));
+        assert!(is_nightly_channel("nightly+opt"));
         assert!(!is_nightly_channel("nightly~"));
         assert!(!is_nightly_channel("release"));
         assert!(is_pr_channel("pr123"));
