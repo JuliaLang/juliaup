@@ -353,6 +353,42 @@ fn unsupported_pr_variants_never_trigger_auto_install() {
 }
 
 #[test]
+fn manifest_without_metadata_launches_installed_series_nightly() {
+    let env = TestEnv::new();
+    let mirror = Mirror::new();
+    // The bundled release database contains this series. Use an implausibly
+    // high patch to exercise its unreleased-patch fallback.
+    *mirror.catalog.lock().unwrap() = CATALOG
+        .replace("\"nightly\"", "\"1.10-nightly\"")
+        .replace("\"files\": [], \"variants\":", "\"files\":")
+        .replace("[\"opt\"]", "[]");
+    mirror
+        .command(&env)
+        .args(["add", "1.10-nightly"])
+        .assert()
+        .success();
+    std::fs::remove_file(cache_path(&env)).unwrap();
+    let project = env.home_path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    std::fs::write(project.join("Project.toml"), "[deps]\n").unwrap();
+    std::fs::write(
+        project.join("Manifest.toml"),
+        "julia_version = \"1.10.999\"\n",
+    )
+    .unwrap();
+    env.juliaup()
+        .args(["config", "manifestversiondetect", "true"])
+        .assert()
+        .success();
+    env.julia()
+        .current_dir(project)
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.1");
+}
+
+#[test]
 fn changing_mirror_does_not_reuse_cached_choices() {
     let env = TestEnv::new();
     let first = Mirror::new();

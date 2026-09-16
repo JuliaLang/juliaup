@@ -54,3 +54,8 @@ The catalog is fetched:
 - by `juliaup update` and the periodic background update, if the cache is older
   than a day and a nightly channel is installed. Users without nightlies never
   download the catalog in the background.
+
+Launching Julia never downloads the catalog. When a project manifest requires an
+unreleased Julia version, the launcher uses the cached catalog to check whether
+the matching `x.y-nightly` channel has a build for this platform, falling back
+to `nightly`. Without a cache, it keeps the previous behavior.

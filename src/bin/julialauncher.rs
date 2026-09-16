@@ -10,6 +10,7 @@ use juliaup::config_file::{
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::nightlies_db::load_nightlies_db;
 use juliaup::operations::is_valid_channel;
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
@@ -646,6 +647,7 @@ fn run_app() -> Result<i32> {
         } else if let Ok(Some(channel)) = get_auto_channel(
             &args,
             &versiondb_data,
+            || load_nightlies_db(&paths),
             config_file.data.settings.manifest_version_detect,
         ) {
             (channel, JuliaupChannelSource::Auto)
