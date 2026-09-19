@@ -31,7 +31,9 @@ set -u
 
 # If JULIAUP_SERVER is unset or empty, default it.
 JULIAUP_SERVER="${JULIAUP_SERVER:-https://julialang-s3.julialang.org}"
-JULIAUP_VERSION="THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW"
+
+# If JULIAUP_VERSION is unset or empty, default it.
+JULIAUP_VERSION="${JULIAUP_VERSION:-THISISREPLACEDWITHREALVERSIONINGITHUBWORKFLOW}"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
