@@ -49,11 +49,17 @@ const DOWNLOADING_PREFIX: &str = " Downloading";
 
 /// Creates an HTTP client with a proper User-Agent header.
 /// Some CDNs (like CloudFront) block requests without User-Agent.
+///
+/// Hyper's default HTTP/2 stream window is 2 MiB. The blocking reader releases
+/// capacity as the consumer drains it, so gzip/tar pauses can make the server
+/// wait for WINDOW_UPDATE round trips. HTTP/1.1 relies on TCP receive buffering
+/// instead and was substantially faster in nightly download benchmarks.
 #[cfg(not(windows))]
 fn http_client() -> Result<reqwest::blocking::Client> {
     let user_agent = format!("juliaup/{}", env!("CARGO_PKG_VERSION"));
     reqwest::blocking::Client::builder()
         .user_agent(user_agent)
+        .http1_only()
         .build()
         .with_context(|| "Failed to create HTTP client")
 }
@@ -94,6 +100,10 @@ where
     let temp_dir =
         tempfile::Builder::new().tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
     archive.unpack(temp_dir.path())?;
+    // Tar can stop before gzip and HTTP EOF. Validate both before installing.
+    let mut decoder = archive.into_inner();
+    std::io::copy(&mut decoder, &mut std::io::sink())?;
+    std::io::copy(&mut decoder.into_inner(), &mut std::io::sink())?;
     // Walk down `levels_to_skip` directory levels to reach the payload.
     let mut source = temp_dir.path().to_path_buf();
     for _ in 0..levels_to_skip {
@@ -293,16 +303,9 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     }
 
     log::debug!("Downloading DMG from url `{}`.", url);
-    let response = http_client()?
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+    let response = crate::download::start(&http_client()?, url)?;
 
-    if !response.status().is_success() {
-        bail!("DMG not found at URL (status: {})", response.status());
-    }
-
-    let pb = match response.content_length() {
+    let pb = match response.content_length {
         Some(len) => ProgressBar::new(len),
         None => ProgressBar::new_spinner(),
     };
@@ -310,11 +313,9 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     pb.set_style(bar_style());
 
     let etag = response
-        .headers()
-        .get("etag")
-        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?
-        .to_str()?
-        .to_string();
+        .etag
+        .clone()
+        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?;
 
     // Download to temporary DMG file
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
@@ -443,14 +444,9 @@ pub fn download_extract_sans_parent(
     levels_to_skip: usize,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
-    let response = http_client()?
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+    let response = crate::download::start(&http_client()?, url)?;
 
-    let content_length = response.content_length();
-
-    let pb = match content_length {
+    let pb = match response.content_length {
         Some(content_length) => ProgressBar::new(content_length),
         None => ProgressBar::new_spinner(),
     };
@@ -460,11 +456,7 @@ pub fn download_extract_sans_parent(
 
     // Extract etag if present, otherwise return empty string
     // Empty etag is valid for regular version installs from servers without etag support
-    let last_modified = response
-        .headers()
-        .get("etag")
-        .map(|etag| etag.to_str().unwrap_or("").to_string())
-        .unwrap_or_default();
+    let last_modified = response.etag.clone().unwrap_or_default();
 
     let response_with_pb = pb.wrap_read(response);
 
@@ -3413,6 +3405,28 @@ mod tests {
         let dst = tempfile::TempDir::new()?;
         unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
         assert!(dst.path().join("bin/julia").exists());
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_download_failure_after_tar_end_preserves_destination() -> Result<()> {
+        struct FailsAtEnd<'a>(&'a [u8]);
+        impl Read for FailsAtEnd<'_> {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                if self.0.is_empty() {
+                    return Err(std::io::Error::other("late download failure"));
+                }
+                self.0.read(buf)
+            }
+        }
+        let tarball = make_tar_gz_with_raw_path(b"top/file");
+        let dst = tempfile::TempDir::new()?;
+        std::fs::write(dst.path().join("keep"), "old installation")?;
+        let err = unpack_sans_parent(FailsAtEnd(&tarball), dst.path(), 1).unwrap_err();
+        assert!(err.to_string().contains("late download failure"));
+        assert!(dst.path().join("keep").exists());
+        assert!(!dst.path().join("file").exists());
         Ok(())
     }
 
