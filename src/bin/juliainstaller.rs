@@ -618,21 +618,51 @@ pub fn main() -> Result<()> {
         },
     )?;
 
+    let mut applinks_created = false;
     if install_choices.applinks {
         // The Julia entry points at the `julia` symlink created just above.
         // Everything is installed by now, so a menu that cannot be written is
         // not worth reporting the whole install as failed over.
-        if let Err(e) = run_command_config_applinks(Some(install_choices.applinks), true, &paths) {
-            println!("Could not add Juliaup and Julia to the applications menu: {e:#}");
-            println!(
-                "You can retry later with {}.",
-                style("juliaup config applinks true").bold()
-            );
-            println!();
+        match run_command_config_applinks(Some(install_choices.applinks), true, &paths) {
+            Ok(()) => applinks_created = true,
+            Err(e) => {
+                println!("Could not add Juliaup and Julia to the applications menu: {e:#}");
+                println!(
+                    "You can retry later with {}.",
+                    style("juliaup config applinks true").bold()
+                );
+                println!();
+            }
         }
     }
 
     println!("Julia was successfully installed on your system.");
+
+    #[cfg(target_os = "macos")]
+    if applinks_created {
+        use juliaup::app_links::SYSTEM_APPLICATIONS_DIR;
+
+        println!();
+        println!(
+            "{} and {} were added to ~/Applications, which needs no",
+            style("Juliaup.app").bold(),
+            style("Julia.app").bold()
+        );
+        println!(
+            "administrator rights. If you would rather have them in {},",
+            SYSTEM_APPLICATIONS_DIR
+        );
+        println!("move them there in Finder, or run:");
+        println!();
+        println!(
+            "  mv ~/Applications/Juliaup.app ~/Applications/Julia.app {}/",
+            SYSTEM_APPLICATIONS_DIR
+        );
+        println!();
+        println!("Juliaup will find them there when it updates or uninstalls itself.");
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = applinks_created;
 
     if install_choices.modifypath {
         println!();

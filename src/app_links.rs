@@ -20,15 +20,14 @@ const JULIA_ICON: &[u8] = include_bytes!("icons/julia.png");
 /// The files (or bundle directories) that `create_app_links` writes, so the
 /// installer can list them and the uninstaller can remove them.
 pub fn app_link_paths() -> Result<Vec<PathBuf>> {
-    let dir = app_link_dir()?;
-
     #[cfg(target_os = "macos")]
     {
-        Ok(vec![dir.join("Juliaup.app"), dir.join("Julia.app")])
+        Ok(vec![bundle_path("Juliaup")?, bundle_path("Julia")?])
     }
 
     #[cfg(not(target_os = "macos"))]
     {
+        let dir = app_link_dir()?;
         Ok(vec![
             dir.join(format!("{JULIAUP_DESKTOP_ID}.desktop")),
             dir.join(format!("{JULIA_DESKTOP_ID}.desktop")),
@@ -92,11 +91,29 @@ pub fn remove_app_links() -> Result<()> {
 
 // ── macOS ─────────────────────────────────────────────────────────────────────
 
+/// Bundles are created in `~/Applications`, which needs no administrator
+/// rights, but the user may move them to `/Applications` afterwards.
+#[cfg(target_os = "macos")]
+pub const SYSTEM_APPLICATIONS_DIR: &str = "/Applications";
+
 #[cfg(target_os = "macos")]
 fn app_link_dir() -> Result<PathBuf> {
     Ok(dirs::home_dir()
         .ok_or_else(|| anyhow!("Could not determine the path of the user home directory."))?
         .join("Applications"))
+}
+
+/// Where the bundle lives if the user moved it to `/Applications`, otherwise
+/// where it is or would be created in `~/Applications`. Refresh and removal
+/// follow it there; a same-named bundle in `/Applications` that is not ours
+/// (the official Julia app, say) is ignored.
+#[cfg(target_os = "macos")]
+fn bundle_path(name: &str) -> Result<PathBuf> {
+    let moved = Path::new(SYSTEM_APPLICATIONS_DIR).join(format!("{name}.app"));
+    if is_ours(&moved) {
+        return Ok(moved);
+    }
+    Ok(app_link_dir()?.join(format!("{name}.app")))
 }
 
 /// Write a minimal `.app` bundle whose executable is a shell script that
@@ -111,8 +128,8 @@ fn create_app_link(
     icon: &[u8],
     depot: Option<&str>,
 ) -> Result<()> {
-    let dir = app_link_dir()?;
-    let bundle = dir.join(format!("{name}.app"));
+    let bundle = bundle_path(name)?;
+    let dir = bundle.parent().unwrap().to_path_buf();
     // Never touch a bundle of the same name that something else installed.
     if bundle.exists() && !is_ours(&bundle) {
         anyhow::bail!(
@@ -147,16 +164,15 @@ fn create_app_link(
         // Terminal.app runs whatever executable file it is handed, but does
         // not inherit our environment, so it gets a script rather than the
         // binary itself. Naming it `julia` keeps that as the window title.
-        let inner_path = resources.join(name.to_lowercase());
-        write_executable(&inner_path, &launcher)?;
-        let final_inner = bundle
-            .join("Contents")
-            .join("Resources")
-            .join(name.to_lowercase());
-        let inner_sh = sh_quote(&final_inner.to_string_lossy());
+        // The inner script is located relative to the outer one, so the
+        // bundle keeps working wherever the user moves it.
+        let inner = name.to_lowercase();
+        write_executable(&resources.join(&inner), &launcher)?;
         write_executable(
             &macos_dir.join(name),
-            &format!("#!/bin/sh\nexec open -a Terminal {inner_sh}\n"),
+            &format!(
+                "#!/bin/sh\nexec open -a Terminal \"$(dirname \"$0\")/../Resources/{inner}\"\n"
+            ),
         )?;
     } else {
         write_executable(&macos_dir.join(name), &launcher)?;
