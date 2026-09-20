@@ -174,7 +174,7 @@ Juliaup includes a graphical application for managing Julia versions. It is inst
 juliaup gui
 ```
 
-or by running `juliaupgui` directly. On Windows it also has a "Juliaup GUI" entry in the start menu. On macOS, Linux, and FreeBSD the installer adds a "Juliaup" entry to the applications menu by default, next to a "Julia" entry that opens the default channel in a terminal; see `--app-links` above and `juliaup config applinks`.
+or by running `juliaupgui` directly. Every official installer also adds a "Juliaup" entry to the start or applications menu next to the "Julia" entry that opens the default channel in a terminal. On Windows this comes with the store package or MSI; on macOS, Linux, and FreeBSD the installer adds both by default, see `--app-links` above and `juliaup config applinks`.
 
 The GUI covers the everyday tasks of the command line tool:
 
