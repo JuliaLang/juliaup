@@ -12,7 +12,66 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 
+/// Link the winres resource into this package's binaries only.
+///
+/// `WindowsResource::compile` prints `cargo:rustc-link-lib=resource`, which
+/// rustc records in the library target and then links into every dependent
+/// binary as well, so juliaupgui.exe used to carry juliaup's icon and version
+/// block and could not have a resource of its own. winres has no API to
+/// compile without printing those lines, so run the compile in a child copy
+/// of this build script, read the output directory it reports, and link the
+/// file with `rustc-link-arg-bins` instead.
+#[cfg(windows)]
+const WINRES_CHILD_ENV: &str = "JULIAUP_BUILD_WINRES_CHILD";
+
+#[cfg(windows)]
+fn windows_resource() -> winres::WindowsResource {
+    let mut res = winres::WindowsResource::new();
+    res.set_icon("src/julia.ico");
+
+    #[cfg(feature = "winpkgidentityext")]
+    res.set_manifest_file("deploy/winpkgidentityext/app.manifest");
+
+    res
+}
+
+#[cfg(windows)]
+fn link_resource_into_bins() {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .env(WINRES_CHILD_ENV, "1")
+        .output()
+        .expect("failed to run the resource compiler child process");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let search = stdout
+        .lines()
+        .find_map(|l| l.strip_prefix("cargo:rustc-link-search=native="));
+    let search = match (output.status.success(), search) {
+        (true, Some(search)) => search,
+        _ => panic!(
+            "resource compilation failed:\n{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        ),
+    };
+    // winres names the output after the toolchain: rc.exe writes a .res it
+    // calls resource.lib, windres output is archived into libresource.a.
+    let file = if std::env::var("CARGO_CFG_TARGET_ENV").unwrap() == "msvc" {
+        "resource.lib"
+    } else {
+        "libresource.a"
+    };
+    println!(
+        "cargo:rustc-link-arg-bins={}",
+        Path::new(search).join(file).display()
+    );
+}
+
 fn main() -> Result<()> {
+    #[cfg(windows)]
+    if std::env::var_os(WINRES_CHILD_ENV).is_some() {
+        windows_resource().compile().unwrap();
+        return Ok(());
+    }
+
     let target_platform = std::env::var("TARGET").unwrap();
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -40,29 +99,7 @@ fn main() -> Result<()> {
     .unwrap();
 
     #[cfg(windows)]
-    {
-        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-        let mut res = winres::WindowsResource::new();
-        res.set_icon(&manifest_dir.join("src/julia.ico").to_string_lossy());
-
-        #[cfg(feature = "winpkgidentityext")]
-        res.set_manifest_file(
-            &manifest_dir
-                .join("deploy/winpkgidentityext/app.manifest")
-                .to_string_lossy(),
-        );
-
-        // winres's own `compile` links the resource with `rustc-link-lib`,
-        // which rustc records in the library and then drags into every
-        // dependent binary, including juliaupgui, which has its own resource.
-        // Compile it with embed-resource instead, which links it into this
-        // package's binaries only.
-        let rc = out_path.join("resource.rc");
-        res.write_resource_file(&rc).unwrap();
-        embed_resource::compile(&rc, embed_resource::NONE)
-            .manifest_required()
-            .unwrap();
-    }
+    link_resource_into_bins();
 
     let various_constants_path = Path::new(&out_path).join("various_constants.rs");
     std::fs::write(
