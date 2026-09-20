@@ -48,6 +48,15 @@ fn run_individual_config_wizard(
         None => return Ok(None),
     };
 
+    let new_applinks = match Confirm::with_theme(theme)
+        .with_prompt("Do you want to add Juliaup and Julia to your applications menu?")
+        .default(install_choices.applinks)
+        .interact_opt()?
+    {
+        Some(value) => value,
+        None => return Ok(None),
+    };
+
     let new_startupselfupdate = Input::with_theme(theme)
         .with_prompt(
             "Enter minutes between check for new version at julia startup, use 0 to disable",
@@ -93,6 +102,7 @@ fn run_individual_config_wizard(
     install_choices.install_location = new_install_location;
     install_choices.modifypath = new_modifypath;
     install_choices.symlinks = new_symlinks;
+    install_choices.applinks = new_applinks;
     install_choices.startupselfupdate = new_startupselfupdate;
     install_choices.backgroundselfupdate = new_backgroundselfupdate;
 
@@ -140,6 +150,14 @@ struct Juliainstaller {
         value_name = "yes|no|0|1"
     )]
     add_to_path: Option<bool>,
+    /// Add Juliaup and Julia to the applications menu
+    #[clap(
+        long = "app-links",
+        value_parser = BoolishValueParser::new(),
+        default_value = "yes",
+        value_name = "yes|no|0|1"
+    )]
+    app_links: Option<bool>,
     /// Check for Juliaup self-updates in the background every MINUTES minutes
     #[clap(
         long = "background-selfupdate",
@@ -161,9 +179,11 @@ struct InstallChoices {
     backgroundselfupdate: i64,
     startupselfupdate: i64,
     symlinks: bool,
+    applinks: bool,
     modifypath: bool,
     install_location: std::path::PathBuf,
     modifypath_files: Vec<std::path::PathBuf>,
+    applinks_paths: Vec<std::path::PathBuf>,
 }
 
 #[cfg(feature = "selfupdate")]
@@ -222,6 +242,19 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
         println!();
     }
 
+    if install_choices.applinks {
+        println!(
+            "{} and {} will be added to your applications menu at:",
+            style("Juliaup").bold(),
+            style("Julia").bold()
+        );
+        println!();
+        for p in &install_choices.applinks_paths {
+            println!("  {}", p.to_string_lossy());
+        }
+        println!();
+    }
+
     Ok(())
 }
 
@@ -235,6 +268,7 @@ pub fn main() -> Result<()> {
     };
     use is_terminal::IsTerminal;
     use juliaup::{
+        app_links::app_link_paths,
         command_add::run_command_add,
         command_default::run_command_default,
         command_selfchannel::run_command_selfchannel,
@@ -279,6 +313,7 @@ pub fn main() -> Result<()> {
     let mut paths = get_paths().with_context(|| "Trying to load all global paths.")?;
 
     use juliaup::{
+        command_config_applinks::run_command_config_applinks,
         command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
         command_config_modifypath::run_command_config_modifypath,
         command_config_startupselfupdate::run_command_config_startupselfupdate,
@@ -332,6 +367,7 @@ pub fn main() -> Result<()> {
         backgroundselfupdate: args.background_selfupdate_interval,
         startupselfupdate: args.startup_selfupdate_interval,
         symlinks: false,
+        applinks: args.app_links.unwrap_or(false),
         modifypath: args.add_to_path.unwrap_or(false),
         install_location: match args.alternate_path {
             Some(alternate_path) => PathBuf::from(alternate_path),
@@ -343,6 +379,8 @@ pub fn main() -> Result<()> {
         },
         modifypath_files: find_shell_scripts_to_be_modified(true)
             .with_context(|| "Failed to identify the shell scripts that need to be modified.")?,
+        applinks_paths: app_link_paths()
+            .with_context(|| "Failed to determine where application menu entries go.")?,
     };
 
     print_install_choices(&install_choices)?;
@@ -492,6 +530,8 @@ pub fn main() -> Result<()> {
             background_selfupdate_interval: None,
             startup_selfupdate_interval: None,
             modify_path: false,
+            app_links: false,
+            app_links_depot: None,
             juliaup_channel: None,
             last_selfupdate: None,
         };
@@ -577,6 +617,20 @@ pub fn main() -> Result<()> {
             )
         },
     )?;
+
+    if install_choices.applinks {
+        // The Julia entry points at the `julia` symlink created just above.
+        // Everything is installed by now, so a menu that cannot be written is
+        // not worth reporting the whole install as failed over.
+        if let Err(e) = run_command_config_applinks(Some(install_choices.applinks), true, &paths) {
+            println!("Could not add Juliaup and Julia to the applications menu: {e:#}");
+            println!(
+                "You can retry later with {}.",
+                style("juliaup config applinks true").bold()
+            );
+            println!();
+        }
+    }
 
     println!("Julia was successfully installed on your system.");
 

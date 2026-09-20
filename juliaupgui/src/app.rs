@@ -3405,8 +3405,16 @@ fn julia_logo_icon(size: u32) -> egui::IconData {
     }
 }
 
+/// The window and dock icon. This is the same image the application menu
+/// entry uses, so the running app matches its launcher; the rasterised Julia
+/// dots are only a fallback if the embedded PNG ever fails to decode.
+fn app_icon() -> egui::IconData {
+    eframe::icon_data::from_png_bytes(include_bytes!("../../src/icons/juliaup.png"))
+        .unwrap_or_else(|_| julia_logo_icon(256))
+}
+
 pub fn run(paths: GlobalPaths) -> anyhow::Result<()> {
-    let icon = std::sync::Arc::new(julia_logo_icon(256));
+    let icon = std::sync::Arc::new(app_icon());
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Juliaup")

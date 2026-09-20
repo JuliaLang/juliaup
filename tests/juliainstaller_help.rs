@@ -15,6 +15,10 @@ fn installer_help_documents_noninteractive_options() {
         .stdout(predicate::str::contains(
             "Add the Juliaup bin directory to PATH startup files [default: yes]",
         ))
+        .stdout(predicate::str::contains("--app-links <yes|no|0|1>"))
+        .stdout(predicate::str::contains(
+            "Add Juliaup and Julia to the applications menu [default: yes]",
+        ))
         .stdout(predicate::str::contains(
             "--background-selfupdate <MINUTES>",
         ))
