@@ -41,13 +41,27 @@ fn main() -> Result<()> {
 
     #[cfg(windows)]
     {
+        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
         let mut res = winres::WindowsResource::new();
-        res.set_icon("src/julia.ico");
+        res.set_icon(&manifest_dir.join("src/julia.ico").to_string_lossy());
 
         #[cfg(feature = "winpkgidentityext")]
-        res.set_manifest_file("deploy/winpkgidentityext/app.manifest");
+        res.set_manifest_file(
+            &manifest_dir
+                .join("deploy/winpkgidentityext/app.manifest")
+                .to_string_lossy(),
+        );
 
-        res.compile().unwrap();
+        // winres's own `compile` links the resource with `rustc-link-lib`,
+        // which rustc records in the library and then drags into every
+        // dependent binary, including juliaupgui, which has its own resource.
+        // Compile it with embed-resource instead, which links it into this
+        // package's binaries only.
+        let rc = out_path.join("resource.rc");
+        res.write_resource_file(&rc).unwrap();
+        embed_resource::compile(&rc, embed_resource::NONE)
+            .manifest_required()
+            .unwrap();
     }
 
     let various_constants_path = Path::new(&out_path).join("various_constants.rs");

@@ -22,3 +22,4 @@ rfd = "0.17"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+embed-resource = "3"

@@ -93,6 +93,7 @@ built = "0.8"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+embed-resource = "3"
 
 [dev-dependencies]
 assert_cmd = "2"
