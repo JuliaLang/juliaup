@@ -1,4 +1,4 @@
-use crate::channel_name::is_pr_channel;
+use crate::channel_name::{is_pr_channel, ChannelName};
 use crate::config_file::JuliaupConfig;
 use crate::config_file::{
     get_read_lock, load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel,
@@ -253,6 +253,14 @@ fn commit_channel_update(
 }
 
 pub fn run_command_update(channel: &Option<String>, paths: &GlobalPaths) -> Result<()> {
+    let channel = match channel {
+        Some(channel) => {
+            let config_file = load_config_db(paths, None)?;
+            Some(ChannelName::resolve(channel, &config_file.data))
+        }
+        None => None,
+    };
+    let channel = &channel;
     update_version_db(channel, true, paths).with_context(|| "Failed to update versions db.")?;
 
     let version_db =

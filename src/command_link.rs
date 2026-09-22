@@ -1,3 +1,4 @@
+use crate::channel_name::ChannelName;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::{load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
@@ -33,6 +34,8 @@ pub fn run_command_link(
 
     // Check if this is a channel alias (starts with +)
     if let Some(target_channel) = target.strip_prefix('+') {
+        let target_channel = ChannelName::resolve(target_channel, &config_file.data);
+        let target_channel = target_channel.as_str();
         // Validate that the target channel exists and is not an alias
         if let Some(target_info) = config_file.data.installed_channels.get(target_channel) {
             // Prevent alias-to-alias chains for simplicity and maintainability

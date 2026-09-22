@@ -204,15 +204,18 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
 fn add_non_db(channel: &str, name: &ChannelName, paths: &GlobalPaths) -> Result<()> {
     // Check whether the channel is already installed before downloading. This
     // read only briefly takes a shared lock, which is released immediately.
-    {
+    let channel = {
         let config_file = load_config_db(paths, None)
             .with_context(|| "`add` command failed to load configuration data.")?;
 
-        if config_file.data.installed_channels.contains_key(channel) {
+        let channel = ChannelName::resolve(channel, &config_file.data);
+        if config_file.data.installed_channels.contains_key(&channel) {
             eprintln!("'{}' is already installed.", channel);
             return Ok(());
         }
-    }
+        channel
+    };
+    let channel = channel.as_str();
 
     // Warn about security implications of PR builds
     if let ChannelBase::Pr(pr_number) = name.base {

@@ -3,7 +3,7 @@ use console::{style, Term};
 use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
-use juliaup::channel_name::{is_nightly_channel, is_pr_channel};
+use juliaup::channel_name::{is_nightly_channel, is_pr_channel, ChannelName};
 use juliaup::config_file::{
     load_config_db_lockfree, load_mut_config_db, save_config_db, JuliaupConfig,
     JuliaupConfigChannel, JuliaupConfigVersion,
@@ -633,7 +633,7 @@ fn run_app() -> Result<i32> {
         let first_arg = &args[1];
 
         if let Some(stripped) = first_arg.strip_prefix('+') {
-            channel_from_cmd_line = Some(stripped.to_string());
+            channel_from_cmd_line = Some(ChannelName::resolve(stripped, &config_file.data));
         }
     }
 
@@ -641,7 +641,10 @@ fn run_app() -> Result<i32> {
         if let Some(channel) = channel_from_cmd_line {
             (channel, JuliaupChannelSource::CmdLine)
         } else if let Ok(channel) = std::env::var("JULIAUP_CHANNEL") {
-            (channel, JuliaupChannelSource::EnvVar)
+            (
+                ChannelName::resolve(&channel, &config_file.data),
+                JuliaupChannelSource::EnvVar,
+            )
         } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
             (channel, JuliaupChannelSource::Override)
         } else if let Ok(Some(channel)) = get_auto_channel(

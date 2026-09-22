@@ -2,10 +2,8 @@
 //!
 //! A channel name is `<base>[+<variant>...][~<arch>]`.
 //!
-//! The base names a versions-database channel, `nightly`, `x.y-nightly`,
-//! or `pr<number>`. Variants select a build configuration; their exact spelling is
-//! the sorted token order shown by listing. The optional architecture suffix selects
-//! a build for another architecture. Availability is resolved separately.
+//! Bases are database channels, `nightly`, `x.y-nightly`, or `pr<number>`.
+//! Variants are sorted and deduplicated. Availability is checked separately.
 
 use anyhow::{bail, Result};
 use std::fmt;
@@ -61,7 +59,7 @@ impl fmt::Display for ChannelBase {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChannelName {
     pub base: ChannelBase,
-    /// The `+<variant>` parts, preserved exactly as supplied.
+    /// The `+<variant>` parts, sorted and deduplicated.
     pub variants: Vec<String>,
     /// The `~<arch>` suffix, if any. Kept verbatim: for `Db` channels it is
     /// part of the versions database key, and for the other channels the
@@ -77,7 +75,9 @@ impl ChannelName {
         };
         let mut parts = name.split('+');
         let base = parts.next().unwrap_or_default();
-        let variants: Vec<String> = parts.map(str::to_string).collect();
+        let mut variants: Vec<String> = parts.map(str::to_string).collect();
+        variants.sort();
+        variants.dedup();
 
         let valid_variant = |variant: &String| {
             !variant.is_empty() && variant.bytes().all(|b| b.is_ascii_alphanumeric())
@@ -101,6 +101,26 @@ impl ChannelName {
             variants,
             arch: arch.map(str::to_string),
         })
+    }
+
+    /// Sort and deduplicate nightly variants; preserve other names.
+    pub fn canonical(channel: &str) -> String {
+        match ChannelName::parse(channel) {
+            Ok(name) if name.is_nightly() => name.to_string(),
+            _ => channel.to_string(),
+        }
+    }
+
+    /// Preserve exact linked and alias names before resolving nightly variants.
+    pub fn resolve(channel: &str, config: &crate::config_file::JuliaupConfig) -> String {
+        use crate::config_file::JuliaupConfigChannel;
+        match config.installed_channels.get(channel) {
+            Some(
+                JuliaupConfigChannel::LinkedChannel { .. }
+                | JuliaupConfigChannel::AliasChannel { .. },
+            ) => channel.to_string(),
+            _ => Self::canonical(channel),
+        }
     }
 
     pub fn is_nightly(&self) -> bool {
@@ -201,10 +221,11 @@ mod tests {
         assert_eq!(name.arch, None);
 
         let name = parse("nightly+opt+assert~x64");
-        assert_eq!(name.variants, ["opt", "assert"]);
+        assert_eq!(name.variants, ["assert", "opt"]);
         assert_eq!(name.arch.as_deref(), Some("x64"));
-        assert_ne!(name, parse("nightly+assert+opt+opt~x64"));
-        assert_eq!(name.variant_suffix(), "+opt+assert");
+        assert_eq!(name, parse("nightly+assert+opt+opt~x64"));
+        assert_eq!(name.variant_suffix(), "+assert+opt");
+        assert_eq!(name.to_string(), "nightly+assert+opt~x64");
 
         // Variants parse on any base; whether they exist is decided later.
         assert_eq!(
@@ -245,6 +266,29 @@ mod tests {
             "1.13-nightly+assert+opt~x64",
         ] {
             assert_eq!(parse(channel).to_string(), channel);
+        }
+    }
+
+    #[test]
+    fn canonical_spelling() {
+        assert_eq!(
+            ChannelName::canonical("nightly+opt+assert"),
+            "nightly+assert+opt"
+        );
+        assert_eq!(
+            ChannelName::canonical("1.13-nightly+opt+opt~x64"),
+            "1.13-nightly+opt~x64"
+        );
+        assert_eq!(ChannelName::canonical("nightly"), "nightly");
+        for channel in [
+            "release",
+            "1.13~x64",
+            "pr123",
+            "my+linked+channel",
+            "nightly+",
+            "",
+        ] {
+            assert_eq!(ChannelName::canonical(channel), channel);
         }
     }
 

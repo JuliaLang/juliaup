@@ -28,6 +28,7 @@ struct Mirror {
     etags: Arc<AtomicBool>,
     catalog: Arc<Mutex<String>>,
     payloads: Arc<AtomicUsize>,
+    artifacts: Arc<AtomicUsize>,
     stopped: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
@@ -41,6 +42,7 @@ impl Mirror {
         let etags = Arc::new(AtomicBool::new(true));
         let catalog = Arc::new(Mutex::new(CATALOG.to_string()));
         let payloads = Arc::new(AtomicUsize::new(0));
+        let artifacts = Arc::new(AtomicUsize::new(0));
         let stopped = Arc::new(AtomicBool::new(false));
         let worker = {
             let revision = revision.clone();
@@ -48,6 +50,7 @@ impl Mirror {
             let etags = etags.clone();
             let catalog = catalog.clone();
             let payloads = payloads.clone();
+            let artifacts = artifacts.clone();
             let stopped = stopped.clone();
             std::thread::spawn(move || {
                 while !stopped.load(Ordering::SeqCst) {
@@ -55,6 +58,9 @@ impl Mirror {
                     else {
                         continue;
                     };
+                    if request.url() == "/bin/opt.tar.gz" {
+                        artifacts.fetch_add(1, Ordering::SeqCst);
+                    }
                     let rev = revision.load(Ordering::SeqCst);
                     let catalog = catalog.lock().unwrap().clone();
                     let (body, status) = match request.url() {
@@ -94,6 +100,7 @@ impl Mirror {
             etags,
             catalog,
             payloads,
+            artifacts,
             stopped,
             worker: Some(worker),
         }
@@ -286,7 +293,7 @@ fn malformed_refresh_preserves_cached_choices_and_release_listing() {
 }
 
 #[test]
-fn exact_combined_spelling_and_embedded_loopback_artifact() {
+fn variant_permutations_name_one_channel() {
     let env = TestEnv::new();
     let mirror = Mirror::new();
     *mirror.catalog.lock().unwrap() = CATALOG
@@ -294,30 +301,177 @@ fn exact_combined_spelling_and_embedded_loopback_artifact() {
         .replace("https://julialangnightlies-s3.julialang.org", &mirror.url);
     mirror
         .command(&env)
+        .args(["list"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("nightly+assert+opt"));
+    mirror
+        .command(&env)
         .args(["add", "nightly+opt+assert"])
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("Available variants: +assert+opt"));
+        .success();
+    env.juliaup()
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("nightly+assert+opt"))
+        .stdout(predicate::str::contains("nightly+opt+assert").not());
+    let payloads = mirror.payloads.load(Ordering::SeqCst);
+    let artifacts = mirror.artifacts.load(Ordering::SeqCst);
     mirror
         .command(&env)
-        .args(["add", "nightly+assert+opt"])
+        .args(["add", "nightly+assert+opt+opt"])
         .assert()
-        .success();
-    mirror
-        .command(&env)
-        .args(["default", "nightly+assert+opt"])
-        .assert()
-        .success();
+        .success()
+        .stderr(predicate::str::contains(
+            "'nightly+assert+opt' is already installed.",
+        ));
+    assert_eq!(mirror.payloads.load(Ordering::SeqCst), payloads);
+    assert_eq!(mirror.artifacts.load(Ordering::SeqCst), artifacts);
     env.julia()
-        .args(["+nightly+assert+opt", "--version"])
+        .args(["+nightly+opt+assert", "--version"])
         .assert()
         .success()
         .stdout("1.14.0-DEV.1");
+    env.julia()
+        .env("JULIAUP_CHANNEL", "nightly+opt+assert")
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.1");
+    env.juliaup()
+        .args(["link", "combined", "+nightly+opt+assert"])
+        .assert()
+        .success();
+    env.julia()
+        .args(["+combined", "--version"])
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.1");
+    env.juliaup()
+        .args(["api", "getconfig1"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("combined"));
+    mirror.revision.store(2, Ordering::SeqCst);
     mirror
         .command(&env)
-        .args(["remove", "nightly+assert+opt"])
+        .args(["update", "nightly+opt+assert"])
         .assert()
-        .failure(); // default cannot be removed
+        .success();
+    env.juliaup()
+        .args(["override", "set", "nightly+opt+assert", "--path"])
+        .arg(env.home_path())
+        .assert()
+        .success();
+    env.julia()
+        .current_dir(env.home_path())
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.2");
+    env.juliaup()
+        .args(["override", "unset", "--path"])
+        .arg(env.home_path())
+        .assert()
+        .success();
+    mirror
+        .command(&env)
+        .args(["default", "nightly+opt+assert"])
+        .assert()
+        .success();
+    env.julia()
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.2");
+    mirror
+        .command(&env)
+        .args(["remove", "nightly+opt+assert"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("default channel"));
+    mirror
+        .command(&env)
+        .args(["add", "nightly+nogpl+opt"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("has no '+nogpl+opt' build"))
+        .stderr(predicate::str::contains("Available variants: +assert+opt"));
+}
+
+#[test]
+fn auto_install_variant_alias() {
+    let env = TestEnv::new();
+    let mirror = Mirror::new();
+    *mirror.catalog.lock().unwrap() = CATALOG.replace("[\"opt\"]", "[\"opt\", \"assert\"]");
+    env.juliaup()
+        .args(["config", "autoinstallchannels", "true"])
+        .assert()
+        .success();
+    env.juliaup()
+        .args(["link", "nightly+z+a", "+nightly+opt+assert"])
+        .assert()
+        .success();
+    env.julia()
+        .env("JULIAUP_SERVER", &mirror.url)
+        .env("JULIAUP_NIGHTLY_SERVER", &mirror.url)
+        .args(["+nightly+z+a", "--version"])
+        .assert()
+        .success()
+        .stdout("1.14.0-DEV.1");
+    let config: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(env.config_path()).unwrap()).unwrap();
+    let channels = config["InstalledChannels"].as_object().unwrap();
+    assert_eq!(channels.len(), 2);
+    assert!(channels.contains_key("nightly+assert+opt"));
+    assert_eq!(channels["nightly+z+a"]["Target"], "nightly+assert+opt");
+}
+
+#[test]
+fn linked_names_are_literal() {
+    let env = TestEnv::new();
+    for channel in ["custom+opt+assert", "nightly+opt+assert"] {
+        env.juliaup()
+            .args(["link", channel, "/bin/echo"])
+            .assert()
+            .success();
+        env.julia()
+            .args([&format!("+{channel}"), "linked"])
+            .assert()
+            .success()
+            .stdout("linked\n");
+        env.julia()
+            .env("JULIAUP_CHANNEL", channel)
+            .arg("linked")
+            .assert()
+            .success()
+            .stdout("linked\n");
+        env.juliaup()
+            .args(["link", "alias", &format!("+{channel}")])
+            .assert()
+            .success();
+        env.julia()
+            .args(["+alias", "linked"])
+            .assert()
+            .success()
+            .stdout("linked\n");
+        env.juliaup().args(["default", channel]).assert().success();
+        env.juliaup()
+            .args(["remove", channel])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("default channel"));
+        env.juliaup().args(["remove", "alias"]).assert().success();
+    }
+    env.juliaup()
+        .args(["default", "custom+opt+assert"])
+        .assert()
+        .success();
+    env.juliaup()
+        .args(["remove", "nightly+opt+assert"])
+        .assert()
+        .success();
 }
 
 #[test]

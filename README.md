@@ -165,7 +165,8 @@ The available system provided channels are:
 
 Variant combinations use `+`, for example `julia +nightly+assert+opt` or
 `juliaup add 1.13-nightly+assert+opt~x64`, **if that combination is published**.
-Use the exact spelling shown by `juliaup list`; another ordering is not an alias.
+Variant order and repetition do not matter: `nightly+opt+assert` is stored as
+`nightly+assert+opt`.
 Release and PR variants are not currently supported.
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.

@@ -111,8 +111,7 @@ impl NightlyFile {
             )
     }
 
-    /// The canonical suffix order. Requests retain their spelling and must
-    /// match this order exactly.
+    /// Match the variant order used by `ChannelName`.
     fn sorted_variants(&self) -> Vec<String> {
         let mut variants = self.variants.clone();
         variants.sort();
@@ -593,9 +592,15 @@ mod tests {
     }
 
     #[test]
-    fn exact_spelling_and_bad_entries() {
+    fn spelling_and_bad_entries() {
         let db = db();
-        assert!(db.select(&name("nightly+opt+assert"), LINUX_X64).is_err());
+        let selected = db.select(&name("nightly+opt+assert"), LINUX_X64).unwrap();
+        assert_eq!(selected.variants, ["opt", "assert"]);
+        assert!(std::ptr::eq(
+            selected,
+            db.select(&name("nightly+assert+opt+opt"), LINUX_X64)
+                .unwrap()
+        ));
         let mut json: serde_json::Value = serde_json::from_str(FIXTURE).unwrap();
         json["nightly+"] = json["nightly"].clone();
         json["nightly"]["variants"][0]["variants"] = serde_json::json!(["opt", "opt"]);

@@ -1,3 +1,4 @@
+use crate::channel_name::ChannelName;
 #[cfg(not(windows))]
 use crate::operations::remove_symlink;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
@@ -11,6 +12,9 @@ use anyhow::{bail, Context, Result};
 pub fn run_command_remove(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`remove` command failed to load configuration data.")?;
+
+    let channel = ChannelName::resolve(channel, &config_file.data);
+    let channel = channel.as_str();
 
     if !config_file.data.installed_channels.contains_key(channel) {
         bail!(
