@@ -1132,7 +1132,7 @@ pub fn install_from_url(
             Ok(last_updated) => (last_updated, false),
             Err(e) => {
                 std::fs::remove_dir_all(temp_dir.path())?;
-                bail!("Failed to download and extract pr or nightly: {}", e);
+                bail!("Failed to download and extract pr or nightly: {:#}", e);
             }
         }
     };
