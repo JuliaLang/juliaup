@@ -273,3 +273,76 @@ fn manifest_reuses_version_from_other_channel() {
         .stdout("1.8.5")
         .stderr("");
 }
+
+// A project whose manifest records a Julia version that is not installed fails
+// in non-interactive mode with an actionable message, and malformed or unknown
+// manifests are errors instead of silently falling back to the default channel.
+#[test]
+fn manifest_version_errors() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // Required version is not installed
+    let missing_dir = env.depot_path().join("missing_project");
+    write_project(&missing_dir, "1.8.4", None);
+    env.julia()
+        .arg(project_arg(&missing_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains(
+            "ERROR: This project requires Julia 1.8.4, which is not installed.",
+        ))
+        .stderr(contains("juliaup add 1.8.4"))
+        .stderr(contains("juliaup config autoinstallchannels true"));
+
+    // Malformed manifest
+    let malformed_dir = env.depot_path().join("malformed_project");
+    write_project(&malformed_dir, "1.8.5", None);
+    std::fs::write(malformed_dir.join("Manifest.toml"), "julia_version = ").unwrap();
+    env.julia()
+        .arg(project_arg(&malformed_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains(
+            "ERROR: Failed to determine the Julia version for the active project",
+        ))
+        .stderr(contains("Manifest.toml"));
+
+    // A release version that doesn't exist, even after refreshing the versions db
+    let unknown_dir = env.depot_path().join("unknown_project");
+    write_project(&unknown_dir, "1.8.99", None);
+    env.julia()
+        .arg(project_arg(&unknown_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains("Julia 1.8.99 recorded in"))
+        .stderr(contains("is not a known Julia release"));
+
+    // A project directory without a project file falls back to the default channel
+    env.julia()
+        .arg(project_arg(&env.depot_path().join("no_such_project")))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+}
