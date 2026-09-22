@@ -33,6 +33,7 @@ pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod launcher_args;
 pub mod operations;
+pub mod project_instantiation;
 pub mod utils;
 pub mod version_selection;
 pub mod versions_file;

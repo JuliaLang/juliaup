@@ -66,3 +66,117 @@ pub fn is_ci_value(value: Option<&str>) -> bool {
 pub fn is_ci() -> bool {
     is_ci_value(std::env::var("CI").ok().as_deref())
 }
+
+/// The name of the launcher flag that controls automatic instantiation.
+pub const AUTO_INSTANTIATE_FLAG: &str = "--auto-instantiate";
+
+/// The environment variable that controls automatic instantiation.
+pub const AUTO_INSTANTIATE_ENV: &str = "JULIA_AUTO_INSTANTIATE";
+
+/// What the launcher installs automatically for the active project.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AutoInstantiate {
+    /// Nothing.
+    None,
+    /// The Julia version recorded in the project's manifest.
+    Julia,
+    /// The packages recorded in the project's manifest.
+    Pkg,
+    /// Both the Julia version and the packages.
+    All,
+}
+
+impl AutoInstantiate {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value.trim() {
+            "none" => Ok(AutoInstantiate::None),
+            "julia" => Ok(AutoInstantiate::Julia),
+            "pkg" => Ok(AutoInstantiate::Pkg),
+            "all" => Ok(AutoInstantiate::All),
+            other => Err(format!(
+                "Invalid auto-instantiate value `{}`. Valid values are `none`, `julia`, `pkg` and `all`.",
+                other
+            )),
+        }
+    }
+
+    /// Whether the Julia version recorded in the manifest is installed automatically.
+    pub fn includes_julia(self) -> bool {
+        matches!(self, AutoInstantiate::Julia | AutoInstantiate::All)
+    }
+
+    /// Whether the packages recorded in the manifest are installed automatically.
+    pub fn includes_pkg(self) -> bool {
+        matches!(self, AutoInstantiate::Pkg | AutoInstantiate::All)
+    }
+}
+
+/// Remove `--auto-instantiate[=<level>]` from the Julia options in `args` and
+/// return the remaining arguments together with the requested level.
+///
+/// The flag is only recognized among the options before the first positional
+/// argument or `--`, because later arguments belong to the Julia program. A
+/// bare `--auto-instantiate` means `all`. If the flag is given more than once,
+/// the last one wins.
+pub fn extract_auto_instantiate(
+    args: &[String],
+) -> Result<(Vec<String>, Option<AutoInstantiate>), String> {
+    let mut remaining = Vec::with_capacity(args.len());
+    let mut level = None;
+
+    let mut iter = args.iter();
+    // Program name
+    if let Some(program) = iter.next() {
+        remaining.push(program.clone());
+    }
+    let mut iter = iter.peekable();
+    if let Some(channel) = iter.next_if(|arg| arg.starts_with('+')) {
+        remaining.push(channel.clone());
+    }
+
+    while let Some(arg) = iter.next() {
+        if arg == "--" || !arg.starts_with('-') || arg == "-" {
+            // The rest belongs to the Julia program
+            remaining.push(arg.clone());
+            remaining.extend(iter.cloned());
+            break;
+        }
+
+        if arg == AUTO_INSTANTIATE_FLAG {
+            level = Some(AutoInstantiate::All);
+            continue;
+        }
+        if let Some(value) = arg
+            .strip_prefix(AUTO_INSTANTIATE_FLAG)
+            .and_then(|rest| rest.strip_prefix('='))
+        {
+            level = Some(AutoInstantiate::parse(value)?);
+            continue;
+        }
+
+        remaining.push(arg.clone());
+        if julia_option_requires_arg(arg) {
+            // The value of this option, which could look like our flag
+            if let Some(value) = iter.next() {
+                remaining.push(value.clone());
+            }
+        }
+    }
+
+    Ok((remaining, level))
+}
+
+/// The auto-instantiate level from the environment variable, if it is set.
+pub fn auto_instantiate_from_env() -> Result<Option<AutoInstantiate>, String> {
+    match std::env::var(AUTO_INSTANTIATE_ENV) {
+        Ok(value) if !value.trim().is_empty() => {
+            AutoInstantiate::parse(&value).map(Some).map_err(|err| {
+                format!(
+                    "{} (from environment variable {})",
+                    err, AUTO_INSTANTIATE_ENV
+                )
+            })
+        }
+        _ => Ok(None),
+    }
+}

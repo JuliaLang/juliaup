@@ -8,11 +8,16 @@ use juliaup::config_file::{
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::launcher_args::{is_ci, starts_repl};
+use juliaup::launcher_args::{
+    auto_instantiate_from_env, extract_auto_instantiate, is_ci, starts_repl, AUTO_INSTANTIATE_ENV,
+    AUTO_INSTANTIATE_FLAG,
+};
 use juliaup::operations::{is_pr_channel, is_valid_channel};
+use juliaup::project_instantiation::{check_instantiation, depot_paths, InstantiationNeed};
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::{
-    determine_project_context, resolve_auto_channel, ProjectContext, UnknownJuliaVersion,
+    determine_project_context, manifest_for_julia_version, parse_db_version, resolve_auto_channel,
+    ProjectContext, UnknownJuliaVersion,
 };
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -21,6 +26,7 @@ use nix::{
     unistd::{fork, ForkResult},
 };
 use normpath::PathExt;
+use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
 #[cfg(windows)]
@@ -284,6 +290,15 @@ fn display_path(path: &Path) -> String {
     dunce::simplified(path).display().to_string()
 }
 
+fn project_detection_error(err: anyhow::Error) -> UserError {
+    UserError {
+        msg: format!(
+            "Failed to determine the Julia version for the active project.\n  {:#}\nTo start Julia regardless, select a channel explicitly, e.g. `julia +release`.",
+            err
+        ),
+    }
+}
+
 /// Determine the Juliaup channel from the Julia version recorded in the
 /// active project's manifest.
 fn get_auto_channel(
@@ -291,12 +306,7 @@ fn get_auto_channel(
     versions_db: &mut JuliaupVersionDB,
     paths: &juliaup::global_paths::GlobalPaths,
 ) -> Result<Option<(String, AutoSelection)>> {
-    let context = determine_project_context(args).map_err(|err| UserError {
-        msg: format!(
-            "Failed to determine the Julia version for the active project.\n  {:#}\nTo start Julia regardless, select a channel explicitly, e.g. `julia +release`.",
-            err
-        ),
-    })?;
+    let context = determine_project_context(args).map_err(project_detection_error)?;
 
     let Some(context) = context else {
         return Ok(None);
@@ -400,10 +410,131 @@ fn missing_required_version_error(selection: &AutoSelection, channel: &str) -> U
         format!("juliaup add {}", channel)
     ));
     msg.push_str(&format!(
+        "  {:<44}install automatically on launch\n  {:<44}(or set {}=julia)\n",
+        format!("julia {}=julia ...", AUTO_INSTANTIATE_FLAG),
+        "",
+        AUTO_INSTANTIATE_ENV
+    ));
+    msg.push_str(&format!(
         "  {:<44}always install required versions automatically",
         "juliaup config autoinstallchannels true"
     ));
     UserError { msg }
+}
+
+/// The Julia version a channel provides, if known.
+fn installed_channel_version(config_data: &JuliaupConfig, channel: &str) -> Option<Version> {
+    let channel = match config_data.installed_channels.get(channel)? {
+        JuliaupConfigChannel::AliasChannel { target, .. } => {
+            config_data.installed_channels.get(target)?
+        }
+        other => other,
+    };
+    match channel {
+        JuliaupConfigChannel::SystemChannel { version }
+        | JuliaupConfigChannel::DirectDownloadChannel { version, .. } => {
+            parse_db_version(version).ok()
+        }
+        _ => None,
+    }
+}
+
+/// Run `Pkg.instantiate` for the active project if any of the packages recorded
+/// in its manifest are not installed.
+fn instantiate_project_if_needed(
+    args: &[String],
+    auto_selection: Option<&AutoSelection>,
+    julia_path: &Path,
+    julia_args: &[String],
+    julia_version: Option<Version>,
+) -> Result<()> {
+    let context = match auto_selection {
+        Some(selection) => Some(selection.context.clone()),
+        None => determine_project_context(args).map_err(project_detection_error)?,
+    };
+    let Some(context) = context else {
+        return Ok(());
+    };
+
+    // The manifest that the Julia we are about to launch will load
+    let manifest_file = match auto_selection {
+        Some(_) => context.manifest_file.clone(),
+        None => manifest_for_julia_version(
+            &context.project_file,
+            julia_version.map(|v| (v.major, v.minor)),
+        )
+        .map_err(project_detection_error)?
+        .map(|m| m.path),
+    };
+
+    let depots = depot_paths(
+        std::env::var_os("JULIA_DEPOT_PATH").as_deref(),
+        Some(julia_path),
+    );
+    let need = check_instantiation(manifest_file.as_deref(), context.has_deps, &depots)
+        .map_err(project_detection_error)?;
+    let Some(need) = need else {
+        return Ok(());
+    };
+
+    let reason = match need {
+        InstantiationNeed::NoManifest => "no manifest yet".to_string(),
+        InstantiationNeed::MissingPackages(packages) => {
+            let mut names = packages
+                .iter()
+                .take(5)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ");
+            if packages.len() > 5 {
+                names.push_str(", ...");
+            }
+            format!(
+                "{} package{} not installed: {}",
+                packages.len(),
+                if packages.len() == 1 { "" } else { "s" },
+                names
+            )
+        }
+    };
+    print_juliaup_style(
+        "Instantiating",
+        &format!(
+            "project {} ({})",
+            display_path(context.project_dir()),
+            reason
+        ),
+        JuliaupMessageType::Progress,
+    );
+
+    // Run the resolved Julia binary directly, not through the launcher. Its
+    // output goes to stderr so that the stdout of the launcher stays clean.
+    let status = std::process::Command::new(julia_path)
+        .args(julia_args)
+        .arg(format!("--project={}", context.project_dir().display()))
+        .args([
+            "--startup-file=no",
+            "--history-file=no",
+            "-e",
+            "import Pkg; Pkg.instantiate()",
+        ])
+        .stdin(Stdio::null())
+        .stdout(std::io::stderr())
+        .status()
+        .with_context(|| "Failed to start Julia to instantiate the project.")?;
+
+    if !status.success() {
+        return Err(UserError {
+            msg: format!(
+                "Failed to instantiate the project {} (Pkg.instantiate exited with code {:?}).",
+                display_path(context.project_dir()),
+                status.code()
+            ),
+        }
+        .into());
+    }
+
+    Ok(())
 }
 
 fn check_channel_uptodate(
@@ -805,7 +936,13 @@ fn run_app() -> Result<i32> {
 
     // Parse command line
     let mut channel_from_cmd_line: Option<String> = None;
-    let args: Vec<String> = std::env::args().collect();
+    let raw_args: Vec<String> = std::env::args().collect();
+    let (args, flag_auto_instantiate) =
+        extract_auto_instantiate(&raw_args).map_err(|msg| UserError { msg })?;
+    let auto_instantiate = match flag_auto_instantiate {
+        Some(level) => Some(level),
+        None => auto_instantiate_from_env().map_err(|msg| UserError { msg })?,
+    };
     if args.len() > 1 {
         let first_arg = &args[1];
 
@@ -827,6 +964,7 @@ fn run_app() -> Result<i32> {
     } else if let Ok(Some(channel)) = get_override_channel(&config_file) {
         (channel, JuliaupChannelSource::Override)
     } else if let Some((channel, selection)) = if config_file.data.settings.manifest_version_detect
+        || auto_instantiate.is_some_and(|level| level.includes_julia())
     {
         get_auto_channel(&args, &mut versiondb_data, &paths)?
     } else {
@@ -845,7 +983,7 @@ fn run_app() -> Result<i32> {
     let resolve_options = ChannelResolveOptions {
         interactivity,
         auto_selection: auto_selection.as_ref(),
-        auto_install_julia: None,
+        auto_install_julia: auto_instantiate.map(|level| level.includes_julia()),
     };
 
     let resolved_julia = get_julia_path_from_channel(
@@ -865,6 +1003,20 @@ fn run_app() -> Result<i32> {
     })?;
 
     let julia_path = resolved_julia.path;
+
+    if auto_instantiate.is_some_and(|level| level.includes_pkg()) {
+        let julia_version = match &auto_selection {
+            Some(selection) => Version::parse(&selection.julia_version).ok(),
+            None => installed_channel_version(&config_file.data, &julia_channel_to_use),
+        };
+        instantiate_project_if_needed(
+            &args,
+            auto_selection.as_ref(),
+            &julia_path,
+            &resolved_julia.args,
+            julia_version,
+        )?;
+    }
 
     let mut new_args: Vec<String> = Vec::new();
 

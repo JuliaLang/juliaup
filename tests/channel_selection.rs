@@ -1,3 +1,4 @@
+use predicates::prelude::*;
 use predicates::str::contains;
 
 mod utils;
@@ -345,4 +346,136 @@ fn manifest_version_errors() {
         .assert()
         .success()
         .stdout("1.8.5");
+}
+
+#[test]
+fn auto_instantiate() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // `--auto-instantiate=julia` installs the Julia version recorded in the
+    // manifest and uses it, even though manifestversiondetect is not enabled
+    let project_dir = env.depot_path().join("auto_julia_project");
+    write_project(&project_dir, "1.8.4", None);
+    env.julia()
+        .arg("--auto-instantiate=julia")
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.4")
+        .stderr(contains(
+            "Installing Julia 1.8.4 required by the project (auto-instantiate)",
+        ));
+
+    // The environment variable works the same way
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_AUTO_INSTANTIATE", "julia")
+        .assert()
+        .success()
+        .stdout("1.8.4");
+
+    // Without it, manifest detection stays disabled
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+
+    // Invalid values are an error
+    env.julia()
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_AUTO_INSTANTIATE", "yes")
+        .assert()
+        .failure()
+        .stderr(contains("Invalid auto-instantiate value `yes`"));
+
+    // Arguments of the Julia program are passed through
+    env.julia()
+        .arg("-e")
+        .arg("print(ARGS)")
+        .arg("--")
+        .arg("--auto-instantiate=pkg")
+        .assert()
+        .success()
+        .stdout("[\"--auto-instantiate=pkg\"]");
+
+    // An explicit `none` disables auto-install even if the config enables it
+    env.juliaup()
+        .arg("config")
+        .arg("autoinstallchannels")
+        .arg("true")
+        .assert()
+        .success();
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+    let other_dir = env.depot_path().join("auto_none_project");
+    write_project(&other_dir, "1.8.3", None);
+    env.julia()
+        .arg("--auto-instantiate=none")
+        .arg(project_arg(&other_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "This project requires Julia 1.8.3, which is not installed.",
+        ));
+
+    // `--auto-instantiate` also installs the packages of the project, but only
+    // when they are not installed yet
+    let pkg_dir = env.depot_path().join("auto_pkg_project");
+    std::fs::create_dir_all(&pkg_dir).unwrap();
+    std::fs::write(
+        pkg_dir.join("Project.toml"),
+        "[deps]\nExample = \"7876af07-990d-54b4-ab0e-23690620f79a\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        pkg_dir.join("Manifest.toml"),
+        r#"julia_version = "1.8.5"
+manifest_format = "2.0"
+project_hash = "2ca1c6c58cb30e79e021fb54e5626c96d05d5fdc"
+
+[[deps.Example]]
+git-tree-sha1 = "46e44e869b4d90b96bd8ed1fdcf32244fddfb6cc"
+uuid = "7876af07-990d-54b4-ab0e-23690620f79a"
+version = "0.5.3"
+"#,
+    )
+    .unwrap();
+
+    env.julia()
+        .arg("--auto-instantiate")
+        .arg(project_arg(&pkg_dir))
+        .arg("-e")
+        .arg("using Example; print(Example.hello(\"x\"))")
+        .assert()
+        .success()
+        .stdout("Hello, x")
+        .stderr(contains("1 package not installed: Example"));
+
+    env.julia()
+        .arg("--auto-instantiate")
+        .arg(project_arg(&pkg_dir))
+        .arg("-e")
+        .arg("using Example; print(Example.hello(\"x\"))")
+        .assert()
+        .success()
+        .stdout("Hello, x")
+        .stderr(predicates::str::contains("Instantiating").not());
 }

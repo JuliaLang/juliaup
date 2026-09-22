@@ -235,6 +235,27 @@ Question: Project /home/user/code/MyProject requires Julia 1.10.4 (from Manifest
 
 When the launcher can't ask (e.g., stdin or stderr is not a terminal, or the `CI` environment variable is set), it exits with an error that explains how to install the required version. To always install required versions automatically, use `juliaup config autoinstallchannels true`.
 
+#### Automatic instantiation
+
+The `--auto-instantiate` launcher option makes sure that everything the active project needs is installed before Julia starts, which is especially useful in non-interactive environments such as CI:
+
+```sh
+julia --auto-instantiate --project=. script.jl
+```
+
+It takes an optional value:
+
+| Value | Effect |
+|---|---|
+| `julia` | Install the Julia version recorded in the project's manifest if it is missing, without asking. This enables project-based version selection for this launch, even if `manifestversiondetect` is off. |
+| `pkg` | Run `Pkg.instantiate()` for the project if any package recorded in the manifest is not installed (or if the project has dependencies but no manifest). The launcher checks this without starting Julia, so launches where everything is installed stay fast. |
+| `all` | Both `julia` and `pkg`. This is the default if no value is given. |
+| `none` | Nothing. This also disables automatic installation configured with `juliaup config autoinstallchannels true` for the project's Julia version. |
+
+The `JULIA_AUTO_INSTANTIATE` environment variable accepts the same values and applies when the option is not given. The option is only recognized before the name of a script or `--`; later arguments are passed to the Julia program unchanged.
+
+**Security note:** `pkg` and `all` download and install the packages listed in the project's manifest when Julia starts, which runs code from those packages (build scripts and precompilation). A manifest can reference arbitrary git repositories. Only enable these levels, in particular through the environment variable, for projects you trust, e.g., in CI jobs or containers for your own code. `julia` only installs official Julia releases from the Juliaup server.
+
 ## Path used by Juliaup
 
 Juliaup will by default use the Julia depot at `~/.julia` to store Julia versions and configuration files. This can be changed by setting
