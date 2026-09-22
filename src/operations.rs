@@ -178,7 +178,14 @@ where
         .stdin
         .take()
         .expect("Failed to get stdin for `tar` process");
-    std::io::copy(&mut src, &mut stdin)?;
+    let copy_result = std::io::copy(&mut src, &mut stdin);
+    // Close the pipe before waiting, and reap tar even if copying failed.
+    drop(stdin);
+    let status = tar.wait().context("Failed to wait for `tar` process")?;
+    copy_result?;
+    if !status.success() {
+        bail!("`tar` extraction failed with {}", status);
+    }
     Ok(())
 }
 
@@ -3331,7 +3338,6 @@ mod tests {
         Ok(())
     }
 
-    // unpack_sans_parent is only compiled for non-freebsd targets
     #[cfg(not(target_os = "freebsd"))]
     /// Builds a minimal `.tar.gz` in memory with a single entry whose path is given
     /// as raw bytes, bypassing the `tar::Builder` safety checks so we can place
@@ -3381,7 +3387,13 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_rejects_invalid_archive() -> Result<()> {
+        let dst = tempfile::TempDir::new()?;
+        assert!(unpack_sans_parent(&b"not an archive"[..], dst.path(), 1).is_err());
+        Ok(())
+    }
+
     #[test]
     fn unpack_accepts_normal_paths() -> Result<()> {
         use flate2::write::GzEncoder;
