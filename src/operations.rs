@@ -308,36 +308,24 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     }
 
     log::debug!("Downloading DMG from url `{}`.", url);
-    let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+    let download = crate::download::get(&http_client()?, url)?;
 
-    if !response.status().is_success() {
-        bail!("DMG not found at URL (status: {})", response.status());
-    }
-
-    let pb = match response.content_length() {
+    let pb = match download.content_length {
         Some(len) => ProgressBar::new(len),
         None => ProgressBar::new_spinner(),
     };
     pb.set_prefix(DOWNLOADING_PREFIX);
     pb.set_style(bar_style());
 
-    let etag = response
-        .headers()
-        .get("etag")
-        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?
-        .to_str()?
-        .to_string();
+    let etag = download
+        .etag
+        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?;
 
     // Download to temporary DMG file
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
 
     let mut dmg_file = File::create(temp_dmg.path())?;
-    let body = crate::download::resumable(&client, response);
-    std::io::copy(&mut pb.wrap_read(body), &mut dmg_file)?;
+    std::io::copy(&mut pb.wrap_read(download.body), &mut dmg_file)?;
     dmg_file.flush()?;
     drop(dmg_file);
 
@@ -460,15 +448,9 @@ pub fn download_extract_sans_parent(
     levels_to_skip: usize,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
-    let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+    let download = crate::download::get(&http_client()?, url)?;
 
-    let content_length = response.content_length();
-
-    let pb = match content_length {
+    let pb = match download.content_length {
         Some(content_length) => ProgressBar::new(content_length),
         None => ProgressBar::new_spinner(),
     };
@@ -478,13 +460,9 @@ pub fn download_extract_sans_parent(
 
     // Extract etag if present, otherwise return empty string
     // Empty etag is valid for regular version installs from servers without etag support
-    let last_modified = response
-        .headers()
-        .get("etag")
-        .map(|etag| etag.to_str().unwrap_or("").to_string())
-        .unwrap_or_default();
+    let last_modified = download.etag.unwrap_or_default();
 
-    let response_with_pb = pb.wrap_read(crate::download::resumable(&client, response));
+    let response_with_pb = pb.wrap_read(download.body);
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
