@@ -280,6 +280,10 @@ If the manifest records a Julia version that the project's compat doesn't allow,
 
 When Julia runs a script or an expression, there is no prompt: the launcher prints a one-line hint if stderr is a terminal and the `CI` environment variable is not set, and stays silent otherwise, so that output captured by other tools is not affected.
 
+#### Launching Julia without prompts
+
+Tools that start Julia through the launcher and handle these choices in their own user interface (e.g., an editor that offers to install or upgrade Julia before it starts a REPL) can set the environment variable `JULIA_LAUNCHER_PROMPTS=none`. The launcher then never prompts and doesn't print informational messages such as upgrade hints or "a new Julia version is available" notices. Errors are still reported, e.g. if the Julia version required by the project is not installed. It still installs versions automatically if `--auto-instantiate=julia`, `JULIA_AUTO_INSTANTIATE` or `juliaup config autoinstallchannels true` asks for it. The default value is `all`.
+
 ## Path used by Juliaup
 
 Juliaup will by default use the Julia depot at `~/.julia` to store Julia versions and configuration files. This can be changed by setting

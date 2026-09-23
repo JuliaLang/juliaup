@@ -1,5 +1,6 @@
 use juliaup::launcher_args::{
-    extract_auto_instantiate, is_ci_value, prints_info_only, starts_repl, AutoInstantiate,
+    extract_auto_instantiate, is_ci_value, parse_launcher_prompts, prints_info_only, starts_repl,
+    AutoInstantiate,
 };
 
 fn args(parts: &[&str]) -> Vec<String> {
@@ -139,4 +140,13 @@ fn test_prints_info_only() {
     assert!(!prints_info_only(&args(&[])));
     assert!(!prints_info_only(&args(&["script.jl", "--version"])));
     assert!(!prints_info_only(&args(&["-e", "--version"])));
+}
+
+#[test]
+fn test_parse_launcher_prompts() {
+    assert_eq!(parse_launcher_prompts(None), Ok(true));
+    assert_eq!(parse_launcher_prompts(Some("")), Ok(true));
+    assert_eq!(parse_launcher_prompts(Some("all")), Ok(true));
+    assert_eq!(parse_launcher_prompts(Some(" none ")), Ok(false));
+    assert!(parse_launcher_prompts(Some("no")).is_err());
 }

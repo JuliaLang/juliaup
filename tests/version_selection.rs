@@ -545,7 +545,7 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .build();
 
     // Test 1: Exact match - 1.12.0-rc1 exists, so use it
-    let result = resolve_auto_channel("1.12.0-rc1", &versions_db);
+    let result = resolve_auto_channel("1.12.0-rc1", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.0-rc1");
 
@@ -560,23 +560,23 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .add_channel("1.12-nightly", "1.12.2-DEV")
         .build();
 
-    let result = resolve_auto_channel("1.12.1-rc1", &versions_db_with_rc);
+    let result = resolve_auto_channel("1.12.1-rc1", &versions_db_with_rc, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.1-rc1");
 
     // Test 3: CRITICAL - 1.12.1-DEV < 1.12.1 in SemVer ordering, but should still use nightly
     // This is the common case when a manifest is generated on nightly
-    let result = resolve_auto_channel("1.12.1-DEV", &versions_db);
+    let result = resolve_auto_channel("1.12.1-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12-nightly");
 
     // Test 4: 1.13.0-DEV should use 1.13-nightly
-    let result = resolve_auto_channel("1.13.0-DEV", &versions_db);
+    let result = resolve_auto_channel("1.13.0-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.13-nightly");
 
     // Test 5: 1.14.0-DEV (no 1.14-nightly exists), should use main nightly
-    let result = resolve_auto_channel("1.14.0-DEV", &versions_db);
+    let result = resolve_auto_channel("1.14.0-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "nightly");
 }
@@ -593,17 +593,17 @@ fn test_resolve_auto_channel_release_versions() {
 
     // Known release versions resolve to the channel of the same name
     assert_eq!(
-        resolve_auto_channel("1.12.1", &versions_db).unwrap(),
+        resolve_auto_channel("1.12.1", &versions_db, false).unwrap(),
         "1.12.1"
     );
     assert_eq!(
-        resolve_auto_channel("1.12.0", &versions_db).unwrap(),
+        resolve_auto_channel("1.12.0", &versions_db, false).unwrap(),
         "1.12.0"
     );
 
     // Unknown release versions are an error, never mapped to a nightly channel
     for unknown in ["1.12.55", "1.13.0"] {
-        let err = resolve_auto_channel(unknown, &versions_db).unwrap_err();
+        let err = resolve_auto_channel(unknown, &versions_db, false).unwrap_err();
         let err = err
             .downcast_ref::<UnknownJuliaVersion>()
             .expect("expected an UnknownJuliaVersion error");
@@ -611,7 +611,7 @@ fn test_resolve_auto_channel_release_versions() {
     }
 
     // Unparsable versions are an error too
-    assert!(resolve_auto_channel("not-a-version", &versions_db).is_err());
+    assert!(resolve_auto_channel("not-a-version", &versions_db, false).is_err());
 }
 
 #[test]

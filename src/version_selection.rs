@@ -767,8 +767,13 @@ pub struct UnknownJuliaVersion {
 /// Released versions map to the channel of the same name. Prerelease versions
 /// (e.g. `1.12.1-DEV`, `1.13.0-rc1`) without a channel of their own map to a
 /// nightly channel. A release version that the versions db does not know about
-/// returns an [`UnknownJuliaVersion`] error.
-pub fn resolve_auto_channel(required: &str, versions_db: &JuliaupVersionDB) -> Result<String> {
+/// returns an [`UnknownJuliaVersion`] error. With `announce`, the mapping of a
+/// prerelease version to a nightly channel is reported on stderr.
+pub fn resolve_auto_channel(
+    required: &str,
+    versions_db: &JuliaupVersionDB,
+    announce: bool,
+) -> Result<String> {
     // Check if exact version is available
     if versions_db.has_channel(required) {
         return Ok(required.to_string());
@@ -789,26 +794,30 @@ pub fn resolve_auto_channel(required: &str, versions_db: &JuliaupVersionDB) -> R
             versioned_nightly_channel(required_version.major, required_version.minor);
 
         if versions_db.has_channel(&versioned_nightly) {
-            print_juliaup_style(
-                "Info",
-                &format!(
-                    "Manifest specifies prerelease Julia {}. Using {} channel.",
-                    required, versioned_nightly
-                ),
-                JuliaupMessageType::Progress,
-            );
+            if announce {
+                print_juliaup_style(
+                    "Info",
+                    &format!(
+                        "Manifest specifies prerelease Julia {}. Using {} channel.",
+                        required, versioned_nightly
+                    ),
+                    JuliaupMessageType::Progress,
+                );
+            }
             return Ok(versioned_nightly);
         }
 
         // Fall back to main nightly channel
-        print_juliaup_style(
-            "Info",
-            &format!(
-                "Manifest specifies prerelease Julia {}. Using nightly channel.",
-                required
-            ),
-            JuliaupMessageType::Progress,
-        );
+        if announce {
+            print_juliaup_style(
+                "Info",
+                &format!(
+                    "Manifest specifies prerelease Julia {}. Using nightly channel.",
+                    required
+                ),
+                JuliaupMessageType::Progress,
+            );
+        }
         return Ok("nightly".to_string());
     }
 

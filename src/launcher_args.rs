@@ -205,3 +205,26 @@ pub fn auto_instantiate_from_env() -> Result<Option<AutoInstantiate>, String> {
         _ => Ok(None),
     }
 }
+
+/// The environment variable that controls whether the launcher may prompt the
+/// user and print informational messages.
+pub const LAUNCHER_PROMPTS_ENV: &str = "JULIA_LAUNCHER_PROMPTS";
+
+/// Parse a `JULIA_LAUNCHER_PROMPTS` value. Returns whether prompts and
+/// informational messages are allowed; unset or empty means `all`.
+pub fn parse_launcher_prompts(value: Option<&str>) -> Result<bool, String> {
+    match value.map(str::trim) {
+        None | Some("") | Some("all") => Ok(true),
+        Some("none") => Ok(false),
+        Some(other) => Err(format!(
+            "Invalid value `{}` for environment variable {}. Valid values are `all` and `none`.",
+            other, LAUNCHER_PROMPTS_ENV
+        )),
+    }
+}
+
+/// Whether the launcher may prompt the user and print informational messages,
+/// according to the `JULIA_LAUNCHER_PROMPTS` environment variable.
+pub fn launcher_prompts_from_env() -> Result<bool, String> {
+    parse_launcher_prompts(std::env::var(LAUNCHER_PROMPTS_ENV).ok().as_deref())
+}

@@ -338,6 +338,38 @@ fn manifest_version_errors() {
         .stderr(contains("Julia 1.8.99 recorded in"))
         .stderr(contains("is not a known Julia release"));
 
+    // With JULIA_LAUNCHER_PROMPTS=none, errors are still reported, but no info messages
+    env.julia()
+        .arg(project_arg(&missing_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "none")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "ERROR: This project requires Julia 1.8.4, which is not installed.",
+        ));
+    env.julia()
+        .arg(project_arg(&unknown_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "none")
+        .assert()
+        .failure()
+        .stderr(contains("is not a known Julia release"))
+        .stderr(contains("is not in the local list of Julia versions").not());
+
+    // Invalid values are an error
+    env.julia()
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "no")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "Invalid value `no` for environment variable JULIA_LAUNCHER_PROMPTS",
+        ));
+
     // A project directory without a project file falls back to the default channel
     env.julia()
         .arg(project_arg(&env.depot_path().join("no_such_project")))

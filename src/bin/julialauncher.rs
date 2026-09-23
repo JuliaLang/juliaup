@@ -10,8 +10,8 @@ use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
 use juliaup::julia_compat::{compute_upgrade_offer, VersionSpec};
 use juliaup::launcher_args::{
-    auto_instantiate_from_env, extract_auto_instantiate, is_ci, prints_info_only, starts_repl,
-    AUTO_INSTANTIATE_ENV, AUTO_INSTANTIATE_FLAG,
+    auto_instantiate_from_env, extract_auto_instantiate, is_ci, launcher_prompts_from_env,
+    prints_info_only, starts_repl, AUTO_INSTANTIATE_ENV, AUTO_INSTANTIATE_FLAG,
 };
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::project_instantiation::{check_instantiation, depot_paths, InstantiationNeed};
@@ -150,15 +150,21 @@ struct Interactivity {
     can_prompt: bool,
     /// `can_prompt`, and Julia is about to start an interactive REPL.
     starts_repl: bool,
+    /// `JULIA_LAUNCHER_PROMPTS=none`: the caller handles user interaction, so we
+    /// neither prompt nor print informational messages.
+    quiet: bool,
 }
 
 impl Interactivity {
-    fn detect(args: &[String]) -> Self {
-        let can_prompt =
-            std::io::stdin().is_terminal() && std::io::stderr().is_terminal() && !is_ci();
+    fn detect(args: &[String], prompts_allowed: bool) -> Self {
+        let can_prompt = prompts_allowed
+            && std::io::stdin().is_terminal()
+            && std::io::stderr().is_terminal()
+            && !is_ci();
         Interactivity {
             can_prompt,
             starts_repl: can_prompt && starts_repl(args),
+            quiet: !prompts_allowed,
         }
     }
 }
@@ -306,6 +312,7 @@ fn get_auto_channel(
     args: &[String],
     versions_db: &mut JuliaupVersionDB,
     paths: &juliaup::global_paths::GlobalPaths,
+    quiet: bool,
 ) -> Result<Option<(String, AutoSelection)>> {
     let context = determine_project_context(args).map_err(project_detection_error)?;
 
@@ -320,24 +327,26 @@ fn get_auto_channel(
         julia_version,
     };
 
-    let channel = match resolve_auto_channel(&selection.julia_version, versions_db) {
+    let channel = match resolve_auto_channel(&selection.julia_version, versions_db, !quiet) {
         Ok(channel) => channel,
         Err(err) if err.downcast_ref::<UnknownJuliaVersion>().is_some() => {
             // The versions db might be outdated, so refresh it and try again
-            print_juliaup_style(
-                "Info",
-                &format!(
-                    "Julia {} (recorded in {}) is not in the local list of Julia versions, refreshing it.",
-                    selection.julia_version,
-                    display_path(selection.manifest_file())
-                ),
-                JuliaupMessageType::Progress,
-            );
+            if !quiet {
+                print_juliaup_style(
+                    "Info",
+                    &format!(
+                        "Julia {} (recorded in {}) is not in the local list of Julia versions, refreshing it.",
+                        selection.julia_version,
+                        display_path(selection.manifest_file())
+                    ),
+                    JuliaupMessageType::Progress,
+                );
+            }
             let refreshed = refresh_versions_db()?;
             *versions_db = load_versions_db(paths)
                 .with_context(|| "The Julia launcher failed to load a versions db.")?;
 
-            match resolve_auto_channel(&selection.julia_version, versions_db) {
+            match resolve_auto_channel(&selection.julia_version, versions_db, !quiet) {
                 Ok(channel) => channel,
                 Err(err) if err.downcast_ref::<UnknownJuliaVersion>().is_some() => {
                     return Err(UserError {
@@ -481,7 +490,11 @@ fn offer_julia_upgrade(
 
     if !interactivity.starts_repl {
         // Only a short hint, and only if a person is likely to see it
-        if std::io::stderr().is_terminal() && !is_ci() && !prints_info_only(args) {
+        if !interactivity.quiet
+            && std::io::stderr().is_terminal()
+            && !is_ci()
+            && !prints_info_only(args)
+        {
             let msg = if offer.current_violates_compat {
                 format!(
                     "The manifest of project {} records Julia {}, which its compat ({}) does not allow. Start a Julia REPL with this project to update it.",
@@ -1209,7 +1222,8 @@ fn run_app() -> Result<i32> {
         }
     }
 
-    let interactivity = Interactivity::detect(&args);
+    let prompts_allowed = launcher_prompts_from_env().map_err(|msg| UserError { msg })?;
+    let interactivity = Interactivity::detect(&args, prompts_allowed);
 
     let mut auto_selection: Option<AutoSelection> = None;
 
@@ -1224,7 +1238,7 @@ fn run_app() -> Result<i32> {
     } else if let Some((channel, selection)) = if config_file.data.settings.manifest_version_detect
         || auto_instantiate.is_some_and(|level| level.includes_julia())
     {
-        get_auto_channel(&args, &mut versiondb_data, &paths)?
+        get_auto_channel(&args, &mut versiondb_data, &paths, interactivity.quiet)?
     } else {
         None
     } {
