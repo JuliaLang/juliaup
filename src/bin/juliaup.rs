@@ -17,6 +17,7 @@ use juliaup::command_list::run_command_list;
 use juliaup::command_list_channels::run_command_list_channels;
 use juliaup::command_override::{run_command_override_status, run_command_override_unset};
 use juliaup::command_post_update::run_command_post_update;
+use juliaup::command_project::{run_command_project_pin, run_command_project_upgrade};
 use juliaup::command_remove::run_command_remove;
 use juliaup::command_selfupdate::run_command_selfupdate;
 use juliaup::command_status::run_command_status;
@@ -137,6 +138,14 @@ fn main() -> Result<()> {
         Juliaup::Api { command } => run_command_api(&command, &paths),
         Juliaup::InitialSetupFromLauncher {} => run_command_initial_setup_from_launcher(&paths),
         Juliaup::UpdateVersionDb {} => run_command_update_version_db(&paths),
+        Juliaup::ProjectUpgrade {
+            project_file,
+            version,
+        } => run_command_project_upgrade(&project_file, &version, &paths),
+        Juliaup::ProjectPin {
+            project_file,
+            version,
+        } => run_command_project_pin(&project_file, &version, &paths),
         Juliaup::OverrideSubCmd(subcmd) => match subcmd {
             OverrideSubCmd::Status {} => run_command_override_status(&paths),
             OverrideSubCmd::Set { channel, path } => {

@@ -1,4 +1,6 @@
-use juliaup::launcher_args::{extract_auto_instantiate, is_ci_value, starts_repl, AutoInstantiate};
+use juliaup::launcher_args::{
+    extract_auto_instantiate, is_ci_value, prints_info_only, starts_repl, AutoInstantiate,
+};
 
 fn args(parts: &[&str]) -> Vec<String> {
     std::iter::once("julia")
@@ -127,4 +129,14 @@ fn test_extract_auto_instantiate() {
 
     // Invalid values are an error
     assert!(extract_auto_instantiate(&args(&["--auto-instantiate=yes"])).is_err());
+}
+
+#[test]
+fn test_prints_info_only() {
+    assert!(prints_info_only(&args(&["--version"])));
+    assert!(prints_info_only(&args(&["+1.10", "-v"])));
+    assert!(prints_info_only(&args(&["--project=.", "--help"])));
+    assert!(!prints_info_only(&args(&[])));
+    assert!(!prints_info_only(&args(&["script.jl", "--version"])));
+    assert!(!prints_info_only(&args(&["-e", "--version"])));
 }

@@ -62,6 +62,18 @@ pub enum Juliaup {
     InitialSetupFromLauncher {},
     #[clap(name = "0cf1528f-0b15-46b1-9ac9-e5bf5ccccbcf", hide = true)]
     UpdateVersionDb {},
+    /// Re-resolve a project with another Julia version (used by the julia launcher)
+    #[clap(name = "4e908fb4-019f-4fae-a1c5-2d94a5ce3d40", hide = true)]
+    ProjectUpgrade {
+        project_file: String,
+        version: String,
+    },
+    /// Pin the Julia version of a project in its compat section (used by the julia launcher)
+    #[clap(name = "3d5518e8-0524-4b80-83fe-43ae2cc37782", hide = true)]
+    ProjectPin {
+        project_file: String,
+        version: String,
+    },
     #[clap(name = "info", hide = true)]
     Info {},
     #[clap(subcommand, name = "self")]

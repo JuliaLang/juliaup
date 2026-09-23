@@ -50,6 +50,31 @@ pub fn starts_repl(args: &[String]) -> bool {
     force_interactive || !runs_program
 }
 
+/// Whether Julia only prints information (`--version` or `--help`) for the
+/// given arguments, instead of running code.
+pub fn prints_info_only(args: &[String]) -> bool {
+    let mut iter = args.iter().skip(1).peekable();
+    if iter.peek().is_some_and(|arg| arg.starts_with('+')) {
+        iter.next();
+    }
+
+    while let Some(arg) = iter.next() {
+        if arg == "--" || arg == "-" || !arg.starts_with('-') {
+            return false;
+        }
+        if matches!(
+            arg.as_str(),
+            "-v" | "--version" | "-h" | "--help" | "--help-hidden"
+        ) {
+            return true;
+        }
+        if julia_option_requires_arg(arg) {
+            iter.next();
+        }
+    }
+    false
+}
+
 /// Whether the value of the `CI` environment variable indicates that we are
 /// running on a continuous integration system.
 pub fn is_ci_value(value: Option<&str>) -> bool {

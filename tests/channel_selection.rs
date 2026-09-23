@@ -479,3 +479,137 @@ version = "0.5.3"
         .stdout("Hello, x")
         .stderr(predicates::str::contains("Instantiating").not());
 }
+
+const PROJECT_UPGRADE_CMD: &str = "4e908fb4-019f-4fae-a1c5-2d94a5ce3d40";
+const PROJECT_PIN_CMD: &str = "3d5518e8-0524-4b80-83fe-43ae2cc37782";
+
+#[test]
+fn project_upgrade_and_pin() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // An environment (not a package) whose compat allows newer Julia versions
+    let project_dir = env.depot_path().join("upgrade_project");
+    std::fs::create_dir_all(&project_dir).unwrap();
+    std::fs::write(
+        project_dir.join("Project.toml"),
+        "# An environment\n[compat]\njulia = \"1.8\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        project_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.4\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    let project_file = project_dir.join("Project.toml");
+
+    // Non-interactive launches never print upgrade hints to a captured stderr
+    // (1.8.4 is not installed, but the manifest of a second project records 1.8.5)
+    let installed_dir = env.depot_path().join("installed_project");
+    std::fs::create_dir_all(&installed_dir).unwrap();
+    std::fs::write(
+        installed_dir.join("Project.toml"),
+        "[compat]\njulia = \"1.8\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        installed_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.5\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    env.julia()
+        .arg(project_arg(&installed_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5")
+        .stderr("");
+
+    // Upgrading re-resolves the project with the new Julia version
+    env.juliaup()
+        .arg(PROJECT_UPGRADE_CMD)
+        .arg(&project_file)
+        .arg("1.8.5")
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(contains("julia_version 1.8.4 → 1.8.5"));
+    let manifest = std::fs::read_to_string(project_dir.join("Manifest.toml")).unwrap();
+    assert!(manifest.contains("julia_version = \"1.8.5\""));
+
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+
+    // Pinning sets an exact compat entry and keeps the rest of the file
+    env.juliaup()
+        .arg(PROJECT_PIN_CMD)
+        .arg(&project_file)
+        .arg("1.8.5")
+        .assert()
+        .success()
+        .stdout("");
+    let project = std::fs::read_to_string(&project_file).unwrap();
+    assert!(project.starts_with("# An environment\n"));
+    assert!(project.contains("julia = \"=1.8.5\""));
+
+    // Packages are never pinned
+    let package_dir = env.depot_path().join("package_project");
+    std::fs::create_dir_all(&package_dir).unwrap();
+    std::fs::write(
+        package_dir.join("Project.toml"),
+        "name = \"MyPackage\"\nuuid = \"00000000-0000-0000-0000-00000000abce\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        package_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.5\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    env.juliaup()
+        .arg(PROJECT_PIN_CMD)
+        .arg(package_dir.join("Project.toml"))
+        .arg("1.8.5")
+        .assert()
+        .failure()
+        .stderr(contains("is a package"));
+    let package_project = std::fs::read_to_string(package_dir.join("Project.toml")).unwrap();
+    assert!(!package_project.contains("compat"));
+
+    // A failed upgrade leaves the manifest unchanged
+    let broken_dir = env.depot_path().join("broken_project");
+    std::fs::create_dir_all(&broken_dir).unwrap();
+    std::fs::write(
+        broken_dir.join("Project.toml"),
+        "[deps]\nBogus = \"00000000-0000-0000-0000-00000000abcd\"\n",
+    )
+    .unwrap();
+    let broken_manifest = "julia_version = \"1.8.4\"\nmanifest_format = \"2.0\"\n\n[[deps.Bogus]]\ngit-tree-sha1 = \"46e44e869b4d90b96bd8ed1fdcf32244fddfb6cc\"\nuuid = \"00000000-0000-0000-0000-00000000abcd\"\nversion = \"0.1.0\"\n";
+    std::fs::write(broken_dir.join("Manifest.toml"), broken_manifest).unwrap();
+    env.juliaup()
+        .arg(PROJECT_UPGRADE_CMD)
+        .arg(broken_dir.join("Project.toml"))
+        .arg("1.8.5")
+        .assert()
+        .failure()
+        .stderr(contains("the manifest was left unchanged"));
+    assert_eq!(
+        std::fs::read_to_string(broken_dir.join("Manifest.toml")).unwrap(),
+        broken_manifest
+    );
+}

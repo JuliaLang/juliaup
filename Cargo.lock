@@ -2600,6 +2600,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tiny_http",
  "toml 1.1.5+spec-1.1.0",
+ "toml_edit",
  "url",
  "windows",
  "winres",
@@ -4922,6 +4923,7 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "toml_parser",
+ "toml_writer",
  "winnow",
 ]
 

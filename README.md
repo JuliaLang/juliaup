@@ -256,6 +256,30 @@ The `JULIA_AUTO_INSTANTIATE` environment variable accepts the same values and ap
 
 **Security note:** `pkg` and `all` download and install the packages listed in the project's manifest when Julia starts, which runs code from those packages (build scripts and precompilation). A manifest can reference arbitrary git repositories. Only enable these levels, in particular through the environment variable, for projects you trust, e.g., in CI jobs or containers for your own code. `julia` only installs official Julia releases from the Juliaup server.
 
+#### Upgrading a project to a newer Julia version
+
+When the Julia version recorded in the manifest is older than the newest Julia release that the project's `julia` compat entry allows, the launcher offers to upgrade the project when it starts an interactive REPL:
+
+```
+        Info Julia 1.12.1 is available for project /home/user/code/MyProject, which uses Julia 1.10.4 (julia = "1.10").
+Question: What would you like to do?
+> Start Julia 1.10.4 as recorded in the manifest
+  Upgrade project to Julia 1.12.1 and start it
+  Upgrade project to Julia 1.10.12 (patch release only) and start it
+  Pin this project to Julia 1.10.4 (sets compat julia = "=1.10.4" in Project.toml)
+  Always use Julia 1.10.4 in /home/user/code/MyProject on this machine (juliaup directory override)
+```
+
+- **Which versions are offered**: Compat entries use [Pkg's compat syntax](https://pkgdocs.julialang.org/v1/compatibility/), so `julia = "1.10"` allows every Julia 1.x from 1.10 on, while `julia = "~1.10"` only allows 1.10.x. In a workspace, a version must satisfy the compat entries of all projects. Without a `julia` compat entry, only newer patch releases of the manifest's minor version are offered.
+- **Upgrade**: Installs the new Julia version, runs `Pkg.resolve()` and `Pkg.instantiate()` with it (which records the new version in the manifest) and starts it. The project file is not changed. If this fails, for example because a dependency doesn't support the new Julia version yet, the manifest is restored and the old version starts.
+- **Pin this project**: Sets `julia = "=1.10.4"` in the `[compat]` section of the project file, so that nobody working on the project is asked again. This option is never offered for packages, because the compat entries of a package restrict its users.
+- **Always use Julia 1.10.4 on this machine**: Sets a [directory override](#overrides) for the project directory, which doesn't change the project. Remove it with `juliaup override unset --path <dir>`.
+- Pressing `Enter` or `Esc` starts the version recorded in the manifest and changes nothing.
+
+If the manifest records a Julia version that the project's compat doesn't allow, the launcher offers to move the project to a compatible version, which is then the default choice.
+
+When Julia runs a script or an expression, there is no prompt: the launcher prints a one-line hint if stderr is a terminal and the `CI` environment variable is not set, and stays silent otherwise, so that output captured by other tools is not affected.
+
 ## Path used by Juliaup
 
 Juliaup will by default use the Julia depot at `~/.julia` to store Julia versions and configuration files. This can be changed by setting

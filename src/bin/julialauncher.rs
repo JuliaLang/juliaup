@@ -8,16 +8,17 @@ use juliaup::config_file::{
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
+use juliaup::julia_compat::{compute_upgrade_offer, VersionSpec};
 use juliaup::launcher_args::{
-    auto_instantiate_from_env, extract_auto_instantiate, is_ci, starts_repl, AUTO_INSTANTIATE_ENV,
-    AUTO_INSTANTIATE_FLAG,
+    auto_instantiate_from_env, extract_auto_instantiate, is_ci, prints_info_only, starts_repl,
+    AUTO_INSTANTIATE_ENV, AUTO_INSTANTIATE_FLAG,
 };
 use juliaup::operations::{is_pr_channel, is_valid_channel};
 use juliaup::project_instantiation::{check_instantiation, depot_paths, InstantiationNeed};
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::{
-    determine_project_context, manifest_for_julia_version, parse_db_version, resolve_auto_channel,
-    ProjectContext, UnknownJuliaVersion,
+    determine_project_context, manifest_for_julia_version, parse_db_version,
+    project_context_from_project_file, resolve_auto_channel, ProjectContext, UnknownJuliaVersion,
 };
 use juliaup::versions_file::load_versions_db;
 #[cfg(not(windows))]
@@ -422,6 +423,252 @@ fn missing_required_version_error(selection: &AutoSelection, channel: &str) -> U
     UserError { msg }
 }
 
+/// What the user chose when offered to move the project to another Julia version.
+enum UpgradeChoice {
+    Keep,
+    Upgrade(Version),
+    PinProject,
+    PinLocally,
+}
+
+fn compat_display(context: &ProjectContext) -> String {
+    context
+        .julia_compat
+        .iter()
+        .map(|entry| format!("julia = \"{}\"", entry.spec))
+        .collect::<Vec<_>>()
+        .join(" and ")
+}
+
+/// Offer to move the project to a newer Julia version allowed by its `julia`
+/// compat entry. Returns the Julia version the project was upgraded to, if any.
+fn offer_julia_upgrade(
+    selection: &AutoSelection,
+    versions_db: &JuliaupVersionDB,
+    config_data: &JuliaupConfig,
+    interactivity: Interactivity,
+    args: &[String],
+) -> Result<Option<Version>> {
+    let Ok(current) = Version::parse(&selection.julia_version) else {
+        return Ok(None);
+    };
+    if !current.pre.is_empty() {
+        return Ok(None);
+    }
+
+    let context = &selection.context;
+    let specs = context
+        .julia_compat
+        .iter()
+        .map(|entry| {
+            VersionSpec::parse(&entry.spec).map_err(|err| UserError {
+                msg: format!(
+                    "Failed to parse the Julia compat entry `julia = \"{}\"` in `{}`: {:#}",
+                    entry.spec,
+                    display_path(&entry.project_file),
+                    err
+                ),
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let Some(offer) = compute_upgrade_offer(&current, &specs, &versions_db.stable_versions())
+    else {
+        return Ok(None);
+    };
+
+    let project_dir = display_path(context.project_dir());
+
+    if !interactivity.starts_repl {
+        // Only a short hint, and only if a person is likely to see it
+        if std::io::stderr().is_terminal() && !is_ci() && !prints_info_only(args) {
+            let msg = if offer.current_violates_compat {
+                format!(
+                    "The manifest of project {} records Julia {}, which its compat ({}) does not allow. Start a Julia REPL with this project to update it.",
+                    project_dir,
+                    current,
+                    compat_display(context)
+                )
+            } else {
+                format!(
+                    "Julia {} is available for project {} (its manifest records Julia {}). Start a Julia REPL with this project to upgrade.",
+                    offer.latest, project_dir, current
+                )
+            };
+            print_juliaup_style("Info", &msg, JuliaupMessageType::Progress);
+        }
+        return Ok(None);
+    }
+
+    // Describe the situation
+    if offer.current_violates_compat {
+        print_juliaup_style(
+            "Warning",
+            &format!(
+                "The manifest of project {} records Julia {}, which the project's compat ({}) does not allow.",
+                project_dir,
+                current,
+                compat_display(context)
+            ),
+            JuliaupMessageType::Error,
+        );
+    } else {
+        print_juliaup_style(
+            "Info",
+            &format!(
+                "Julia {} is available for project {}, which uses Julia {}{}.",
+                offer.latest,
+                project_dir,
+                current,
+                if context.julia_compat.is_empty() {
+                    String::new()
+                } else {
+                    format!(" ({})", compat_display(context))
+                }
+            ),
+            JuliaupMessageType::Progress,
+        );
+    }
+    if context.manifest_is_elsewhere() {
+        eprintln!(
+            "{:>width$}Manifest: {}",
+            "",
+            display_path(selection.manifest_file()),
+            width = 12
+        );
+    }
+
+    let updates_note = if context.manifest_is_elsewhere() {
+        format!(
+            " (updates {}, outside this project)",
+            display_path(selection.manifest_file())
+        )
+    } else {
+        String::new()
+    };
+
+    let mut items: Vec<(String, UpgradeChoice)> = Vec::new();
+    items.push((
+        format!("Start Julia {} as recorded in the manifest", current),
+        UpgradeChoice::Keep,
+    ));
+    let verb = if offer.latest > current {
+        "Upgrade"
+    } else {
+        "Switch"
+    };
+    items.push((
+        format!(
+            "{} project to Julia {} and start it{}",
+            verb, offer.latest, updates_note
+        ),
+        UpgradeChoice::Upgrade(offer.latest.clone()),
+    ));
+    if let Some(patch) = &offer.latest_patch {
+        items.push((
+            format!(
+                "Upgrade project to Julia {} (patch release only) and start it{}",
+                patch, updates_note
+            ),
+            UpgradeChoice::Upgrade(patch.clone()),
+        ));
+    }
+    if !offer.current_violates_compat {
+        if !context.is_package {
+            items.push((
+                format!(
+                    "Pin this project to Julia {} (sets compat julia = \"={}\" in {})",
+                    current,
+                    current,
+                    context
+                        .project_file
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                ),
+                UpgradeChoice::PinProject,
+            ));
+        }
+        items.push((
+            format!(
+                "Always use Julia {} in {} on this machine (juliaup directory override)",
+                current, project_dir
+            ),
+            UpgradeChoice::PinLocally,
+        ));
+    }
+
+    let default = if offer.current_violates_compat { 1 } else { 0 };
+    let selection_index = Select::new()
+        .with_prompt(format!(
+            "{} What would you like to do?",
+            style("Question:").yellow().bold()
+        ))
+        .items(items.iter().map(|(label, _)| label))
+        .default(default)
+        .interact_opt()?;
+
+    // Esc or Ctrl-C keeps the version recorded in the manifest
+    let choice = selection_index
+        .map(|i| items.swap_remove(i).1)
+        .unwrap_or(UpgradeChoice::Keep);
+
+    let project_file = context.project_file.to_string_lossy().to_string();
+    let current_str = current.to_string();
+    match choice {
+        UpgradeChoice::Keep => Ok(None),
+        UpgradeChoice::Upgrade(target) => {
+            let target_str = target.to_string();
+            let status = run_juliaup(&[
+                "4e908fb4-019f-4fae-a1c5-2d94a5ce3d40", // Our internal command to upgrade a project
+                &project_file,
+                &target_str,
+            ])?;
+            if status.success() {
+                Ok(Some(target))
+            } else {
+                print_juliaup_style(
+                    "Info",
+                    &format!("Starting Julia {} as recorded in the manifest.", current),
+                    JuliaupMessageType::Progress,
+                );
+                Ok(None)
+            }
+        }
+        UpgradeChoice::PinProject => {
+            // Failures are reported by juliaup, and we start the manifest version either way
+            run_juliaup(&[
+                "3d5518e8-0524-4b80-83fe-43ae2cc37782", // Our internal command to pin a project
+                &project_file,
+                &current_str,
+            ])?;
+            Ok(None)
+        }
+        UpgradeChoice::PinLocally => {
+            let project_dir_str = context.project_dir().to_string_lossy().to_string();
+            let mut ok = true;
+            if !config_data.installed_channels.contains_key(&current_str) {
+                ok = run_juliaup(&["add", &current_str])?.success();
+            }
+            if ok {
+                ok = run_juliaup(&["override", "set", "--path", &project_dir_str, &current_str])?
+                    .success();
+            }
+            if ok {
+                print_juliaup_style(
+                    "Pinned",
+                    &format!(
+                        "Julia {} for {} on this machine. To undo, run `juliaup override unset --path {}`.",
+                        current, project_dir, project_dir
+                    ),
+                    JuliaupMessageType::Success,
+                );
+            }
+            Ok(None)
+        }
+    }
+}
+
 /// The Julia version a channel provides, if known.
 fn installed_channel_version(config_data: &JuliaupConfig, channel: &str) -> Option<Version> {
     let channel = match config_data.installed_channels.get(channel)? {
@@ -575,7 +822,7 @@ fn is_nightly_channel(channel: &str) -> bool {
     nightly_re.is_match(channel)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum JuliaupChannelSource {
     CmdLine,
     EnvVar,
@@ -588,6 +835,8 @@ enum JuliaupChannelSource {
 struct ResolvedJulia {
     path: PathBuf,
     args: Vec<String>,
+    /// Whether the channel was installed during this launch.
+    installed_now: bool,
 }
 
 /// Options that influence how the launcher resolves a channel to a Julia binary.
@@ -632,7 +881,11 @@ fn get_julia_path_from_channel(
             alias_args.clone(),
             show_update_notices,
         )?;
-        return Ok(ResolvedJulia { path, args });
+        return Ok(ResolvedJulia {
+            path,
+            args,
+            installed_now: false,
+        });
     }
 
     // For auto-resolved channels (from manifest), check if the Julia version
@@ -649,6 +902,7 @@ fn get_julia_path_from_channel(
             return Ok(ResolvedJulia {
                 path,
                 args: alias_args,
+                installed_now: false,
             });
         }
     }
@@ -726,7 +980,11 @@ fn get_julia_path_from_channel(
                     alias_args,
                     false,
                 )?;
-                return Ok(ResolvedJulia { path, args });
+                return Ok(ResolvedJulia {
+                    path,
+                    args,
+                    installed_now: true,
+                });
             } else {
                 return Err(anyhow!(
                         "Channel '{resolved_channel}' was installed but could not be found in configuration."
@@ -986,7 +1244,7 @@ fn run_app() -> Result<i32> {
         auto_install_julia: auto_instantiate.map(|level| level.includes_julia()),
     };
 
-    let resolved_julia = get_julia_path_from_channel(
+    let mut resolved_julia = get_julia_path_from_channel(
         &versiondb_data,
         &config_file.data,
         &julia_channel_to_use,
@@ -1001,6 +1259,48 @@ fn run_app() -> Result<i32> {
             julia_channel_to_use
         )
     })?;
+
+    // Offer to move the project to a newer Julia version allowed by its compat,
+    // unless the required version was just installed
+    if let (JuliaupChannelSource::Auto, Some(selection)) =
+        (juliaup_channel_source, auto_selection.as_ref())
+    {
+        if !resolved_julia.installed_now {
+            if let Some(new_version) = offer_julia_upgrade(
+                selection,
+                &versiondb_data,
+                &config_file.data,
+                interactivity,
+                &args,
+            )? {
+                let new_version = new_version.to_string();
+                let updated_config_file = load_config_db_lockfree(&paths).with_context(|| {
+                    "Failed to reload configuration after upgrading the project."
+                })?;
+                let upgraded_selection = AutoSelection {
+                    context: project_context_from_project_file(
+                        selection.context.project_file.clone(),
+                    )
+                    .map_err(project_detection_error)?,
+                    julia_version: new_version.clone(),
+                };
+                resolved_julia = get_julia_path_from_channel(
+                    &versiondb_data,
+                    &updated_config_file.data,
+                    &new_version,
+                    &paths.juliaupconfig,
+                    JuliaupChannelSource::Auto,
+                    &paths,
+                    &ChannelResolveOptions {
+                        interactivity,
+                        auto_selection: Some(&upgraded_selection),
+                        auto_install_julia: Some(true),
+                    },
+                )?;
+                auto_selection = Some(upgraded_selection);
+            }
+        }
+    }
 
     let julia_path = resolved_julia.path;
 
