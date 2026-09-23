@@ -43,7 +43,7 @@ serde_json = "1"
 semver = "1"
 anyhow = "1"
 tempfile = "3"
-flate2 = "1"
+flate2 = { version = "1", default-features = false, features = ["zlib-rs", "runtime_detection"] }
 tar = "0.4"
 normpath = "1"
 fs_extra = "1"
