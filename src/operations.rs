@@ -300,7 +300,8 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     }
 
     log::debug!("Downloading DMG from url `{}`.", url);
-    let response = http_client()?
+    let client = http_client()?;
+    let response = client
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -327,7 +328,8 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
 
     let mut dmg_file = File::create(temp_dmg.path())?;
-    std::io::copy(&mut pb.wrap_read(response), &mut dmg_file)?;
+    let body = crate::download::resumable(&client, response);
+    std::io::copy(&mut pb.wrap_read(body), &mut dmg_file)?;
     dmg_file.flush()?;
     drop(dmg_file);
 
@@ -450,7 +452,8 @@ pub fn download_extract_sans_parent(
     levels_to_skip: usize,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
-    let response = http_client()?
+    let client = http_client()?;
+    let response = client
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -473,7 +476,7 @@ pub fn download_extract_sans_parent(
         .map(|etag| etag.to_str().unwrap_or("").to_string())
         .unwrap_or_default();
 
-    let response_with_pb = pb.wrap_read(response);
+    let response_with_pb = pb.wrap_read(crate::download::resumable(&client, response));
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
