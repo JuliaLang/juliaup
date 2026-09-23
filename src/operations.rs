@@ -94,6 +94,10 @@ where
     let temp_dir =
         tempfile::Builder::new().tempdir_in(dst.parent().unwrap_or_else(|| Path::new("..")))?;
     archive.unpack(temp_dir.path())?;
+    // Tar can stop before gzip and HTTP EOF. Validate both before installing.
+    let mut decoder = archive.into_inner();
+    std::io::copy(&mut decoder, &mut std::io::sink())?;
+    std::io::copy(&mut decoder.into_inner(), &mut std::io::sink())?;
     // Walk down `levels_to_skip` directory levels to reach the payload.
     let mut source = temp_dir.path().to_path_buf();
     for _ in 0..levels_to_skip {
@@ -1128,7 +1132,7 @@ pub fn install_from_url(
             Ok(last_updated) => (last_updated, false),
             Err(e) => {
                 std::fs::remove_dir_all(temp_dir.path())?;
-                bail!("Failed to download and extract pr or nightly: {}", e);
+                bail!("Failed to download and extract pr or nightly: {:#}", e);
             }
         }
     };
@@ -3425,6 +3429,45 @@ mod tests {
         let dst = tempfile::TempDir::new()?;
         unpack_sans_parent(tarball.as_slice(), dst.path(), 1)?;
         assert!(dst.path().join("bin/julia").exists());
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_invalid_gzip_tail_preserves_destination() -> Result<()> {
+        let tarball = make_tar_gz_with_raw_path(b"top/file");
+        let mut bad_crc = tarball.clone();
+        bad_crc[tarball.len() - 8] ^= 1;
+        let truncated = tarball[..tarball.len() - 4].to_vec();
+        for data in [bad_crc, truncated] {
+            let dst = tempfile::TempDir::new()?;
+            std::fs::write(dst.path().join("keep"), "old installation")?;
+            assert!(unpack_sans_parent(data.as_slice(), dst.path(), 1).is_err());
+            assert_eq!(std::fs::read(dst.path().join("keep"))?, b"old installation");
+            assert!(!dst.path().join("file").exists());
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "freebsd"))]
+    #[test]
+    fn unpack_download_failure_after_tar_end_preserves_destination() -> Result<()> {
+        struct FailsAtEnd<'a>(&'a [u8]);
+        impl Read for FailsAtEnd<'_> {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                if self.0.is_empty() {
+                    return Err(std::io::Error::other("late download failure"));
+                }
+                self.0.read(buf)
+            }
+        }
+        let tarball = make_tar_gz_with_raw_path(b"top/file");
+        let dst = tempfile::TempDir::new()?;
+        std::fs::write(dst.path().join("keep"), "old installation")?;
+        let err = unpack_sans_parent(FailsAtEnd(&tarball), dst.path(), 1).unwrap_err();
+        assert!(err.to_string().contains("late download failure"));
+        assert!(dst.path().join("keep").exists());
+        assert!(!dst.path().join("file").exists());
         Ok(())
     }
 
