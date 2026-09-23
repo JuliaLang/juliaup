@@ -238,7 +238,7 @@ jobs:
           stable-gnu) echo "name=${ver}-x86_64-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
           *) echo "name=${ver}" >> "$GITHUB_OUTPUT" ;;
         esac
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
@@ -250,7 +250,7 @@ jobs:
         cache-key: ${{matrix.label}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
+      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -264,7 +264,7 @@ jobs:
       # Linux GUIs come from the build-juliaupgui-linux job so they run on old
       # glibc; FreeBSD's is built inside the VM below.
       if: ${{ ! contains(matrix.target, 'freebsd') && matrix.os != 'ubuntu' }}
-      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
+      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -279,7 +279,7 @@ jobs:
         large-packages: false
     - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
+      uses: cross-platform-actions/action@e0b9770014ba65d5e0815f15b74031c3a635f641 # v1.6.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -436,7 +436,7 @@ jobs:
           stable-gnu) echo "name=${ver}-x86_64-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
           *) echo "name=${ver}" >> "$GITHUB_OUTPUT" ;;
         esac
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
@@ -448,7 +448,7 @@ jobs:
         cache-key: ${{matrix.label}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
+      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -468,7 +468,7 @@ jobs:
         large-packages: false
     - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
+      uses: cross-platform-actions/action@e0b9770014ba65d5e0815f15b74031c3a635f641 # v1.6.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -803,7 +803,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -865,7 +865,7 @@ jobs:
     #     7z x PowerShell-7.2.17-win-x64.zip -o"%extractPath%"
     #     pwsh --version
     - uses: actions/checkout@v7
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
@@ -912,7 +912,7 @@ jobs:
         name: juliaup-x86_64-pc-windows-msvc-windowsappinstaller
         path: target\winappinstaller\x86_64-pc-windows-msvc\release
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -1015,7 +1015,7 @@ jobs:
       env:
           GH_REF: ${{ github.ref }}
     - name: 'Azure CLI login with federated credential'
-      uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         client-id: ${{ secrets.AZUREKEYVAULTCLIENTID }}
         tenant-id: ${{ secrets.AZUREKEYVAULTTENANTID }}
@@ -1248,7 +1248,7 @@ jobs:
     - name: Update Homebrew formula
       id: bump
       continue-on-error: true
-      uses: dawidd6/action-homebrew-bump-formula@a0e064e08103c01870c6d1b05168d1b726aab119 # v8
+      uses: dawidd6/action-homebrew-bump-formula@b12d2bc99c46444125e606142f28200ec71a1214 # v10
       with:
         token: ${{secrets.TOKEN_FOR_HOMEBREW}}
         formula: juliaup
@@ -1480,7 +1480,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       - name: Publish to creates.io
         run: cargo publish
         env:
