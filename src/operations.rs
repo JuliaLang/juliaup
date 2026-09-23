@@ -49,11 +49,15 @@ const DOWNLOADING_PREFIX: &str = " Downloading";
 
 /// Creates an HTTP client with a proper User-Agent header.
 /// Some CDNs (like CloudFront) block requests without User-Agent.
+///
+/// HTTP/1.1 was faster than HTTP/2 in nightly download benchmarks, even
+/// when discarding the body instead of extracting it.
 #[cfg(not(windows))]
 fn http_client() -> Result<reqwest::blocking::Client> {
     let user_agent = format!("juliaup/{}", env!("CARGO_PKG_VERSION"));
     reqwest::blocking::Client::builder()
         .user_agent(user_agent)
+        .http1_only()
         .build()
         .with_context(|| "Failed to create HTTP client")
 }
