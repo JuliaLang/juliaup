@@ -6,6 +6,7 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
     use dialoguer::Confirm;
 
     use crate::{
+        command_config_applinks::run_command_config_applinks,
         command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
         command_config_modifypath::run_command_config_modifypath,
         command_config_startupselfupdate::run_command_config_startupselfupdate,
@@ -42,6 +43,12 @@ pub fn run_command_selfuninstall(paths: &crate::global_paths::GlobalPaths) -> Re
 
     eprint!("Removing symlinks.");
     match run_command_config_symlinks(Some(false), true, paths) {
+        Ok(_) => eprintln!(" Success."),
+        Err(e) => eprintln!(" Failed: {e}."),
+    };
+
+    eprint!("Removing application menu entries.");
+    match run_command_config_applinks(Some(false), true, paths) {
         Ok(_) => eprintln!(" Success."),
         Err(e) => eprintln!(" Failed: {e}."),
     };

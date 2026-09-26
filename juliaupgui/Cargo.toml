@@ -19,3 +19,6 @@ human-panic = "2"
 itertools = "0.15"
 numeric-sort = "0.1"
 rfd = "0.17"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"

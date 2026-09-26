@@ -26,6 +26,7 @@ use juliaup::global_paths::get_paths;
 use juliaup::{command_add::run_command_add, command_override::run_command_override_set};
 #[cfg(feature = "selfupdate")]
 use juliaup::{
+    command_config_applinks::run_command_config_applinks,
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
     command_config_modifypath::run_command_config_modifypath,
     command_config_startupselfupdate::run_command_config_startupselfupdate,
@@ -124,6 +125,8 @@ fn main() -> Result<()> {
             ConfigSubCmd::ModifyPath { value } => {
                 run_command_config_modifypath(value, false, &paths)
             }
+            #[cfg(feature = "selfupdate")]
+            ConfigSubCmd::AppLinks { value } => run_command_config_applinks(value, false, &paths),
             ConfigSubCmd::VersionsDbUpdateInterval { value } => {
                 run_command_config_versionsdbupdate(value, false, &paths)
             }

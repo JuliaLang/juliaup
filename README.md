@@ -56,6 +56,7 @@ Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--path` (or `-p`): Install `juliaup` in a custom location.
     - For example, if you want to install `juliaup` into `~/my/desired/juliaup/path`, you would run the following command: `curl -fsSL https://install.julialang.org | sh -s -- --path ~/my/desired/juliaup/path`
 - `--add-to-path <yes|no|0|1>`: Control whether the installer modifies shell startup files to add the Juliaup bin directory to `PATH`. Defaults to `yes`.
+- `--app-links <yes|no|0|1>`: Control whether the installer adds Juliaup and Julia to the applications menu (`.app` bundles in `~/Applications` on macOS, desktop entries under `~/.local/share/applications` elsewhere). Defaults to `yes`. Can be changed later with `juliaup config applinks <true|false>`. On macOS the bundles can be moved to `/Applications` afterwards; Juliaup finds them there when updating or uninstalling.
 - `--background-selfupdate <MINUTES>`: Configure how often a background task checks for Juliaup self-updates. Use `0` to disable background self-updates. Defaults to `0`.
 - `--startup-selfupdate <MINUTES>`: Configure how often Julia startup checks for Juliaup self-updates. Use `0` to disable startup self-updates. Defaults to `1440`.
 
@@ -66,6 +67,7 @@ curl -fsSL https://install.julialang.org | sh -s -- \
     --path "$JULIAUP_DEPOT_PATH" \
     --yes \
     --add-to-path=no \
+    --app-links=no \
     --background-selfupdate=0 \
     --startup-selfupdate=0
 ```
@@ -172,7 +174,7 @@ Juliaup includes a graphical application for managing Julia versions. It is inst
 juliaup gui
 ```
 
-or by running `juliaupgui` directly. On Windows it also has a "Juliaup GUI" entry in the start menu. On other platforms it is only started from the command line for now; application menu entries and icons there are planned.
+or by running `juliaupgui` directly. Every official installer also adds a "Juliaup" entry to the start or applications menu next to the "Julia" entry that opens the default channel in a terminal. On Windows this comes with the store package or MSI; on macOS, Linux, and FreeBSD the installer adds both by default, see `--app-links` above and `juliaup config applinks`.
 
 The GUI covers the everyday tasks of the command line tool:
 
