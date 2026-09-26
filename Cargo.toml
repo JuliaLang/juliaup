@@ -69,6 +69,7 @@ path-absolutize = "4"
 numeric-sort = "0.1"
 regex = "1"
 toml = "1.1"
+toml_edit = "0.25"
 retry = "2"
 
 [target.'cfg(windows)'.dependencies]

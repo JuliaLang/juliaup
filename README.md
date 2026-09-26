@@ -209,15 +209,80 @@ This feature is currently disabled by default, but will likely be enabled by def
 juliaup config manifestversiondetect true
 ```
 
-If a project is specified (via `--project`, `JULIA_PROJECT`, or `JULIA_LOAD_PATH`), Juliaup reads the project's `Manifest.toml` and uses the `julia_version` field to determine which Julia version to use:
+If a project is specified (via `--project`, `JULIA_PROJECT`, or `JULIA_LOAD_PATH`), Juliaup finds the project's manifest the same way Julia does and uses its `julia_version` field to determine which Julia version to use. The manifest is the manifest of the [workspace](https://pkgdocs.julialang.org/v1/toml-files/#The-workspace-section) the project belongs to, the file named by a `manifest` entry in the project file, or `JuliaManifest.toml`/`Manifest.toml` next to the project file.
 
 1. **Exact match**: If the exact version exists as a channel (e.g., `1.10.5`, `1.12.0-rc1`), it uses that version.
 2. **Prerelease versions**: If the version has a prerelease suffix (e.g., `1.12.1-DEV`, `1.13.0-rc1`) and no exact channel exists, it uses the corresponding nightly channel:
    - Uses `X.Y-nightly` if available (e.g., `1.12-nightly` for `1.12.1-DEV`)
    - Falls back to `nightly` otherwise
-3. **Future patch versions**: If the patch version is higher than any known release in that minor series (e.g., `1.10.99` when only `1.10.5` exists), it uses `X.Y-nightly`.
-4. **Future minor/major versions**: If the version is higher than any known release (e.g., `1.13.0` when only `1.12.x` exists), it uses `X.Y-nightly` if available, or `nightly` otherwise.
-5. **Default fallback**: If no project or manifest is found, it falls back to the default channel.
+3. **Unknown versions**: If a release version is not in Juliaup's list of known Julia versions (e.g., because it was released very recently), Juliaup refreshes that list first. If the version is still unknown, launching fails with an error.
+4. **Default fallback**: If no project, manifest or `julia_version` entry is found, it falls back to the default channel.
+
+Versioned manifests (e.g., `Manifest-v1.11.toml`) never select a Julia version on their own. They only matter when `Manifest.toml` records a Julia version of the same minor version: if `Manifest.toml` records Julia 1.11.2 and there is a `Manifest-v1.11.toml`, Julia 1.11 loads the versioned manifest, so Juliaup uses the exact version recorded in `Manifest-v1.11.toml`.
+
+If the project file or manifest can't be read or parsed, launching fails with an error that names the file, instead of silently falling back to another Julia version. Select a channel explicitly (e.g., `julia +release`) to start Julia regardless.
+
+#### When the required Julia version is not installed
+
+If the Julia version recorded in the manifest is not installed, the launcher asks whether to install it when it runs in a terminal:
+
+```
+Question: Project /home/user/code/MyProject requires Julia 1.10.4 (from Manifest.toml), which is not installed.
+> Install Julia 1.10.4 and start it
+  Install, and always install required Julia versions automatically
+  Cancel
+```
+
+When the launcher can't ask (e.g., stdin or stderr is not a terminal, or the `CI` environment variable is set), it exits with an error that explains how to install the required version. To always install required versions automatically, use `juliaup config autoinstallchannels true`.
+
+#### Automatic instantiation
+
+The `--auto-instantiate` launcher option makes sure that everything the active project needs is installed before Julia starts, which is especially useful in non-interactive environments such as CI:
+
+```sh
+julia --auto-instantiate --project=. script.jl
+```
+
+It takes an optional value:
+
+| Value | Effect |
+|---|---|
+| `julia` | Install the Julia version recorded in the project's manifest if it is missing, without asking. This enables project-based version selection for this launch, even if `manifestversiondetect` is off. |
+| `pkg` | Run `Pkg.instantiate()` for the project if any package recorded in the manifest is not installed (or if the project has dependencies but no manifest). The launcher checks this without starting Julia, so launches where everything is installed stay fast. |
+| `all` | Both `julia` and `pkg`. This is the default if no value is given. |
+| `none` | Nothing. This also disables automatic installation configured with `juliaup config autoinstallchannels true` for the project's Julia version. |
+
+The `JULIA_AUTO_INSTANTIATE` environment variable accepts the same values and applies when the option is not given. The option is only recognized before the name of a script or `--`; later arguments are passed to the Julia program unchanged.
+
+**Security note:** `pkg` and `all` download and install the packages listed in the project's manifest when Julia starts, which runs code from those packages (build scripts and precompilation). A manifest can reference arbitrary git repositories. Only enable these levels, in particular through the environment variable, for projects you trust, e.g., in CI jobs or containers for your own code. `julia` only installs official Julia releases from the Juliaup server.
+
+#### Upgrading a project to a newer Julia version
+
+When the Julia version recorded in the manifest is older than the newest Julia release that the project's `julia` compat entry allows, the launcher offers to upgrade the project when it starts an interactive REPL:
+
+```
+        Info Julia 1.12.1 is available for project /home/user/code/MyProject, which uses Julia 1.10.4 (julia = "1.10").
+Question: What would you like to do?
+> Start Julia 1.10.4 as recorded in the manifest
+  Upgrade project to Julia 1.12.1 and start it
+  Upgrade project to Julia 1.10.12 (patch release only) and start it
+  Pin this project to Julia 1.10.4 (sets compat julia = "=1.10.4" in Project.toml)
+  Always use Julia 1.10.4 in /home/user/code/MyProject on this machine (juliaup directory override)
+```
+
+- **Which versions are offered**: Compat entries use [Pkg's compat syntax](https://pkgdocs.julialang.org/v1/compatibility/), so `julia = "1.10"` allows every Julia 1.x from 1.10 on, while `julia = "~1.10"` only allows 1.10.x. In a workspace, a version must satisfy the compat entries of all projects. Without a `julia` compat entry, only newer patch releases of the manifest's minor version are offered.
+- **Upgrade**: Installs the new Julia version, runs `Pkg.resolve()` and `Pkg.instantiate()` with it (which records the new version in the manifest) and starts it. The project file is not changed. If this fails, for example because a dependency doesn't support the new Julia version yet, the manifest is restored and the old version starts.
+- **Pin this project**: Sets `julia = "=1.10.4"` in the `[compat]` section of the project file, so that nobody working on the project is asked again. This option is never offered for packages, because the compat entries of a package restrict its users.
+- **Always use Julia 1.10.4 on this machine**: Sets a [directory override](#overrides) for the project directory, which doesn't change the project. Remove it with `juliaup override unset --path <dir>`.
+- Pressing `Enter` or `Esc` starts the version recorded in the manifest and changes nothing.
+
+If the manifest records a Julia version that the project's compat doesn't allow, the launcher offers to move the project to a compatible version, which is then the default choice.
+
+When Julia runs a script or an expression, there is no prompt: the launcher prints a one-line hint if stderr is a terminal and the `CI` environment variable is not set, and stays silent otherwise, so that output captured by other tools is not affected.
+
+#### Launching Julia without prompts
+
+Tools that start Julia through the launcher and handle these choices in their own user interface (e.g., an editor that offers to install or upgrade Julia before it starts a REPL) can set the environment variable `JULIA_LAUNCHER_PROMPTS=none`. The launcher then never prompts and doesn't print informational messages such as upgrade hints or "a new Julia version is available" notices. Errors are still reported, e.g. if the Julia version required by the project is not installed. It still installs versions automatically if `--auto-instantiate=julia`, `JULIA_AUTO_INSTANTIATE` or `juliaup config autoinstallchannels true` asks for it. The default value is `all`.
 
 ## Path used by Juliaup
 

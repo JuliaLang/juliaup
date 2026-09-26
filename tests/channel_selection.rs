@@ -1,3 +1,4 @@
+use predicates::prelude::*;
 use predicates::str::contains;
 
 mod utils;
@@ -272,4 +273,375 @@ fn manifest_reuses_version_from_other_channel() {
         .success()
         .stdout("1.8.5")
         .stderr("");
+}
+
+// A project whose manifest records a Julia version that is not installed fails
+// in non-interactive mode with an actionable message, and malformed or unknown
+// manifests are errors instead of silently falling back to the default channel.
+#[test]
+fn manifest_version_errors() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // Required version is not installed
+    let missing_dir = env.depot_path().join("missing_project");
+    write_project(&missing_dir, "1.8.4", None);
+    env.julia()
+        .arg(project_arg(&missing_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains(
+            "ERROR: This project requires Julia 1.8.4, which is not installed.",
+        ))
+        .stderr(contains("juliaup add 1.8.4"))
+        .stderr(contains("juliaup config autoinstallchannels true"));
+
+    // Malformed manifest
+    let malformed_dir = env.depot_path().join("malformed_project");
+    write_project(&malformed_dir, "1.8.5", None);
+    std::fs::write(malformed_dir.join("Manifest.toml"), "julia_version = ").unwrap();
+    env.julia()
+        .arg(project_arg(&malformed_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains(
+            "ERROR: Failed to determine the Julia version for the active project",
+        ))
+        .stderr(contains("Manifest.toml"));
+
+    // A release version that doesn't exist, even after refreshing the versions db
+    let unknown_dir = env.depot_path().join("unknown_project");
+    write_project(&unknown_dir, "1.8.99", None);
+    env.julia()
+        .arg(project_arg(&unknown_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains("Julia 1.8.99 recorded in"))
+        .stderr(contains("is not a known Julia release"));
+
+    // With JULIA_LAUNCHER_PROMPTS=none, errors are still reported, but no info messages
+    env.julia()
+        .arg(project_arg(&missing_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "none")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "ERROR: This project requires Julia 1.8.4, which is not installed.",
+        ));
+    env.julia()
+        .arg(project_arg(&unknown_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "none")
+        .assert()
+        .failure()
+        .stderr(contains("is not a known Julia release"))
+        .stderr(contains("is not in the local list of Julia versions").not());
+
+    // Invalid values are an error
+    env.julia()
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_LAUNCHER_PROMPTS", "no")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "Invalid value `no` for environment variable JULIA_LAUNCHER_PROMPTS",
+        ));
+
+    // A project directory without a project file falls back to the default channel
+    env.julia()
+        .arg(project_arg(&env.depot_path().join("no_such_project")))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+}
+
+#[test]
+fn auto_instantiate() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // `--auto-instantiate=julia` installs the Julia version recorded in the
+    // manifest and uses it, even though manifestversiondetect is not enabled
+    let project_dir = env.depot_path().join("auto_julia_project");
+    write_project(&project_dir, "1.8.4", None);
+    env.julia()
+        .arg("--auto-instantiate=julia")
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.4")
+        .stderr(contains(
+            "Installing Julia 1.8.4 required by the project (auto-instantiate)",
+        ));
+
+    // The environment variable works the same way
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_AUTO_INSTANTIATE", "julia")
+        .assert()
+        .success()
+        .stdout("1.8.4");
+
+    // Without it, manifest detection stays disabled
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+
+    // Invalid values are an error
+    env.julia()
+        .arg("-e")
+        .arg("print(VERSION)")
+        .env("JULIA_AUTO_INSTANTIATE", "yes")
+        .assert()
+        .failure()
+        .stderr(contains("Invalid auto-instantiate value `yes`"));
+
+    // Arguments of the Julia program are passed through
+    env.julia()
+        .arg("-e")
+        .arg("print(ARGS)")
+        .arg("--")
+        .arg("--auto-instantiate=pkg")
+        .assert()
+        .success()
+        .stdout("[\"--auto-instantiate=pkg\"]");
+
+    // An explicit `none` disables auto-install even if the config enables it
+    env.juliaup()
+        .arg("config")
+        .arg("autoinstallchannels")
+        .arg("true")
+        .assert()
+        .success();
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+    let other_dir = env.depot_path().join("auto_none_project");
+    write_project(&other_dir, "1.8.3", None);
+    env.julia()
+        .arg("--auto-instantiate=none")
+        .arg(project_arg(&other_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .failure()
+        .stderr(contains(
+            "This project requires Julia 1.8.3, which is not installed.",
+        ));
+
+    // `--auto-instantiate` also installs the packages of the project, but only
+    // when they are not installed yet
+    let pkg_dir = env.depot_path().join("auto_pkg_project");
+    std::fs::create_dir_all(&pkg_dir).unwrap();
+    std::fs::write(
+        pkg_dir.join("Project.toml"),
+        "[deps]\nExample = \"7876af07-990d-54b4-ab0e-23690620f79a\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        pkg_dir.join("Manifest.toml"),
+        r#"julia_version = "1.8.5"
+manifest_format = "2.0"
+project_hash = "2ca1c6c58cb30e79e021fb54e5626c96d05d5fdc"
+
+[[deps.Example]]
+git-tree-sha1 = "46e44e869b4d90b96bd8ed1fdcf32244fddfb6cc"
+uuid = "7876af07-990d-54b4-ab0e-23690620f79a"
+version = "0.5.3"
+"#,
+    )
+    .unwrap();
+
+    env.julia()
+        .arg("--auto-instantiate")
+        .arg(project_arg(&pkg_dir))
+        .arg("-e")
+        .arg("using Example; print(Example.hello(\"x\"))")
+        .assert()
+        .success()
+        .stdout("Hello, x")
+        .stderr(contains("1 package not installed: Example"));
+
+    env.julia()
+        .arg("--auto-instantiate")
+        .arg(project_arg(&pkg_dir))
+        .arg("-e")
+        .arg("using Example; print(Example.hello(\"x\"))")
+        .assert()
+        .success()
+        .stdout("Hello, x")
+        .stderr(predicates::str::contains("Instantiating").not());
+}
+
+const PROJECT_UPGRADE_CMD: &str = "4e908fb4-019f-4fae-a1c5-2d94a5ce3d40";
+const PROJECT_PIN_CMD: &str = "3d5518e8-0524-4b80-83fe-43ae2cc37782";
+
+#[test]
+fn project_upgrade_and_pin() {
+    let env = TestEnv::new();
+
+    install_channel(&env, "1.8.5");
+
+    env.juliaup()
+        .arg("config")
+        .arg("manifestversiondetect")
+        .arg("true")
+        .assert()
+        .success();
+
+    let project_arg = |dir: &std::path::Path| format!("--project={}", dir.to_string_lossy());
+
+    // An environment (not a package) whose compat allows newer Julia versions
+    let project_dir = env.depot_path().join("upgrade_project");
+    std::fs::create_dir_all(&project_dir).unwrap();
+    std::fs::write(
+        project_dir.join("Project.toml"),
+        "# An environment\n[compat]\njulia = \"1.8\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        project_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.4\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    let project_file = project_dir.join("Project.toml");
+
+    // Non-interactive launches never print upgrade hints to a captured stderr
+    // (1.8.4 is not installed, but the manifest of a second project records 1.8.5)
+    let installed_dir = env.depot_path().join("installed_project");
+    std::fs::create_dir_all(&installed_dir).unwrap();
+    std::fs::write(
+        installed_dir.join("Project.toml"),
+        "[compat]\njulia = \"1.8\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        installed_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.5\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    env.julia()
+        .arg(project_arg(&installed_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5")
+        .stderr("");
+
+    // Upgrading re-resolves the project with the new Julia version
+    env.juliaup()
+        .arg(PROJECT_UPGRADE_CMD)
+        .arg(&project_file)
+        .arg("1.8.5")
+        .assert()
+        .success()
+        .stdout("")
+        .stderr(contains("julia_version 1.8.4 → 1.8.5"));
+    let manifest = std::fs::read_to_string(project_dir.join("Manifest.toml")).unwrap();
+    assert!(manifest.contains("julia_version = \"1.8.5\""));
+
+    env.julia()
+        .arg(project_arg(&project_dir))
+        .arg("-e")
+        .arg("print(VERSION)")
+        .assert()
+        .success()
+        .stdout("1.8.5");
+
+    // Pinning sets an exact compat entry and keeps the rest of the file
+    env.juliaup()
+        .arg(PROJECT_PIN_CMD)
+        .arg(&project_file)
+        .arg("1.8.5")
+        .assert()
+        .success()
+        .stdout("");
+    let project = std::fs::read_to_string(&project_file).unwrap();
+    assert!(project.starts_with("# An environment\n"));
+    assert!(project.contains("julia = \"=1.8.5\""));
+
+    // Packages are never pinned
+    let package_dir = env.depot_path().join("package_project");
+    std::fs::create_dir_all(&package_dir).unwrap();
+    std::fs::write(
+        package_dir.join("Project.toml"),
+        "name = \"MyPackage\"\nuuid = \"00000000-0000-0000-0000-00000000abce\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        package_dir.join("Manifest.toml"),
+        "julia_version = \"1.8.5\"\nmanifest_format = \"2.0\"\n",
+    )
+    .unwrap();
+    env.juliaup()
+        .arg(PROJECT_PIN_CMD)
+        .arg(package_dir.join("Project.toml"))
+        .arg("1.8.5")
+        .assert()
+        .failure()
+        .stderr(contains("is a package"));
+    let package_project = std::fs::read_to_string(package_dir.join("Project.toml")).unwrap();
+    assert!(!package_project.contains("compat"));
+
+    // A failed upgrade leaves the manifest unchanged
+    let broken_dir = env.depot_path().join("broken_project");
+    std::fs::create_dir_all(&broken_dir).unwrap();
+    std::fs::write(
+        broken_dir.join("Project.toml"),
+        "[deps]\nBogus = \"00000000-0000-0000-0000-00000000abcd\"\n",
+    )
+    .unwrap();
+    let broken_manifest = "julia_version = \"1.8.4\"\nmanifest_format = \"2.0\"\n\n[[deps.Bogus]]\ngit-tree-sha1 = \"46e44e869b4d90b96bd8ed1fdcf32244fddfb6cc\"\nuuid = \"00000000-0000-0000-0000-00000000abcd\"\nversion = \"0.1.0\"\n";
+    std::fs::write(broken_dir.join("Manifest.toml"), broken_manifest).unwrap();
+    env.juliaup()
+        .arg(PROJECT_UPGRADE_CMD)
+        .arg(broken_dir.join("Project.toml"))
+        .arg("1.8.5")
+        .assert()
+        .failure()
+        .stderr(contains("the manifest was left unchanged"));
+    assert_eq!(
+        std::fs::read_to_string(broken_dir.join("Manifest.toml")).unwrap(),
+        broken_manifest
+    );
 }

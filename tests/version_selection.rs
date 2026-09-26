@@ -455,7 +455,7 @@ fn test_project_file_manifest_path_default() {
     let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
     create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
 
-    let result = project_file_manifest_path(&project_file);
+    let result = project_file_manifest_path(&project_file).unwrap();
 
     assert!(result.is_some());
     assert_eq!(result.unwrap().file_name().unwrap(), "Manifest.toml");
@@ -469,85 +469,10 @@ fn test_project_file_manifest_path_julia_manifest_precedence() {
     create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
     create_manifest(temp_dir.path(), "JuliaManifest.toml", "1.11.0");
 
-    let result = project_file_manifest_path(&project_file);
+    let result = project_file_manifest_path(&project_file).unwrap();
 
     assert!(result.is_some());
     assert_eq!(result.unwrap().file_name().unwrap(), "JuliaManifest.toml");
-}
-
-#[test]
-fn test_project_file_manifest_path_versioned_manifest() {
-    // Test versioned manifest detection
-    let temp_dir = TempDir::new().unwrap();
-    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-
-    let result = project_file_manifest_path(&project_file);
-
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.11.toml");
-}
-
-#[test]
-fn test_determine_manifest_path_multiple_versioned_manifests() {
-    // Test that the highest versioned manifest is selected
-    let temp_dir = TempDir::new().unwrap();
-    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
-    create_manifest(temp_dir.path(), "Manifest-v1.10.toml", "1.10.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.12.toml", "1.12.0");
-
-    let result = project_file_manifest_path(&project_file);
-
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.12.toml");
-}
-
-#[test]
-fn test_versioned_manifest_priority_over_standard() {
-    // Test that versioned manifests take precedence over standard manifests
-    let temp_dir = TempDir::new().unwrap();
-    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
-    create_manifest(temp_dir.path(), "Manifest.toml", "1.13.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.12.toml", "1.12.0");
-
-    let result = project_file_manifest_path(&project_file);
-
-    assert!(result.is_some());
-    // Versioned manifest should be selected (highest version)
-    assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.12.toml");
-}
-
-#[test]
-fn test_julia_manifest_priority_over_manifest() {
-    // Test that JuliaManifest-v*.toml takes precedence over Manifest-v*.toml for same version
-    let temp_dir = TempDir::new().unwrap();
-    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
-    create_manifest(temp_dir.path(), "JuliaManifest-v1.11.toml", "1.11.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-
-    let result = project_file_manifest_path(&project_file);
-
-    assert!(result.is_some());
-    assert_eq!(
-        result.unwrap().file_name().unwrap(),
-        "JuliaManifest-v1.11.toml"
-    );
-}
-
-#[test]
-fn test_higher_version_wins_regardless_of_prefix() {
-    // Test that higher version wins even if it's Manifest (not JuliaManifest)
-    let temp_dir = TempDir::new().unwrap();
-    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
-    create_manifest(temp_dir.path(), "JuliaManifest-v1.10.toml", "1.10.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-
-    let result = project_file_manifest_path(&project_file);
-
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.11.toml");
 }
 
 #[test]
@@ -566,7 +491,7 @@ fn test_determine_manifest_path_explicit_manifest_field() {
     fs::create_dir(&custom_dir).unwrap();
     create_manifest(&custom_dir, "Manifest.toml", "1.10.0");
 
-    let result = project_file_manifest_path(&project_file);
+    let result = project_file_manifest_path(&project_file).unwrap();
 
     assert!(result.is_some());
     assert!(result.unwrap().ends_with("custom/Manifest.toml"));
@@ -607,87 +532,6 @@ fn test_read_manifest_julia_version_missing_field() {
 }
 
 #[test]
-fn test_find_highest_versioned_manifest() {
-    // Test finding highest versioned manifest
-    let temp_dir = TempDir::new().unwrap();
-    create_manifest(temp_dir.path(), "Manifest-v1.8.0.toml", "1.8.0");
-    create_manifest(temp_dir.path(), "Manifest-v1.10.5.toml", "1.10.5");
-    create_manifest(temp_dir.path(), "Manifest-v1.11.2.toml", "1.11.2");
-
-    let result = find_highest_versioned_manifest(temp_dir.path());
-    assert!(result.is_some());
-    assert_eq!(
-        result.unwrap().file_name().unwrap(),
-        "Manifest-v1.11.2.toml"
-    );
-}
-
-#[test]
-fn test_find_highest_versioned_manifest_none() {
-    // Test when no versioned manifests exist
-    let temp_dir = TempDir::new().unwrap();
-    create_manifest(temp_dir.path(), "Manifest.toml", "1.10.0");
-
-    let result = find_highest_versioned_manifest(temp_dir.path());
-    assert!(result.is_none());
-}
-
-#[test]
-fn test_find_highest_versioned_manifest_invalid_names() {
-    // Test that invalid versioned manifest names are ignored
-    let temp_dir = TempDir::new().unwrap();
-    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
-    fs::write(temp_dir.path().join("Manifest-vInvalid.toml"), "invalid").unwrap();
-    fs::write(temp_dir.path().join("Manifest-v.toml"), "invalid").unwrap();
-
-    let result = find_highest_versioned_manifest(temp_dir.path());
-    assert!(result.is_some());
-    assert_eq!(result.unwrap().file_name().unwrap(), "Manifest-v1.11.toml");
-}
-
-#[test]
-fn test_resolve_auto_channel_high_patch_version() {
-    // Test that a patch version higher than any known minor version uses X.Y-nightly
-    let versions_db = TestVersionsDbBuilder::new()
-        .add_version("1.12.0")
-        .add_channel("1.12.0", "1.12.0")
-        .add_version("1.12.1")
-        .add_channel("1.12.1", "1.12.1")
-        .build();
-
-    // Test 1: Version 1.12.55 (higher patch than any known) should resolve to 1.12-nightly
-    let result = resolve_auto_channel("1.12.55".to_string(), &versions_db);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "1.12-nightly");
-
-    // Test 2: Version 1.12.1 (exact match) should resolve to itself
-    let result = resolve_auto_channel("1.12.1".to_string(), &versions_db);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "1.12.1");
-
-    // Test 3: Version 1.12.0 (exact match) should resolve to itself
-    let result = resolve_auto_channel("1.12.0".to_string(), &versions_db);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "1.12.0");
-}
-
-#[test]
-fn test_resolve_auto_channel_higher_than_any_version() {
-    // Test that a version higher than any known version uses nightly
-    let versions_db = TestVersionsDbBuilder::new()
-        .add_version("1.12.0")
-        .add_channel("1.12.0", "1.12.0")
-        .add_version("1.12.1")
-        .add_channel("1.12.1", "1.12.1")
-        .build();
-
-    // Version 1.13.0 (higher than any known version) should resolve to nightly
-    let result = resolve_auto_channel("1.13.0".to_string(), &versions_db);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "nightly");
-}
-
-#[test]
 fn test_resolve_auto_channel_prerelease_versions() {
     // Test that prerelease versions use nightly channels appropriately
     let versions_db = TestVersionsDbBuilder::new()
@@ -701,7 +545,7 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .build();
 
     // Test 1: Exact match - 1.12.0-rc1 exists, so use it
-    let result = resolve_auto_channel("1.12.0-rc1".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.0-rc1", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.0-rc1");
 
@@ -716,25 +560,346 @@ fn test_resolve_auto_channel_prerelease_versions() {
         .add_channel("1.12-nightly", "1.12.2-DEV")
         .build();
 
-    let result = resolve_auto_channel("1.12.1-rc1".to_string(), &versions_db_with_rc);
+    let result = resolve_auto_channel("1.12.1-rc1", &versions_db_with_rc, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12.1-rc1");
 
     // Test 3: CRITICAL - 1.12.1-DEV < 1.12.1 in SemVer ordering, but should still use nightly
     // This is the common case when a manifest is generated on nightly
-    let result = resolve_auto_channel("1.12.1-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.12.1-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.12-nightly");
 
     // Test 4: 1.13.0-DEV should use 1.13-nightly
-    let result = resolve_auto_channel("1.13.0-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.13.0-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "1.13-nightly");
 
     // Test 5: 1.14.0-DEV (no 1.14-nightly exists), should use main nightly
-    let result = resolve_auto_channel("1.14.0-DEV".to_string(), &versions_db);
+    let result = resolve_auto_channel("1.14.0-DEV", &versions_db, false);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "nightly");
+}
+
+#[test]
+fn test_resolve_auto_channel_release_versions() {
+    let versions_db = TestVersionsDbBuilder::new()
+        .add_version("1.12.0")
+        .add_channel("1.12.0", "1.12.0")
+        .add_version("1.12.1")
+        .add_channel("1.12.1", "1.12.1")
+        .add_channel("1.12-nightly", "1.12.2-DEV")
+        .build();
+
+    // Known release versions resolve to the channel of the same name
+    assert_eq!(
+        resolve_auto_channel("1.12.1", &versions_db, false).unwrap(),
+        "1.12.1"
+    );
+    assert_eq!(
+        resolve_auto_channel("1.12.0", &versions_db, false).unwrap(),
+        "1.12.0"
+    );
+
+    // Unknown release versions are an error, never mapped to a nightly channel
+    for unknown in ["1.12.55", "1.13.0"] {
+        let err = resolve_auto_channel(unknown, &versions_db, false).unwrap_err();
+        let err = err
+            .downcast_ref::<UnknownJuliaVersion>()
+            .expect("expected an UnknownJuliaVersion error");
+        assert_eq!(err.version, unknown);
+    }
+
+    // Unparsable versions are an error too
+    assert!(resolve_auto_channel("not-a-version", &versions_db, false).is_err());
+}
+
+#[test]
+fn test_only_versioned_manifests_are_ignored() {
+    // Versioned manifests never select a Julia version on their own
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest-v1.10.toml", "1.10.0");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.0");
+
+    assert!(project_file_manifest_path(&project_file).unwrap().is_none());
+
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert!(context.manifest_file.is_none());
+    assert!(context.julia_version.is_none());
+}
+
+#[test]
+fn test_same_minor_versioned_manifest_refines_version() {
+    // Manifest.toml sets the minor version, a same-minor versioned manifest
+    // (which is what that Julia loads) sets the exact version
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.11.2");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.5");
+    create_manifest(temp_dir.path(), "Manifest-v1.12.toml", "1.12.0");
+
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert_eq!(context.julia_version.as_deref(), Some("1.11.5"));
+    assert!(context.manifest_is_versioned);
+    assert_eq!(
+        context.manifest_file.unwrap().file_name().unwrap(),
+        "Manifest-v1.11.toml"
+    );
+}
+
+#[test]
+fn test_julia_manifest_versioned_preferred() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.11.2");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.5");
+    create_manifest(temp_dir.path(), "JuliaManifest-v1.11.toml", "1.11.6");
+
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert_eq!(context.julia_version.as_deref(), Some("1.11.6"));
+    assert_eq!(
+        context.manifest_file.unwrap().file_name().unwrap(),
+        "JuliaManifest-v1.11.toml"
+    );
+}
+
+#[test]
+fn test_other_minor_versioned_manifest_ignored() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.12.1");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.5");
+
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert_eq!(context.julia_version.as_deref(), Some("1.12.1"));
+    assert!(!context.manifest_is_versioned);
+    assert_eq!(
+        context.manifest_file.unwrap().file_name().unwrap(),
+        "Manifest.toml"
+    );
+}
+
+#[test]
+fn test_mismatching_versioned_manifest_is_error() {
+    // Manifest-v1.11.toml recording another minor version is an error, since
+    // Julia 1.11 would load it
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.11.2");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.10.4");
+
+    let err = project_context_from_project_file(project_file).unwrap_err();
+    assert!(format!("{:#}", err).contains("Manifest-v1.11.toml"));
+}
+
+#[test]
+fn test_versioned_manifest_without_julia_version_is_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.11.2");
+    fs::write(temp_dir.path().join("Manifest-v1.11.toml"), "[deps]\n").unwrap();
+
+    assert!(project_context_from_project_file(project_file).is_err());
+}
+
+#[test]
+fn test_explicit_manifest_field_skips_versioned_lookup() {
+    // With an explicit `manifest` field Julia never looks at versioned manifests
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(
+        temp_dir.path(),
+        indoc! {r#"
+            name = "TestProject"
+            manifest = "Other.toml"
+        "#},
+    );
+    create_manifest(temp_dir.path(), "Other.toml", "1.11.2");
+    create_manifest(temp_dir.path(), "Manifest-v1.11.toml", "1.11.5");
+
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert_eq!(context.julia_version.as_deref(), Some("1.11.2"));
+    assert_eq!(
+        context.manifest_file.unwrap().file_name().unwrap(),
+        "Other.toml"
+    );
+}
+
+#[test]
+fn test_malformed_files_are_errors() {
+    // Malformed manifest
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    fs::write(temp_dir.path().join("Manifest.toml"), "julia_version = ").unwrap();
+    assert!(project_context_from_project_file(project_file).is_err());
+
+    // Unparsable julia_version
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    create_manifest(temp_dir.path(), "Manifest.toml", "one.two");
+    assert!(project_context_from_project_file(project_file).is_err());
+
+    // Malformed project file
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(temp_dir.path(), "name = ");
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.11.2");
+    assert!(project_context_from_project_file(project_file).is_err());
+
+    // The same errors surface through the launcher's entry point
+    let args = julia_args(Some(temp_dir.path()));
+    assert!(determine_project_context_impl(&args, None, None, temp_dir.path()).is_err());
+}
+
+#[test]
+fn test_missing_files_are_not_errors() {
+    // A project directory without a project file (e.g. `julia --project=newenv`)
+    let temp_dir = TempDir::new().unwrap();
+    let new_env = temp_dir.path().join("newenv");
+    let args = julia_args(Some(&new_env));
+    assert!(
+        determine_project_context_impl(&args, None, None, temp_dir.path())
+            .unwrap()
+            .is_none()
+    );
+
+    // A project without a manifest
+    let project_file = create_test_project(temp_dir.path(), "name = \"TestProject\"");
+    let context = project_context_from_project_file(project_file.clone()).unwrap();
+    assert!(context.manifest_file.is_none());
+    assert!(context.julia_version.is_none());
+
+    // A manifest without julia_version (manifest format 1.0)
+    fs::write(
+        temp_dir.path().join("Manifest.toml"),
+        "[[Example]]\nuuid = \"7876af07-990d-54b4-ab0e-23690620f79a\"\n",
+    )
+    .unwrap();
+    let context = project_context_from_project_file(project_file).unwrap();
+    assert!(context.manifest_file.is_some());
+    assert!(context.julia_version.is_none());
+}
+
+#[test]
+fn test_project_context_compat_and_package() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_file = create_test_project(
+        temp_dir.path(),
+        indoc! {r#"
+            name = "MyPackage"
+            uuid = "7876af07-990d-54b4-ab0e-23690620f79a"
+
+            [deps]
+            Example = "7876af07-990d-54b4-ab0e-23690620f79b"
+
+            [compat]
+            julia = "1.10, 1.11"
+        "#},
+    );
+    create_manifest(temp_dir.path(), "Manifest.toml", "1.10.4");
+
+    let context = project_context_from_project_file(project_file.clone()).unwrap();
+    assert!(context.is_package);
+    assert!(context.has_deps);
+    assert_eq!(context.julia_compat.len(), 1);
+    assert_eq!(context.julia_compat[0].spec, "1.10, 1.11");
+    assert!(!context.manifest_is_elsewhere());
+    assert!(context.workspace_root.is_none());
+
+    // An environment without name/uuid is not a package
+    let env_dir = TempDir::new().unwrap();
+    let env_project = create_test_project(env_dir.path(), "[deps]\n");
+    let context = project_context_from_project_file(env_project).unwrap();
+    assert!(!context.is_package);
+    assert!(!context.has_deps);
+    assert!(context.julia_compat.is_empty());
+}
+
+#[test]
+fn test_workspace_manifest_lookup() {
+    // A sub-project of a workspace uses the manifest at the workspace root
+    let temp_dir = TempDir::new().unwrap();
+    let root = temp_dir.path();
+    create_test_project(
+        root,
+        indoc! {r#"
+            name = "Root"
+
+            [workspace]
+            projects = ["test", "docs"]
+
+            [compat]
+            julia = "1.11"
+        "#},
+    );
+    create_manifest(root, "Manifest.toml", "1.11.3");
+
+    let test_dir = root.join("test");
+    fs::create_dir(&test_dir).unwrap();
+    let test_project = create_test_project(
+        &test_dir,
+        indoc! {r#"
+            [deps]
+            Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+            [compat]
+            julia = "1.10, 1.11"
+        "#},
+    );
+
+    let docs_dir = root.join("docs");
+    fs::create_dir(&docs_dir).unwrap();
+    create_test_project(&docs_dir, "");
+
+    let context = project_context_from_project_file(test_project.clone()).unwrap();
+    assert_eq!(context.julia_version.as_deref(), Some("1.11.3"));
+    assert!(context.workspace_root.is_some());
+    assert!(context.manifest_is_elsewhere());
+    assert!(context.has_deps);
+    // The julia compat entries of all workspace projects are collected
+    let mut specs: Vec<_> = context
+        .julia_compat
+        .iter()
+        .map(|c| c.spec.as_str())
+        .collect();
+    specs.sort();
+    assert_eq!(specs, vec!["1.10, 1.11", "1.11"]);
+
+    // A directory that is not listed in the workspace is not part of it
+    let other_dir = root.join("other");
+    fs::create_dir(&other_dir).unwrap();
+    let other_project = create_test_project(&other_dir, "");
+    let context = project_context_from_project_file(other_project).unwrap();
+    assert!(context.workspace_root.is_none());
+    assert!(context.manifest_file.is_none());
+}
+
+#[test]
+fn test_stable_versions() {
+    let versions_db = TestVersionsDbBuilder::new()
+        .add_channel("1.10.4", "1.10.4+0.x64.w64.mingw32")
+        .add_channel("lts", "1.10.4+0.x64.w64.mingw32")
+        .add_channel("1.11.0-rc1", "1.11.0-rc1+0.x64.w64.mingw32")
+        .add_channel("1.11.2", "1.11.2+0.x64.w64.mingw32")
+        .build();
+
+    let versions: Vec<String> = versions_db
+        .stable_versions()
+        .iter()
+        .map(|v| v.to_string())
+        .collect();
+    assert_eq!(versions, vec!["1.10.4", "1.11.2"]);
+}
+
+#[test]
+fn test_option_requires_arg_attached_values() {
+    // Short options with attached values don't consume the next token
+    assert!(!julia_option_requires_arg("-t4"));
+    assert!(!julia_option_requires_arg("-O3"));
+    assert!(!julia_option_requires_arg("-e1+1"));
+    assert!(julia_option_requires_arg("-t"));
+    assert!(julia_option_requires_arg("-e"));
+    assert!(!julia_option_requires_arg("-i"));
+    assert!(!julia_option_requires_arg("-O"));
 }
 
 // Helper to build a test versions database
