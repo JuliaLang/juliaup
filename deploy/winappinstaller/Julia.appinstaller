@@ -8,7 +8,7 @@
         Name="JuliaComputingInc.Julia"
         Publisher="CN=&quot;JuliaHub, Inc.&quot;, O=&quot;JuliaHub, Inc.&quot;, L=CAMBRIDGE, S=Massachusetts, C=US"
         Version="{{Version}}.0"
-        Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.appxbundle" />
+        Uri="https://julialang-s3.julialang.org/juliaup/winappinstaller/Julia-{{Version}}.0.msixbundle" />
 
     <Dependencies>
         <Package
