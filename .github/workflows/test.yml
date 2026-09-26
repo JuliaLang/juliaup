@@ -131,7 +131,7 @@ jobs:
     - uses: actions/checkout@v7
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
         target: ${{matrix.target}}
         # Without this, all matrix jobs on one OS share a single job-id-based
@@ -140,11 +140,11 @@ jobs:
         # scripts when restored into an old-glibc container.
         cache-key: ${{matrix.label}}
     - if: ${{ matrix.os == 'ubuntu' }}
-      uses: taiki-e/install-action@e67fa11c4b9316fa714ddf0abed07a0c3143b95b # v2.87.4
+      uses: taiki-e/install-action@26e9283f268b880168bdbd2c545dfcd60ec2c6ab # v2.87.13
       with:
         tool: cross
     - name: Check build
-      uses: clechasseur/rs-cargo@9a5c570d3347f8dee3916c8871f3ffaf38909956 # v5.0.8
+      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
       with:
         command: check
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -247,7 +247,7 @@ jobs:
           stable-gnu) echo "name=${ver}-x86_64-pc-windows-gnu" >> "$GITHUB_OUTPUT" ;;
           *) echo "name=${ver}" >> "$GITHUB_OUTPUT" ;;
         esac
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
@@ -269,7 +269,7 @@ jobs:
         large-packages: false
     - name: Start FreeBSD VM
       if: ${{ contains(matrix.target, 'freebsd') }}
-      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
+      uses: cross-platform-actions/action@e0b9770014ba65d5e0815f15b74031c3a635f641 # v1.6.0
       with:
         operating_system: freebsd
         version: '13.4'
@@ -319,7 +319,7 @@ jobs:
       run: |
         ver=$(grep '^channel = ' rust-toolchain.toml | sed 's/channel = "\(.*\)"/\1/')
         echo "name=${ver}" >> "$GITHUB_OUTPUT"
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       with:
         toolchain: ${{ steps.toolchain.outputs.name }}
     - name: Test self update
@@ -336,7 +336,7 @@ jobs:
           - runner: windows-latest
     steps:
     - uses: actions/checkout@v7
-    - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+    - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
     - name: Test juliaupgui
       run: cargo test -p juliaupgui
 
@@ -375,7 +375,7 @@ jobs:
         tool-cache: true
         large-packages: false
     - name: Start FreeBSD VM
-      uses: cross-platform-actions/action@faa0c6197e94aacf1c5956460152c8380d3560a5 # v1.5.0
+      uses: cross-platform-actions/action@e0b9770014ba65d5e0815f15b74031c3a635f641 # v1.6.0
       with:
         operating_system: freebsd
         version: '13.4'
