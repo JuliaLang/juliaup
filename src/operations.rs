@@ -1,3 +1,4 @@
+use crate::channel_name::{ChannelBase, ChannelName};
 use crate::cli::Juliaup;
 use crate::command_completions::write_completion_files;
 use crate::config_file::get_read_lock;
@@ -12,7 +13,7 @@ use crate::get_bundled_julia_version;
 use crate::get_juliaup_target;
 use crate::global_paths::GlobalPaths;
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
-use crate::utils::check_server_supports_nightlies;
+use crate::nightlies_db::{cache_is_fresh, load_nightlies_db, NightliesDb};
 use crate::utils::get_bin_dir;
 use crate::utils::get_julianightlies_base_url;
 use crate::utils::get_juliaprs_base_url;
@@ -28,7 +29,6 @@ use console::style;
 use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use indoc::formatdoc;
-use regex::Regex;
 use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
@@ -260,7 +260,7 @@ fn show_install_progress(message: &str) {
 }
 
 #[cfg(target_os = "macos")]
-pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
+fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Result<String> {
     use std::fs::File;
     use std::io::Write;
 
@@ -327,9 +327,10 @@ pub fn download_extract_dmg(url: &str, target_path: &Path) -> Result<String> {
     let etag = response
         .headers()
         .get("etag")
-        .ok_or_else(|| anyhow!("Failed to get etag from `{}`", url))?
-        .to_str()?
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
         .to_string();
+    validate_artifact_etag(&etag, url, require_etag)?;
 
     // Download to temporary DMG file
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
@@ -438,24 +439,45 @@ fn dmg_url_from_tarball(url: &url::Url) -> url::Url {
 }
 
 #[cfg(target_os = "macos")]
-fn try_download_dmg_with_fallback(url: &url::Url, target_path: &Path) -> Result<(String, bool)> {
+fn try_download_dmg_with_fallback(
+    url: &url::Url,
+    target_path: &Path,
+    require_etag: bool,
+) -> Result<(String, bool)> {
     let dmg_url = dmg_url_from_tarball(url);
 
-    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path) {
+    if let Ok(etag) = download_extract_dmg(dmg_url.as_ref(), target_path, require_etag) {
         strip_quarantine_attribute(target_path);
         return Ok((etag, true));
     }
 
-    let etag = download_extract_sans_parent(url.as_ref(), target_path, 1)?;
+    let etag = download_extract_archive(url.as_ref(), target_path, 1, require_etag)?;
     strip_quarantine_attribute(target_path);
     Ok((etag, false))
 }
 
-#[cfg(not(windows))]
+fn validate_artifact_etag(etag: &str, url: &str, required: bool) -> Result<()> {
+    if required && etag.is_empty() {
+        bail!("The download from `{}` has no etag header, which is required for nightly and PR updates.", url);
+    }
+    Ok(())
+}
+
+/// Regular releases and juliaup itself do not require artifact ETags.
 pub fn download_extract_sans_parent(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
+) -> Result<String> {
+    download_extract_archive(url, target_path, levels_to_skip, false)
+}
+
+#[cfg(not(windows))]
+fn download_extract_archive(
+    url: &str,
+    target_path: &Path,
+    levels_to_skip: usize,
+    require_etag: bool,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
     let response = http_client()?
@@ -481,6 +503,7 @@ pub fn download_extract_sans_parent(
         .map(|etag| etag.to_str().unwrap_or("").to_string())
         .unwrap_or_default();
 
+    validate_artifact_etag(&last_modified, url, require_etag)?;
     let response_with_pb = pb.wrap_read(response);
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
@@ -510,10 +533,11 @@ impl std::io::Read for DataReaderWrap {
 }
 
 #[cfg(windows)]
-pub fn download_extract_sans_parent(
+fn download_extract_archive(
     url: &str,
     target_path: &Path,
     levels_to_skip: usize,
+    require_etag: bool,
 ) -> Result<String> {
     use windows::core::HSTRING;
 
@@ -548,6 +572,7 @@ pub fn download_extract_sans_parent(
         .map(|etag| etag.to_string())
         .unwrap_or_default();
 
+    validate_artifact_etag(&last_modified, url, require_etag)?;
     let http_response_content = http_response
         .Content()
         .with_context(|| "Failed to obtain content from http response.")?;
@@ -750,6 +775,54 @@ pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Downloads metadata within a total deadline, including the response body.
+#[cfg(not(windows))]
+pub fn download_text(url: &str, deadline: std::time::Instant) -> Result<String> {
+    let timeout = deadline
+        .checked_duration_since(std::time::Instant::now())
+        .context("Metadata download timed out.")?;
+    let response = http_client()?
+        .get(url)
+        .timeout(timeout)
+        .send()?
+        .error_for_status()
+        .with_context(|| format!("Failed to download `{url}`."))?;
+    String::from_utf8(response.bytes()?.to_vec()).context("Metadata is not UTF-8.")
+}
+
+#[cfg(windows)]
+pub fn download_text(url: &str, deadline: std::time::Instant) -> Result<String> {
+    // Cancel the actual WinRT operation on timeout. There is no detached worker
+    // that can finish later and replace a cache after its caller has returned.
+    macro_rules! wait {
+        ($operation:expr) => {{
+            let operation = $operation?;
+            loop {
+                if std::time::Instant::now() >= deadline {
+                    let _ = operation.Cancel();
+                    bail!("Metadata download timed out: `{}`.", url);
+                }
+                if operation.Status()? != windows_future::AsyncStatus::Started {
+                    break operation.GetResults()?;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        }};
+    }
+    let client = http_client()?;
+    let uri = windows::Foundation::Uri::CreateUri(&windows::core::HSTRING::from(url))?;
+    let response = wait!(client.GetWithOptionAsync(
+        &uri,
+        windows::Web::Http::HttpCompletionOption::ResponseHeadersRead
+    ));
+    response.EnsureSuccessStatusCode()?;
+    let bytes = wait!(response.Content()?.ReadAsBufferAsync());
+    let reader = windows::Storage::Streams::DataReader::FromBuffer(&bytes)?;
+    let mut data = vec![0; bytes.Length()? as usize];
+    reader.ReadBytes(&mut data)?;
+    String::from_utf8(data).context("Metadata is not UTF-8.")
+}
+
 /// Computes the relative binary path for storing in the config file.
 ///
 /// Resolves the Julia binary within `target_path` (handling .app bundles on macOS),
@@ -853,7 +926,8 @@ pub fn download_version_to_temp(
 
         #[cfg(target_os = "macos")]
         let used_dmg = {
-            let (_, used_dmg) = try_download_dmg_with_fallback(&download_url, temp_dir.path())?;
+            let (_, used_dmg) =
+                try_download_dmg_with_fallback(&download_url, temp_dir.path(), false)?;
             used_dmg
         };
 
@@ -984,106 +1058,97 @@ pub fn compatible_archs() -> Result<Vec<String>> {
     }
 }
 
-// which nightly channels are compatible with the current system
-pub fn get_channel_variations(channel: &str) -> Result<Vec<String>> {
-    let archs = compatible_archs()?;
+/// The `<os>-<arch>` part of the file names of julia-buildkite's nightly and
+/// PR builds (`julia-latest-linux-x86_64.tar.gz`, `julia-pr123-win64.tar.gz`)
+/// for this operating system and the juliaup arch identifier `arch`.
+pub fn build_file_platform(arch: &str) -> Result<&'static str> {
+    #[cfg(target_os = "macos")]
+    let platform = match arch {
+        "x64" => "macos-x86_64",
+        "aarch64" => "macos-aarch64",
+        _ => bail!("Unsupported architecture for nightly channel on macOS."),
+    };
 
-    let channels: Vec<String> = std::iter::once(channel.to_string())
-        .chain(
-            archs
-                .into_iter()
-                .map(|arch| format!("{}~{}", channel, arch)),
-        )
-        .collect();
-    Ok(channels)
+    #[cfg(target_os = "windows")]
+    let platform = match arch {
+        "x64" => "win64",
+        "x86" => "win32",
+        _ => bail!("Unsupported architecture for nightly channel on Windows."),
+    };
+
+    #[cfg(target_os = "linux")]
+    let platform = match arch {
+        "x64" => "linux-x86_64",
+        "x86" => "linux-i686",
+        "aarch64" => "linux-aarch64",
+        _ => bail!("Unsupported architecture for nightly channel on Linux."),
+    };
+
+    #[cfg(target_os = "freebsd")]
+    let platform = match arch {
+        "x64" => "freebsd-x86_64",
+        _ => bail!("Unsupported architecture for nightly channel on FreeBSD."),
+    };
+
+    Ok(platform)
 }
 
-// considers the nightly channels as system channels
-// XXX: does not account for PR channels
-pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &String) -> Result<bool> {
-    let regular = versions_db.has_channel(channel);
-
-    let nightly_chans = get_channel_variations("nightly")?;
-
-    let nightly = nightly_chans.contains(channel);
-    Ok(regular || nightly)
-}
-
-pub fn is_pr_channel(channel: &str) -> bool {
-    Regex::new(r"^(pr\d+)(~|$)").unwrap().is_match(channel)
-}
-
-fn parse_nightly_channel_or_id(channel: &str) -> Option<String> {
-    let nightly_re =
-        Regex::new(r"^((?:nightly|latest)|latest|(\d+\.\d+)-(?:nightly|latest))").unwrap();
-
-    let caps = nightly_re.captures(channel)?;
-    if let Some(xy_match) = caps.get(2) {
-        Some(xy_match.as_str().to_string())
-    } else {
-        Some("".to_string())
+fn with_arch(channel: &str, arch: Option<&str>) -> String {
+    match arch {
+        Some(arch) => format!("{}~{}", channel, arch),
+        None => channel.to_string(),
     }
 }
 
-// Identify the unversioned name of a nightly (e.g., `latest-macos-x86_64`) for a channel
-pub fn channel_to_name(channel: &str) -> Result<String> {
-    let mut parts = channel.splitn(2, '~');
+/// The nightly and PR channels that can be installed on this machine, as
+/// `(channel, build)` pairs for `juliaup list` and the GUI, where `build` is
+/// the label of the file the channel resolves to (e.g. `latest-linux-x86_64`).
+/// Build variants follow the standard build of their channel (`nightly`,
+/// `nightly+opt`, ...).
+///
+/// Without a nightlies db the generic `nightly` and `x.y-nightly` placeholders
+/// are listed instead; `pr{number}` is always a placeholder.
+pub fn available_nightly_channels(
+    nightlies: Option<&NightliesDb>,
+) -> Result<Vec<(String, String)>> {
+    let archs: Vec<Option<String>> = std::iter::once(None)
+        .chain(compatible_archs()?.into_iter().map(Some))
+        .collect();
+    let default_arch = default_arch()?;
+    let mut rows = Vec::new();
 
-    let channel = parts.next().expect("Failed to parse channel name.");
-
-    let version = if let Some(version_prefix) = parse_nightly_channel_or_id(channel) {
-        if version_prefix.is_empty() {
-            "latest".to_string()
-        } else {
-            format!("{}-latest", version_prefix)
+    match nightlies {
+        Some(nightlies) => rows.extend(nightlies.rows()?),
+        None => {
+            for channel in ["nightly", "x.y-nightly"] {
+                for arch in &archs {
+                    let platform = build_file_platform(arch.as_deref().unwrap_or(&default_arch))?;
+                    rows.push((
+                        with_arch(channel, arch.as_deref()),
+                        format!("latest-{}", platform),
+                    ));
+                }
+            }
         }
-    } else {
-        channel.to_string()
-    };
-    let arch = match parts.next() {
-        Some(arch) => arch.to_string(),
-        None => default_arch()?,
-    };
+    }
 
-    let os_arch_suffix = {
-        #[cfg(target_os = "macos")]
-        if arch == "x64" {
-            "macos-x86_64"
-        } else if arch == "aarch64" {
-            "macos-aarch64"
-        } else {
-            bail!("Unsupported architecture for nightly channel on macOS.")
-        }
+    for arch in &archs {
+        let platform = build_file_platform(arch.as_deref().unwrap_or(&default_arch))?;
+        rows.push((
+            with_arch("pr{number}", arch.as_deref()),
+            format!("pr{{number}}-{}", platform),
+        ));
+    }
 
-        #[cfg(target_os = "windows")]
-        if arch == "x64" {
-            "win64"
-        } else if arch == "x86" {
-            "win32"
-        } else {
-            bail!("Unsupported architecture for nightly channel on Windows.")
-        }
+    Ok(rows)
+}
 
-        #[cfg(target_os = "linux")]
-        if arch == "x64" {
-            "linux-x86_64"
-        } else if arch == "x86" {
-            "linux-i686"
-        } else if arch == "aarch64" {
-            "linux-aarch64"
-        } else {
-            bail!("Unsupported architecture for nightly channel on Linux.")
-        }
-
-        #[cfg(target_os = "freebsd")]
-        if arch == "x64" {
-            "freebsd-x86_64"
-        } else {
-            bail!("Unsupported architecture for nightly channel on FreeBSD.")
-        }
-    };
-
-    Ok(version.to_string() + "-" + os_arch_suffix)
+/// Recognizes database channels and nightly/PR channel syntax. Availability
+/// of direct downloads is checked when resolving the build.
+pub fn is_valid_channel(versions_db: &JuliaupVersionDB, channel: &str) -> bool {
+    versions_db.has_channel(channel)
+        || ChannelName::parse(channel)
+            .is_ok_and(|name| name.is_nightly() || (name.is_pr() && name.variants.is_empty()))
 }
 
 fn query_julia_version(julia_path: &Path) -> Result<String> {
@@ -1109,17 +1174,6 @@ pub fn install_from_url(
     #[cfg_attr(not(target_os = "macos"), allow(unused))] is_pr: bool,
     paths: &GlobalPaths,
 ) -> Result<(crate::config_file::JuliaupConfigChannel, bool)> {
-    // Check if the nightly server supports etag headers (required for nightly/PR channels)
-    // Do this BEFORE downloading to avoid wasting bandwidth
-    if !check_server_supports_nightlies()
-        .context("Failed to check if nightly server supports etag headers")?
-    {
-        bail!(
-            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
-            Nightly and PR channels cannot be installed from this server."
-        );
-    }
-
     // Download and extract into a temporary directory
     let temp_dir = Builder::new()
         .prefix("julia-temp-")
@@ -1127,11 +1181,11 @@ pub fn install_from_url(
         .expect("Failed to create temporary directory");
 
     #[cfg(target_os = "macos")]
-    let (server_etag, used_dmg) = try_download_dmg_with_fallback(url, temp_dir.path())?;
+    let (server_etag, used_dmg) = try_download_dmg_with_fallback(url, temp_dir.path(), true)?;
 
     #[cfg(not(target_os = "macos"))]
     let (server_etag, used_dmg) = {
-        let download_result = download_extract_sans_parent(url.as_ref(), temp_dir.path(), 1);
+        let download_result = download_extract_archive(url.as_ref(), temp_dir.path(), 1, true);
         match download_result {
             Ok(last_updated) => (last_updated, false),
             Err(e) => {
@@ -1465,7 +1519,7 @@ fn pr_staging_url_path(head_sha: &str, os_arch: &str) -> Result<String> {
     ))
 }
 
-/// Maps a juliaup arch identifier (as produced by `channel_to_name`) to the
+/// Maps a `build_file_platform` identifier to the
 /// `<os>-<arch>` suffix that julia-buildkite uses for the file names of
 /// staged PR builds (the `UPLOAD_FILENAME` vocabulary of its
 /// `utilities/build_envs.sh` and `utilities/extract_triplet.sh`).
@@ -1509,7 +1563,8 @@ fn legacy_pr_download_url_path(id: &str, arch: &str) -> Option<String> {
     }
 }
 
-/// Determines the download URL for a PR channel (e.g. `pr12345`).
+/// Determines the download URL for a PR channel (e.g. `pr12345`) on the
+/// platform named by the juliaup arch identifier `arch` (`x64`, ...).
 ///
 /// CI stages pull request builds write-once into an ephemeral bucket, keyed
 /// by the head commit sha of the PR (JuliaCI/julia-buildkite#544). We resolve
@@ -1520,13 +1575,9 @@ fn legacy_pr_download_url_path(id: &str, arch: &str) -> Option<String> {
 /// Also returns the lifecycle state of the PR when the GitHub API lookup
 /// succeeded, so that callers can point out that a merged or closed PR will
 /// not produce further builds.
-fn resolve_pr_download_url(id: &str, arch: &str) -> Result<(Url, Option<PrState>)> {
-    let pr_number: u64 = id
-        .strip_prefix("pr")
-        .unwrap_or(id)
-        .parse()
-        .with_context(|| format!("Failed to parse a pull request number from `{}`.", id))?;
-    let os_arch = pr_staging_os_arch(arch)?;
+fn resolve_pr_download_url(pr_number: u64, arch: &str) -> Result<(Url, Option<PrState>)> {
+    let platform = build_file_platform(arch)?;
+    let os_arch = pr_staging_os_arch(platform)?;
 
     // The GitHub API lookup can fail without dooming the install (e.g.
     // anonymous requests are rate-limited), so remember the error and try
@@ -1558,7 +1609,7 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<(Url, Option<PrState>
     // LEGACY FALLBACK -- delete together with `legacy_pr_download_url_path`:
     // PRs built before the CI migration are still served from the nightlies
     // bucket until they age out.
-    if let Some(legacy_path) = legacy_pr_download_url_path(id, arch) {
+    if let Some(legacy_path) = legacy_pr_download_url_path(&format!("pr{}", pr_number), platform) {
         let base_url = get_julianightlies_base_url()?;
         let url = base_url.join(&legacy_path).with_context(|| {
             format!(
@@ -1577,7 +1628,7 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<(Url, Option<PrState>
          pull request may need to be re-run to build fresh binaries, or the pull request may \
          predate PR binary uploads.",
         pr_number,
-        arch
+        platform
     );
     Err(match head_sha_error {
         Some(e) => e.context(not_found),
@@ -1585,99 +1636,99 @@ fn resolve_pr_download_url(id: &str, arch: &str) -> Result<(Url, Option<PrState>
     })
 }
 
-/// Installs a non-database version (nightly/PR) of Julia.
+fn has_installed_nightly(config: &JuliaupConfig) -> bool {
+    config.installed_channels.iter().any(|(name, channel)| {
+        matches!(channel, JuliaupConfigChannel::DirectDownloadChannel { .. })
+            && crate::channel_name::is_nightly_channel(name)
+    })
+}
+
+/// Downloads and caches the upstream nightly catalog.
+pub fn update_nightlies_db(paths: &GlobalPaths) -> Result<NightliesDb> {
+    crate::nightlies_db::refresh(paths, std::time::Duration::from_secs(30))
+}
+
+/// The nightlies db to install from: freshly downloaded if possible, since
+/// nightly channels appear and expire with release branches, otherwise the
+/// cached copy.
+fn nightlies_db_for_install(paths: &GlobalPaths) -> Result<NightliesDb> {
+    match update_nightlies_db(paths) {
+        Ok(db) => Ok(db),
+        Err(e) => match load_nightlies_db(paths) {
+            Some(db) => {
+                print_juliaup_style(
+                    "Warning",
+                    &format!(
+                        "Failed to refresh the list of nightly builds, using the cached copy: {}",
+                        e
+                    ),
+                    JuliaupMessageType::Warning,
+                );
+                Ok(db)
+            }
+            None => Err(e.context("Failed to download the list of nightly builds.")),
+        },
+    }
+}
+
+/// The nightlies db for listing: refresh missing or day-old metadata. `None` if it cannot be obtained (e.g. offline).
+pub fn nightlies_db_for_listing(paths: &GlobalPaths) -> Option<NightliesDb> {
+    if cache_is_fresh(paths) {
+        return load_nightlies_db(paths);
+    }
+    match crate::nightlies_db::refresh(paths, std::time::Duration::from_secs(5)) {
+        Ok(db) => Some(db),
+        Err(e) => {
+            log::debug!("Failed to refresh nightly listing: {:?}", e);
+            load_nightlies_db(paths)
+        }
+    }
+}
+
+/// Applies `JULIAUP_NIGHTLY_SERVER` to a URL from the nightlies db: files on
+/// the official nightlies server are fetched from the mirror instead. Files
+/// hosted elsewhere are left alone.
+fn mirrored_nightly_url(url: &str) -> Result<Url> {
+    const OFFICIAL_NIGHTLIES_SERVER: &str = "https://julialangnightlies-s3.julialang.org/";
+
+    let parsed = Url::parse(url).with_context(|| format!("Failed to parse `{}` as a url.", url))?;
+    if parsed.scheme() != "https" && !crate::utils::is_loopback_http(&parsed) {
+        bail!("Nightly download URL must use HTTPS: `{}`.", url);
+    }
+    let base_url = get_julianightlies_base_url()?;
+    match url.strip_prefix(OFFICIAL_NIGHTLIES_SERVER) {
+        Some(path) if base_url.as_str() != OFFICIAL_NIGHTLIES_SERVER => {
+            base_url.join(path).with_context(|| {
+                format!(
+                    "Failed to construct a valid url from '{}' and '{}'.",
+                    base_url, path
+                )
+            })
+        }
+        _ => Ok(parsed),
+    }
+}
+
+/// Installs a nightly or PR channel.
 /// Returns the config channel and a bool indicating whether a DMG installer was used (macOS only).
 pub fn install_non_db_version(
     channel: &str,
-    name: &String,
     paths: &GlobalPaths,
 ) -> Result<(crate::config_file::JuliaupConfigChannel, bool)> {
-    // Check if the nightly server supports etag headers (required for nightly/PR channels)
-    if !check_server_supports_nightlies()
-        .context("Failed to check if nightly server supports etag headers")?
-    {
-        bail!(
-            "The configured nightly server does not support etag headers, which are required for nightly and PR channels.\n\
-            Nightly and PR channels cannot be installed from this server."
-        );
-    }
+    let name = ChannelName::parse(channel)?;
+    let arch = name.arch.clone().map_or_else(default_arch, Ok)?;
 
-    // Determine the download URL
-    let mut parts = name.splitn(2, '-');
-
-    let mut id = parts
-        .next()
-        .expect("Failed to parse channel name.")
-        .to_string();
-    let mut arch = parts.next().expect("Failed to parse channel name.");
-
-    // Check for the case where name is given as "x.y-latest-...", in which case
-    // we peel off the "latest" part of the `arch` and attach it to the `id``.
-    if arch.starts_with("latest") {
-        let mut parts = arch.splitn(2, '-');
-        let nightly = parts.next().expect("Failed to parse channel name.");
-        id.push('-');
-        id.push_str(nightly);
-        arch = parts.next().expect("Failed to parse channel name.");
-    }
-
-    let nightly_version = parse_nightly_channel_or_id(&id);
-
-    let download_url = if let Some(nightly_version) = nightly_version {
-        let nightly_folder = if nightly_version.is_empty() {
-            "".to_string() // No version folder
-        } else {
-            format!("/{}", nightly_version) // Use version as folder
-        };
-        let download_url_path = match arch {
-            "macos-x86_64" => Ok(format!(
-                "bin/macos/x86_64{}/julia-latest-macos-x86_64.tar.gz",
-                nightly_folder
-            )),
-            "macos-aarch64" => Ok(format!(
-                "bin/macos/aarch64{}/julia-latest-macos-aarch64.tar.gz",
-                nightly_folder
-            )),
-            "win64" => Ok(format!(
-                "bin/winnt/x64{}/julia-latest-win64.tar.gz",
-                nightly_folder
-            )),
-            "win32" => Ok(format!(
-                "bin/winnt/x86{}/julia-latest-win32.tar.gz",
-                nightly_folder
-            )),
-            "linux-x86_64" => Ok(format!(
-                "bin/linux/x86_64{}/julia-latest-linux-x86_64.tar.gz",
-                nightly_folder
-            )),
-            "linux-i686" => Ok(format!(
-                "bin/linux/i686{}/julia-latest-linux-i686.tar.gz",
-                nightly_folder
-            )),
-            "linux-aarch64" => Ok(format!(
-                "bin/linux/aarch64{}/julia-latest-linux-aarch64.tar.gz",
-                nightly_folder
-            )),
-            "freebsd-x86_64" => Ok(format!(
-                "bin/freebsd/x86_64{}/julia-latest-freebsd-x86_64.tar.gz",
-                nightly_folder
-            )),
-            _ => Err(anyhow!("Unknown nightly.")),
-        }?;
-
-        let download_url_base = get_julianightlies_base_url()?;
-        download_url_base
-            .join(download_url_path.as_str())
-            .with_context(|| {
-                format!(
-                    "Failed to construct a valid url from '{}' and '{}'.",
-                    download_url_base, download_url_path
-                )
-            })?
-    } else if id.starts_with("pr") {
-        resolve_pr_download_url(&id, arch)?.0
-    } else {
-        bail!("Unknown non-db channel.")
+    let (download_url, label) = match name.base {
+        ChannelBase::Nightly { .. } => {
+            let nightlies = nightlies_db_for_install(paths)?;
+            let file = nightlies.lookup(&name)?;
+            (mirrored_nightly_url(&file.url)?, file.label())
+        }
+        ChannelBase::Pr(pr_number) => (
+            resolve_pr_download_url(pr_number, &arch)?.0,
+            format!("pr{}-{}", pr_number, build_file_platform(&arch)?),
+        ),
+        ChannelBase::Db(_) => bail!("'{}' is not a nightly or PR channel.", channel),
     };
 
     let child_target_foldername = format!("julia-{}", channel);
@@ -1688,12 +1739,11 @@ pub fn install_non_db_version(
 
     print_juliaup_style(
         "Installing",
-        &format!("Julia {}", name),
+        &format!("Julia {}", label),
         JuliaupMessageType::Progress,
     );
 
-    let (channel_data, used_dmg) =
-        install_from_url(&download_url, &rel_path, is_pr_channel(channel), paths)?;
+    let (channel_data, used_dmg) = install_from_url(&download_url, &rel_path, name.is_pr(), paths)?;
 
     Ok((channel_data, used_dmg))
 }
@@ -2538,6 +2588,17 @@ pub fn update_version_db(
         delete_old_version_db = true;
     }
 
+    // Only nightly users need periodic metadata checks. Artifact ETag checks
+    // below remain independent of catalog freshness or refresh failure.
+    if update_direct_downloads
+        && has_installed_nightly(&old_config_file.data)
+        && !cache_is_fresh(paths)
+    {
+        if let Err(e) = update_nightlies_db(paths) {
+            log::debug!("Failed to refresh the nightlies db: {:?}", e);
+        }
+    }
+
     let direct_download_etags = if update_direct_downloads {
         download_direct_download_etags(channel, &old_config_file.data)?
     } else {
@@ -2655,21 +2716,20 @@ where
 /// Tells the user that a PR channel has reached the end of its life, because
 /// the pull request it tracks was merged or closed and will therefore not
 /// produce any further builds.
-fn print_pr_finished_notice(channel: &str, state: PrState) {
+fn print_pr_finished_notice(channel: &str, pr_number: u64, state: PrState) {
     let description = match state.description() {
         Some(description) => description,
         None => return,
     };
 
-    let link = Regex::new(r"^pr(\d+)")
-        .unwrap()
-        .captures(channel)
-        .map(|caps| format!(": https://github.com/JuliaLang/julia/pull/{}", &caps[1]))
-        .unwrap_or_else(|| ".".to_string());
-
     print_juliaup_style(
         "Note",
-        &format!("{} was {}{}", style(channel).bold(), description, link),
+        &format!(
+            "{} was {}: https://github.com/JuliaLang/julia/pull/{}",
+            style(channel).bold(),
+            description,
+            pr_number
+        ),
         JuliaupMessageType::Warning,
     );
 }
@@ -2682,21 +2742,20 @@ fn print_pr_finished_notice(channel: &str, state: PrState) {
 /// at install time, and fall back to the recorded URL if resolution fails
 /// (e.g. offline, GitHub API rate limit).
 fn current_direct_download_url(channel: &str, recorded_url: &str) -> String {
-    if !is_pr_channel(channel) {
-        return recorded_url.to_string();
-    }
+    let pr_number = match ChannelName::parse(channel).map(|name| (name.base, name.arch)) {
+        Ok((ChannelBase::Pr(pr_number), arch)) => (pr_number, arch),
+        _ => return recorded_url.to_string(),
+    };
+    let (pr_number, arch) = pr_number;
 
-    let resolved = channel_to_name(channel).and_then(|name| {
-        let (id, arch) = name
-            .split_once('-')
-            .ok_or_else(|| anyhow!("Failed to parse channel name."))?;
-        resolve_pr_download_url(id, arch)
-    });
+    let resolved = arch
+        .map_or_else(default_arch, Ok)
+        .and_then(|arch| resolve_pr_download_url(pr_number, &arch));
 
     match resolved {
         Ok((url, pr_state)) => {
             if let Some(state) = pr_state {
-                print_pr_finished_notice(channel, state);
+                print_pr_finished_notice(channel, pr_number, state);
             }
             url.to_string()
         }
@@ -2745,9 +2804,6 @@ fn download_direct_download_etags(
     use windows::Web::Http::HttpMethod;
     use windows::Web::Http::HttpRequestMessage;
 
-    // Check if the server supports etag headers (required for nightly/PR updates)
-    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
-
     let http_client = http_client()?;
 
     let mut requests = Vec::new();
@@ -2764,13 +2820,6 @@ fn download_direct_download_etags(
             url, binary_path, ..
         } = installed_channel
         {
-            // If server doesn't support etag, we can't check for updates on nightly/PR channels
-            // Return None gracefully so the update process can continue with other channels
-            if !server_supports_etag {
-                requests.push((channel_name.clone(), None));
-                continue;
-            }
-
             let http_client = http_client.clone();
             let url_clone = url.clone();
             let binary_path_clone = binary_path.clone();
@@ -2834,9 +2883,6 @@ fn download_direct_download_etags(
 ) -> Result<DirectDownloadUpdateInfo> {
     use std::sync::Arc;
 
-    // Check if the server supports etag headers (required for nightly/PR updates)
-    let server_supports_etag = check_server_supports_nightlies().unwrap_or(false);
-
     let client = Arc::new(http_client()?);
 
     let mut requests = Vec::new();
@@ -2853,13 +2899,6 @@ fn download_direct_download_etags(
             url, binary_path, ..
         } = installed_channel
         {
-            // If server doesn't support etag, we can't check for updates on nightly/PR channels
-            // Return None gracefully so the update process can continue with other channels
-            if !server_supports_etag {
-                requests.push((channel_name.clone(), None));
-                continue;
-            }
-
             let client = Arc::clone(&client);
             let url_clone = url.clone();
             let binary_path_clone = binary_path.clone();
@@ -3309,7 +3348,7 @@ mod tests {
 
         let url = url::Url::parse(&format!("http://{}/julia.tar.gz", addr))?;
         let target_dir = tempfile::TempDir::new()?;
-        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path())?;
+        let (etag, used_dmg) = try_download_dmg_with_fallback(&url, target_dir.path(), true)?;
 
         assert!(!used_dmg);
         assert_eq!(etag, "\"tar-etag\"");

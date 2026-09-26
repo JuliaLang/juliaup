@@ -125,7 +125,7 @@ flowchart TD
     s(["update_version_db"]) --> rl["get_read_lock<br/><b>shared lock</b>"]
     rl --> snap["load_config_db(snapshot)"]
     snap --> ul["data_unlock<br/>(release)"]
-    ul --> net["download db version + versiondb json<br/><b>NO lock held</b>"]
+    ul --> net["download db version + versiondb json<br/>(+ nightlies.json if installed and stale; written atomically)<br/><b>NO lock held</b>"]
     net --> wl["load_mut_config_db<br/><b>exclusive lock</b>"]
     wl --> check{"config changed<br/>since snapshot?"}
     check -->|yes| abort["discard download, return"]

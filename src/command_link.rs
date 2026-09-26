@@ -1,3 +1,4 @@
+use crate::channel_name::ChannelName;
 use crate::config_file::JuliaupConfigChannel;
 use crate::config_file::{load_mut_config_db, save_config_db};
 use crate::global_paths::GlobalPaths;
@@ -27,19 +28,21 @@ pub fn run_command_link(
         bail!("Channel name `{}` is already used.", channel)
     }
 
-    if is_valid_channel(&versiondb_data, &channel.to_string())? {
+    if is_valid_channel(&versiondb_data, channel) {
         eprintln!("WARNING: The channel name `{channel}` is also a system channel. By linking your custom binary to this channel you are hiding this system channel.");
     }
 
     // Check if this is a channel alias (starts with +)
     if let Some(target_channel) = target.strip_prefix('+') {
+        let target_channel = ChannelName::resolve(target_channel, &config_file.data);
+        let target_channel = target_channel.as_str();
         // Validate that the target channel exists and is not an alias
         if let Some(target_info) = config_file.data.installed_channels.get(target_channel) {
             // Prevent alias-to-alias chains for simplicity and maintainability
             if let JuliaupConfigChannel::AliasChannel { .. } = target_info {
                 bail!("Cannot create an alias to another alias `{}`. Please create an alias directly to the target channel instead.", target_channel);
             }
-        } else if !is_valid_channel(&versiondb_data, &target_channel.to_string())? {
+        } else if !is_valid_channel(&versiondb_data, target_channel) {
             bail!("Target channel `{}` is not installed and is not a valid system channel. Please run `juliaup add {}` first or check `juliaup list` for available channels.", target_channel, target_channel);
         }
 

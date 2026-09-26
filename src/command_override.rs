@@ -1,3 +1,4 @@
+use crate::channel_name::ChannelName;
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
@@ -64,6 +65,8 @@ pub fn run_command_override_set(
 ) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`override set` command failed to load configuration data.")?;
+
+    let channel = ChannelName::resolve(&channel, &config_file.data);
 
     if !config_file.data.installed_channels.contains_key(&channel) {
         bail!(

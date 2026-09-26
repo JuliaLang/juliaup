@@ -1,3 +1,4 @@
+use crate::channel_name::ChannelName;
 use crate::operations::is_valid_channel;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 use crate::versions_file::load_versions_db;
@@ -8,10 +9,13 @@ pub fn run_command_default(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let mut config_file = load_mut_config_db(paths)
         .with_context(|| "`default` command failed to load configuration data.")?;
 
+    let channel = ChannelName::resolve(channel, &config_file.data);
+    let channel = channel.as_str();
+
     if !config_file.data.installed_channels.contains_key(channel) {
         let version_db = load_versions_db(paths)
             .with_context(|| "`default` command failed to load versions db.")?;
-        if !is_valid_channel(&version_db, &channel.to_string())? {
+        if !is_valid_channel(&version_db, channel) {
             bail!("'{}' is not a valid Julia version.", channel);
         } else {
             bail!(
