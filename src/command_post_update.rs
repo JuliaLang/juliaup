@@ -22,6 +22,10 @@ pub fn run_command_post_update(paths: &GlobalPaths) -> Result<()> {
     if let Err(e) = restore_symlinks(&bin_path, paths) {
         eprintln!("Warning: failed to restore Julia symlinks: {e}");
     }
+    #[cfg(feature = "selfupdate")]
+    if let Err(e) = refresh_app_links(&bin_path, paths) {
+        eprintln!("Warning: failed to refresh application menu entries: {e}");
+    }
 
     Ok(())
 }
@@ -54,6 +58,23 @@ fn restore_symlinks(bin_path: &std::path::Path, paths: &GlobalPaths) -> Result<(
         for (channel_name, channel) in &config_file.data.installed_channels {
             create_symlink(channel, &format!("julia-{}", channel_name), paths)?;
         }
+    }
+
+    Ok(())
+}
+
+// Rewrite the application menu entries so changes to their layout or icons
+// reach existing installs, but only where the user opted in to them.
+#[cfg(feature = "selfupdate")]
+fn refresh_app_links(bin_path: &std::path::Path, paths: &GlobalPaths) -> Result<()> {
+    use crate::app_links::create_app_links;
+    use crate::config_file::load_config_db;
+    use anyhow::Context;
+
+    let config_file = load_config_db(paths, None)
+        .with_context(|| "Failed to load configuration db while refreshing app links.")?;
+    if config_file.self_data.app_links {
+        create_app_links(bin_path, config_file.self_data.app_links_depot.as_deref())?;
     }
 
     Ok(())

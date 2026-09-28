@@ -151,6 +151,16 @@ pub struct JuliaupSelfConfig {
     pub startup_selfupdate_interval: Option<i64>,
     #[serde(rename = "ModifyPath", default, skip_serializing_if = "is_default")]
     pub modify_path: bool,
+    #[serde(rename = "AppLinks", default, skip_serializing_if = "is_default")]
+    pub app_links: bool,
+    /// `JULIAUP_DEPOT_PATH` at the time the app links were created, so a
+    /// refresh from a bare environment reproduces the same launchers.
+    #[serde(
+        rename = "AppLinksDepot",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub app_links_depot: Option<String>,
     #[serde(rename = "JuliaupChannel", skip_serializing_if = "Option::is_none")]
     pub juliaup_channel: Option<String>,
     #[serde(rename = "LastSelfUpdate", skip_serializing_if = "Option::is_none")]

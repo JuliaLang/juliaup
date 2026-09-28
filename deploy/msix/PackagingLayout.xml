@@ -8,6 +8,7 @@
         <BuildOutput DestinationPath="Julia\juliaupgui.exe" SourceTarget="juliaupgui" SourcePlatform="x86_64-pc-windows-msvc" />
         <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../../target/bundledjulia/extracted/x64" SourcePattern="**/*.*" />
         <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
+        <FilePattern DestinationRoot="Images\Juliaup" SourceRoot="Images/Juliaup" SourcePattern="*.png" />
         <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\..\src\julia.ico" />
       </Files>
@@ -19,6 +20,7 @@
         <BuildOutput DestinationPath="Julia\juliaupgui.exe" SourceTarget="juliaupgui" SourcePlatform="i686-pc-windows-msvc" />
         <FilePattern DestinationRoot="Julia\BundledJulia" SourceRoot="../../target/bundledjulia/extracted/x86" SourcePattern="**/*.*" />
         <FilePattern DestinationRoot="Images" SourceRoot="Images" SourcePattern="*.png" />
+        <FilePattern DestinationRoot="Images\Juliaup" SourceRoot="Images/Juliaup" SourcePattern="*.png" />
         <FilePattern DestinationRoot="Public\Fragments" SourceRoot="Fragments" SourcePattern="*" />
         <File DestinationPath="Public\Fragments\julia.ico" SourcePath="..\..\src\julia.ico" />
       </Files>

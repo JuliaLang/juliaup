@@ -46,6 +46,9 @@ FLAGS:
         --add-to-path <yes|no|0|1>
                                 Add the Juliaup bin directory to PATH startup
                                 files. Defaults to yes.
+        --app-links <yes|no|0|1>
+                                Add Juliaup and Julia to the applications
+                                menu. Defaults to yes.
         --background-selfupdate <MINUTES>
                                 Check for Juliaup self-updates in the
                                 background every MINUTES minutes. Defaults to 0.

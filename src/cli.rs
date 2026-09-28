@@ -182,6 +182,13 @@ pub enum ConfigSubCmd {
         /// New value
         value: Option<bool>,
     },
+    #[cfg(feature = "selfupdate")]
+    #[clap(name = "applinks")]
+    /// Add Juliaup and Julia to the applications menu (app bundles on macOS, desktop entries elsewhere).
+    AppLinks {
+        /// New value
+        value: Option<bool>,
+    },
     /// The time between automatic updates of the versions database in minutes, use 0 to disable.
     #[clap(name = "versionsdbupdateinterval")]
     VersionsDbUpdateInterval {
