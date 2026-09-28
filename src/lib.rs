@@ -29,6 +29,8 @@ pub mod command_status;
 pub mod command_update;
 pub mod command_update_version_db;
 pub mod config_file;
+#[cfg(not(windows))]
+mod download;
 pub mod global_paths;
 pub mod jsonstructs_versionsdb;
 pub mod operations;
