@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use toml::Value;
 
 use crate::jsonstructs_versionsdb::JuliaupVersionDB;
+use crate::nightlies_db::NightliesDb;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
 
 // Constants matching Julia's base/loading.jl
@@ -530,7 +531,24 @@ impl JuliaupVersionDB {
     }
 }
 
-pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) -> Result<String> {
+/// Picks the channel for the Julia version `required` by a manifest. Versions
+/// that are not released (prereleases, or newer than anything in the versions
+/// database) map to the nightly channel of their release series if the nightly
+/// catalog has a standard build of it for this platform, and to `nightly`
+/// otherwise. Without a catalog, a too-new patch version of a known release
+/// series still maps to the nightly channel of that series.
+pub fn resolve_auto_channel(
+    required: String,
+    versions_db: &JuliaupVersionDB,
+    nightlies: Option<&NightliesDb>,
+) -> Result<String> {
+    let has_nightly_channel = |channel: &str| {
+        let Some(nightlies) = nightlies else {
+            return versions_db.has_channel(channel);
+        };
+        nightlies.has_standard_build(channel)
+    };
+
     // Check if exact version is available
     if versions_db.has_channel(&required) {
         return Ok(required);
@@ -551,7 +569,7 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
         let versioned_nightly =
             versioned_nightly_channel(required_version.major, required_version.minor);
 
-        if versions_db.has_channel(&versioned_nightly) {
+        if has_nightly_channel(&versioned_nightly) {
             print_juliaup_style(
                 "Info",
                 &format!(
@@ -584,7 +602,13 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
     if let Some(max_minor_version) = &max_version_for_minor {
         if &required_version > max_minor_version {
             // The requested version is higher than any known version for this minor series
-            let channel = versioned_nightly_channel(required_version.major, required_version.minor);
+            let versioned_nightly =
+                versioned_nightly_channel(required_version.major, required_version.minor);
+            let channel = if nightlies.is_none() || has_nightly_channel(&versioned_nightly) {
+                versioned_nightly
+            } else {
+                "nightly".to_string()
+            };
             print_juliaup_style(
                 "Info",
                 &format!(
@@ -610,7 +634,7 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
             let versioned_nightly =
                 versioned_nightly_channel(required_version.major, required_version.minor);
 
-            if versions_db.has_channel(&versioned_nightly) {
+            if has_nightly_channel(&versioned_nightly) {
                 print_juliaup_style(
                     "Info",
                     &format!(
@@ -652,15 +676,18 @@ pub fn resolve_auto_channel(required: String, versions_db: &JuliaupVersionDB) ->
     ))
 }
 
+/// `nightlies` is only called once a manifest asks for a version, so that the
+/// launcher does not load the nightly catalog on every start.
 pub fn get_auto_channel(
     args: &[String],
     versions_db: &JuliaupVersionDB,
+    nightlies: impl FnOnce() -> Option<NightliesDb>,
     manifest_version_detect: bool,
 ) -> Result<Option<String>> {
     if !manifest_version_detect {
         Ok(None)
     } else if let Some(required_version) = determine_project_version_spec(args)? {
-        resolve_auto_channel(required_version, versions_db).map(Some)
+        resolve_auto_channel(required_version, versions_db, nightlies().as_ref()).map(Some)
     } else {
         Ok(None)
     }

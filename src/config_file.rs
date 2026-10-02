@@ -752,6 +752,7 @@ mod tests {
             juliaupconfig: dir.join("juliaup.json"),
             lockfile: dir.join(".juliaup-lock"),
             versiondb: dir.join("versiondb-test.json"),
+            nightliesdb: dir.join("nightlies-test.json"),
         }
     }
 

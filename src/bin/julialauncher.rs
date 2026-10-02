@@ -3,13 +3,15 @@ use console::{style, Term};
 use dialoguer::Select;
 use is_terminal::IsTerminal;
 use itertools::Itertools;
+use juliaup::channel_name::{is_nightly_channel, is_pr_channel};
 use juliaup::config_file::{
     load_config_db_lockfree, load_mut_config_db, save_config_db, JuliaupConfig,
     JuliaupConfigChannel, JuliaupConfigVersion,
 };
 use juliaup::global_paths::get_paths;
 use juliaup::jsonstructs_versionsdb::JuliaupVersionDB;
-use juliaup::operations::{is_pr_channel, is_valid_channel};
+use juliaup::nightlies_db::load_nightlies_db;
+use juliaup::operations::is_valid_channel;
 use juliaup::utils::{print_juliaup_style, resolve_julia_binary_path, JuliaupMessageType};
 use juliaup::version_selection::get_auto_channel;
 use juliaup::versions_file::load_versions_db;
@@ -317,13 +319,6 @@ fn check_channel_uptodate(
     Ok(())
 }
 
-fn is_nightly_channel(channel: &str) -> bool {
-    use regex::Regex;
-    let nightly_re =
-        Regex::new(r"^((?:nightly|latest)|(\d+\.\d+)-(?:nightly|latest))(~|$)").unwrap();
-    nightly_re.is_match(channel)
-}
-
 #[derive(Debug)]
 enum JuliaupChannelSource {
     CmdLine,
@@ -349,7 +344,7 @@ fn get_julia_path_from_channel(
         _ => (channel.to_string(), Vec::new()),
     };
 
-    let channel_valid = is_valid_channel(versions_db, &resolved_channel)?;
+    let channel_valid = is_valid_channel(versions_db, &resolved_channel);
 
     // First check if the channel is already installed
     if let Some(channel_info) = config_data.installed_channels.get(&resolved_channel) {
@@ -382,9 +377,7 @@ fn get_julia_path_from_channel(
     if matches!(
         juliaup_channel_source,
         JuliaupChannelSource::CmdLine | JuliaupChannelSource::Auto
-    ) && (channel_valid
-        || is_pr_channel(&resolved_channel)
-        || is_nightly_channel(&resolved_channel))
+    ) && channel_valid
     {
         // Check the user's auto-install preference
         let should_auto_install = match config_data.settings.auto_install_channels {
@@ -434,41 +427,41 @@ fn get_julia_path_from_channel(
     // Original error handling for non-command-line sources or invalid channels
     let error = match juliaup_channel_source {
         JuliaupChannelSource::CmdLine => {
-            if channel_valid {
-                UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
-            } else if is_pr_channel(&resolved_channel) {
+            if channel_valid && is_pr_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else if is_nightly_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install nightly channel.") }
+            } else if channel_valid {
+                UserError { msg: format!("`{resolved_channel}` is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}`. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::EnvVar=> {
-            if channel_valid {
-                UserError { msg: format!("`{resolved_channel}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
-            } else if is_pr_channel(&resolved_channel) {
+            if channel_valid && is_pr_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
+            } else if channel_valid {
+                UserError { msg: format!("`{resolved_channel}` from environment variable JULIAUP_CHANNEL is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` from environment variable JULIAUP_CHANNEL. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::Override=> {
-            if channel_valid {
-                UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
-            } else if is_pr_channel(&resolved_channel) {
+            if channel_valid && is_pr_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
+            } else if channel_valid {
+                UserError { msg: format!("`{resolved_channel}` from directory override is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` from directory override. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
         },
         JuliaupChannelSource::Auto => {
-            if channel_valid {
-                UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
-            } else if is_pr_channel(&resolved_channel) {
+            if channel_valid && is_pr_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install pull request channel if available.") }
             } else if is_nightly_channel(&resolved_channel) {
                 UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install nightly channel.") }
+            } else if channel_valid {
+                UserError { msg: format!("`{resolved_channel}` resolved from project manifest is not installed. Please run `juliaup add {resolved_channel}` to install channel or version.") }
             } else {
                 UserError { msg: format!("Invalid Juliaup channel `{resolved_channel}` resolved from project manifest. Please run `juliaup list` to get a list of valid channels and versions.") }
             }
@@ -654,6 +647,7 @@ fn run_app() -> Result<i32> {
         } else if let Ok(Some(channel)) = get_auto_channel(
             &args,
             &versiondb_data,
+            || load_nightlies_db(&paths),
             config_file.data.settings.manifest_version_detect,
         ) {
             (channel, JuliaupChannelSource::Auto)
