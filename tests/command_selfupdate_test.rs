@@ -345,3 +345,108 @@ fn self_update_auto_triggered_by_launcher() {
 
     drop(server);
 }
+
+/// Replace `bin/juliaup` of `install` with a script that fails the way an old
+/// glibc build does on a system whose glibc is too old for it.
+#[cfg(feature = "binjuliainstaller")]
+fn break_juliaup(install: &Install) {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::remove_file(&install.juliaup_exe).unwrap();
+    std::fs::write(
+        &install.juliaup_exe,
+        r#"#!/bin/sh
+echo "juliaup: /lib/x86_64-linux-gnu/libc.so.6: version \`GLIBC_2.39' not found" >&2
+exit 1
+"#,
+    )
+    .unwrap();
+    std::fs::set_permissions(&install.juliaup_exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+/// Run `juliainstaller -y --path <install>` against the mock server, with the
+/// install's (broken) `bin` directory first on `PATH`.
+#[cfg(feature = "binjuliainstaller")]
+fn run_installer(
+    env: &TestEnv,
+    install: &Install,
+    server: &MockServer,
+) -> assert_cmd::assert::Assert {
+    let bin = install.dir.path().join("bin");
+    let path = std::env::join_paths(
+        std::iter::once(bin).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("juliainstaller");
+    env.apply_env(&mut cmd);
+    cmd.env("JULIAUP_SERVER", &server.base_url)
+        .env("PATH", path)
+        .args(["-y", "--path"])
+        .arg(install.dir.path())
+        .assert()
+}
+
+/// The installer repairs its own install in place when the `juliaup` binary no
+/// longer runs, keeping the self config and the Juliaup configuration.
+#[cfg(feature = "binjuliainstaller")]
+#[test]
+fn installer_repairs_broken_install() {
+    let env = TestEnv::new();
+    let install = Install::setup();
+
+    let config = r#"{"Default":null,"InstalledVersions":{},"InstalledChannels":{}}"#;
+    std::fs::create_dir_all(env.config_path().parent().unwrap()).unwrap();
+    std::fs::write(env.config_path(), config).unwrap();
+
+    let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
+    let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
+
+    break_juliaup(&install);
+    std::fs::remove_file(&install.julia_symlink).unwrap();
+
+    run_installer(&env, &install, &server)
+        .success()
+        .stdout(predicate::str::contains("Juliaup was repaired."));
+
+    Command::new(&install.juliaup_exe)
+        .arg("--version")
+        .assert()
+        .success();
+    assert!(
+        install.julia_symlink.symlink_metadata().is_ok(),
+        "julia launcher symlink should be restored by the repair"
+    );
+    assert_eq!(
+        std::fs::read_to_string(install.self_config_path()).unwrap(),
+        "{}"
+    );
+    assert_eq!(std::fs::read_to_string(env.config_path()).unwrap(), config);
+
+    drop(server);
+}
+
+/// Without `juliaupself.json` the folder was not created by this installer, so
+/// it is left alone.
+#[cfg(feature = "binjuliainstaller")]
+#[test]
+fn installer_does_not_repair_foreign_install() {
+    let env = TestEnv::new();
+    let install = Install::setup();
+
+    let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
+    let server = MockServer::start(String::new(), String::new(), tarball);
+
+    break_juliaup(&install);
+    std::fs::remove_file(install.self_config_path()).unwrap();
+    let broken_juliaup = std::fs::read(&install.juliaup_exe).unwrap();
+
+    run_installer(&env, &install, &server)
+        .success()
+        .stdout(predicate::str::contains("but that folder already exists"));
+
+    assert_eq!(std::fs::read(&install.juliaup_exe).unwrap(), broken_juliaup);
+
+    drop(server);
+}

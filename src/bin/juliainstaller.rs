@@ -100,20 +100,72 @@ fn run_individual_config_wizard(
 }
 
 #[cfg(feature = "selfupdate")]
-fn is_juliaup_installed() -> bool {
+fn runs_successfully(program: impl AsRef<std::ffi::OsStr>) -> bool {
     use std::process::Stdio;
 
-    let exit_status = std::process::Command::new("juliaup")
+    let exit_status = std::process::Command::new(program)
         .args(["--version"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .stdin(Stdio::null())
         .status();
 
-    match exit_status {
-        Ok(status) => status.success(),
-        Err(_) => false, // failed to execute `juliaup` command
-    }
+    // Failing to execute the program at all also counts as not running.
+    matches!(exit_status, Ok(status) if status.success())
+}
+
+#[cfg(feature = "selfupdate")]
+fn is_juliaup_installed() -> bool {
+    runs_successfully("juliaup")
+}
+
+/// A Juliaup install created by this installer whose `juliaup` binary exists but no
+/// longer runs, e.g. an old glibc build on a system whose glibc is too old for it.
+#[cfg(feature = "selfupdate")]
+fn is_broken_juliaup_install(location: &std::path::Path) -> bool {
+    let juliaup = location.join("bin").join("juliaup");
+    juliaup.exists() && location.join("juliaupself.json").exists() && !runs_successfully(&juliaup)
+}
+
+/// Download the Juliaup binaries that match this installer's version and target into `bin`.
+#[cfg(feature = "selfupdate")]
+fn download_juliaup(bin: &std::path::Path) -> Result<()> {
+    use anyhow::Context;
+    use juliaup::{
+        get_juliaup_target, get_own_version, operations::download_extract_sans_parent,
+        utils::get_juliaserver_base_url,
+    };
+
+    let juliaup_target = get_juliaup_target();
+
+    let juliaupserver_base =
+        get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
+
+    let version = get_own_version().unwrap();
+    // let version = semver::Version::parse("1.5.29").unwrap();
+
+    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
+
+    let new_juliaup_url = juliaupserver_base
+        .join(&download_url_path)
+        .with_context(|| {
+            format!(
+                "Failed to construct a valid url from '{}' and '{}'.",
+                juliaupserver_base, download_url_path
+            )
+        })?;
+
+    download_extract_sans_parent(new_juliaup_url.as_ref(), bin, 0)?;
+
+    Ok(())
+}
+
+#[cfg(feature = "selfupdate")]
+fn print_install_location_exists(install_location: &std::path::Path) {
+    println!("You are trying to install Juliaup into the folder");
+    println!("`{}`,", install_location.display());
+    println!("but that folder already exists. Please remove that folder");
+    println!("and then start the setup process again.");
 }
 
 #[derive(Parser)]
@@ -227,7 +279,7 @@ fn print_install_choices(install_choices: &InstallChoices) -> Result<()> {
 
 #[cfg(feature = "selfupdate")]
 pub fn main() -> Result<()> {
-    use anyhow::{anyhow, Context};
+    use anyhow::{anyhow, bail, Context};
     use console::{style, Style};
     use dialoguer::{
         theme::{ColorfulTheme, SimpleTheme, Theme},
@@ -235,14 +287,10 @@ pub fn main() -> Result<()> {
     };
     use is_terminal::IsTerminal;
     use juliaup::{
-        command_add::run_command_add,
-        command_default::run_command_default,
-        command_selfchannel::run_command_selfchannel,
-        config_file::JuliaupSelfConfig,
-        get_juliaup_target, get_own_version,
-        global_paths::get_paths,
-        operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified},
-        utils::get_juliaserver_base_url,
+        command_add::run_command_add, command_default::run_command_default,
+        command_selfchannel::run_command_selfchannel, config_file::JuliaupSelfConfig,
+        get_juliaup_target, get_own_version, global_paths::get_paths,
+        operations::find_shell_scripts_to_be_modified,
     };
     use std::io::Seek;
     use std::path::PathBuf;
@@ -298,6 +346,73 @@ pub fn main() -> Result<()> {
         return Ok(());
     }
 
+    let install_location = match args.alternate_path {
+        Some(alternate_path) => PathBuf::from(alternate_path),
+        None => dirs::home_dir()
+            .ok_or(anyhow!(
+                "Could not determine the path of the user home directory."
+            ))?
+            .join(".juliaup"),
+    };
+
+    if is_broken_juliaup_install(&install_location) {
+        println!(
+            "Juliaup at `{}` fails to run. This can happen when an older",
+            install_location.display()
+        );
+        println!("Juliaup build needs a newer glibc than this system has.");
+        println!();
+        println!(
+            "The installer can replace the Juliaup binaries with version {} ({}).",
+            get_own_version().unwrap(),
+            get_juliaup_target()
+        );
+        println!("Installed Julia versions and settings are kept.");
+        println!();
+
+        if !args.disable_confirmation_prompt {
+            let repair = Confirm::with_theme(theme.as_ref())
+                .with_prompt("Do you want to repair this Juliaup installation?")
+                .default(true)
+                .interact_opt()?;
+
+            println!();
+
+            if !repair.unwrap_or(false) {
+                print_install_location_exists(&install_location);
+
+                return Ok(());
+            }
+        }
+
+        let juliaupselfbin = install_location.join("bin");
+
+        println!("Now repairing Juliaup");
+
+        download_juliaup(&juliaupselfbin)?;
+
+        // Recreate the `julia` and channel symlinks, completions and shell init
+        // blocks, the same way `juliaup self update` does.
+        let new_juliaup = juliaupselfbin.join("juliaup");
+        if let Err(e) = std::process::Command::new(&new_juliaup)
+            .arg("_post-update")
+            .status()
+        {
+            eprintln!("Warning: post-update hook failed: {e}");
+        }
+
+        if !runs_successfully(&new_juliaup) {
+            bail!(
+                "Juliaup at `{}` still fails to run after the repair.",
+                new_juliaup.display()
+            );
+        }
+
+        println!("Juliaup was repaired.");
+
+        return Ok(());
+    }
+
     println!("This will download and install the official Julia Language distribution");
     println!("and its version manager Juliaup.");
     println!();
@@ -333,14 +448,7 @@ pub fn main() -> Result<()> {
         startupselfupdate: args.startup_selfupdate_interval,
         symlinks: false,
         modifypath: args.add_to_path.unwrap_or(false),
-        install_location: match args.alternate_path {
-            Some(alternate_path) => PathBuf::from(alternate_path),
-            None => dirs::home_dir()
-                .ok_or(anyhow!(
-                    "Could not determine the path of the user home directory."
-                ))?
-                .join(".juliaup"),
-        },
+        install_location: install_location.clone(),
         modifypath_files: find_shell_scripts_to_be_modified(true)
             .with_context(|| "Failed to identify the shell scripts that need to be modified.")?,
     };
@@ -399,10 +507,7 @@ pub fn main() -> Result<()> {
     }
 
     if install_choices.install_location.exists() {
-        println!("You are trying to install Juliaup into the folder");
-        println!("`{}`,", install_choices.install_location.display());
-        println!("but that folder already exists. Please remove that folder");
-        println!("and then start the setup process again.");
+        print_install_location_exists(&install_choices.install_location);
 
         return Ok(());
     }
@@ -466,26 +571,7 @@ pub fn main() -> Result<()> {
         )
     })?;
 
-    let juliaup_target = get_juliaup_target();
-
-    let juliaupserver_base =
-        get_juliaserver_base_url().with_context(|| "Failed to get Juliaup server base URL.")?;
-
-    let version = get_own_version().unwrap();
-    // let version = semver::Version::parse("1.5.29").unwrap();
-
-    let download_url_path = format!("juliaup/bin/juliaup-{}-{}.tar.gz", version, juliaup_target);
-
-    let new_juliaup_url = juliaupserver_base
-        .join(&download_url_path)
-        .with_context(|| {
-            format!(
-                "Failed to construct a valid url from '{}' and '{}'.",
-                juliaupserver_base, download_url_path
-            )
-        })?;
-
-    download_extract_sans_parent(new_juliaup_url.as_ref(), &juliaupselfbin, 0)?;
+    download_juliaup(&juliaupselfbin)?;
 
     {
         let new_selfconfig_data = JuliaupSelfConfig {
