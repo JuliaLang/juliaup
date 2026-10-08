@@ -308,3 +308,134 @@ fn alias_update_resolves_target() {
         .success()
         .stderr(predicate::str::contains("Checking for new Julia versions"));
 }
+
+#[cfg(unix)]
+fn read_config(env: &TestEnv) -> serde_json::Value {
+    serde_json::from_str(&std::fs::read_to_string(env.config_path()).unwrap()).unwrap()
+}
+
+/// https://github.com/JuliaLang/juliaup/issues/584: a linked channel can be
+/// pointed somewhere else in one step, and stays the default.
+#[cfg(unix)]
+#[test]
+fn link_force_replaces_linked_channel_and_keeps_default() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .args(["link", "dev", "/usr/bin/false"])
+        .assert()
+        .success();
+    env.juliaup().args(["default", "dev"]).assert().success();
+
+    env.juliaup()
+        .args(["link", "--force", "dev", "/usr/bin/true"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Replacing"));
+
+    let config = read_config(&env);
+    assert_eq!(config["Default"], "dev");
+    assert_eq!(
+        config["InstalledChannels"]["dev"]["Command"],
+        "/usr/bin/true"
+    );
+}
+
+/// Without `--force` and without a terminal to ask, nothing is changed.
+#[cfg(unix)]
+#[test]
+fn link_existing_channel_without_force_fails_non_interactively() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .args(["link", "dev", "/usr/bin/false"])
+        .assert()
+        .success();
+
+    env.juliaup()
+        .args(["link", "dev", "/usr/bin/true"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("Channel name `dev` is already used")
+                .and(predicate::str::contains("--force")),
+        );
+
+    let config = read_config(&env);
+    assert_eq!(
+        config["InstalledChannels"]["dev"]["Command"],
+        "/usr/bin/false"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn link_force_switches_between_alias_and_linked_channel() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .args(["link", "stable", "+release"])
+        .assert()
+        .success();
+    env.juliaup()
+        .args(["link", "-f", "stable", "/usr/bin/true"])
+        .assert()
+        .success();
+    assert_eq!(
+        read_config(&env)["InstalledChannels"]["stable"]["Command"],
+        "/usr/bin/true"
+    );
+
+    env.juliaup()
+        .args(["link", "-f", "stable", "+release"])
+        .assert()
+        .success();
+    assert_eq!(
+        read_config(&env)["InstalledChannels"]["stable"]["Target"],
+        "release"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn link_rejects_alias_to_itself() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .args(["link", "dev", "/usr/bin/false"])
+        .assert()
+        .success();
+    env.juliaup()
+        .args(["link", "--force", "dev", "+dev"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("alias of itself"));
+}
+
+/// With channel symlinks enabled, replacing a linked channel must replace its
+/// `julia-<channel>` shim (see also #1171).
+#[cfg(unix)]
+#[test]
+fn link_force_replaces_channel_shim() {
+    let env = TestEnv::new();
+    let bin_dir = assert_fs::TempDir::new().unwrap();
+    let run = |args: &[&str]| {
+        env.juliaup()
+            .env("JULIAUP_BIN_DIR", bin_dir.path())
+            .args(args)
+            .assert()
+            .success();
+    };
+    let shim = bin_dir.path().join("julia-dev");
+
+    run(&["config", "channelsymlinks", "true"]);
+    run(&["link", "dev", "/usr/bin/false"]);
+    run(&["link", "--force", "dev", "/usr/bin/true"]);
+    assert!(std::fs::read_to_string(&shim)
+        .unwrap()
+        .contains("/usr/bin/true"));
+
+    // An alias has no shim, so the old one is removed.
+    run(&["link", "--force", "dev", "+release"]);
+    assert!(shim.symlink_metadata().is_err());
+}

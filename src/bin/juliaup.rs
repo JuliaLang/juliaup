@@ -105,7 +105,8 @@ fn main() -> Result<()> {
             channel,
             target,
             args,
-        } => run_command_link(&channel, &target, &args, &paths),
+            force,
+        } => run_command_link(&channel, &target, &args, force, &paths),
         Juliaup::List {} => run_command_list(&paths),
         Juliaup::Config(subcmd) => match subcmd {
             #[cfg(not(windows))]
