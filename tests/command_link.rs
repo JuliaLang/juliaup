@@ -439,3 +439,29 @@ fn link_force_replaces_channel_shim() {
     run(&["link", "--force", "dev", "+release"]);
     assert!(shim.symlink_metadata().is_err());
 }
+
+/// https://github.com/JuliaLang/juliaup/issues/1171: with channel symlinks
+/// enabled, removing a linked channel failed with `Invalid argument (os error
+/// 22)` because its `julia-<channel>` shim is a script, not a symlink.
+#[cfg(unix)]
+#[test]
+fn remove_linked_channel_with_channel_symlinks() {
+    let env = TestEnv::new();
+    let bin_dir = assert_fs::TempDir::new().unwrap();
+    let run = |args: &[&str]| {
+        env.juliaup()
+            .env("JULIAUP_BIN_DIR", bin_dir.path())
+            .args(args)
+            .assert()
+            .success();
+    };
+    let shim = bin_dir.path().join("julia-dev");
+
+    run(&["config", "channelsymlinks", "true"]);
+    run(&["link", "dev", "/usr/bin/true"]);
+    assert!(shim.is_file());
+
+    run(&["remove", "dev"]);
+    assert!(shim.symlink_metadata().is_err());
+    assert!(read_config(&env)["InstalledChannels"].get("dev").is_none());
+}
