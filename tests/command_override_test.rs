@@ -336,7 +336,6 @@ fn command_override_delete_empty_test() {
 
 /// https://github.com/JuliaLang/juliaup/issues/1196: an override can be unset
 /// by path after its directory, and possibly its parents, have been deleted.
-#[cfg(unix)]
 #[test]
 fn command_override_unset_deleted_path_test() {
     let env = TestEnv::new();
@@ -346,8 +345,12 @@ fn command_override_unset_deleted_path_test() {
     std::fs::create_dir(&deleted).unwrap();
     std::fs::create_dir_all(&nested).unwrap();
 
+    // Julia is never launched here, so a placeholder binary path is enough and
+    // avoids downloading a Julia version.
     env.juliaup()
-        .args(["link", "dev", "/usr/bin/true"])
+        .arg("link")
+        .arg("dev")
+        .arg(or_dir.path().join("julia"))
         .assert()
         .success();
     for path in [&deleted, &nested] {
