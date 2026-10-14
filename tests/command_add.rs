@@ -66,14 +66,15 @@ fn command_add_unknown_nightly_variant() {
         .failure()
         .stderr(predicate::str::contains("'nightly' has no '+bogus' build"));
 
-    // Variants are only produced for nightlies.
+    // Release variants come from the versions database, which has none of
+    // this one.
     env.juliaup()
         .arg("add")
-        .arg("release+opt")
+        .arg("1.6+opt")
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "build variants such as `+opt` are only available for nightly channels",
+            "'1.6+opt' is not available: there is no `+opt` build of '1.6' for this platform.",
         ));
 }
 
