@@ -252,6 +252,31 @@ function get_available_versions(data, platform)
         end
     end
 
+    # Build variants of releases (a `variants` list next to `files` in versions.json, from
+    # Julia 1.14): `<channel>+<variant>[~arch]` follows `<channel>[~arch]` to the same Julia
+    # version, and exists where that version has a build of the variant for the platform.
+    # The version keys append the variants to the build metadata, e.g.
+    # `1.14.0+0.x64.linux.gnu.opt`, so that they install next to the standard build.
+    variant_versions = OrderedDict{String,Any}()
+    for (version, version_data) in data, file in get(version_data, "variants", [])
+        if file["extension"] == "tar.gz" && file["kind"] == "archive" && file["triplet"] in platforms_to_include
+            key = "$(VersionNumber(version))+0.$(triplet2semverbuild(file["triplet"])).$(join(sort(file["variants"]), "."))"
+            variant_versions[key] = OrderedDict("UrlPath" => remove_prefix(file["url"], "https://julialang-s3.julialang.org/"))
+        end
+    end
+    sort!(variant_versions, by = key -> (VersionNumber(split(key, '+')[1]), key))
+
+    for (channel, info) in collect(available_channels)
+        name, arch = occursin('~', channel) ? split(channel, '~') : (channel, nothing)
+        prefix = "$(info["Version"])."
+        for key in keys(variant_versions)
+            startswith(key, prefix) || continue
+            variant_name = "$name+$(replace(key[length(prefix)+1:end], "." => "+"))"
+            available_channels[arch === nothing ? variant_name : "$variant_name~$arch"] = Dict("Version" => key)
+        end
+    end
+    merge!(available_versions, variant_versions)
+
     available_channels = available_channels |>
         pairs |>
         @orderby(_[1]) |>

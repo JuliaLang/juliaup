@@ -160,6 +160,7 @@ The available system provided channels are:
 - `nightly`: always points to the latest build from the `master` branch in the Julia repository.
 - `x.y-nightly`: always points to the latest build from the `release-x.y` branch in the Julia repository, e.g. `1.11-nightly` gives the latest build on the `release-1.11` branch. `juliaup list` shows which release branches currently have nightly builds.
 - `nightly+variant` and `x.y-nightly+variant`: a build variant of a nightly channel, i.e. the same sources built with a different configuration. Current variants are `opt` (optimized with PGO, LTO and BOLT), `assert` (with assertions enabled, for debugging Julia itself) and `nogpl` (without GPL-licensed libraries). `juliaup list` shows the ones available for your platform, e.g. `nightly+opt` or `1.13-nightly+nogpl`.
+- `channel+variant` for releases from Julia 1.14 on, e.g. `release+opt`, `1.14+opt` or `1.14.0+assert`: the build variant of the version the channel points to (only `opt` and `assert`), where that version has one for your platform.
 - `pr{number}` (e.g. `pr123`): points to the latest successful build of a PR branch (https://github.com/JuliaLang/julia/pull/{number}). Only available if CI has successfully built Julia on that branch within roughly the last 90 days: PR builds expire, but re-running CI on the pull request uploads fresh ones.
 - specific versions, e.g. `1.5.4`.
 - minor version channels, e.g. `1.5`.
@@ -167,7 +168,7 @@ The available system provided channels are:
 
 Builds that combine several variants are named by chaining them, e.g. `nightly+assert+opt`.
 Use the channel name exactly as `juliaup list` shows it: `nightly+opt+assert` is not accepted.
-Variants are not available for releases or PR builds.
+Variants are not available for PR builds.
 
 All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
 
