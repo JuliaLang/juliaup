@@ -73,14 +73,6 @@ fn commit_downloaded_channel(
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     let name = ChannelName::parse(channel)?;
-    if !name.variants.is_empty() && !name.is_nightly() {
-        bail!(
-            "'{}' is not a valid channel name: build variants such as `{}` are only available for nightly channels (e.g. `nightly{}`).",
-            channel,
-            name.variant_suffix(),
-            name.variant_suffix()
-        );
-    }
     if name.is_direct_download() {
         return add_non_db(channel, &name, paths);
     }
@@ -94,10 +86,21 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         .available_channels
         .get(channel)
         .ok_or_else(|| {
-            anyhow!(
-                "'{}' is not a valid Julia version or channel name.",
-                channel
-            )
+            // Release variants (`1.14+opt`) are listed in the versions database
+            // like any other channel, from the first release built with them.
+            if name.variants.is_empty() {
+                anyhow!(
+                    "'{}' is not a valid Julia version or channel name.",
+                    channel
+                )
+            } else {
+                anyhow!(
+                    "'{}' is not available: there is no `{}` build of '{}' for this platform.",
+                    channel,
+                    name.variant_suffix(),
+                    name.base
+                )
+            }
         })?
         .version;
 
