@@ -308,7 +308,8 @@ fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Re
     }
 
     log::debug!("Downloading DMG from url `{}`.", url);
-    let response = http_client()?
+    let client = http_client()?;
+    let response = client
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -336,7 +337,8 @@ fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Re
     let temp_dmg = Builder::new().prefix("julia-").suffix(".dmg").tempfile()?;
 
     let mut dmg_file = File::create(temp_dmg.path())?;
-    std::io::copy(&mut pb.wrap_read(response), &mut dmg_file)?;
+    let body = crate::download::resumable(&client, response);
+    std::io::copy(&mut pb.wrap_read(body), &mut dmg_file)?;
     dmg_file.flush()?;
     drop(dmg_file);
 
@@ -480,7 +482,8 @@ fn download_extract_archive(
     require_etag: bool,
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
-    let response = http_client()?
+    let client = http_client()?;
+    let response = client
         .get(url)
         .send()
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
@@ -504,7 +507,7 @@ fn download_extract_archive(
         .unwrap_or_default();
 
     validate_artifact_etag(&last_modified, url, require_etag)?;
-    let response_with_pb = pb.wrap_read(response);
+    let response_with_pb = pb.wrap_read(crate::download::resumable(&client, response));
 
     unpack_sans_parent(response_with_pb, target_path, levels_to_skip)
         .with_context(|| format!("Failed to extract downloaded file from url `{}`.", url))?;
