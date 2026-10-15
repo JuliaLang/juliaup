@@ -2189,12 +2189,12 @@ fn get_shell_script_juliaup_content(
 ) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
 
-    let bin_path_str = match bin_path.to_str() {
+    let bin_path_str = match path_relative_to_home(bin_path) {
         Some(s) => s,
         None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
     };
 
-    let juliauphome_str = match juliauphome.to_str() {
+    let juliauphome_str = match path_relative_to_home(juliauphome) {
         Some(s) => s,
         None => bail!("Could not create UTF-8 string from juliaup home path."),
     };
@@ -2206,14 +2206,14 @@ fn get_shell_script_juliaup_content(
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Could not determine file name for path: {}", path.display()))?;
     if file_name == ".zshrc" {
-        append_zsh_content(&mut result, bin_path_str);
+        append_zsh_content(&mut result, &bin_path_str);
     } else if path.file_name().unwrap() == ".cshrc" || path.file_name().unwrap() == ".tcshrc" {
-        append_csh_content(&mut result, bin_path_str);
+        append_csh_content(&mut result, &bin_path_str);
     } else {
-        append_sh_content(&mut result, bin_path_str);
+        append_sh_content(&mut result, &bin_path_str);
     }
     if file_name == ".zshrc" || file_name.starts_with(".bash") {
-        append_completions_content(&mut result, file_name, juliauphome_str);
+        append_completions_content(&mut result, file_name, &juliauphome_str);
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
@@ -2221,11 +2221,25 @@ fn get_shell_script_juliaup_content(
     Ok(result)
 }
 
+/// Converts `path` to a UTF-8 string, replacing a leading home directory with `${HOME}`
+/// so that the generated shell snippet does not embed the absolute home path.
+/// The result must be placed in double quotes (or left unquoted) so the shell expands it.
+fn path_relative_to_home(path: &Path) -> Option<String> {
+    if let Some(rest) = dirs::home_dir().and_then(|home| path.strip_prefix(home).ok()) {
+        let rest = rest.to_str()?;
+        if rest.is_empty() {
+            return Some("${HOME}".to_string());
+        }
+        return Some(format!("${{HOME}}/{}", rest));
+    }
+    path.to_str().map(|s| s.to_string())
+}
+
 fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
     // zsh specific syntax for path extension
     let content = formatdoc!(
         "
-            path=('{}' $path)
+            path=(\"{}\" $path)
             export PATH
         ",
         path_str
@@ -2238,7 +2252,7 @@ fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
     // csh specific syntax for path extension
     let content = formatdoc!(
         "
-            set path = ({} $path)
+            set path = (\"{}\" $path)
         ",
         path_str
     );
@@ -2253,11 +2267,11 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     let content = formatdoc!(
         "
             case \":$PATH:\" in
-                *:{0}:*)
+                *:\"{0}\":*)
                     ;;
 
                 *)
-                    export PATH={0}${{PATH:+:${{PATH}}}}
+                    export PATH=\"{0}\"${{PATH:+:${{PATH}}}}
                     ;;
             esac
         ",
