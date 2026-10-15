@@ -131,6 +131,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup default 1.6` configures the `julia` command to start the latest 1.6.x version of Julia you have installed on your system (and inform you if there is a newer version in 1.6.x available).
 - `juliaup default release` configures the `julia` command to start the latest stable version of Julia (this is also the default value).
 - `juliaup remove 1.5.3` deletes Julia 1.5.3 from your system.
+- `juliaup remove 1.5.3 1.6.1` deletes several channels at once, and `juliaup remove 'pr*'` deletes every installed channel matching the pattern (the default channel and channels used in overrides are skipped).
 - `juliaup add 1.6.1~x86` installs the 32 bit version of Julia 1.6.1 on your system.
 - `juliaup default 1.6~x86` configures the `julia` command to start the latest 1.6.x 32 bit version of Julia you have installed on your system.
 - `juliaup link dev ~/juliasrc/julia` configures the `dev` channel to use a binary that you provide that is located at `~/juliasrc/julia`. You can then use `dev` as if it was a system provided channel, i.e. make it the default or use it with the `+` version selector. You can use other names than `dev` and link as many versions into `juliaup` as you want.
