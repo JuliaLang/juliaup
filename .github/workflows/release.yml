@@ -214,6 +214,9 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
+        # Version 2 of this action denies warnings by default. A new compiler or
+        # linker warning should not stop a release.
+        build-warnings: warn
         toolchain: ${{ steps.toolchain.outputs.name }}
         target: ${{matrix.target}}
         # Without this, all matrix jobs on one OS share a single job-id-based
@@ -412,6 +415,7 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       with:
+        build-warnings: warn
         toolchain: ${{ steps.toolchain.outputs.name }}
         target: ${{matrix.target}}
         # Without this, all matrix jobs on one OS share a single job-id-based
@@ -794,6 +798,8 @@ jobs:
     #     pwsh --version
     - uses: actions/checkout@v7
     - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+      with:
+        build-warnings: warn
     - name: Install cargo-msix
       run: cargo install cargo-msix
     - name: Install StoreBroker
@@ -1409,6 +1415,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          build-warnings: warn
       - name: Publish to creates.io
         run: cargo publish
         env:
