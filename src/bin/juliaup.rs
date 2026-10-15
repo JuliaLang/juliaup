@@ -23,7 +23,7 @@ use juliaup::command_status::run_command_status;
 use juliaup::command_update::run_command_update;
 use juliaup::command_update_version_db::run_command_update_version_db;
 use juliaup::global_paths::get_paths;
-use juliaup::{command_add::run_command_add, command_override::run_command_override_set};
+use juliaup::{command_add::run_command_add_channels, command_override::run_command_override_set};
 #[cfg(feature = "selfupdate")]
 use juliaup::{
     command_config_backgroundselfupdate::run_command_config_backgroundselfupdate,
@@ -96,7 +96,7 @@ fn main() -> Result<()> {
 
     match args {
         Juliaup::Default { channel } => run_command_default(&channel, &paths),
-        Juliaup::Add { channel } => run_command_add(&channel, &paths),
+        Juliaup::Add { channels } => run_command_add_channels(&channels, &paths),
         Juliaup::Remove { channels } => run_command_remove(&channels, &paths),
         Juliaup::Status {} => run_command_status(&paths),
         Juliaup::Update { channel } => run_command_update(&channel, &paths),

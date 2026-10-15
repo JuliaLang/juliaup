@@ -23,8 +23,11 @@ Entering just `julia` uses the default channel set via `juliaup default`."
 pub enum Juliaup {
     /// Set the default Julia version
     Default { channel: String },
-    /// Add a specific Julia version or channel to your system. Access via `julia +{channel}` e.g. `julia +1.6`
-    Add { channel: String },
+    /// Add one or more Julia versions or channels to your system. Access via `julia +{channel}` e.g. `julia +1.6`
+    Add {
+        #[clap(required = true)]
+        channels: Vec<String>,
+    },
     /// Link an existing Julia binary or channel to a custom channel name
     Link {
         /// Name of the new channel to create

@@ -127,6 +127,7 @@ Here are some of the things you can do with `juliaup`:
 - `juliaup update release` updates the `release` channel to the latest version.
 - `juliaup status` shows you which Julia versions you have installed and which one is configured as the default.
 - `juliaup add 1.5.1` adds Julia 1.5.1 to your system (it can then be launched via the command `julia +1.5.1`).
+- `juliaup add 1.10 1.11` adds several channels at once.
 - `juliaup default 1.5.3` configures the `julia` command to start Julia 1.5.3.
 - `juliaup default 1.6` configures the `julia` command to start the latest 1.6.x version of Julia you have installed on your system (and inform you if there is a newer version in 1.6.x available).
 - `juliaup default release` configures the `julia` command to start the latest stable version of Julia (this is also the default value).
