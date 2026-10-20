@@ -309,9 +309,7 @@ fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Re
 
     log::debug!("Downloading DMG from url `{}`.", url);
     let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
+    let response = crate::download::send(&client, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     if !response.status().is_success() {
@@ -483,9 +481,7 @@ fn download_extract_archive(
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
     let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
+    let response = crate::download::send(&client, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let content_length = response.content_length();
@@ -634,9 +630,7 @@ fn download_extract_archive(
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = http_client()?
-        .get(url)
-        .send()
+    let response = crate::download::send(&http_client()?, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let status = response.status();
@@ -670,9 +664,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let mut response = http_client()?
-        .get(url)
-        .send()
+    let mut response = crate::download::send(&http_client()?, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let status = response.status();
