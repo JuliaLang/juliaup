@@ -2189,14 +2189,11 @@ fn get_shell_script_juliaup_content(
 ) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
 
-    let bin_path_str = match path_relative_to_home(bin_path) {
+    let home = dirs::home_dir();
+
+    let bin_path_str = match shell_quoted_path(bin_path, home.as_deref()) {
         Some(s) => s,
         None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
-    };
-
-    let juliauphome_str = match path_relative_to_home(juliauphome) {
-        Some(s) => s,
-        None => bail!("Could not create UTF-8 string from juliaup home path."),
     };
 
     result.extend_from_slice(S_MARKER);
@@ -2213,7 +2210,7 @@ fn get_shell_script_juliaup_content(
         append_sh_content(&mut result, &bin_path_str);
     }
     if file_name == ".zshrc" || file_name.starts_with(".bash") {
-        append_completions_content(&mut result, file_name, &juliauphome_str);
+        append_completions_content(&mut result, file_name, juliauphome, home.as_deref())?;
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
@@ -2221,25 +2218,41 @@ fn get_shell_script_juliaup_content(
     Ok(result)
 }
 
-/// Converts `path` to a UTF-8 string, replacing a leading home directory with `${HOME}`
-/// so that the generated shell snippet does not embed the absolute home path.
-/// The result must be placed in double quotes (or left unquoted) so the shell expands it.
-fn path_relative_to_home(path: &Path) -> Option<String> {
-    if let Some(rest) = dirs::home_dir().and_then(|home| path.strip_prefix(home).ok()) {
-        let rest = rest.to_str()?;
-        if rest.is_empty() {
-            return Some("${HOME}".to_string());
+/// Quotes `path` for a shell script, writing a leading home directory as `${HOME}` so that
+/// rc files shared between machines still work.
+fn shell_quoted_path(path: &Path, home: Option<&Path>) -> Option<String> {
+    let path_str = path.to_str()?;
+    // The path of the running executable can have symlinks resolved, so also try the
+    // resolved home directory.
+    let rest = home
+        .into_iter()
+        .flat_map(|h| [Some(h.to_path_buf()), h.canonicalize().ok()])
+        .flatten()
+        .find_map(|h| path.strip_prefix(h).ok().map(|rest| rest.to_path_buf()));
+    let (prefix, rest) = match rest {
+        Some(rest) if rest.as_os_str().is_empty() => ("${HOME}", String::new()),
+        Some(rest) => ("${HOME}", format!("/{}", rest.to_str()?)),
+        None => ("", path_str.to_string()),
+    };
+    // `${HOME}` needs double quotes to expand. The rest goes in single quotes if double
+    // quotes would not keep it literal.
+    if rest.contains(['$', '`', '"', '\\', '\'']) {
+        let rest = rest.replace('\'', r"'\''");
+        if prefix.is_empty() {
+            Some(format!("'{rest}'"))
+        } else {
+            Some(format!("\"{prefix}\"'{rest}'"))
         }
-        return Some(format!("${{HOME}}/{}", rest));
+    } else {
+        Some(format!("\"{prefix}{rest}\""))
     }
-    path.to_str().map(|s| s.to_string())
 }
 
 fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
     // zsh specific syntax for path extension
     let content = formatdoc!(
         "
-            path=(\"{}\" $path)
+            path=({} $path)
             export PATH
         ",
         path_str
@@ -2252,7 +2265,7 @@ fn append_csh_content(buf: &mut Vec<u8>, path_str: &str) {
     // csh specific syntax for path extension
     let content = formatdoc!(
         "
-            set path = (\"{}\" $path)
+            set path = ({} $path)
         ",
         path_str
     );
@@ -2267,11 +2280,11 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     let content = formatdoc!(
         "
             case \":$PATH:\" in
-                *:\"{0}\":*)
+                *:{0}:*)
                     ;;
 
                 *)
-                    export PATH=\"{0}\"${{PATH:+:${{PATH}}}}
+                    export PATH={0}${{PATH:+:${{PATH}}}}
                     ;;
             esac
         ",
@@ -2280,19 +2293,30 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
-fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
-    let (shell, ext) = if file_name == ".zshrc" {
-        ("zsh", "zsh")
+fn append_completions_content(
+    buf: &mut Vec<u8>,
+    file_name: &str,
+    juliauphome: &Path,
+    home: Option<&Path>,
+) -> Result<()> {
+    let completions_file = if file_name == ".zshrc" {
+        "zsh.zsh"
     } else {
-        ("bash", "sh")
+        "bash.sh"
+    };
+    let completions_path = juliauphome.join("completions").join(completions_file);
+    let completions_str = match shell_quoted_path(&completions_path, home) {
+        Some(s) => s,
+        None => bail!("Could not create UTF-8 string from juliaup home path."),
     };
     let content = formatdoc!(
         r#"
             # Tab completion for juliaup and julia channel selection
-            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
+            [ -f {completions_str} ] && source {completions_str}
         "#,
     );
     buf.extend_from_slice(content.as_bytes());
+    Ok(())
 }
 
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
@@ -3137,6 +3161,31 @@ mod tests {
                 std::env::remove_var(self.key);
             }
         }
+    }
+
+    #[test]
+    fn shell_quoted_path_uses_home_variable() {
+        let home = Path::new("/nonexistent-juliaup-test/u");
+        let quote = |p: &str, home| shell_quoted_path(Path::new(p), home).unwrap();
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u", Some(home)),
+            r#""${HOME}""#
+        );
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u/.juliaup/bin", Some(home)),
+            r#""${HOME}/.juliaup/bin""#
+        );
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u2/bin", Some(home)),
+            r#""/nonexistent-juliaup-test/u2/bin""#
+        );
+        assert_eq!(quote("/opt/a b/bin", Some(home)), r#""/opt/a b/bin""#);
+        assert_eq!(quote("/opt/bin", None), r#""/opt/bin""#);
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u/a$b/it's", Some(home)),
+            r#""${HOME}"'/a$b/it'\''s'"#
+        );
+        assert_eq!(quote("/opt/a\"b", None), r#"'/opt/a"b'"#);
     }
 
     #[test]
