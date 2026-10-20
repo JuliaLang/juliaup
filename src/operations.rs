@@ -632,12 +632,31 @@ fn download_extract_archive(
     Ok(last_modified)
 }
 
+/// Delays in seconds before each retry of a small metadata download.
 #[cfg(not(windows))]
-pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = http_client()?
-        .get(url)
-        .send()
-        .with_context(|| format!("Failed to download from url `{}`.", url))?;
+const METADATA_DOWNLOAD_RETRY_DELAYS_SECS: [u64; 3] = [5, 10, 10];
+
+/// Fetches a small text resource, classifying failures as transient
+/// (network errors, HTTP 5xx and 429) or permanent for the retry loop.
+#[cfg(not(windows))]
+fn try_download_metadata_text(
+    client: &reqwest::blocking::Client,
+    url: &str,
+) -> retry::OperationResult<String, Error> {
+    use retry::OperationResult;
+
+    let response = match client.get(url).send() {
+        Ok(response) => response,
+        Err(e) => {
+            let retryable = !e.is_builder();
+            let e = Error::new(e).context(format!("Failed to download from url `{}`.", url));
+            return if retryable {
+                OperationResult::Retry(e)
+            } else {
+                OperationResult::Err(e)
+            };
+        }
+    };
 
     let status = response.status();
     if !status.is_success() {
@@ -647,15 +666,50 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
             503 => "Service temporarily unavailable, please try again later",
             _ => "Unexpected server error",
         };
-        anyhow::bail!(
+        let e = anyhow!(
             "Failed to download from `{}`: HTTP {} - {}",
             url,
             status,
             hint
         );
+        return if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            OperationResult::Retry(e)
+        } else {
+            OperationResult::Err(e)
+        };
     }
 
-    let response_text = response.text()?;
+    match response.text() {
+        Ok(text) => OperationResult::Ok(text),
+        Err(e) => OperationResult::Retry(
+            Error::new(e).context(format!("Failed to read response from url `{}`.", url)),
+        ),
+    }
+}
+
+#[cfg(not(windows))]
+pub fn download_juliaup_version(url: &str) -> Result<Version> {
+    let client = http_client()?;
+
+    // Retry transient failures, waiting 5s, 10s and 10s between attempts.
+    let response_text = retry::retry(
+        METADATA_DOWNLOAD_RETRY_DELAYS_SECS.map(std::time::Duration::from_secs),
+        || {
+            let result = try_download_metadata_text(&client, url);
+            if let retry::OperationResult::Retry(ref e) = result {
+                log::debug!("Transient error downloading from url `{}`: {:#}", url, e);
+            }
+            result
+        },
+    )
+    .map_err(|e| {
+        let tries = e.tries;
+        e.error.context(format!(
+            "Giving up on url `{}` after {} attempt(s).",
+            url, tries
+        ))
+    })?;
+
     let trimmed_response = response_text.trim();
 
     let version = Version::parse(trimmed_response).with_context(|| {
