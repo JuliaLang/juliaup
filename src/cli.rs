@@ -43,8 +43,12 @@ pub enum Juliaup {
     /// Update all or a specific channel to the latest Julia version
     Update { channel: Option<String> },
     #[clap(alias = "rm")]
-    /// Remove a Julia version from your system
-    Remove { channel: String },
+    /// Remove one or more Julia versions from your system
+    Remove {
+        /// Channels to remove. `*` and `?` match any installed channels (quote them in the shell)
+        #[clap(required = true)]
+        channels: Vec<String>,
+    },
     #[clap(alias = "st")]
     /// Show all installed Julia versions
     Status {},
