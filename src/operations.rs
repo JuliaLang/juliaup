@@ -309,9 +309,7 @@ fn download_extract_dmg(url: &str, target_path: &Path, require_etag: bool) -> Re
 
     log::debug!("Downloading DMG from url `{}`.", url);
     let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
+    let response = crate::download::send(&client, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     if !response.status().is_success() {
@@ -483,9 +481,7 @@ fn download_extract_archive(
 ) -> Result<String> {
     log::debug!("Downloading from url `{}`.", url);
     let client = http_client()?;
-    let response = client
-        .get(url)
-        .send()
+    let response = crate::download::send(&client, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let content_length = response.content_length();
@@ -634,9 +630,7 @@ fn download_extract_archive(
 
 #[cfg(not(windows))]
 pub fn download_juliaup_version(url: &str) -> Result<Version> {
-    let response = http_client()?
-        .get(url)
-        .send()
+    let response = crate::download::send(&http_client()?, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let status = response.status();
@@ -670,9 +664,7 @@ pub fn download_juliaup_version(url: &str) -> Result<Version> {
 
 #[cfg(not(windows))]
 pub fn download_versiondb(url: &str, path: &Path) -> Result<()> {
-    let mut response = http_client()?
-        .get(url)
-        .send()
+    let mut response = crate::download::send(&http_client()?, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
     let status = response.status();
@@ -2189,14 +2181,11 @@ fn get_shell_script_juliaup_content(
 ) -> Result<Vec<u8>> {
     let mut result: Vec<u8> = Vec::new();
 
-    let bin_path_str = match bin_path.to_str() {
+    let home = dirs::home_dir();
+
+    let bin_path_str = match shell_quoted_path(bin_path, home.as_deref()) {
         Some(s) => s,
         None =>  bail!("Could not create UTF-8 string from passed-in binary application path. Currently only valid UTF-8 paths are supported"),
-    };
-
-    let juliauphome_str = match juliauphome.to_str() {
-        Some(s) => s,
-        None => bail!("Could not create UTF-8 string from juliaup home path."),
     };
 
     result.extend_from_slice(S_MARKER);
@@ -2206,14 +2195,14 @@ fn get_shell_script_juliaup_content(
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Could not determine file name for path: {}", path.display()))?;
     if file_name == ".zshrc" {
-        append_zsh_content(&mut result, bin_path_str);
+        append_zsh_content(&mut result, &bin_path_str);
     } else if path.file_name().unwrap() == ".cshrc" || path.file_name().unwrap() == ".tcshrc" {
-        append_csh_content(&mut result, bin_path_str);
+        append_csh_content(&mut result, &bin_path_str);
     } else {
-        append_sh_content(&mut result, bin_path_str);
+        append_sh_content(&mut result, &bin_path_str);
     }
     if file_name == ".zshrc" || file_name.starts_with(".bash") {
-        append_completions_content(&mut result, file_name, juliauphome_str);
+        append_completions_content(&mut result, file_name, juliauphome, home.as_deref())?;
     }
     result.extend_from_slice(b"\n");
     result.extend_from_slice(E_MARKER);
@@ -2221,11 +2210,41 @@ fn get_shell_script_juliaup_content(
     Ok(result)
 }
 
+/// Quotes `path` for a shell script, writing a leading home directory as `${HOME}` so that
+/// rc files shared between machines still work.
+fn shell_quoted_path(path: &Path, home: Option<&Path>) -> Option<String> {
+    let path_str = path.to_str()?;
+    // The path of the running executable can have symlinks resolved, so also try the
+    // resolved home directory.
+    let rest = home
+        .into_iter()
+        .flat_map(|h| [Some(h.to_path_buf()), h.canonicalize().ok()])
+        .flatten()
+        .find_map(|h| path.strip_prefix(h).ok().map(|rest| rest.to_path_buf()));
+    let (prefix, rest) = match rest {
+        Some(rest) if rest.as_os_str().is_empty() => ("${HOME}", String::new()),
+        Some(rest) => ("${HOME}", format!("/{}", rest.to_str()?)),
+        None => ("", path_str.to_string()),
+    };
+    // `${HOME}` needs double quotes to expand. The rest goes in single quotes if double
+    // quotes would not keep it literal.
+    if rest.contains(['$', '`', '"', '\\', '\'']) {
+        let rest = rest.replace('\'', r"'\''");
+        if prefix.is_empty() {
+            Some(format!("'{rest}'"))
+        } else {
+            Some(format!("\"{prefix}\"'{rest}'"))
+        }
+    } else {
+        Some(format!("\"{prefix}{rest}\""))
+    }
+}
+
 fn append_zsh_content(buf: &mut Vec<u8>, path_str: &str) {
     // zsh specific syntax for path extension
     let content = formatdoc!(
         "
-            path=('{}' $path)
+            path=({} $path)
             export PATH
         ",
         path_str
@@ -2266,19 +2285,30 @@ fn append_sh_content(buf: &mut Vec<u8>, path_str: &str) {
     buf.extend_from_slice(content.as_bytes());
 }
 
-fn append_completions_content(buf: &mut Vec<u8>, file_name: &str, juliauphome: &str) {
-    let (shell, ext) = if file_name == ".zshrc" {
-        ("zsh", "zsh")
+fn append_completions_content(
+    buf: &mut Vec<u8>,
+    file_name: &str,
+    juliauphome: &Path,
+    home: Option<&Path>,
+) -> Result<()> {
+    let completions_file = if file_name == ".zshrc" {
+        "zsh.zsh"
     } else {
-        ("bash", "sh")
+        "bash.sh"
+    };
+    let completions_path = juliauphome.join("completions").join(completions_file);
+    let completions_str = match shell_quoted_path(&completions_path, home) {
+        Some(s) => s,
+        None => bail!("Could not create UTF-8 string from juliaup home path."),
     };
     let content = formatdoc!(
         r#"
             # Tab completion for juliaup and julia channel selection
-            [ -f "{juliauphome}/completions/{shell}.{ext}" ] && source "{juliauphome}/completions/{shell}.{ext}"
+            [ -f {completions_str} ] && source {completions_str}
         "#,
     );
     buf.extend_from_slice(content.as_bytes());
+    Ok(())
 }
 
 fn match_markers(buffer: &[u8]) -> Result<Option<(usize, usize)>> {
@@ -3123,6 +3153,31 @@ mod tests {
                 std::env::remove_var(self.key);
             }
         }
+    }
+
+    #[test]
+    fn shell_quoted_path_uses_home_variable() {
+        let home = Path::new("/nonexistent-juliaup-test/u");
+        let quote = |p: &str, home| shell_quoted_path(Path::new(p), home).unwrap();
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u", Some(home)),
+            r#""${HOME}""#
+        );
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u/.juliaup/bin", Some(home)),
+            r#""${HOME}/.juliaup/bin""#
+        );
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u2/bin", Some(home)),
+            r#""/nonexistent-juliaup-test/u2/bin""#
+        );
+        assert_eq!(quote("/opt/a b/bin", Some(home)), r#""/opt/a b/bin""#);
+        assert_eq!(quote("/opt/bin", None), r#""/opt/bin""#);
+        assert_eq!(
+            quote("/nonexistent-juliaup-test/u/a$b/it's", Some(home)),
+            r#""${HOME}"'/a$b/it'\''s'"#
+        );
+        assert_eq!(quote("/opt/a\"b", None), r#"'/opt/a"b'"#);
     }
 
     #[test]

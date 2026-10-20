@@ -7,7 +7,7 @@ use std::io::{self, Read};
 use std::thread;
 use std::time::Duration;
 
-/// Attempts to resume without receiving any data before the download fails.
+/// Retries without receiving any data before the download fails.
 const ATTEMPTS: u32 = 3;
 
 /// Pause before resuming, multiplied by the attempt number.
@@ -15,6 +15,22 @@ const ATTEMPTS: u32 = 3;
 const RETRY_DELAY: Duration = Duration::from_secs(1);
 #[cfg(test)]
 const RETRY_DELAY: Duration = Duration::ZERO;
+
+/// Sends a GET request to `url`, retrying when no response arrives because the
+/// connection failed or timed out.
+pub fn send(client: &Client, url: &str) -> reqwest::Result<Response> {
+    let mut failures = 0;
+    loop {
+        match client.get(url).send() {
+            Err(e) if failures < ATTEMPTS && (e.is_connect() || e.is_timeout()) => {
+                failures += 1;
+                log::debug!("Retrying `{url}`: {e}");
+                thread::sleep(RETRY_DELAY * failures);
+            }
+            result => return result,
+        }
+    }
+}
 
 /// Wraps the body of `response` so that a transfer error continues the
 /// download with a `Range` request from the first missing byte. The blocking
@@ -327,6 +343,33 @@ mod tests {
                 assert_eq!(got, BODY);
             }
         }
+    }
+
+    #[test]
+    fn retries_a_request_that_gets_no_response() {
+        let server = Server::new(|i, _, stream| match i {
+            0 => thread::sleep(Duration::from_secs(2)),
+            _ => reply(stream, "200 OK", "", 10, BODY),
+        });
+        let client = Client::builder()
+            .timeout(Duration::from_millis(500))
+            .build()
+            .unwrap();
+        let body = send(&client, &server.url).unwrap().bytes().unwrap();
+        assert_eq!(&body[..], BODY);
+        assert_eq!(server.requests().len(), 2);
+    }
+
+    #[test]
+    fn gives_up_on_a_request_after_failed_attempts() {
+        let server = Server::new(|_, _, _| thread::sleep(Duration::from_secs(2)));
+        let client = Client::builder()
+            .timeout(Duration::from_millis(200))
+            .build()
+            .unwrap();
+        let err = send(&client, &server.url).unwrap_err();
+        assert!(err.is_timeout(), "{err}");
+        assert_eq!(server.requests().len(), 1 + ATTEMPTS as usize);
     }
 
     #[test]

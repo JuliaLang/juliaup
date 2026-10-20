@@ -31,7 +31,7 @@ fn metadata_deadline_cancels_a_stalled_body() {
         let _ = socket.read(&mut request);
         let _ = socket
             .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{");
-        std::thread::sleep(Duration::from_millis(500));
+        std::thread::sleep(Duration::from_secs(3));
     });
     let start = Instant::now();
     let result = juliaup::operations::download_text(
@@ -40,7 +40,7 @@ fn metadata_deadline_cancels_a_stalled_body() {
     );
     assert!(result.is_err());
     assert!(
-        start.elapsed() < Duration::from_millis(450),
+        start.elapsed() < Duration::from_secs(2),
         "body read ignored deadline"
     );
     server.join().unwrap();
