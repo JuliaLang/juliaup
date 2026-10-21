@@ -172,3 +172,40 @@ fn command_add_reuses_installed_version() {
         .success()
         .stdout(version.to_string());
 }
+
+#[test]
+fn command_add_multiple() {
+    let env = TestEnv::new();
+
+    env.juliaup()
+        .args(["add", "1.6.4", "1.10.10"])
+        .assert()
+        .success()
+        .stdout("");
+
+    env.juliaup()
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("1.6.4").and(predicate::str::contains("1.10.10")));
+}
+
+#[test]
+fn command_add_multiple_validates_before_downloading() {
+    let env = TestEnv::new();
+
+    // An unknown version fails the command before the valid one is downloaded
+    env.juliaup()
+        .args(["add", "1.6.4", "notaversion"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "'notaversion' is not a valid Julia version or channel name.",
+        ));
+
+    env.juliaup()
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("1.6.4").not());
+}

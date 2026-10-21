@@ -3,6 +3,7 @@ use crate::config_file::{
     load_config_db, load_mut_config_db, save_config_db, JuliaupConfig, JuliaupConfigChannel,
 };
 use crate::global_paths::GlobalPaths;
+use crate::jsonstructs_versionsdb::JuliaupVersionDB;
 #[cfg(not(windows))]
 use crate::operations::create_symlink;
 use crate::operations::{
@@ -72,24 +73,55 @@ fn commit_downloaded_channel(
 }
 
 pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
-    let name = ChannelName::parse(channel)?;
-    if !name.variants.is_empty() && !name.is_nightly() {
-        bail!(
-            "'{}' is not a valid channel name: build variants such as `{}` are only available for nightly channels (e.g. `nightly{}`).",
-            channel,
-            name.variant_suffix(),
-            name.variant_suffix()
-        );
-    }
-    if name.is_direct_download() {
-        return add_non_db(channel, &name, paths);
+    run_command_add_channels(&[channel.to_string()], paths)
+}
+
+pub fn run_command_add_channels(channels: &[String], paths: &GlobalPaths) -> Result<()> {
+    let mut names = Vec::new();
+    for channel in channels {
+        let name = ChannelName::parse(channel)?;
+        if !name.variants.is_empty() && !name.is_nightly() {
+            bail!(
+                "'{}' is not a valid channel name: build variants such as `{}` are only available for nightly channels (e.g. `nightly{}`).",
+                channel,
+                name.variant_suffix(),
+                name.variant_suffix()
+            );
+        }
+        names.push(name);
     }
 
-    update_version_db(&Some(channel.to_string()), true, paths)
-        .with_context(|| "Failed to update versions db.")?;
-    let version_db =
-        load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
+    // Check every versions db channel before downloading anything, so a typo fails straight away.
+    let version_db = if names.iter().any(|name| !name.is_direct_download()) {
+        update_version_db(&None, false, paths).with_context(|| "Failed to update versions db.")?;
+        let version_db =
+            load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
+        for (channel, name) in channels.iter().zip(&names) {
+            if !name.is_direct_download() && !version_db.available_channels.contains_key(channel) {
+                bail!(
+                    "'{}' is not a valid Julia version or channel name.",
+                    channel
+                );
+            }
+        }
+        Some(version_db)
+    } else {
+        None
+    };
 
+    for (channel, name) in channels.iter().zip(&names) {
+        match &version_db {
+            Some(version_db) if !name.is_direct_download() => {
+                add_db_channel(channel, version_db, paths)?
+            }
+            _ => add_non_db(channel, name, paths)?,
+        }
+    }
+
+    Ok(())
+}
+
+fn add_db_channel(channel: &str, version_db: &JuliaupVersionDB, paths: &GlobalPaths) -> Result<()> {
     let required_version = &version_db
         .available_channels
         .get(channel)
@@ -127,7 +159,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
     } else {
         Some(download_version_to_temp(
             required_version,
-            &version_db,
+            version_db,
             paths,
         )?)
     };
@@ -147,7 +179,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
         drop(config_file);
         downloaded = Some(download_version_to_temp(
             required_version,
-            &version_db,
+            version_db,
             paths,
         )?);
         config_file = load_mut_config_db(paths)
