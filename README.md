@@ -175,7 +175,7 @@ All of these channels can be combined with the `~x86`, `~x64`, `~aarch64` or `~r
 
 ## Juliaup GUI
 
-Juliaup includes a graphical application for managing Julia versions. It is installed alongside `juliaup` by all of the official installers on Windows, Mac, Linux, and FreeBSD, and can be started with
+Juliaup includes a graphical application for managing Julia versions. It is installed alongside `juliaup` by all of the official installers on Windows, Mac, Linux (except riscv64), and FreeBSD, and can be started with
 
 ```
 juliaup gui
