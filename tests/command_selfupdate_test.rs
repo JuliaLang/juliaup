@@ -9,7 +9,7 @@
 #![cfg(all(unix, feature = "selfupdate"))]
 
 mod utils;
-use utils::TestEnv;
+use utils::{copy_executable, TestEnv};
 
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::Command;
@@ -135,8 +135,8 @@ impl Install {
 
         let juliaup_exe = bin.join("juliaup");
         let julialauncher_exe = bin.join("julialauncher");
-        std::fs::copy(cargo_bin("juliaup"), &juliaup_exe).unwrap();
-        std::fs::copy(cargo_bin("julia"), &julialauncher_exe).unwrap();
+        copy_executable(&cargo_bin("juliaup"), &juliaup_exe);
+        copy_executable(&cargo_bin("julia"), &julialauncher_exe);
 
         // The installer creates this symlink; self-update wipes it (whole-dir
         // swap) and the `_post-update` hook restores it.

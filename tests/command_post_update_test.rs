@@ -1,7 +1,7 @@
 #![cfg(not(windows))]
 
 mod utils;
-use utils::TestEnv;
+use utils::{copy_executable, TestEnv};
 
 use assert_cmd::cargo::cargo_bin;
 use assert_cmd::Command;
@@ -32,8 +32,8 @@ fn post_update_restores_julia_symlink() {
     // that to act as the `julialauncher` the installed product would have.
     let juliaup_exe = bin.path().join("juliaup");
     let julialauncher_exe = bin.path().join("julialauncher");
-    fs::copy(cargo_bin("juliaup"), &juliaup_exe).unwrap();
-    fs::copy(cargo_bin("julia"), &julialauncher_exe).unwrap();
+    copy_executable(&cargo_bin("juliaup"), &juliaup_exe);
+    copy_executable(&cargo_bin("julia"), &julialauncher_exe);
 
     // Install and default a real Julia so the launcher has something to run.
     juliaup(&juliaup_exe, &env)
