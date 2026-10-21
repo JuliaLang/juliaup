@@ -333,3 +333,54 @@ fn command_override_delete_empty_test() {
         .success()
         .stdout(" Path  Channel \n---------------\n");
 }
+
+/// https://github.com/JuliaLang/juliaup/issues/1196: an override can be unset
+/// by path after its directory, and possibly its parents, have been deleted.
+#[test]
+fn command_override_unset_deleted_path_test() {
+    let env = TestEnv::new();
+    let or_dir = assert_fs::TempDir::new().unwrap();
+    let deleted = or_dir.path().join("deleted");
+    let nested = or_dir.path().join("parent").join("nested");
+    std::fs::create_dir(&deleted).unwrap();
+    std::fs::create_dir_all(&nested).unwrap();
+
+    // Julia is never launched here, so a placeholder binary path is enough and
+    // avoids downloading a Julia version.
+    env.juliaup()
+        .arg("link")
+        .arg("dev")
+        .arg(or_dir.path().join("julia"))
+        .assert()
+        .success();
+    for path in [&deleted, &nested] {
+        env.juliaup()
+            .arg("override")
+            .arg("set")
+            .arg("--path")
+            .arg(path)
+            .arg("dev")
+            .assert()
+            .success();
+    }
+
+    std::fs::remove_dir(&deleted).unwrap();
+    std::fs::remove_dir_all(or_dir.path().join("parent")).unwrap();
+
+    for path in [&deleted, &nested] {
+        env.juliaup()
+            .arg("override")
+            .arg("unset")
+            .arg("--path")
+            .arg(path)
+            .assert()
+            .success();
+    }
+
+    env.juliaup()
+        .arg("override")
+        .arg("status")
+        .assert()
+        .success()
+        .stdout(" Path  Channel \n---------------\n");
+}
