@@ -57,8 +57,9 @@ impl MockServer {
     /// `db_version` is served for the versions-db version check; serving the
     /// bundled value means no versions-db download is triggered. `new_version`
     /// is served as the available juliaup version, and `tarball` is returned for
-    /// any juliaup binary download request.
-    fn start(db_version: String, new_version: String, tarball: Vec<u8>) -> Self {
+    /// any juliaup binary download request, or a 404 with an S3-style XML error
+    /// body when it is `None`.
+    fn start(db_version: String, new_version: String, tarball: Option<Vec<u8>>) -> Self {
         let server = Arc::new(Server::http("127.0.0.1:0").unwrap());
         let port = server.server_addr().to_ip().unwrap().port();
         let base_url = format!("http://127.0.0.1:{}", port);
@@ -76,7 +77,14 @@ impl MockServer {
                         } else if url.ends_with("CHANNELVERSION") {
                             Response::from_string(new_version.clone())
                         } else if url.contains("/juliaup-") && url.ends_with(".tar.gz") {
-                            Response::from_data(tarball.clone())
+                            match &tarball {
+                                Some(tarball) => Response::from_data(tarball.clone()),
+                                None => Response::from_string(
+                                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+                                     <Error><Code>NoSuchKey</Code></Error>",
+                                )
+                                .with_status_code(404),
+                            }
                         } else {
                             // Catch-all (e.g. the nightly etag-support probe):
                             // respond 200 with an etag header.
@@ -215,7 +223,7 @@ fn self_update_end_to_end() {
     // --- 4. Mock a newer juliaup as available on a loopback server ---
     let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
     let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
-    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), Some(tarball));
 
     // --- 5. Self update ---
     juliaup(Some(&server.base_url))
@@ -296,7 +304,7 @@ fn self_update_auto_triggered_by_launcher() {
     // Mock a newer juliaup as available on a loopback server.
     let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
     let tarball = build_juliaup_tarball(&install.juliaup_exe, &install.julialauncher_exe);
-    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), tarball);
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), Some(tarball));
 
     // Precondition: no self-update has happened yet.
     assert!(
@@ -342,6 +350,40 @@ fn self_update_auto_triggered_by_launcher() {
         .assert()
         .success()
         .stdout("1.10.10");
+
+    drop(server);
+}
+
+/// A missing release tarball must be reported as an HTTP error, not as a
+/// corrupt archive, and must leave the installed binaries alone.
+#[test]
+fn self_update_missing_tarball() {
+    let env = TestEnv::new();
+    let install = Install::setup();
+    let juliaup_before = std::fs::read(&install.juliaup_exe).unwrap();
+    let julialauncher_before = std::fs::read(&install.julialauncher_exe).unwrap();
+
+    let bundled_db_version = juliaup::get_bundled_dbversion().unwrap().to_string();
+    let server = MockServer::start(bundled_db_version, "999.0.0".to_string(), None);
+
+    let mut cmd = Command::new(&install.juliaup_exe);
+    env.apply_env(&mut cmd);
+    cmd.env("JULIAUP_SERVER", &server.base_url)
+        .args(["self", "update"])
+        .assert()
+        .failure()
+        .stderr(
+            predicate::str::contains("HTTP 404")
+                .and(predicate::str::contains("gzip").not())
+                .and(predicate::str::contains("extract").not()),
+        );
+
+    assert_eq!(std::fs::read(&install.juliaup_exe).unwrap(), juliaup_before);
+    assert_eq!(
+        std::fs::read(&install.julialauncher_exe).unwrap(),
+        julialauncher_before
+    );
+    assert!(install.julia_symlink.symlink_metadata().is_ok());
 
     drop(server);
 }

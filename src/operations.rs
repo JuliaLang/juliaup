@@ -484,6 +484,23 @@ fn download_extract_archive(
     let response = crate::download::send(&client, url)
         .with_context(|| format!("Failed to download from url `{}`.", url))?;
 
+    // Error responses usually lack an ETag, so check this first to report the
+    // status rather than a missing ETag or a corrupt archive.
+    let status = response.status();
+    if !status.is_success() {
+        let hint = match status.as_u16() {
+            404 => "Resource not found",
+            503 => "Service temporarily unavailable, please try again later",
+            _ => "Unexpected server error",
+        };
+        bail!(
+            "Failed to download from `{}`: HTTP {} - {}",
+            url,
+            status,
+            hint
+        );
+    }
+
     let content_length = response.content_length();
 
     let pb = match content_length {
