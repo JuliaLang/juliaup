@@ -1037,6 +1037,8 @@ pub fn default_arch() -> Result<String> {
         Ok("x64".to_string())
     } else if cfg!(target_arch = "x86") {
         Ok("x86".to_string())
+    } else if cfg!(target_arch = "riscv64") {
+        Ok("riscv64".to_string())
     } else {
         bail!("Unsupported architecture for nightly channel.")
     }
@@ -1064,6 +1066,8 @@ pub fn compatible_archs() -> Result<Vec<String>> {
         }
     } else if cfg!(target_arch = "aarch64") {
         Ok(vec!["aarch64".to_string()])
+    } else if cfg!(target_arch = "riscv64") {
+        Ok(vec!["riscv64".to_string()])
     } else {
         bail!("Unsupported architecture for nightly channel.")
     }
@@ -1092,6 +1096,7 @@ pub fn build_file_platform(arch: &str) -> Result<&'static str> {
         "x64" => "linux-x86_64",
         "x86" => "linux-i686",
         "aarch64" => "linux-aarch64",
+        "riscv64" => "linux-riscv64",
         _ => bail!("Unsupported architecture for nightly channel on Linux."),
     };
 

@@ -171,7 +171,7 @@ Use the channel name exactly as `juliaup list` shows it: `nightly+opt+assert` is
 Variants are not available for PR builds.
 Variant channels, of both nightlies and releases, are experimental: their names may change, and they may be temporarily unavailable while the way Julia publishes them changes.
 
-All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
+All of these channels can be combined with the `~x86`, `~x64`, `~aarch64` or `~riscv64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
 
 ## Juliaup GUI
 
