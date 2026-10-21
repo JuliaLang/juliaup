@@ -561,12 +561,8 @@ pub fn main() -> Result<()> {
     run_command_selfchannel(Some(args.juliaup_channel), &paths)
         .with_context(|| "Failed to set juliaup update channel.")?;
 
-    run_command_add(&args.default_channel, &paths)
-        .with_context(|| "Failed to run `run_command_add`.")?;
-
-    run_command_default(&args.default_channel, &paths)
-        .with_context(|| "Failed to run `run_command_default`.")?;
-
+    // Before adding the default channel, so that a failure there still
+    // leaves a working `julia` once a channel is added by hand.
     let symlink_path = juliaupselfbin.join("julia");
 
     std::os::unix::fs::symlink(juliaupselfbin.join("julialauncher"), &symlink_path).with_context(
@@ -577,6 +573,12 @@ pub fn main() -> Result<()> {
             )
         },
     )?;
+
+    run_command_add(&args.default_channel, &paths)
+        .with_context(|| "Failed to run `run_command_add`.")?;
+
+    run_command_default(&args.default_channel, &paths)
+        .with_context(|| "Failed to run `run_command_default`.")?;
 
     println!("Julia was successfully installed on your system.");
 
