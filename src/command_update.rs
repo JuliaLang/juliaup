@@ -1,4 +1,5 @@
 use crate::channel_name::is_pr_channel;
+use crate::channel_name::ChannelName;
 use crate::config_file::JuliaupConfig;
 use crate::config_file::{
     get_read_lock, load_config_db, load_mut_config_db, save_config_db, JuliaupConfigChannel,
@@ -151,14 +152,23 @@ fn prepare_channel_update(
                 } else {
                     Ok(None)
                 }
-            } else if ignore_non_updatable_channel {
-                eprintln!("Skipping update for '{}' channel, it no longer exists in the version database.", channel);
-                Ok(None)
             } else {
-                bail!(
-                    "Failed to update '{}' because it no longer exists in the version database.",
-                    channel
-                );
+                // A release variant (`1.14+opt`) follows its channel (`1.14`), and
+                // is missing while that version has no such build (yet).
+                let reason = match ChannelName::parse(channel) {
+                    Ok(name) if !name.variants.is_empty() => format!(
+                        "the version '{}' points to has no `{}` build",
+                        name.base,
+                        name.variant_suffix()
+                    ),
+                    _ => "it no longer exists in the version database".to_string(),
+                };
+                if ignore_non_updatable_channel {
+                    eprintln!("Skipping update for '{}' channel, {}.", channel, reason);
+                    Ok(None)
+                } else {
+                    bail!("Failed to update '{}' because {}.", channel, reason);
+                }
             }
         }
         JuliaupConfigChannel::LinkedChannel { .. } => {

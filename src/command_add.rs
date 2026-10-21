@@ -79,16 +79,7 @@ pub fn run_command_add(channel: &str, paths: &GlobalPaths) -> Result<()> {
 pub fn run_command_add_channels(channels: &[String], paths: &GlobalPaths) -> Result<()> {
     let mut names = Vec::new();
     for channel in channels {
-        let name = ChannelName::parse(channel)?;
-        if !name.variants.is_empty() && !name.is_nightly() {
-            bail!(
-                "'{}' is not a valid channel name: build variants such as `{}` are only available for nightly channels (e.g. `nightly{}`).",
-                channel,
-                name.variant_suffix(),
-                name.variant_suffix()
-            );
-        }
-        names.push(name);
+        names.push(ChannelName::parse(channel)?);
     }
 
     // Check every versions db channel before downloading anything, so a typo fails straight away.
@@ -98,9 +89,19 @@ pub fn run_command_add_channels(channels: &[String], paths: &GlobalPaths) -> Res
             load_versions_db(paths).with_context(|| "`add` command failed to load versions db.")?;
         for (channel, name) in channels.iter().zip(&names) {
             if !name.is_direct_download() && !version_db.available_channels.contains_key(channel) {
+                // Release variants (`1.14+opt`) are listed in the versions database
+                // like any other channel, from the first release built with them.
+                if name.variants.is_empty() {
+                    bail!(
+                        "'{}' is not a valid Julia version or channel name.",
+                        channel
+                    );
+                }
                 bail!(
-                    "'{}' is not a valid Julia version or channel name.",
-                    channel
+                    "'{}' is not available: there is no `{}` build of '{}' for this platform.",
+                    channel,
+                    name.variant_suffix(),
+                    name.base
                 );
             }
         }

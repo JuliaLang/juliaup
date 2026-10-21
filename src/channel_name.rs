@@ -4,7 +4,9 @@
 //! from the versions database (`release`, `lts`, `1.13`, `1.13.2`, ...), a
 //! nightly channel (`nightly` for `master`, `1.13-nightly` for `release-1.13`)
 //! or a pull request build (`pr12345`). Variants (`+opt`, `+assert+opt`) select
-//! a build configuration of a nightly channel, see `nightlies_db`. The optional
+//! a build configuration of a nightly channel, see `nightlies_db`, or of a
+//! release, where the versions database lists `1.14+opt` like any other
+//! channel. The optional
 //! arch suffix (`x64`, `x86`, `aarch64`) selects a build for another
 //! architecture, e.g. `nightly~x86`.
 //!
