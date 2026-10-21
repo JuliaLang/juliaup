@@ -52,7 +52,7 @@ curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 
 Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
-- `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
+- `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default. Defaults to `release`, or to `nightly` on platforms without a Julia release yet (riscv64 Linux, until Julia 1.14).
 - `--path` (or `-p`): Install `juliaup` in a custom location.
     - For example, if you want to install `juliaup` into `~/my/desired/juliaup/path`, you would run the following command: `curl -fsSL https://install.julialang.org | sh -s -- --path ~/my/desired/juliaup/path`
 - `--add-to-path <yes|no|0|1>`: Control whether the installer modifies shell startup files to add the Juliaup bin directory to `PATH`. Defaults to `yes`.

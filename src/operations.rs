@@ -21,6 +21,7 @@ use crate::utils::get_juliaserver_base_url;
 use crate::utils::is_valid_julia_path;
 use crate::utils::retry_rename;
 use crate::utils::{print_juliaup_style, JuliaupMessageType};
+use crate::versions_file::load_versions_db;
 use anyhow::{anyhow, bail, Context, Error, Result};
 use bstr::ByteSlice;
 use bstr::ByteVec;
@@ -2509,6 +2510,31 @@ pub fn refresh_existing_shell_init_blocks(bin_path: &Path, juliauphome: &Path) -
         }
     }
     Ok(())
+}
+
+/// The channel a new installation starts with: `release`, or `nightly` on
+/// platforms that have no Julia release yet (riscv64 before 1.14).
+pub fn choose_default_channel(paths: &GlobalPaths) -> Result<&'static str> {
+    let mut version_db = load_versions_db(paths).with_context(|| "Failed to load versions db.")?;
+    // The bundled db only changes with a juliaup release, so look online
+    // before settling for `nightly`. That does not need the db, so a failed
+    // update (offline, or a platform whose db is not published yet) is fine.
+    if version_db.default_channel() != "release" {
+        if let Err(e) = update_version_db(&None, false, paths) {
+            log::debug!("Failed to update the versions db: {:?}", e);
+        }
+        version_db = load_versions_db(paths).with_context(|| "Failed to load versions db.")?;
+    }
+
+    let channel = version_db.default_channel();
+    if channel != "release" {
+        print_juliaup_style(
+            "Defaulting",
+            &format!("to '{channel}', as no Julia release is available for this platform yet"),
+            JuliaupMessageType::Warning,
+        );
+    }
+    Ok(channel)
 }
 
 pub fn update_version_db(

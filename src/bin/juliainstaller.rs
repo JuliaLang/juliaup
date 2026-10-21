@@ -120,9 +120,9 @@ fn is_juliaup_installed() -> bool {
 #[clap(name = "Juliainstaller", version)]
 /// The Julia Installer
 struct Juliainstaller {
-    /// Default channel
-    #[clap(long, default_value = "release")]
-    default_channel: String,
+    /// Default channel [default: release, or nightly on platforms without a Julia release]
+    #[clap(long)]
+    default_channel: Option<String>,
     /// Juliaup channel
     #[clap(long, value_enum, default_value = "release")]
     juliaup_channel: JuliaupChannel,
@@ -241,7 +241,9 @@ pub fn main() -> Result<()> {
         config_file::JuliaupSelfConfig,
         get_juliaup_target, get_own_version,
         global_paths::get_paths,
-        operations::{download_extract_sans_parent, find_shell_scripts_to_be_modified},
+        operations::{
+            choose_default_channel, download_extract_sans_parent, find_shell_scripts_to_be_modified,
+        },
         utils::get_juliaserver_base_url,
     };
     use std::io::Seek;
@@ -574,10 +576,15 @@ pub fn main() -> Result<()> {
         },
     )?;
 
-    run_command_add(&args.default_channel, &paths)
+    let default_channel = match args.default_channel {
+        Some(channel) => channel,
+        None => choose_default_channel(&paths)?.to_string(),
+    };
+
+    run_command_add(&default_channel, &paths)
         .with_context(|| "Failed to run `run_command_add`.")?;
 
-    run_command_default(&args.default_channel, &paths)
+    run_command_default(&default_channel, &paths)
         .with_context(|| "Failed to run `run_command_default`.")?;
 
     println!("Julia was successfully installed on your system.");
