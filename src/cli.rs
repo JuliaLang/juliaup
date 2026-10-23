@@ -30,6 +30,10 @@ pub enum Juliaup {
     },
     /// Link an existing Julia binary or channel to a custom channel name
     Link {
+        /// Replace the channel if it already exists as a linked channel or alias,
+        /// without asking for confirmation
+        #[clap(short, long)]
+        force: bool,
         /// Name of the new channel to create
         channel: String,
         /// Path to Julia binary, or +{channel} to create an alias
