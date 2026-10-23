@@ -65,6 +65,29 @@ impl TestEnv {
     }
 }
 
+/// Copy an executable so that a test can run it from another directory.
+///
+/// The copy is made by a `cp` child process rather than `std::fs::copy`. While
+/// this process holds a file open for writing, any child that another test
+/// thread spawns inherits that descriptor until its `execve` completes, and
+/// executing the file in that window fails with ETXTBSY ("Text file busy").
+/// Keeping the writable descriptor out of the test process avoids that race.
+#[cfg(unix)]
+#[allow(dead_code)]
+pub fn copy_executable(src: &Path, dst: &Path) {
+    let status = std::process::Command::new("cp")
+        .arg(src)
+        .arg(dst)
+        .status()
+        .expect("failed to run `cp`");
+    assert!(
+        status.success(),
+        "`cp {} {}` failed",
+        src.display(),
+        dst.display()
+    );
+}
+
 /// Serves a `nightlies.json` for tests that install real nightly builds, so that
 /// they do not depend on which channels the live catalog currently lists. Its
 /// `1.0-nightly` channel points at the `nightly` build, which never expires.
