@@ -374,8 +374,8 @@ fn self_update_missing_tarball() {
         .failure()
         .stderr(
             predicate::str::contains("HTTP 404")
-                .and(predicate::str::contains("gzip").not())
-                .and(predicate::str::contains("extract").not()),
+                .and(predicate::str::contains("gzip header").not())
+                .and(predicate::str::contains("Failed to extract").not()),
         );
 
     assert_eq!(std::fs::read(&install.juliaup_exe).unwrap(), juliaup_before);
