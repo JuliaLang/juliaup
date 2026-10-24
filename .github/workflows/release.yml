@@ -35,7 +35,9 @@ jobs:
           aarch64-unknown-linux-musl,
           aarch64-unknown-linux-musl-portable,
           aarch64-apple-darwin,
-          aarch64-apple-darwin-portable
+          aarch64-apple-darwin-portable,
+          riscv64gc-unknown-linux-musl,
+          riscv64gc-unknown-linux-musl-portable
           ]
         include:
           - label: x86_64-pc-windows-msvc-windowsstore
@@ -190,6 +192,22 @@ jobs:
             features: dummy
             rustflags:
             toolchain: stable
+          - label: riscv64gc-unknown-linux-musl
+            target: riscv64gc-unknown-linux-musl
+            bins: --bin juliaup --bin julialauncher --bin juliainstaller
+            os: ubuntu
+            runner: ubuntu-latest
+            features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags: -C target-feature=+crt-static
+            toolchain: stable
+          - label: riscv64gc-unknown-linux-musl-portable
+            target: riscv64gc-unknown-linux-musl
+            bins: --bin juliaup --bin julia
+            os: ubuntu
+            runner: ubuntu-latest
+            features: dummy
+            rustflags: -C target-feature=+crt-static
+            toolchain: stable
     steps:
     - uses: actions/checkout@v7
     - if: ${{ contains(matrix.target, '-musl') }}
@@ -232,9 +250,10 @@ jobs:
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --release ${{matrix.bins}} --target ${{matrix.target}} --features ${{matrix.features}}
       env:
-        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
         AWS_LC_SYS_CMAKE_BUILDER: "1"
     - name: Build juliaupgui
       # Linux GUIs come from the build-juliaupgui-linux job so they run on old
@@ -431,9 +450,10 @@ jobs:
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --target ${{matrix.target}} --features ${{matrix.features}}
       env:
-        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
         AWS_LC_SYS_CMAKE_BUILDER: "1"
     - name: Free Disk Space
       if: ${{ contains(matrix.target, 'freebsd') }}
@@ -500,6 +520,11 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-musl
         path: target/aarch64-unknown-linux-musl
+    - name: Download Linux riscv64 musl juliaup artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: juliaup-riscv64gc-unknown-linux-musl
+        path: target/riscv64gc-unknown-linux-musl
     - name: Download FreeBSD x64 juliaup artifact
       uses: actions/download-artifact@v8
       with:
@@ -541,6 +566,11 @@ jobs:
       with:
         name: juliainstaller-aarch64-apple-darwin
         path: target/installer/aarch64-apple-darwin
+    - name: Download installer artifacts for riscv64gc-unknown-linux-musl
+      uses: actions/download-artifact@v8
+      with:
+        name: juliainstaller-riscv64gc-unknown-linux-musl
+        path: target/installer/riscv64gc-unknown-linux-musl
     - name: Download installer artifacts for x86_64-unknown-freebsd
       uses: actions/download-artifact@v8
       with:
@@ -562,6 +592,8 @@ jobs:
         chmod a+rx target/aarch64-unknown-linux-musl/juliaup
         chmod a+rx target/aarch64-unknown-linux-musl/julialauncher
         chmod a+rx target/aarch64-unknown-linux-musl/juliaupgui
+        chmod a+rx target/riscv64gc-unknown-linux-musl/juliaup
+        chmod a+rx target/riscv64gc-unknown-linux-musl/julialauncher
         chmod a+rx target/x86_64-unknown-freebsd/juliaup
         chmod a+rx target/x86_64-unknown-freebsd/julialauncher
         chmod a+rx -f target/x86_64-unknown-freebsd/juliaupgui || true
@@ -598,6 +630,10 @@ jobs:
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-musl.tar.gz .
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-gnu.tar.gz .
 
+        cd ../../target/riscv64gc-unknown-linux-musl
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-riscv64gc-unknown-linux-musl.tar.gz .
+        tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-riscv64gc-unknown-linux-gnu.tar.gz .
+
         cd ../../target/x86_64-unknown-freebsd
         tar -czvf ../../public/bin/juliaup-${{ env.VERSION }}-x86_64-unknown-freebsd.tar.gz .
 
@@ -613,6 +649,8 @@ jobs:
         cp target/installer/aarch64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-gnu
         mv target/installer/aarch64-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-unknown-linux-musl
         mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
+        cp target/installer/riscv64gc-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-riscv64gc-unknown-linux-gnu
+        mv target/installer/riscv64gc-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-riscv64gc-unknown-linux-musl
     - name: Upload to S3
       run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
       env:
@@ -646,6 +684,11 @@ jobs:
       with:
         name: juliaup-aarch64-unknown-linux-musl-portable
         path: target/aarch64-unknown-linux-musl-portable
+    - name: Download riscv64gc-unknown-linux-musl-portable artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: juliaup-riscv64gc-unknown-linux-musl-portable
+        path: target/riscv64gc-unknown-linux-musl-portable
     - name: Download aarch64-apple-darwin-portable artifact
       uses: actions/download-artifact@v8
       with:
@@ -674,6 +717,8 @@ jobs:
         chmod a+rx target/aarch64-unknown-linux-musl-portable/juliaup
         chmod a+rx target/aarch64-unknown-linux-musl-portable/julia
         chmod a+rx target/aarch64-unknown-linux-musl-portable/juliaupgui
+        chmod a+rx target/riscv64gc-unknown-linux-musl-portable/juliaup
+        chmod a+rx target/riscv64gc-unknown-linux-musl-portable/julia
         chmod a+rx target/aarch64-apple-darwin-portable/juliaup
         chmod a+rx target/aarch64-apple-darwin-portable/julia
         chmod a+rx target/aarch64-apple-darwin-portable/juliaupgui
@@ -698,6 +743,9 @@ jobs:
 
         cd ../../target/aarch64-unknown-linux-musl-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-unknown-linux-musl-portable.tar.gz .
+
+        cd ../../target/riscv64gc-unknown-linux-musl-portable
+        tar -czvf ../../public/juliaup-${{ env.VERSION }}-riscv64gc-unknown-linux-musl-portable.tar.gz .
 
         cd ../../target/aarch64-apple-darwin-portable
         tar -czvf ../../public/juliaup-${{ env.VERSION }}-aarch64-apple-darwin-portable.tar.gz .

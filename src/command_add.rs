@@ -91,6 +91,15 @@ pub fn run_command_add_channels(channels: &[String], paths: &GlobalPaths) -> Res
             if !name.is_direct_download() && !version_db.available_channels.contains_key(channel) {
                 // Release variants (`1.14+opt`) are listed in the versions database
                 // like any other channel, from the first release built with them.
+                // Platforms added before their first Julia release (riscv64 ahead
+                // of 1.14) only have nightlies and, later, prereleases.
+                if !version_db.available_channels.contains_key("release") {
+                    bail!(
+                        "'{}' is not available on this platform. \
+                         `juliaup list` shows the channels that are, such as `nightly`.",
+                        channel
+                    );
+                }
                 if name.variants.is_empty() {
                     bail!(
                         "'{}' is not a valid Julia version or channel name.",

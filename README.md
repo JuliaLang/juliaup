@@ -52,7 +52,7 @@ curl -fsSL https://install.julialang.org | sh -s -- <ARGS>
 
 Here `<ARGS>` should be replaced with one or more of the following arguments:
 - `--yes` (or `-y`): Run the installer in a non-interactive mode. All configuration values use their default.
-- `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default.
+- `--default-channel <NAME>`: Configure the default channel. For example `--default-channel lts` would install the `lts` channel and configure it as the default. Defaults to `release`, or to `nightly` on platforms without a Julia release yet (riscv64 Linux, until Julia 1.14).
 - `--path` (or `-p`): Install `juliaup` in a custom location.
     - For example, if you want to install `juliaup` into `~/my/desired/juliaup/path`, you would run the following command: `curl -fsSL https://install.julialang.org | sh -s -- --path ~/my/desired/juliaup/path`
 - `--add-to-path <yes|no|0|1>`: Control whether the installer modifies shell startup files to add the Juliaup bin directory to `PATH`. Defaults to `yes`.
@@ -171,11 +171,11 @@ Use the channel name exactly as `juliaup list` shows it: `nightly+opt+assert` is
 Variants are not available for PR builds.
 Variant channels, of both nightlies and releases, are experimental: their names may change, and they may be temporarily unavailable while the way Julia publishes them changes.
 
-All of these channels can be combined with the `~x86`, `~x64` or `~aarch64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
+All of these channels can be combined with the `~x86`, `~x64`, `~aarch64` or `~riscv64` suffix to download a specific platform version, e.g. `nightly+opt~x64`.
 
 ## Juliaup GUI
 
-Juliaup includes a graphical application for managing Julia versions. It is installed alongside `juliaup` by all of the official installers on Windows, Mac, Linux, and FreeBSD, and can be started with
+Juliaup includes a graphical application for managing Julia versions. It is installed alongside `juliaup` by all of the official installers on Windows, Mac, Linux (except riscv64), and FreeBSD, and can be started with
 
 ```
 juliaup gui

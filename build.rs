@@ -26,8 +26,13 @@ fn main() -> Result<()> {
 
     let file = File::open(&db_path)?;
     let data: Value = serde_json::from_reader(file)?;
-    let bundled_version_as_string: String =
-        data["AvailableChannels"]["release"]["Version"].to_string();
+    // Platforms with only nightly builds (riscv64) have no release channel.
+    let bundled_version_as_string: String = format!(
+        "{:?}",
+        data["AvailableChannels"]["release"]["Version"]
+            .as_str()
+            .unwrap_or("")
+    );
     let bundled_dbversion_as_string: String = data["Version"].to_string();
     let bundled_version_path = Path::new(&out_path).join("bundled_version.rs");
     std::fs::write(
