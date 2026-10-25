@@ -812,6 +812,15 @@
         },
         "1.13.2+0.x64.w64.mingw32": {
             "UrlPath": "bin/winnt/x64/1.13/julia-1.13.2-win64.tar.gz"
+        },
+        "1.14.0-alpha1+0.x86.w64.mingw32": {
+            "UrlPath": "bin/winnt/x86/1.14/julia-1.14.0-alpha1-win32.tar.gz"
+        },
+        "1.14.0-alpha1+0.x64.w64.mingw32": {
+            "UrlPath": "bin/winnt/x64/1.14/julia-1.14.0-alpha1-win64.tar.gz"
+        },
+        "1.14.0-alpha1+0.x64.w64.mingw32.opt": {
+            "UrlPath": "bin/windowsopt/x86_64/1.14/julia-1.14.0-alpha1-windowsopt-x86_64.tar.gz"
         }
     },
     "AvailableChannels": {
@@ -1541,6 +1550,36 @@
         "1.13~x86": {
             "Version": "1.13.2+0.x86.w64.mingw32"
         },
+        "1.14": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
+        },
+        "1.14+opt": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
+        },
+        "1.14+opt~x64": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
+        },
+        "1.14.0-alpha1": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
+        },
+        "1.14.0-alpha1+opt": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
+        },
+        "1.14.0-alpha1+opt~x64": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
+        },
+        "1.14.0-alpha1~x64": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
+        },
+        "1.14.0-alpha1~x86": {
+            "Version": "1.14.0-alpha1+0.x86.w64.mingw32"
+        },
+        "1.14~x64": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
+        },
+        "1.14~x86": {
+            "Version": "1.14.0-alpha1+0.x86.w64.mingw32"
+        },
         "1.1~x64": {
             "Version": "1.1.1+0.x64.w64.mingw32"
         },
@@ -2190,13 +2229,19 @@
             "Version": "1.13.2+0.x86.w64.mingw32"
         },
         "alpha": {
-            "Version": "1.13.2+0.x64.w64.mingw32"
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
+        },
+        "alpha+opt": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
+        },
+        "alpha+opt~x64": {
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32.opt"
         },
         "alpha~x64": {
-            "Version": "1.13.2+0.x64.w64.mingw32"
+            "Version": "1.14.0-alpha1+0.x64.w64.mingw32"
         },
         "alpha~x86": {
-            "Version": "1.13.2+0.x86.w64.mingw32"
+            "Version": "1.14.0-alpha1+0.x86.w64.mingw32"
         },
         "beta": {
             "Version": "1.13.2+0.x64.w64.mingw32"
@@ -2235,5 +2280,5 @@
             "Version": "1.13.2+0.x86.w64.mingw32"
         }
     },
-    "Version": "1.0.95"
+    "Version": "1.0.97"
 }
