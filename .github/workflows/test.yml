@@ -34,7 +34,9 @@ jobs:
           i686-unknown-linux-musl,
           aarch64-unknown-linux-gnu,
           aarch64-unknown-linux-musl,
-          aarch64-apple-darwin
+          aarch64-apple-darwin,
+          riscv64gc-unknown-linux-gnu,
+          riscv64gc-unknown-linux-musl
           ]
         include:
           - label: x86_64-pc-windows-msvc-windowsstore
@@ -121,6 +123,18 @@ jobs:
             runner: ubuntu-latest
             features: selfupdate,binjuliainstaller,binjulialauncher
             rustflags: -C target-feature=+crt-static
+          - label: riscv64gc-unknown-linux-gnu
+            target: riscv64gc-unknown-linux-gnu
+            os: ubuntu
+            runner: ubuntu-latest
+            features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags:
+          - label: riscv64gc-unknown-linux-musl
+            target: riscv64gc-unknown-linux-musl
+            os: ubuntu
+            runner: ubuntu-latest
+            features: selfupdate,binjuliainstaller,binjulialauncher
+            rustflags: -C target-feature=+crt-static
           - label: aarch64-apple-darwin
             target: aarch64-apple-darwin
             os: macos
@@ -150,9 +164,10 @@ jobs:
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
         args: --release --bins --target ${{matrix.target}} --features ${{matrix.features}}
       env:
-        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
         AWS_LC_SYS_CMAKE_BUILDER: "1"
 
   test-juliaup:
@@ -256,9 +271,10 @@ jobs:
       if: ${{ ! contains(matrix.target, 'freebsd') }}
       run: cargo test --target ${{matrix.target}} --features ${{matrix.features}}
       env:
-        CARGO_TARGET_x86_64-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_i686-unknown-linux-musl: ${{matrix.rustflags}}
-        CARGO_TARGET_aarch64-unknown-linux-musl: ${{matrix.rustflags}}
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
+        CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_RUSTFLAGS: ${{matrix.rustflags}}
     - name: Free Disk Space
       if: ${{ contains(matrix.target, 'freebsd') }}
       uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0

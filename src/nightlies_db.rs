@@ -82,6 +82,7 @@ impl Platform {
             "x64" => "x86_64",
             "x86" => "i686",
             "aarch64" => "aarch64",
+            "riscv64" => "riscv64",
             _ => bail!("Unsupported architecture `{}` for nightly channels.", arch),
         };
         Ok(Platform { os, arch })
@@ -105,6 +106,7 @@ impl NightlyFile {
                 ("linux", "x86_64", "x86_64-linux-gnu")
                     | ("linux", "i686", "i686-linux-gnu")
                     | ("linux", "aarch64", "aarch64-linux-gnu")
+                    | ("linux", "riscv64", "riscv64-linux-gnu")
                     | ("mac", "x86_64", "x86_64-apple-darwin14")
                     | ("mac", "aarch64", "aarch64-apple-darwin14")
                     | ("winnt", "x86_64", "x86_64-w64-mingw32")
@@ -389,6 +391,8 @@ mod tests {
         "files": [
           {"arch": "x86_64", "os": "linux", "triplet": "x86_64-linux-gnu", "kind": "archive", "extension": "tar.gz",
            "url": "https://julialangnightlies-s3.julialang.org/bin/linux/x86_64/julia-latest-linux-x86_64.tar.gz"},
+          {"arch": "riscv64", "os": "linux", "triplet": "riscv64-linux-gnu", "kind": "archive", "extension": "tar.gz",
+           "url": "https://julialangnightlies-s3.julialang.org/bin/linux/riscv64/julia-latest-linux-riscv64.tar.gz"},
           {"arch": "riscv64", "os": "plan9", "triplet": "riscv64-plan9", "kind": "hologram", "extension": "tar.gz",
            "url": "https://example.invalid/julia-latest-plan9-riscv64.tar.gz", "future-key": true}
         ],
@@ -419,6 +423,10 @@ mod tests {
     const WIN_X64: Platform = Platform {
         os: "winnt",
         arch: "x86_64",
+    };
+    const LINUX_RISCV64: Platform = Platform {
+        os: "linux",
+        arch: "riscv64",
     };
 
     fn db() -> NightliesDb {
@@ -457,6 +465,9 @@ mod tests {
         assert_eq!(file.extension, "tar.gz");
         let file = db.select(&name("1.13-nightly"), WIN_X64).unwrap();
         assert_eq!(file.label(), "latest-win64");
+
+        let file = db.select(&name("nightly"), LINUX_RISCV64).unwrap();
+        assert_eq!(file.label(), "latest-linux-riscv64");
     }
 
     #[test]
@@ -553,6 +564,7 @@ mod tests {
         assert_eq!(platform.arch, "x86_64");
         assert_eq!(Platform::current("x86").unwrap().arch, "i686");
         assert_eq!(Platform::current("aarch64").unwrap().arch, "aarch64");
+        assert_eq!(Platform::current("riscv64").unwrap().arch, "riscv64");
         assert!(Platform::current("mips").is_err());
     }
 

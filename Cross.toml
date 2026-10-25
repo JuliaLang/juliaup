@@ -18,6 +18,12 @@ image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
 [target.aarch64-unknown-linux-musl]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
 
+[target.riscv64gc-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/riscv64gc-unknown-linux-gnu:edge"
+
+[target.riscv64gc-unknown-linux-musl]
+image = "ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:edge"
+
 # x86_64-linux-gnu is a native build (HOST == target), so aws-lc-sys runs its cc
 # builder memcmp self-check, which panics with the newer GCC in the :edge image
 # (gcc bug 95189). Force aws-lc-sys to use its CMake builder instead, which skips
