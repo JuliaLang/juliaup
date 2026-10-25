@@ -1855,23 +1855,67 @@ fn _remove_symlink(symlink_path: &Path) -> Result<Option<PathBuf>> {
         )
     })?;
 
-    if symlink_path.exists() {
-        let prev_target = std::fs::read_link(symlink_path).with_context(|| {
+    // Use `symlink_metadata` rather than `Path::exists`: `exists` follows the
+    // link, so it reports `false` for a dangling symlink and the stale link
+    // would never be cleaned up.
+    let metadata = match std::fs::symlink_metadata(symlink_path) {
+        Ok(metadata) => metadata,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(e).with_context(|| {
+                format!(
+                    "Failed to inspect existing file at `{}`.",
+                    symlink_path.display()
+                )
+            })
+        }
+    };
+
+    let prev_target = if metadata.file_type().is_symlink() {
+        std::fs::read_link(symlink_path).with_context(|| {
             format!(
                 "Failed to read existing symlink target at `{}`.",
                 symlink_path.display()
             )
-        })?;
-        std::fs::remove_file(symlink_path).with_context(|| {
-            format!(
-                "Failed to remove existing symlink `{}`.",
+        })?
+    } else if metadata.is_file() {
+        // Linked channels are exposed through a shell-script shim (a regular
+        // file), not a symlink, so `read_link` would fail with EINVAL here
+        // (https://github.com/JuliaLang/juliaup/issues/1171). Only delete
+        // files that look like a shim we created ourselves.
+        read_shim_command(symlink_path).ok_or_else(|| {
+            anyhow!(
+                "`{}` exists but was not created by juliaup, refusing to remove it.",
                 symlink_path.display()
             )
-        })?;
-        return Ok(Some(prev_target));
-    }
+        })?
+    } else {
+        bail!(
+            "`{}` exists but is neither a symlink nor a file, refusing to remove it.",
+            symlink_path.display()
+        );
+    };
 
-    Ok(None)
+    std::fs::remove_file(symlink_path).with_context(|| {
+        format!(
+            "Failed to remove existing symlink `{}`.",
+            symlink_path.display()
+        )
+    })?;
+
+    Ok(Some(prev_target))
+}
+
+/// Extract the command from a shim written by `create_linked_channel_shim`.
+/// Returns `None` if the file does not look like such a shim.
+fn read_shim_command(shim_path: &Path) -> Option<PathBuf> {
+    let content = std::fs::read_to_string(shim_path).ok()?;
+    let mut lines = content.lines();
+    if lines.next()? != "#!/bin/sh" {
+        return None;
+    }
+    let command = lines.next()?.trim_end().strip_suffix(r#" "$@""#)?;
+    Some(PathBuf::from(command))
 }
 
 pub fn remove_symlink(symlink_name: &String) -> Result<()> {
