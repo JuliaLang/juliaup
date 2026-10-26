@@ -2,11 +2,23 @@
     "AvailableVersions": {
         "1.14.0-alpha1+0.riscv64.linux.gnu": {
             "UrlPath": "bin/linux/riscv64/1.14/julia-1.14.0-alpha1-linux-riscv64.tar.gz"
+        },
+        "1.14.0-alpha2+0.riscv64.linux.gnu": {
+            "UrlPath": "bin/linux/riscv64/1.14/julia-1.14.0-alpha2-linux-riscv64.tar.gz"
+        },
+        "1.14.0-alpha2+0.riscv64.linux.gnu.opt": {
+            "UrlPath": "bin/linuxopt/riscv64/1.14/julia-1.14.0-alpha2-linuxopt-riscv64.tar.gz"
         }
     },
     "AvailableChannels": {
         "1.14": {
-            "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
+        },
+        "1.14+opt": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
+        },
+        "1.14+opt~riscv64": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
         },
         "1.14.0-alpha1": {
             "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
@@ -14,15 +26,33 @@
         "1.14.0-alpha1~riscv64": {
             "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
         },
+        "1.14.0-alpha2": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
+        },
+        "1.14.0-alpha2+opt": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
+        },
+        "1.14.0-alpha2+opt~riscv64": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
+        },
+        "1.14.0-alpha2~riscv64": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
+        },
         "1.14~riscv64": {
-            "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
         },
         "alpha": {
-            "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
+        },
+        "alpha+opt": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
+        },
+        "alpha+opt~riscv64": {
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu.opt"
         },
         "alpha~riscv64": {
-            "Version": "1.14.0-alpha1+0.riscv64.linux.gnu"
+            "Version": "1.14.0-alpha2+0.riscv64.linux.gnu"
         }
     },
-    "Version": "1.0.97"
+    "Version": "1.0.99"
 }
