@@ -1551,103 +1551,49 @@ fn pr_staging_os_arch(arch: &str) -> Result<&'static str> {
     }
 }
 
-// LEGACY FALLBACK -- delete this function (and its uses) once the PR builds
-// that predate the CI migration to staged PR builds
-// (JuliaCI/julia-buildkite#544) have aged out of the nightlies bucket:
-// before the migration, CI uploaded PR builds as
-// `julia-pr<number>-<os>-<arch>.tar.gz` into the nightlies bucket. Returns
-// `None` for platforms that never had legacy PR uploads.
-fn legacy_pr_download_url_path(id: &str, arch: &str) -> Option<String> {
-    match arch {
-        // https://github.com/JuliaLang/juliaup/issues/903#issuecomment-2183206994
-        "macos-x86_64" => Some("bin/macos/x86_64/julia-".to_owned() + id + "-macos-x86_64.tar.gz"),
-        "macos-aarch64" => {
-            Some("bin/macos/aarch64/julia-".to_owned() + id + "-macos-aarch64.tar.gz")
-        }
-        "win64" => Some("bin/windows/x86_64/julia-".to_owned() + id + "-windows-x86_64.tar.gz"),
-        "win32" => Some("bin/windows/x86/julia-".to_owned() + id + "-windows-x86.tar.gz"),
-        "linux-x86_64" => Some("bin/linux/x86_64/julia-".to_owned() + id + "-linux-x86_64.tar.gz"),
-        "linux-aarch64" => {
-            Some("bin/linux/aarch64/julia-".to_owned() + id + "-linux-aarch64.tar.gz")
-        }
-        "freebsd-x86_64" => {
-            Some("bin/freebsd/x86_64/julia-".to_owned() + id + "-freebsd-x86_64.tar.gz")
-        }
-        _ => None,
-    }
-}
-
 /// Determines the download URL for a PR channel (e.g. `pr12345`) on the
 /// platform named by the juliaup arch identifier `arch` (`x64`, ...).
 ///
 /// CI stages pull request builds write-once into an ephemeral bucket, keyed
 /// by the head commit sha of the PR (JuliaCI/julia-buildkite#544). We resolve
 /// the PR number to its head sha via the GitHub API and use that location if
-/// the build exists there, otherwise we fall back to the legacy pre-migration
-/// location in the nightlies bucket.
+/// the build exists there.
 ///
-/// Also returns the lifecycle state of the PR when the GitHub API lookup
-/// succeeded, so that callers can point out that a merged or closed PR will
-/// not produce further builds.
-fn resolve_pr_download_url(pr_number: u64, arch: &str) -> Result<(Url, Option<PrState>)> {
+/// Also returns the lifecycle state of the PR, so that callers can point out
+/// that a merged or closed PR will not produce further builds.
+fn resolve_pr_download_url(pr_number: u64, arch: &str) -> Result<(Url, PrState)> {
     let platform = build_file_platform(arch)?;
     let os_arch = pr_staging_os_arch(platform)?;
 
-    // The GitHub API lookup can fail without dooming the install (e.g.
-    // anonymous requests are rate-limited), so remember the error and try
-    // the legacy location before giving up.
-    let (staging_url, pr_state, head_sha_error) = match resolve_pr_info(pr_number) {
-        Ok(info) => {
-            let base_url = get_juliaprs_base_url()?;
-            let path = pr_staging_url_path(&info.head_sha, os_arch)?;
-            let url = base_url.join(&path).with_context(|| {
-                format!(
-                    "Failed to construct a valid url from '{}' and '{}'.",
-                    base_url, path
-                )
-            })?;
-            (Some(url), Some(info.state), None)
-        }
-        Err(e) => (None, None, Some(e)),
+    let not_found = || {
+        anyhow!(
+            "No binaries for https://github.com/JuliaLang/julia/pull/{} are currently available \
+             for `{}`. PR binaries expire about 90 days after CI builds them, so the CI of this \
+             pull request may need to be re-run to build fresh binaries, or the pull request may \
+             predate PR binary uploads.",
+            pr_number,
+            platform
+        )
     };
+
+    let info = resolve_pr_info(pr_number).map_err(|e| e.context(not_found()))?;
+    let base_url = get_juliaprs_base_url()?;
+    let path = pr_staging_url_path(&info.head_sha, os_arch)?;
+    let url = base_url.join(&path).with_context(|| {
+        format!(
+            "Failed to construct a valid url from '{}' and '{}'.",
+            base_url, path
+        )
+    })?;
 
     // Note: the staging bucket only grants public GetObject (no ListBucket),
     // so a missing object surfaces as HTTP 403 rather than 404; `url_exists`
     // treats any unsuccessful status as "not there".
-    if let Some(url) = staging_url {
-        if url_exists(url.as_str())? {
-            return Ok((url, pr_state));
-        }
+    if url_exists(url.as_str())? {
+        return Ok((url, info.state));
     }
 
-    // LEGACY FALLBACK -- delete together with `legacy_pr_download_url_path`:
-    // PRs built before the CI migration are still served from the nightlies
-    // bucket until they age out.
-    if let Some(legacy_path) = legacy_pr_download_url_path(&format!("pr{}", pr_number), platform) {
-        let base_url = get_julianightlies_base_url()?;
-        let url = base_url.join(&legacy_path).with_context(|| {
-            format!(
-                "Failed to construct a valid url from '{}' and '{}'.",
-                base_url, legacy_path
-            )
-        })?;
-        if url_exists(url.as_str())? {
-            return Ok((url, pr_state));
-        }
-    }
-
-    let not_found = anyhow!(
-        "No binaries for https://github.com/JuliaLang/julia/pull/{} are currently available \
-         for `{}`. PR binaries expire about 90 days after CI builds them, so the CI of this \
-         pull request may need to be re-run to build fresh binaries, or the pull request may \
-         predate PR binary uploads.",
-        pr_number,
-        platform
-    );
-    Err(match head_sha_error {
-        Some(e) => e.context(not_found),
-        None => not_found,
-    })
+    Err(not_found())
 }
 
 fn has_installed_nightly(config: &JuliaupConfig) -> bool {
@@ -2833,9 +2779,7 @@ fn current_direct_download_url(channel: &str, recorded_url: &str) -> String {
 
     match resolved {
         Ok((url, pr_state)) => {
-            if let Some(state) = pr_state {
-                print_pr_finished_notice(channel, pr_number, state);
-            }
+            print_pr_finished_notice(channel, pr_number, pr_state);
             url.to_string()
         }
         Err(e) => {
@@ -3653,22 +3597,6 @@ mod tests {
         assert_eq!(pr_staging_os_arch("freebsd-x86_64")?, "freebsd-x86_64");
         assert!(pr_staging_os_arch("linux-powerpc64le").is_err());
         Ok(())
-    }
-
-    // LEGACY FALLBACK -- delete together with `legacy_pr_download_url_path`.
-    #[test]
-    fn legacy_pr_url_paths_unchanged() {
-        // Pin the legacy pre-migration URL scheme until the fallback is removed.
-        assert_eq!(
-            legacy_pr_download_url_path("pr12345", "linux-x86_64").as_deref(),
-            Some("bin/linux/x86_64/julia-pr12345-linux-x86_64.tar.gz")
-        );
-        assert_eq!(
-            legacy_pr_download_url_path("pr12345", "win64").as_deref(),
-            Some("bin/windows/x86_64/julia-pr12345-windows-x86_64.tar.gz")
-        );
-        // linux-i686 PR builds only exist in the new staging scheme.
-        assert_eq!(legacy_pr_download_url_path("pr12345", "linux-i686"), None);
     }
 
     #[test]
