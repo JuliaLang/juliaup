@@ -11,9 +11,9 @@ path = "src/main.rs"
 
 [dependencies]
 juliaup = { path = ".." }
-eframe = "0.36"
-egui = "0.36"
-egui_extras = "0.36"
+eframe = "0.37"
+egui = "0.37"
+egui_extras = "0.37"
 anyhow = "1"
 human-panic = "2"
 itertools = "0.15"
