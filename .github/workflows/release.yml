@@ -212,7 +212,7 @@ jobs:
     - uses: actions/checkout@v7
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
+    - uses: egor-tensin/setup-mingw@d54f5ef0ce585bd3fbb1f8a71b5b254f59dbf931 # v3.0
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
@@ -244,7 +244,7 @@ jobs:
         cache-key: ${{matrix.label}}
     - name: Release build
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
+      uses: clechasseur/rs-cargo@62dc8b04d9946cc72018b0c80bd0695ba1f89426 # v5.1.1
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -259,7 +259,7 @@ jobs:
       # Linux GUIs come from the build-juliaupgui-linux job so they run on old
       # glibc; FreeBSD's is built inside the VM below.
       if: ${{ ! contains(matrix.target, 'freebsd') && matrix.os != 'ubuntu' }}
-      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
+      uses: clechasseur/rs-cargo@62dc8b04d9946cc72018b0c80bd0695ba1f89426 # v5.1.1
       with:
         command: build
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
@@ -414,7 +414,7 @@ jobs:
     - uses: actions/checkout@v7
     - if: ${{ contains(matrix.target, '-musl') }}
       run: sudo apt-get install musl-tools
-    - uses: egor-tensin/setup-mingw@41b837e47d7f85214629d255b9c4bc3fcbe9fd63 # v3.0
+    - uses: egor-tensin/setup-mingw@d54f5ef0ce585bd3fbb1f8a71b5b254f59dbf931 # v3.0
       if: ${{ contains(matrix.toolchain, 'stable-i686-gnu') }}
       with:
         platform: x86
@@ -444,7 +444,7 @@ jobs:
         cache-key: ${{matrix.label}}
     - name: Test
       if: ${{ ! contains(matrix.target, 'freebsd') }}
-      uses: clechasseur/rs-cargo@a12d4742fa9b832ccb29dc394a68ab577b0c9fb8 # v5.1.0
+      uses: clechasseur/rs-cargo@62dc8b04d9946cc72018b0c80bd0695ba1f89426 # v5.1.1
       with:
         command: test
         tool: ${{ matrix.os == 'ubuntu' && 'cross' || 'cargo' }}
