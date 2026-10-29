@@ -2552,6 +2552,7 @@ dependencies = [
  "indoc",
  "is-terminal",
  "itertools",
+ "junction",
  "log",
  "nix",
  "normpath",
@@ -2589,6 +2590,16 @@ dependencies = [
  "juliaup",
  "numeric-sort",
  "rfd",
+]
+
+[[package]]
+name = "junction"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cde48f36530cbd91b65f050101e6c056d6eb743cea2a8f0f19beef69c6742ff8"
+dependencies = [
+ "scopeguard",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

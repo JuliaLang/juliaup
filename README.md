@@ -197,6 +197,8 @@ To launch the default Julia version simply run `julia` in your terminal.
 
 To launch a specific Julia version, say in channel `release`, run `julia +release`.
 
+For each installed channel, Juliaup keeps a link at `~/.julia/juliaup/channels/<channel>` to the Julia installation that the channel currently uses. Paths such as `~/.julia/juliaup/channels/1.12/bin/julia` stay valid when `juliaup update` installs a new patch release. These paths bypass the launcher, so overrides and `JULIAUP_CHANNEL` have no effect on them. Linked channels have no entry. Juliaup manages this folder and deletes any other file in it.
+
 ## Overrides
 
 The Julia launcher `julia` automatically determines which specific version of Julia to launch. There are several ways to control and override which Juliaup channel should be used:
