@@ -655,6 +655,9 @@ pub fn save_config_db(
             })?;
     }
 
+    // Every change to the channels goes through here, while the config lock is held.
+    crate::operations::sync_channel_dirs(&juliaup_config_file.data, paths)?;
+
     #[cfg(feature = "selfupdate")]
     {
         // Use the same atomic write pattern for the self config file
