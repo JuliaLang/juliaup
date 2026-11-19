@@ -1761,13 +1761,103 @@ pub fn install_non_db_version(
     Ok((channel_data, used_dmg))
 }
 
+/// The depots to look for installed Julia apps in: those in `JULIA_DEPOT_PATH` and
+/// the default `~/.julia`, which is also included when `JULIA_DEPOT_PATH` is set
+/// since keeping a version that is not needed anymore is harmless.
+fn app_depots() -> Vec<PathBuf> {
+    let home = dirs::home_dir();
+    let mut depots: Vec<PathBuf> = std::env::var_os("JULIA_DEPOT_PATH")
+        .map(|paths| std::env::split_paths(&paths).collect())
+        .unwrap_or_default();
+    if let Some(home) = &home {
+        // Julia expands a leading `~` in the depot path
+        for depot in &mut depots {
+            if let Ok(rest) = depot.strip_prefix("~") {
+                *depot = home.join(rest);
+            }
+        }
+        depots.push(home.join(".julia"));
+    }
+    depots.retain(|depot| !depot.as_os_str().is_empty());
+    depots.dedup();
+    depots
+}
+
+/// The Julia executables that the Julia apps installed in `depot` run with, read
+/// from the `julia_command` of each app in `<depot>/environments/apps/AppManifest.toml`
+/// (written by the Julia package manager).
+pub fn app_julias(depot: &Path) -> Result<Vec<PathBuf>> {
+    let manifest = depot
+        .join("environments")
+        .join("apps")
+        .join("AppManifest.toml");
+    if !manifest.is_file() {
+        return Ok(Vec::new());
+    }
+    let content = std::fs::read_to_string(&manifest)
+        .with_context(|| format!("Failed to read {}.", manifest.display()))?;
+    let data: toml::Table = toml::from_str(&content)
+        .with_context(|| format!("Failed to parse {}.", manifest.display()))?;
+    // Manifest format 2 has the packages under `deps`, format 1 at the top level
+    let deps = match data.get("deps") {
+        Some(toml::Value::Table(deps)) => deps,
+        _ => &data,
+    };
+    let mut julias = Vec::new();
+    for entries in deps.values() {
+        let Some(entries) = entries.as_array() else {
+            continue;
+        };
+        for entry in entries {
+            let Some(apps) = entry.get("apps").and_then(|apps| apps.as_table()) else {
+                continue;
+            };
+            for app in apps.values() {
+                if let Some(julia) = app.get("julia_command").and_then(|j| j.as_str()) {
+                    julias.push(PathBuf::from(julia));
+                }
+            }
+        }
+    }
+    Ok(julias)
+}
+
 pub fn garbage_collect_versions(
     prune_linked: bool,
     config_data: &mut JuliaupConfig,
     paths: &GlobalPaths,
 ) -> Result<()> {
+    // Keep the versions that installed Julia apps run with
+    let mut roots: Vec<(PathBuf, PathBuf)> = Vec::new();
+    let mut keep_all = false;
+    for depot in app_depots() {
+        let julias = match app_julias(&depot) {
+            Ok(julias) => julias,
+            Err(err) => {
+                print_juliaup_style(
+                    "WARNING",
+                    &format!(
+                        "{:#}\nNot removing any Julia versions since some may be used by Julia apps.",
+                        err
+                    ),
+                    JuliaupMessageType::Warning,
+                );
+                keep_all = true;
+                break;
+            }
+        };
+        roots.extend(
+            julias
+                .into_iter()
+                .filter_map(|julia| Some((julia.canonicalize().ok()?, depot.clone()))),
+        );
+    }
+
     let mut versions_to_uninstall: Vec<String> = Vec::new();
     for (installed_version, detail) in &config_data.installed_versions {
+        if keep_all {
+            break;
+        }
         if config_data.installed_channels.iter().all(|j| match &j.1 {
             JuliaupConfigChannel::SystemChannel { version } => version != installed_version,
             _ => true,
@@ -1777,6 +1867,22 @@ pub fn garbage_collect_versions(
             match path_to_delete.canonicalize() {
                 Ok(canonical_path) => {
                     let display = canonical_path.display();
+
+                    if let Some((_, depot)) = roots
+                        .iter()
+                        .find(|(julia, _)| julia.starts_with(&canonical_path))
+                    {
+                        print_juliaup_style(
+                            "Keeping",
+                            &format!(
+                                "Julia {}, it is used by Julia apps in {}",
+                                installed_version,
+                                depot.display()
+                            ),
+                            JuliaupMessageType::Progress,
+                        );
+                        continue;
+                    }
 
                     match std::fs::remove_dir_all(&canonical_path) {
                         Ok(_) => versions_to_uninstall.push(installed_version.clone()),
