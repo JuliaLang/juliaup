@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+env:
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::873569884612:role/juliaup-deploy
+  AWS_S3_BUCKET: julialang2/juliaup
+  AWS_S3_SCRIPT_BUCKET: juliaup-install
+
 jobs:
 
   build-juliaup:
@@ -494,6 +499,9 @@ jobs:
     environment: package
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
     - name: Download Linux x64 musl juliaup artifact
       uses: actions/download-artifact@v8
@@ -651,12 +659,15 @@ jobs:
         mv target/installer/aarch64-apple-darwin/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-aarch64-apple-darwin
         cp target/installer/riscv64gc-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-riscv64gc-unknown-linux-gnu
         mv target/installer/riscv64gc-unknown-linux-musl/juliainstaller public/bin/juliainstaller-${{ env.VERSION }}-riscv64gc-unknown-linux-musl
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload to S3
       run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   package-unix-portable:
     needs: [build-juliaup,build-juliaupgui-linux,test-juliaup]
@@ -834,7 +845,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
-      id-token: write
+      id-token: write # OIDC tokens (JWT) for Azure login (code signing) and the AWS role for the S3 upload
     steps:
     # - name: Force old Powershell version
     #   shell: cmd
@@ -946,12 +957,16 @@ jobs:
       run: |
         md public/winappinstaller
         Move-Item target/msix/winappinstallermsix/* public/winappinstaller
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload to S3
       run: |
-        aws s3 sync public s3://${{ secrets.AWS_S3_BUCKET }}/ --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE --region us-east-1 --no-progress
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws s3 sync public s3://${{ env.AWS_S3_BUCKET }}/ --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE --region us-east-1 --no-progress
     - uses: actions/upload-artifact@v7
       with:
         name: storepackage
@@ -968,7 +983,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: read
-      id-token: write
+      id-token: write # OIDC tokens (JWT) for Azure login (code signing) and the AWS role for the S3 upload
     steps:
     - uses: actions/checkout@v7
     - name: Install Wix
@@ -1047,12 +1062,16 @@ jobs:
       run: |
         md public/winmsi
         Move-Item target/msi/Julia*.msi public/winmsi
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload to S3
       run: |
-        aws s3 sync public s3://${{ secrets.AWS_S3_BUCKET }}/ --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE --region us-east-1 --no-progress
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws s3 sync public s3://${{ env.AWS_S3_BUCKET }}/ --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE --region us-east-1 --no-progress
 
   create-github-release:
     needs: [test-juliaup]
@@ -1313,6 +1332,9 @@ jobs:
     environment: dev-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
       - uses: actions/checkout@v7
       - name: Create output dirs
@@ -1338,24 +1360,26 @@ jobs:
           sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel dev|g' publicscript/dev/install.sh
         env:
           VERSION: ${{ env.VERSION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          # Uploads take under a minute but 900s is the shortest session STS allows
+          role-duration-seconds: 900
       - name: Upload to S3
         run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Upload install script to S3
-        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=0 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: aws s3 sync publicscript s3://$AWS_S3_SCRIPT_BUCKET --cache-control public,max-age=0 --metadata-directive REPLACE
 
   deploy-releasepreview-channel-s3:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-preview-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
       - uses: actions/checkout@v7
       - name: Create output dirs
@@ -1377,24 +1401,26 @@ jobs:
           sed -i -e 's|THISISREPLACEDWITHCHANNELCONFIGINGITHUBWORKFLOW|--juliaup-channel releasepreview|g' publicscript/releasepreview/install.sh
         env:
           VERSION: ${{ env.VERSION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          # Uploads take under a minute but 900s is the shortest session STS allows
+          role-duration-seconds: 900
       - name: Upload to S3
         run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=300 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Upload install script to S3
-        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=300 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: aws s3 sync publicscript s3://$AWS_S3_SCRIPT_BUCKET --cache-control public,max-age=300 --metadata-directive REPLACE
 
   deploy-release-channel-s3:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]
     environment: release-channel
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
       - uses: actions/checkout@v7
       - name: Create output dirs
@@ -1426,18 +1452,17 @@ jobs:
           mv publicscript/Julia-v${{ env.VERSION }}-x86.msi publicscript/Julia-x86.msi
         env:
           VERSION: ${{ env.VERSION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          # Uploads take under a minute but 900s is the shortest session STS allows
+          role-duration-seconds: 900
       - name: Upload to S3
         run: aws s3 sync public s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=3600 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Upload install script to S3
-        run: aws s3 sync publicscript s3://$AWS_S3_BUCKET --cache-control public,max-age=3600 --metadata-directive REPLACE
-        env:
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_SCRIPT_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: aws s3 sync publicscript s3://$AWS_S3_SCRIPT_BUCKET --cache-control public,max-age=3600 --metadata-directive REPLACE
 
   deploy-release-channel-github:
     needs: [create-github-release,package-unix,package-windows-msix,package-windows-msi]

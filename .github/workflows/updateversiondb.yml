@@ -8,8 +8,12 @@ concurrency:
   cancel-in-progress: true  
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+
+env:
+  AWS_DEPLOY_ROLE_ARN: arn:aws:iam::873569884612:role/juliaup-deploy
+  AWS_S3_BUCKET: julialang2/juliaup
+  AWS_S3_SCRIPT_BUCKET: juliaup-install
 
 jobs:
 
@@ -36,6 +40,10 @@ jobs:
     environment: dev-channel
     runs-on: ubuntu-latest
     if: needs.update-versiondb.outputs.versionDbIsUpdated == 'true'
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
     - uses: actions/checkout@v7
     - name: Download script output
@@ -43,18 +51,17 @@ jobs:
       with:
         name: scriptoutput
         path: scriptoutputfolder
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload version db
       run: aws s3 sync scriptoutputfolder/newversiondbs s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=2678400 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - name: Upload version file
       run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     - run: |
         mv scriptoutputfolder/versiondbbuild/* versiondb
         rm -rf scriptoutputfolder
@@ -75,6 +82,9 @@ jobs:
     needs: [upload_versiondb]
     environment: dev-channel
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
     - name: Download script output
       uses: actions/download-artifact@v8
@@ -83,17 +93,23 @@ jobs:
         path: scriptoutputfolder
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/DEVCHANNELDBVERSION
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload version file
       run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   upload_versiondb_releasepreview_channel:
     needs: [upload_versiondb]
     environment: release-preview-channel
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
     - name: Download script output
       uses: actions/download-artifact@v8
@@ -102,17 +118,23 @@ jobs:
         path: scriptoutputfolder
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASEPREVIEWCHANNELDBVERSION
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload version file
       run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   upload_versiondb_release_channel:
     needs: [upload_versiondb]
     environment: release-channel
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token (JWT) to assume the AWS role for the S3 upload
     steps:
     - name: Download script output
       uses: actions/download-artifact@v8
@@ -121,9 +143,12 @@ jobs:
         path: scriptoutputfolder
     - run: |
         mv scriptoutputfolder/versionfile/DBVERSION scriptoutputfolder/versionfile/RELEASECHANNELDBVERSION
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+        aws-region: us-east-1
+        # Uploads take under a minute but 900s is the shortest session STS allows
+        role-duration-seconds: 900
     - name: Upload version file
       run: aws s3 sync scriptoutputfolder/versionfile s3://$AWS_S3_BUCKET --acl public-read --cache-control public,max-age=0 --metadata-directive REPLACE
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
