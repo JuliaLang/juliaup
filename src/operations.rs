@@ -34,6 +34,7 @@ use semver::Version;
 #[cfg(not(windows))]
 use std::os::unix::fs::PermissionsExt;
 
+use normpath::PathExt;
 use std::{
     io::{BufReader, Read, Seek, Write},
     path::{Path, PathBuf},
@@ -2075,6 +2076,143 @@ pub fn create_symlink(
 #[cfg(windows)]
 pub fn create_symlink(_: &JuliaupConfigChannel, _: &String, _paths: &GlobalPaths) -> Result<()> {
     Ok(())
+}
+
+/// Makes `<juliauphome>/channels/<channel>` a link to the root directory of
+/// the Julia installation that `<channel>` currently uses, so that paths such
+/// as `channels/<channel>/bin/julia` stay valid when the channel is updated.
+/// Aliases link to the installation of their target channel. Linked channels
+/// have no installation directory and get no entry.
+///
+/// The channels directory holds nothing else: any other file or directory in
+/// it is deleted.
+///
+/// Entries are symlinks on Unix and directory junctions on Windows, which do
+/// not need administrator rights.
+pub fn sync_channel_dirs(config_data: &JuliaupConfig, paths: &GlobalPaths) -> Result<()> {
+    let channels_dir = paths.juliauphome.join("channels");
+    std::fs::create_dir_all(&channels_dir)
+        .with_context(|| format!("Failed to create `{}`.", channels_dir.display()))?;
+
+    let mut wanted = std::collections::HashMap::new();
+    for (name, channel) in &config_data.installed_channels {
+        let resolved = match channel {
+            JuliaupConfigChannel::AliasChannel { target, .. } => {
+                config_data.installed_channels.get(target)
+            }
+            other => Some(other),
+        };
+        let root = match resolved {
+            Some(JuliaupConfigChannel::SystemChannel { version }) => {
+                match config_data.installed_versions.get(version) {
+                    Some(info) => julia_root_dir(&info.path, info.binary_path.as_deref(), paths),
+                    None => Err(anyhow!("Julia {version} is not installed.")),
+                }
+            }
+            Some(JuliaupConfigChannel::DirectDownloadChannel {
+                path, binary_path, ..
+            }) => julia_root_dir(path, binary_path.as_deref(), paths),
+            // Linked channels, and aliases whose target is not installed.
+            _ => continue,
+        };
+        // A broken channel must not block the commands that repair it, such as `juliaup update`.
+        let root = match root {
+            Ok(root) => root,
+            Err(err) => {
+                print_juliaup_style(
+                    "WARNING",
+                    &format!(
+                        "Channel `{name}` gets no entry in `{}`: {err:#}",
+                        channels_dir.display()
+                    ),
+                    JuliaupMessageType::Warning,
+                );
+                continue;
+            }
+        };
+        if Path::new(name).file_name() != Some(std::ffi::OsStr::new(name)) {
+            print_juliaup_style(
+                "WARNING",
+                &format!("Channel name `{name}` is not a valid directory name, so it gets no entry in `{}`.", channels_dir.display()),
+                JuliaupMessageType::Warning,
+            );
+            continue;
+        }
+        wanted.insert(name.as_str(), root);
+    }
+
+    for entry in std::fs::read_dir(&channels_dir)
+        .with_context(|| format!("Failed to read `{}`.", channels_dir.display()))?
+    {
+        let link = entry?.path();
+        let name = link
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        let current = std::fs::canonicalize(&link).ok();
+        let up_to_date = current.is_some()
+            && wanted
+                .get(name)
+                .is_some_and(|target| current == std::fs::canonicalize(target).ok());
+        if up_to_date {
+            wanted.remove(name);
+        } else {
+            remove_channel_entry(&link)?;
+        }
+    }
+
+    // shortcut: remove-then-create leaves a short window without the entry; switch to
+    // create-temp-and-rename if a process that starts during an update fails because of it.
+    for (name, target) in wanted {
+        let link = channels_dir.join(name);
+        #[cfg(windows)]
+        let created = junction::create(&target, &link);
+        #[cfg(not(windows))]
+        let created = std::os::unix::fs::symlink(&target, &link);
+        created.with_context(|| {
+            format!(
+                "Failed to link `{}` to `{}`.",
+                link.display(),
+                target.display()
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+/// The directory that contains `bin/julia` for an installation stored at
+/// `path` (relative to the juliaup home).
+fn julia_root_dir(path: &str, binary_path: Option<&str>, paths: &GlobalPaths) -> Result<PathBuf> {
+    let binary = match binary_path {
+        Some(bp) => paths.juliauphome.join(bp),
+        None => crate::utils::resolve_julia_binary_path(&paths.juliauphome.join(path))?,
+    };
+    let root = binary
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| anyhow!("Unexpected Julia binary path `{}`.", binary.display()))?;
+    Ok(root.normalize()?.into_path_buf())
+}
+
+/// Removes an entry of the channels directory without following links.
+fn remove_channel_entry(path: &Path) -> Result<()> {
+    let file_type = std::fs::symlink_metadata(path)
+        .with_context(|| format!("Failed to inspect `{}`.", path.display()))?
+        .file_type();
+    // Junctions and directory symlinks are directories on Windows, files on Unix.
+    #[cfg(windows)]
+    let dir_link = std::os::windows::fs::FileTypeExt::is_symlink_dir(&file_type);
+    #[cfg(not(windows))]
+    let dir_link = false;
+    let removed = if file_type.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else if dir_link {
+        std::fs::remove_dir(path)
+    } else {
+        std::fs::remove_file(path)
+    };
+    removed.with_context(|| format!("Failed to remove `{}`.", path.display()))
 }
 
 #[cfg(feature = "selfupdate")]
