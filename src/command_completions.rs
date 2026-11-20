@@ -124,14 +124,30 @@ fn generate_completions_to_writer<T: CommandFactory>(
     app_name: &str,
     writer: &mut impl Write,
 ) {
-    if matches!(shell, CompletionShell::Zsh) {
-        generate_zsh_compinit_guard(writer);
-    }
     let mut cmd = T::command();
-    match GeneratorType::from(shell.clone()) {
-        GeneratorType::Standard(s) => generate(s, &mut cmd, app_name, writer),
-        GeneratorType::Nushell => {
-            generate(clap_complete_nushell::Nushell, &mut cmd, app_name, writer)
+    if matches!(shell, CompletionShell::Zsh) {
+        // clap_complete's zsh output starts with a `#compdef <name>` line.
+        // zsh's compinit only recognizes a file in $fpath as a completion
+        // function if that line is literally the first line of the file, so
+        // the compinit guard must be inserted after it rather than before it
+        // (see #1580).
+        let mut generated = Vec::new();
+        generate(Shell::Zsh, &mut cmd, app_name, &mut generated);
+        let split_at = generated
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|i| i + 1)
+            .unwrap_or(generated.len());
+        let (compdef_line, rest) = generated.split_at(split_at);
+        let _ = writer.write_all(compdef_line);
+        generate_zsh_compinit_guard(writer);
+        let _ = writer.write_all(rest);
+    } else {
+        match GeneratorType::from(shell.clone()) {
+            GeneratorType::Standard(s) => generate(s, &mut cmd, app_name, writer),
+            GeneratorType::Nushell => {
+                generate(clap_complete_nushell::Nushell, &mut cmd, app_name, writer)
+            }
         }
     }
     generate_julia_launcher_completion(shell, writer);
