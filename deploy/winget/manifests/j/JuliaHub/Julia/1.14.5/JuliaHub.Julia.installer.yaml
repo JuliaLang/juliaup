@@ -1,0 +1,17 @@
+# Created using wingetcreate 1.5.7.0
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.5.0.schema.json
+
+PackageIdentifier: JuliaHub.Julia
+PackageVersion: 1.14.5
+InstallerLocale: en-US
+InstallerType: wix
+ProductCode: '{33B218FF-20BD-47ED-B4A7-330A8C6C59B4}'
+Installers:
+- InstallerUrl: https://julialang-s3.julialang.org/juliaup/winmsi/Julia-v1.14.5-x64.msi
+  Architecture: x64
+  InstallerSha256: 901CC72C9FF94838876C05ADC8E540592FEE6D18827C288BEF97CFE6F01F888D
+- InstallerUrl: https://julialang-s3.julialang.org/juliaup/winmsi/Julia-v1.14.5-x86.msi
+  Architecture: x86
+  InstallerSha256: 1F753A8144E5951F6AB1643E36B989934DA34E540F65DCEA03B994806287173B
+ManifestType: installer
+ManifestVersion: 1.5.0
